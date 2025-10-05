@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HDM-X Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-link {
+            display: block;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            text-decoration: none;
+            color: #0066cc;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .test-link:hover {
+            background: #e0e0e0;
+        }
+        .debug-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>HDM-X Debug Test Page</h1>
+    
+    <div class="debug-info">
+        <h3>调试说明：</h3>
+        <ol>
+            <li>打开浏览器开发者工具 (F12)</li>
+            <li>查看 Console 标签页</li>
+            <li>刷新页面，查看 HDM-X 初始化日志</li>
+            <li>鼠标悬停在下面的链接上</li>
+            <li>观察控制台输出和按钮显示</li>
+        </ol>
+    </div>
+
+    <h2>测试链接：</h2>
+    
+    <a href="https://example.com/test.zip" class="test-link">
+        📦 Test ZIP File (应该显示 HDM-X 按钮)
+    </a>
+    
+    <a href="https://example.com/app.exe" class="test-link">
+        💻 Test EXE File (应该显示 HDM-X 按钮)
+    </a>
+    
+    <a href="https://example.com/document.pdf" class="test-link">
+        📄 Test PDF File (应该显示 HDM-X 按钮)
+    </a>
+    
+    <a href="https://example.com/page.html" class="test-link">
+        🌐 Regular Web Page (不应该显示按钮)
+    </a>
+
+    <script>
+        // Add some debug information
+        console.log('Debug Test Page: DOM loaded');
+        
+        // Check if extension is loaded
+        setTimeout(() => {
+            const containers = document.querySelectorAll('.hdmx-button-container');
+            console.log(`Debug Test Page: Found ${containers.length} HDM-X button containers`);
+            
+            if (containers.length === 0) {
+                console.warn('Debug Test Page: No HDM-X buttons found! Extension may not be loaded or enabled.');
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

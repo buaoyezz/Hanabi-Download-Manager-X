@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HDM-X Extension Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background: #f8f9fa;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section h2 {
+            color: #333;
+            margin-top: 0;
+            border-bottom: 2px solid #ff79c6;
+            padding-bottom: 10px;
+        }
+        .link-list {
+            list-style: none;
+            padding: 0;
+        }
+        .link-list li {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 6px;
+            border-left: 4px solid #bd93f9;
+        }
+        .link-list a {
+            color: #0066cc;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 16px;
+        }
+        .link-list a:hover {
+            text-decoration: underline;
+            color: #ff79c6;
+        }
+        .description {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 8px;
+            font-style: italic;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .should-show {
+            background: #d4edda;
+            color: #155724;
+        }
+        .should-not-show {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .test-instructions {
+            background: #e7f3ff;
+            border-left: 4px solid #0066cc;
+        }
+        .hover-test {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 HDM-X Browser Extension Test Page</h1>
+    <p>This page contains various types of links to test the HDM-X extension functionality. <strong>Hover over links to see HDM-X buttons appear!</strong></p>
+
+    <div class="test-section hover-test">
+        <h2>✅ Direct Download Links (Should show HDM-X button on hover)</h2>
+        <ul class="link-list">
+            <li>
+                <a href="https://example.com/software.zip">Download ZIP File</a>
+                <span class="status should-show">SHOULD SHOW</span>
+                <div class="description">Direct ZIP download link - hover to see HDM-X button</div>
+            </li>
+            <li>
+                <a href="https://github.com/user/repo/releases/download/v1.0/app.exe">Windows Application</a>
+                <span class="status should-show">SHOULD SHOW</span>
+                <div class="description">Direct EXE download from GitHub releases</div>
+            </li>
+            <li>
+                <a href="https://example.com/document.pdf">PDF Document</a>
+                <span class="status should-show">SHOULD SHOW</span>
+                <div class="description">Direct PDF download</div>
+            </li>
+            <li>
+                <a href="https://example.com/installer.msi">MSI Installer</a>
+                <span class="status should-show">SHOULD SHOW</span>
+                <div class="description">Windows MSI installer package</div>
+            </li>
+            <li>
+                <a href="https://example.com/archive.7z">7-Zip Archive</a>
+                <span class="status should-show">SHOULD SHOW</span>
+                <div class="description">7-Zip compressed file</div>
+            </li>
+            <li>
+                <a href="https://example.com/video.mp4">MP4 Video</a>
+                <span class="status should-show">SHOULD SHOW</span>
+                <div class="description">Direct MP4 video file</div>
+            </li>
+            <li>
+                <a href="https://example.com/music.mp3">MP3 Audio</a>
+                <span class="status should-show">SHOULD SHOW</span>
+                <div class="description">Direct MP3 audio file</div>
+            </li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>❌ Non-Direct Links (Should NOT show HDM-X button)</h2>
+        <ul class="link-list">
+            <li>
+                <a href="https://example.com/gallery/image.jpg">Gallery Image</a>
+                <span class="status should-not-show">SHOULD NOT SHOW</span>
+                <div class="description">Image in gallery path (not direct download)</div>
+            </li>
+            <li>
+                <a href="https://example.com/view/document.pdf">View PDF</a>
+                <span class="status should-not-show">SHOULD NOT SHOW</span>
+                <div class="description">PDF viewer page (not direct download)</div>
+            </li>
+            <li>
+                <a href="https://example.com/thumb/photo.png">Thumbnail Image</a>
+                <span class="status should-not-show">SHOULD NOT SHOW</span>
+                <div class="description">Thumbnail image (not direct download)</div>
+            </li>
+            <li>
+                <a href="https://example.com/page.html">Regular Web Page</a>
+                <span class="status should-not-show">SHOULD NOT SHOW</span>
+                <div class="description">Normal HTML page</div>
+            </li>
+            <li>
+                <a href="https://example.com/preview/file.zip">File Preview</a>
+                <span class="status should-not-show">SHOULD NOT SHOW</span>
+                <div class="description">File preview page (not direct download)</div>
+            </li>
+            <li>
+                <a href="https://example.com/photos/album/pic.jpg">Album Photo</a>
+                <span class="status should-not-show">SHOULD NOT SHOW</span>
+                <div class="description">Photo in album (not direct download)</div>
+            </li>
+            <li>
+                <a href="https://example.com/show/video.mp4">Show Video</a>
+                <span class="status should-not-show">SHOULD NOT SHOW</span>
+                <div class="description">Video player page (not direct download)</div>
+            </li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>🔍 Edge Cases</h2>
+        <ul class="link-list">
+            <li>
+                <a href="https://example.com/file.zip?download=true&token=abc123">ZIP with Query Parameters</a>
+                <span class="status should-show">SHOULD SHOW</span>
+                <div class="description">Direct download with query params</div>
+            </li>
+            <li>
+                <a href="https://example.com/app.exe#download">EXE with Fragment</a>
+                <span class="status should-show">SHOULD SHOW</span>
+                <div class="description">Direct download with fragment identifier</div>
+            </li>
+            <li>
+                <a href="javascript:void(0)">JavaScript Link</a>
+                <span class="status should-not-show">SHOULD NOT SHOW</span>
+                <div class="description">JavaScript pseudo-link (should be ignored)</div>
+            </li>
+            <li>
+                <a href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==">Data URL</a>
+                <span class="status should-not-show">SHOULD NOT SHOW</span>
+                <div class="description">Data URL (should be ignored)</div>
+            </li>
+            <li>
+                <a href="https://example.com/action=view&file=document.pdf">PDF with View Action</a>
+                <span class="status should-not-show">SHOULD NOT SHOW</span>
+                <div class="description">PDF with view action (not direct download)</div>
+            </li>
+        </ul>
+    </div>
+
+    <div class="test-section test-instructions">
+        <h2>📋 Test Instructions</h2>
+        <ol>
+            <li><strong>Install the HDM-X browser extension</strong></li>
+            <li><strong>Make sure link detection is enabled</strong> in the extension popup settings</li>
+            <li><strong>Hover over links</strong> in the "Direct Download Links" section - HDM-X buttons should appear smoothly</li>
+            <li><strong>Move mouse away</strong> - buttons should disappear after a short delay</li>
+            <li><strong>Hover over links</strong> in the "Non-Direct Links" section - NO buttons should appear</li>
+            <li><strong>Test settings toggle:</strong>
+                <ul>
+                    <li>Disable link detection in extension settings</li>
+                    <li>Refresh this page</li>
+                    <li>No buttons should appear anywhere when hovering</li>
+                    <li>Re-enable link detection and refresh</li>
+                    <li>Buttons should appear again for direct download links only</li>
+                </ul>
+            </li>
+            <li><strong>Wait 3 seconds</strong> for dynamic content to load and test mutation observer</li>
+        </ol>
+    </div>
+
+    <div id="dynamic-content-placeholder"></div>
+
+    <script>
+        // Add some dynamic content to test mutation observer
+        setTimeout(() => {
+            const dynamicSection = document.createElement('div');
+            dynamicSection.className = 'test-section';
+            dynamicSection.style.border = '2px dashed #28a745';
+            dynamicSection.innerHTML = `
+                <h2>🔄 Dynamically Added Links (Added after 3 seconds)</h2>
+                <p><em>These links were added dynamically to test the mutation observer functionality.</em></p>
+                <ul class="link-list">
+                    <li>
+                        <a href="https://example.com/dynamic-software.zip">Dynamic ZIP File</a>
+                        <span class="status should-show">SHOULD SHOW</span>
+                        <div class="description">Dynamically added direct download link</div>
+                    </li>
+                    <li>
+                        <a href="https://example.com/dynamic-installer.exe">Dynamic EXE File</a>
+                        <span class="status should-show">SHOULD SHOW</span>
+                        <div class="description">Dynamically added executable</div>
+                    </li>
+                    <li>
+                        <a href="https://example.com/dynamic-page.html">Dynamic Page</a>
+                        <span class="status should-not-show">SHOULD NOT SHOW</span>
+                        <div class="description">Dynamically added regular link</div>
+                    </li>
+                    <li>
+                        <a href="https://example.com/gallery/dynamic-image.jpg">Dynamic Gallery Image</a>
+                        <span class="status should-not-show">SHOULD NOT SHOW</span>
+                        <div class="description">Dynamically added gallery image (not direct)</div>
+                    </li>
+                </ul>
+            `;
+            
+            const placeholder = document.getElementById('dynamic-content-placeholder');
+            placeholder.appendChild(dynamicSection);
+            
+            // Add a notification
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #28a745;
+                color: white;
+                padding: 12px 16px;
+                border-radius: 6px;
+                font-weight: bold;
+                z-index: 10000;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            `;
+            notification.textContent = '✅ Dynamic content loaded! Test the new links.';
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    document.body.removeChild(notification);
+                }
+            }, 3000);
+            
+        }, 3000);
+
+        // Add hover effect to test sections
+        document.querySelectorAll('.test-section').forEach(section => {
+            section.addEventListener('mouseenter', () => {
+                section.style.transform = 'translateY(-2px)';
+                section.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+            });
+            
+            section.addEventListener('mouseleave', () => {
+                section.style.transform = 'translateY(0)';
+                section.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+            });
+        });
+    </script>
+</body>
+</html>

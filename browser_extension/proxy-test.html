@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HDM-X 代理下载测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            line-height: 1.6;
+            background: #f8f9fa;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section h2 {
+            color: #333;
+            margin-top: 0;
+            border-bottom: 2px solid #ff79c6;
+            padding-bottom: 10px;
+        }
+        .download-link {
+            display: inline-block;
+            margin: 10px 15px 10px 0;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #ff79c6, #bd93f9);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .download-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 121, 198, 0.3);
+        }
+        .instructions {
+            background: #e7f3ff;
+            border-left: 4px solid #0066cc;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .status {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .connection-status {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 HDM-X 代理下载测试页面</h1>
+    
+    <div class="status">
+        <h3>📊 连接状态</h3>
+        <div id="connection-info">
+            <span class="connection-status disconnected" id="connection-status">检查中...</span>
+            <div id="client-info" style="margin-top: 10px; font-size: 14px; color: #666;"></div>
+        </div>
+    </div>
+
+    <div class="instructions">
+        <h3>📋 测试说明</h3>
+        <ol>
+            <li><strong>确保HDM-X客户端正在运行</strong>并监听WebSocket连接 (ws://localhost:8080/ws)</li>
+            <li><strong>打开HDM-X扩展popup</strong>，确保"代理下载"开关已启用</li>
+            <li><strong>点击下面的下载链接</strong>，浏览器应该会取消下载并转发到HDM-X</li>
+            <li><strong>查看HDM-X客户端</strong>，确认下载任务已添加</li>
+            <li><strong>打开浏览器开发者工具</strong> (F12) 查看控制台日志</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>📦 测试下载链接</h2>
+        <p>点击这些链接应该会被HDM-X拦截并转发到客户端：</p>
+        
+        <a href="https://httpbin.org/bytes/1024?seed=test" class="download-link" download="test-1kb.bin">
+            📄 测试文件 (1KB)
+        </a>
+        
+        <a href="https://httpbin.org/bytes/10240?seed=test2" class="download-link" download="test-10kb.bin">
+            📄 测试文件 (10KB)
+        </a>
+        
+        <a href="https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf" class="download-link">
+            📄 PDF 测试文件
+        </a>
+        
+        <a href="https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4" class="download-link">
+            🎥 视频测试文件
+        </a>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 调试信息</h2>
+        <div id="debug-info">
+            <p>打开浏览器开发者工具查看详细日志...</p>
+        </div>
+    </div>
+
+    <script>
+        // 检查扩展连接状态
+        async function checkExtensionStatus() {
+            try {
+                // 尝试获取扩展存储的连接状态
+                if (typeof chrome !== 'undefined' && chrome.storage) {
+                    chrome.storage.local.get(['isConnected', 'clientVersion', 'shouldDisableProxy'], (result) => {
+                        const statusEl = document.getElementById('connection-status');
+                        const infoEl = document.getElementById('client-info');
+                        
+                        if (result.isConnected) {
+                            statusEl.textContent = '✅ 已连接到HDM-X客户端';
+                            statusEl.className = 'connection-status connected';
+                            infoEl.innerHTML = `
+                                <div>客户端版本: ${result.clientVersion || 'Unknown'}</div>
+                                <div>代理下载: ${result.shouldDisableProxy ? '❌ 已禁用' : '✅ 已启用'}</div>
+                            `;
+                        } else {
+                            statusEl.textContent = '❌ 未连接到HDM-X客户端';
+                            statusEl.className = 'connection-status disconnected';
+                            infoEl.innerHTML = '<div>请确保HDM-X客户端正在运行</div>';
+                        }
+                    });
+                } else {
+                    document.getElementById('connection-status').textContent = '⚠️ 扩展API不可用';
+                }
+            } catch (error) {
+                console.error('检查扩展状态失败:', error);
+                document.getElementById('connection-status').textContent = '❌ 检查失败';
+            }
+        }
+
+        // 监听下载事件
+        document.querySelectorAll('.download-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                console.log('HDM-X Proxy Test: 点击下载链接:', e.target.href);
+                
+                // 添加视觉反馈
+                const originalText = e.target.textContent;
+                e.target.textContent = '⏳ 处理中...';
+                e.target.style.background = 'linear-gradient(135deg, #6b7280, #9ca3af)';
+                
+                setTimeout(() => {
+                    e.target.textContent = originalText;
+                    e.target.style.background = 'linear-gradient(135deg, #ff79c6, #bd93f9)';
+                }, 2000);
+            });
+        });
+
+        // 页面加载时检查状态
+        document.addEventListener('DOMContentLoaded', () => {
+            checkExtensionStatus();
+            
+            // 每5秒更新一次状态
+            setInterval(checkExtensionStatus, 5000);
+        });
+
+        // 添加调试信息
+        console.log('HDM-X Proxy Test: 测试页面已加载');
+        console.log('HDM-X Proxy Test: 请确保HDM-X客户端正在运行并监听 ws://localhost:8080/ws');
+    </script>
+</body>
+</html>

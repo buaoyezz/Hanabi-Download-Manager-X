@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple HDM-X Test</title>
+</head>
+<body>
+    <h1>Simple Test</h1>
+    <p>Open browser console (F12) to see debug messages.</p>
+    
+    <a href="https://example.com/test.zip">Test ZIP Download</a><br><br>
+    <a href="https://example.com/app.exe">Test EXE Download</a><br><br>
+    <a href="https://example.com/doc.pdf">Test PDF Download</a><br><br>
+    
+    <script>
+        console.log('Simple test page loaded');
+        
+        // Check if HDM-X extension is working
+        setTimeout(() => {
+            console.log('Checking for HDM-X buttons...');
+            const buttons = document.querySelectorAll('.hdmx-button-container');
+            console.log('Found', buttons.length, 'HDM-X button containers');
+            
+            if (buttons.length > 0) {
+                console.log('✅ HDM-X extension is working!');
+            } else {
+                console.log('❌ HDM-X extension not working or not loaded');
+            }
+        }, 3000);
+    </script>
+</body>
+</html>
