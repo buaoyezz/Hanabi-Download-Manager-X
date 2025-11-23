@@ -1,4 +1,0 @@
-aiohttp==3.9.5
-aiofiles==23.2.1
-websockets==12.0
-flet>=0.22.0
