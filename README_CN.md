@@ -67,17 +67,11 @@
    flutter pub get
    flutter run
    ```
-
----
-
-<a name="ui-设计归属"></a>
-## 宣传图设计归属
+> [!TIP]
 本项目 readme 部分宣传图使用了 Figma 社区模板  
 **作者**：Arafat Mahfuz  
 **来源**：[XpressWave Delivery Management Software](https://www.figma.com/community/file/1295799331129179420/xpresswave-delivery-management-software)  
 **许可证**：[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
-
----
 
 <a name="许可证"></a>
 ## 许可证
