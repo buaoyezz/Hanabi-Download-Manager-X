@@ -6,6 +6,9 @@ import 'services/integrated_download_service.dart';
 import 'services/kernel_service.dart';
 import 'services/download_listener_service.dart';
 import 'services/system_tray_service.dart';
+import 'services/app_logger_service.dart';
+import 'services/network_status_service.dart';
+import 'services/developer_mode_service.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
 
@@ -20,6 +23,16 @@ void main(List<String> args) async {
   
   final kernelService = KernelService();
   
+  // 初始化服务
+  final appLogger = AppLoggerService();
+  final networkStatus = NetworkStatusService();
+  final developerMode = DeveloperModeService();
+  
+  appLogger.info('App', 'Application starting...');
+  networkStatus.startMonitoring();
+  await developerMode.loadSettings();
+  appLogger.info('App', 'Services initialized');
+
   runApp(
     MultiProvider(
       providers: [
@@ -28,6 +41,9 @@ void main(List<String> args) async {
           create: (context) => IntegratedDownloadService(kernelService),
           update: (context, kernel, previous) => previous ?? IntegratedDownloadService(kernel),
         ),
+        ChangeNotifierProvider.value(value: appLogger),
+        ChangeNotifierProvider.value(value: networkStatus),
+        ChangeNotifierProvider.value(value: developerMode),
         Provider<bool>.value(value: isAutoStart), // 传递启动模式
       ],
       child: const MyApp(),
@@ -82,7 +98,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   Future<void> _initSystemTray() async {
-    await systemTrayService.initialize();
+    final kernelService = context.read<KernelService>();
+    await systemTrayService.initialize(kernelService: kernelService);
     final isAutoStart = context.read<bool>();
     if (!isAutoStart) {
       systemTrayService.showMainWindow();
@@ -112,24 +129,33 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   Future<void> _cleanup() async {
-    print('🔴 App cleanup started');
     _downloadListener?.stopListening();
     
     // 停止kernel服务
-    if (mounted) {
+    try {
       final kernelService = context.read<KernelService>();
       await kernelService.stopKernel();
+    } catch (e) {
+      // 忽略错误，确保清理继续
     }
     
     systemTrayService.dispose();
-    print('🔴 App cleanup completed');
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    // dispose中不能使用async，所以直接调用stopKernel的同步版本
-    _cleanup();
+    // 同步清理，不等待异步操作
+    _downloadListener?.stopListening();
+    systemTrayService.dispose();
+    
+    // 异步清理 kernel（不等待）
+    try {
+      final kernelService = context.read<KernelService>();
+      kernelService.stopKernel();
+    } catch (e) {
+      // 忽略错误
+    }
     super.dispose();
   }
 
