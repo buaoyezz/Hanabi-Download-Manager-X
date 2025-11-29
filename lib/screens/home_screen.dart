@@ -1,14 +1,19 @@
-import 'package:fluent_ui/fluent_ui.dart';
+﻿import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import '../utils/constants.dart';
 import '../services/integrated_download_service.dart';
+import '../services/developer_mode_service.dart';
+import '../services/app_logger_service.dart';
 import '../models/download_task.dart';
 import '../main.dart';
 import 'widgets/download_list.dart';
 import 'widgets/add_download_dialog.dart';
 import 'widgets/completed_list.dart';
 import 'widgets/settings_page.dart';
+import 'widgets/about_page.dart';
+import 'widgets/debug/log_page.dart';
+import 'widgets/debug/status_page.dart';
 
 class NavigationItem {
   final IconData icon;
@@ -35,27 +40,65 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   late AnimationController _animationController;
   late Animation<double> _widthAnimation;
 
-  final List<NavigationItem> _navItems = [
-    NavigationItem(
-      icon: FluentIcons.download,
-      title: '下载中',
-      body: const DownloadList(),
-    ),
-    NavigationItem(
-      icon: FluentIcons.completed,
-      title: '已完成',
-      body: const CompletedList(),
-    ),
-    NavigationItem(
-      icon: FluentIcons.settings,
-      title: '设置',
-      body: const SettingsPage(),
-    ),
-  ];
+  List<NavigationItem> _getNavItems(BuildContext context) {
+    final devMode = context.watch<DeveloperModeService>();
+    
+    // 主要功能页面（显示在上方�?
+    final items = <NavigationItem>[
+      NavigationItem(
+        icon: FluentIcons.download,
+        title: '下载中',
+        body: const DownloadList(),
+      ),
+      NavigationItem(
+        icon: FluentIcons.completed,
+        title: '已完成',
+        body: const CompletedList(),
+      ),
+    ];
+    
+    // 底部页面（设置', '关于、调试）
+    final bottomItems = <NavigationItem>[];
+    
+    // 根据开发者模式动态添加调试页面（放在设置前面�?
+    if (devMode.showLogPage) {
+      bottomItems.add(NavigationItem(
+        icon: FluentIcons.text_document,
+        title: '日志',
+        body: const LogPage(),
+      ));
+    }
+    
+    if (devMode.showStatusPage) {
+      bottomItems.add(NavigationItem(
+        icon: FluentIcons.health,
+        title: '状态',
+        body: const StatusPage(),
+      ));
+    }
+    
+    // 设置', '关于始终显�?
+    bottomItems.addAll([
+      NavigationItem(
+        icon: FluentIcons.settings,
+        title: '设置',
+        body: const SettingsPage(),
+      ),
+      NavigationItem(
+        icon: FluentIcons.info,
+        title: '关于',
+        body: const AboutPage(),
+      ),
+    ]);
+    
+    // 合并主要页面和底部页�?
+    return [...items, ...bottomItems];
+  }
 
   @override
   void initState() {
     super.initState();
+    AppLoggerService().info('App', 'HomeScreen initialized');
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 200),
       vsync: this,
@@ -88,8 +131,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
+    final navItems = _getNavItems(context);
+    
+    // 确保 _currentIndex 在有效范围内
+    if (_currentIndex >= navItems.length) {
+      _currentIndex = 0;
+    }
+    
     return Container(
-      color: const Color(0xFF1a1a1a),
+      color: Colors.transparent,
       child: Column(
         children: [
           _buildCustomTitleBar(context),
@@ -99,8 +149,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 _buildSideNavigation(context),
                 Expanded(
                   child: Container(
-                    color: const Color(0xFF1a1a1a),
-                    child: _navItems[_currentIndex].body,
+                    color: Colors.transparent,
+                    child: navItems[_currentIndex].body,
                   ),
                 ),
               ],
@@ -119,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           // 纯色背景
           Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF242424),
+              color: Colors.transparent,
               border: Border(
                 bottom: BorderSide(
                   color: const Color(0xFF404040),
@@ -128,7 +178,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
             ),
           ),
-          // 内容层
+          // 内容�?
           LayoutBuilder(
             builder: (context, constraints) {
               final compact = constraints.maxWidth < 360;
@@ -223,7 +273,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         return Container(
           width: width,
           decoration: BoxDecoration(
-            color: const Color(0xFF242424),
+            color: Colors.transparent,
             border: Border(
               right: BorderSide(
                 color: const Color(0xFF404040),
@@ -278,8 +328,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     const SizedBox(height: 8),
                   ],
                   const SizedBox(height: 8),
-                  // 导航项
-                  ..._navItems.asMap().entries.map((entry) {
+                  // 主要导航项（上方�?
+                  ..._getNavItems(context).asMap().entries.where((entry) => !['日志', '状态', '设置', '关于'].contains(entry.value.title)).map((entry) {
                     final index = entry.key;
                     final item = entry.value;
                     final isSelected = _currentIndex == index;
@@ -295,11 +345,38 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         title: item.title,
                         isSelected: isSelected,
                         isCompact: isCompact,
-                        onTap: () => setState(() => _currentIndex = index),
+                        onTap: () {
+                          AppLoggerService().info('App', 'Navigated to: ${item.title}');
+                          setState(() => _currentIndex = index);
+                        },
                       ),
                     );
                   }),
                   const Spacer(),
+                  // 底部导航项（调试、设置', '关于）
+                  ..._getNavItems(context).asMap().entries.where((entry) => ['日志', '状态', '设置', '关于'].contains(entry.value.title)).map((entry) {
+                    final index = entry.key;
+                    final item = entry.value;
+                    final isSelected = _currentIndex == index;
+                    
+                    return Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isCompact ? 6 : 12,
+                        vertical: 4,
+                      ),
+                      child: _buildNavItem(
+                        context,
+                        icon: item.icon,
+                        title: item.title,
+                        isSelected: isSelected,
+                        isCompact: isCompact,
+                        onTap: () {
+                          AppLoggerService().info('App', 'Navigated to: ${item.title}');
+                          setState(() => _currentIndex = index);
+                        },
+                      ),
+                    );
+                  }),
                   // 底部信息
                   if (!isCompact)
                     Padding(
@@ -310,13 +387,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           color: FluentTheme.of(context)
                               .resources
                               .cardBackgroundFillColorDefault
-                              .withValues(alpha: 0.3),
+                              .withValues(alpha: 0.1), // 增加透明�?
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
                             color: FluentTheme.of(context)
                                 .resources
                                 .cardStrokeColorDefault
-                                .withValues(alpha: 0.3),
+                                .withValues(alpha: 0.2),
                           ),
                         ),
                         child: Column(
@@ -641,3 +718,4 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 }
+
