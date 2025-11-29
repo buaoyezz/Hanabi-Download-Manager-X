@@ -1,6 +1,7 @@
 #include "win32_window.h"
 
 #include <dwmapi.h>
+#include <cstdio>
 #include <flutter_windows.h>
 #include <windowsx.h>
 #include <tlhelp32.h>
@@ -34,6 +35,30 @@ namespace {
 
 #ifndef DWMNCRP_DISABLED
 #define DWMNCRP_DISABLED 2
+#endif
+
+#ifndef DWMWA_ALLOW_NCPAINT
+#define DWMWA_ALLOW_NCPAINT 4
+#endif
+
+#ifndef DWMWA_BORDER_COLOR
+#define DWMWA_BORDER_COLOR 28
+#endif
+
+#ifndef DWMWA_CAPTION_COLOR
+#define DWMWA_CAPTION_COLOR 35
+#endif
+
+#ifndef DWMWA_TEXT_COLOR
+#define DWMWA_TEXT_COLOR 36
+#endif
+
+#ifndef DWM_COLOR_DEFAULT
+#define DWM_COLOR_DEFAULT 0xFFFFFFFF
+#endif
+
+#ifndef DWM_COLOR_NONE
+#define DWM_COLOR_NONE 0xFFFFFFFE
 #endif
 
 constexpr const wchar_t kWindowClassName[] = L"FLUTTER_RUNNER_WIN32_WINDOW";
@@ -167,14 +192,39 @@ bool Win32Window::Create(const std::wstring& title,
   }
 
   {
-    // Extend frame into client area for acrylic effect
     MARGINS margins = {-1, -1, -1, -1};
-    DwmExtendFrameIntoClientArea(window, &margins);
-
-    // Disable non-client area rendering
-    DWORD policy = DWMNCRP_DISABLED;
-    DwmSetWindowAttribute(window, DWMWA_NCRENDERING_POLICY,
-                          &policy, sizeof(policy));
+    HRESULT hr1 = DwmExtendFrameIntoClientArea(window, &margins);
+    char buf[128];
+    sprintf_s(buf, sizeof(buf), "Win32Window Create: DwmExtendFrame hr=0x%08lx", hr1);
+    OutputDebugStringA(buf);
+    DWORD policy = 1; // DWMNCRP_ENABLED
+    HRESULT hr2 = DwmSetWindowAttribute(window, DWMWA_NCRENDERING_POLICY, &policy, sizeof(policy));
+    sprintf_s(buf, sizeof(buf), "Win32Window Create: NCRenderingPolicy(ENABLED) hr=0x%08lx", hr2);
+    OutputDebugStringA(buf);
+    BOOL allowNcPaint = TRUE;
+    HRESULT hr3 = DwmSetWindowAttribute(window, DWMWA_ALLOW_NCPAINT, &allowNcPaint, sizeof(allowNcPaint));
+    sprintf_s(buf, sizeof(buf), "Win32Window Create: AllowNcPaint(TRUE) hr=0x%08lx", hr3);
+    OutputDebugStringA(buf);
+    DWORD borderColor = DWM_COLOR_NONE;
+    HRESULT hr4 = DwmSetWindowAttribute(window, DWMWA_BORDER_COLOR, &borderColor, sizeof(borderColor));
+    sprintf_s(buf, sizeof(buf), "Win32Window Create: BorderColor hr=0x%08lx", hr4);
+    OutputDebugStringA(buf);
+    DWORD captionColor = DWM_COLOR_NONE;
+    HRESULT hr5 = DwmSetWindowAttribute(window, DWMWA_CAPTION_COLOR, &captionColor, sizeof(captionColor));
+    sprintf_s(buf, sizeof(buf), "Win32Window Create: CaptionColor hr=0x%08lx", hr5);
+    OutputDebugStringA(buf);
+    BOOL dark = TRUE;
+    HRESULT hr7 = DwmSetWindowAttribute(window, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
+    sprintf_s(buf, sizeof(buf), "Win32Window Create: DarkMode hr=0x%08lx", hr7);
+    OutputDebugStringA(buf);
+    DWORD corner = 2; // DWMWCP_ROUND
+    HRESULT hr8 = DwmSetWindowAttribute(window, 33, &corner, sizeof(corner));
+    sprintf_s(buf, sizeof(buf), "Win32Window Create: CornerPreference hr=0x%08lx", hr8);
+    OutputDebugStringA(buf);
+    BOOL transitionsDisabled = TRUE;
+    HRESULT hr6 = DwmSetWindowAttribute(window, DWMWA_TRANSITIONS_FORCEDISABLED, &transitionsDisabled, sizeof(transitionsDisabled));
+    sprintf_s(buf, sizeof(buf), "Win32Window Create: TransitionsDisabled hr=0x%08lx", hr6);
+    OutputDebugStringA(buf);
   }
 
   UpdateTheme(window);
@@ -213,10 +263,9 @@ Win32Window::MessageHandler(HWND hwnd,
                             LPARAM const lparam) noexcept {
   switch (message) {
     case WM_CLOSE:
-      // Clean up before destroying window (using WinAPI, no CMD flash)
-      OutputDebugStringA("=== WM_CLOSE received ===");
+      // Clean up kernel processes before closing
+      OutputDebugStringA("=== WM_CLOSE: Cleaning up kernel processes ===");
       {
-        // Use Windows API to kill process by name - no CMD window!
         HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
         if (snapshot != INVALID_HANDLE_VALUE) {
           PROCESSENTRY32W pe32;
@@ -224,22 +273,45 @@ Win32Window::MessageHandler(HWND hwnd,
           
           if (Process32FirstW(snapshot, &pe32)) {
             do {
-              // Check if process name matches soda_kernel.exe
+              // Kill soda_kernel.exe
               if (_wcsicmp(pe32.szExeFile, L"soda_kernel.exe") == 0) {
                 HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, pe32.th32ProcessID);
                 if (hProcess) {
                   TerminateProcess(hProcess, 0);
                   CloseHandle(hProcess);
-                  OutputDebugStringA("Terminated soda_kernel.exe");
+                  OutputDebugStringA("Killed soda_kernel.exe");
+                }
+              }
+              // Kill python.exe (our kernel server)
+              else if (_wcsicmp(pe32.szExeFile, L"python.exe") == 0) {
+                HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, pe32.th32ProcessID);
+                if (hProcess) {
+                  TerminateProcess(hProcess, 0);
+                  CloseHandle(hProcess);
+                  OutputDebugStringA("Killed python.exe");
                 }
               }
             } while (Process32NextW(snapshot, &pe32));
           }
           CloseHandle(snapshot);
         }
+        
+        // Also run taskkill to ensure port 9710 is freed
+        STARTUPINFOA si = {sizeof(si)};
+        PROCESS_INFORMATION pi;
+        si.dwFlags = STARTF_USESHOWWINDOW;
+        si.wShowWindow = SW_HIDE;
+        
+        // Kill any process on port 9710
+        char cmdLine[] = "cmd.exe /c for /f \"tokens=5\" %a in ('netstat -ano ^| findstr :9710 ^| findstr LISTENING') do taskkill /F /PID %a >nul 2>&1";
+        CreateProcessA(NULL, cmdLine, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
+        if (pi.hProcess) {
+          WaitForSingleObject(pi.hProcess, 1000);
+          CloseHandle(pi.hProcess);
+          CloseHandle(pi.hThread);
+        }
       }
-      OutputDebugStringA("=== Cleanup done ===");
-      // Let default handler destroy the window immediately
+      OutputDebugStringA("=== Kernel cleanup complete ===");
       break;
       
     case WM_DESTROY:
@@ -261,6 +333,7 @@ Win32Window::MessageHandler(HWND hwnd,
       return 0;
     }
     case WM_SIZE: {
+      OutputDebugStringA("Win32Window WM_SIZE");
       RECT rect = GetClientArea();
       if (child_content_ != nullptr) {
         // Size and position the child window.
@@ -271,6 +344,7 @@ Win32Window::MessageHandler(HWND hwnd,
     }
 
     case WM_ACTIVATE:
+      OutputDebugStringA("Win32Window WM_ACTIVATE");
       if (child_content_ != nullptr) {
         SetFocus(child_content_);
       }
@@ -278,7 +352,6 @@ Win32Window::MessageHandler(HWND hwnd,
 
     case WM_NCACTIVATE:
     case WM_NCPAINT:
-      // Completely disable non-client area painting to remove white border
       return 0;
 
     case WM_NCCALCSIZE:
