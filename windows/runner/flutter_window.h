@@ -33,6 +33,10 @@ class FlutterWindow : public Win32Window {
   void BringWindowToFront();
   void SetAlwaysOnTop(bool alwaysOnTop);
   void FlashWindowAttention();
+  void ApplyWindowEffect(HWND hwnd);
+  std::string PickFolder();
+  int effect_mode_ = 2;
+  int effect_alpha_ = 160;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_
