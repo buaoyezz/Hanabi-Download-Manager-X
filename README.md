@@ -83,16 +83,11 @@ This complete refactoring solves many legacy issues, bringing you an unprecedent
    flutter run
    ```
 
----
-
-<a name="ui-design-attribution"></a>
-## Promotional Image Design Attribution
-The promotional image in this project's readme uses a Figma community template  
+> [!TIP]
+> The promotional image in this project's readme uses a Figma community template  
 **Author**: Arafat Mahfuz  
 **Source**: [XpressWave Delivery Management Software](https://www.figma.com/community/file/1295799331129179420/xpresswave-delivery-management-software)  
 **License**: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
-
----
 
 <a name="license"></a>
 ## License
