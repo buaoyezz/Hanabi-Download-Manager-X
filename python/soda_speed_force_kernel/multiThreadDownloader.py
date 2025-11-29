@@ -11,6 +11,7 @@ from .eventBus import get_event_bus
 from .taskModel import TaskStatus, Task
 from .utils.logger import logger
 from .utils.pathUtils import getDefaultDownloadPath
+from .taskPersistence import TaskPersistence
 
 
 @dataclass
@@ -24,13 +25,43 @@ class Segment:
 
 
 class MultiThreadDownloader:
-    def __init__(self, downloadDir: Optional[str] = None, bus=None, threads: int = 8):
+    def __init__(self, downloadDir: Optional[str] = None, bus=None, threads: int = 8, segments: int = None, mode: str = "auto"):
+        """
+        初始化下载器
+        
+        Args:
+            downloadDir: 下载目录
+            bus: 事件总线
+            threads: 线程数 (1-32)，默认8
+            segments: 分段数 (1-32)，默认None（自动）
+            mode: 模式
+                - "auto": 全自动（根据文件大小自动设置线程和分段）
+                - "threads_only": 仅设置线程数，分段数自动
+                - "segments_only": 仅设置分段数，线程数自动
+                - "manual": 手动设置线程和分段
+        """
         self.downloadDir = Path(downloadDir) if downloadDir else Path(getDefaultDownloadPath())
         self.downloadDir.mkdir(parents=True, exist_ok=True)
         self.bus = bus or get_event_bus()
         self.tasks: Dict[str, Task] = {}
         self.segments: Dict[str, List[Segment]] = {}  # taskId -> segments
-        self.threads = threads
+        
+        # 限制线程和分段数在 1-32 之间
+        self.threads = max(1, min(32, threads))
+        self.segments_count = max(1, min(32, segments)) if segments else None
+        self.mode = mode
+        self.max_concurrent_tasks = 3  # 默认最大同时下载数
+        self.segment_speed_limit = 0   # 分段限速 (bytes/s), 0表示不限速
+        
+        # 初始化任务持久化
+        self.persistence = TaskPersistence()
+        
+        # 加载全局配置
+        self._load_global_config()
+        
+        # 加载已保存的任务
+        self._load_persisted_tasks()
+        
         self._statusTask = None
         self.isRunning = True
         self.loop = asyncio.new_event_loop()
@@ -42,7 +73,97 @@ class MultiThreadDownloader:
         self._loopThread = threading.Thread(target=_run_loop, daemon=True)
         self._loopThread.start()
         self._statusTask = asyncio.run_coroutine_threadsafe(self._status_loop(), self.loop)
+        
+        # 启动自动保存任务
+        self._save_task = asyncio.run_coroutine_threadsafe(self._auto_save_loop(), self.loop)
+        
+        logger.info(f"下载器初始化: 模式={mode}, 线程={self.threads}, 分段={self.segments_count or '自动'}")
 
+    def _load_global_config(self):
+        """加载全局配置"""
+        try:
+            config = self.persistence.load_config()
+            if config:
+                if 'threads' in config:
+                    self.threads = config['threads']
+                if 'segments' in config:
+                    self.segments_count = config['segments']
+                if 'mode' in config:
+                    self.mode = config['mode']
+                if 'max_concurrent_tasks' in config:
+                    self.max_concurrent_tasks = config['max_concurrent_tasks']
+                if 'segment_speed_limit' in config:
+                    self.segment_speed_limit = config['segment_speed_limit']
+                logger.info(f"已加载全局配置: {config}")
+        except Exception as e:
+            logger.error(f"加载全局配置失败: {e}")
+
+    def save_global_config(self):
+        """保存全局配置"""
+        config = {
+            'threads': self.threads,
+            'segments': self.segments_count,
+            'mode': self.mode,
+            'max_concurrent_tasks': self.max_concurrent_tasks,
+            'segment_speed_limit': self.segment_speed_limit
+        }
+        self.persistence.save_config(config)
+
+    def update_config(self, threads: int = None, segments: int = None, mode: str = None, max_concurrent_tasks: int = None, segment_speed_limit: int = None):
+        """更新并保存配置"""
+        changed = False
+        if threads is not None:
+            self.threads = max(1, min(32, threads))
+            changed = True
+        
+        if segments is not None:
+            self.segments_count = max(1, min(32, segments)) if segments > 0 else None
+            changed = True
+            
+        if mode is not None and mode in ["auto", "threads_only", "segments_only", "manual"]:
+            self.mode = mode
+            changed = True
+            
+        if max_concurrent_tasks is not None:
+            self.max_concurrent_tasks = max(1, max_concurrent_tasks)
+            self._check_queue()
+            changed = True
+            
+        if segment_speed_limit is not None:
+            self.segment_speed_limit = max(0, segment_speed_limit)
+            logger.info(f"分段限速更新: {self.segment_speed_limit} bytes/s (from input: {segment_speed_limit})")
+            changed = True
+            
+        if changed:
+            self.save_global_config()
+
+    def _load_persisted_tasks(self):
+        """加载持久化的任务"""
+        try:
+            self.tasks = self.persistence.load_tasks()
+            self.segments = self.persistence.load_segments()
+            logger.info(f"已加载 {len(self.tasks)} 个任务, {len(self.segments)} 个任务的分段信息")
+        except Exception as e:
+            logger.error(f"加载持久化任务失败: {e}")
+    
+    async def _auto_save_loop(self):
+        """自动保存任务循环"""
+        while self.isRunning:
+            try:
+                await asyncio.sleep(5.0)  # 每5秒保存一次
+                self._save_tasks()
+            except Exception as e:
+                logger.error(f"自动保存任务失败: {e}")
+                await asyncio.sleep(5.0)
+    
+    def _save_tasks(self):
+        """保存任务到持久化存储"""
+        try:
+            self.persistence.save_tasks(self.tasks)
+            self.persistence.save_segments(self.segments)
+        except Exception as e:
+            logger.error(f"保存任务失败: {e}")
+    
     async def _status_loop(self):
         while self.isRunning:
             try:
@@ -105,36 +226,127 @@ class MultiThreadDownloader:
         setattr(t, "headers", headers_extra if isinstance(headers_extra, dict) else {})
         
         self.tasks[taskId] = t
-        asyncio.run_coroutine_threadsafe(self._run_download(taskId), self.loop)
+        
+        # 保存任务
+        self._save_tasks()
+        
+        # 检查并发限制
+        self._check_queue()
+            
         return taskId
+
+    def _get_active_downloads_count(self) -> int:
+        """获取当前正在下载（包括正在连接等）的任务数"""
+        return sum(1 for t in self.tasks.values() if t.status == TaskStatus.DOWNLOADING)
+
+    def _check_queue(self):
+        """检查队列，如果资源允许则启动等待中的任务"""
+        active_count = self._get_active_downloads_count()
+        
+        # 1. 如果正在下载的数量小于最大并发数，尝试启动 PENDING 的任务
+        if active_count < self.max_concurrent_tasks:
+            # 找到所有 PENDING 的任务
+            pending_tasks = [t for t in self.tasks.values() if t.status == TaskStatus.PENDING]
+            # 按创建时间排序（FIFO）
+            pending_tasks.sort(key=lambda x: x.createdTime)
+            
+            # 启动任务直到填满配额
+            slots_available = self.max_concurrent_tasks - active_count
+            for i in range(min(len(pending_tasks), slots_available)):
+                task = pending_tasks[i]
+                logger.info(f"队列调度: 启动任务 {task.filename} (ID: {task.id})")
+                asyncio.run_coroutine_threadsafe(self._run_download(task.id), self.loop)
 
     async def pause_download(self, taskId: str) -> bool:
         t = self.tasks.get(taskId)
+        logger.info(f"[暂停请求] taskId={taskId}, 任务存在={t is not None}, 当前状态={t.status if t else 'N/A'}")
+        
         if t and t.status == TaskStatus.DOWNLOADING:
             t.status = TaskStatus.PAUSED
+            logger.info(f"[暂停成功] 任务 {t.filename} 状态已更新为 PAUSED")
+            
+            # 更新所有正在下载的分段状态为paused，这样它们会退出下载循环
+            segments = self.segments.get(taskId, [])
+            for seg in segments:
+                if seg.status == "downloading":
+                    seg.status = "paused"
+                    logger.info(f"暂停分段 {seg.index}")
+            
             self.add_progress(t)
+            # 任务暂停了，空出一个位置，检查队列
+            self._check_queue()
             return True
+        
+        logger.warning(f"[暂停失败] 任务状态不是DOWNLOADING，当前状态: {t.status if t else 'N/A'}")
         return False
 
     async def resume_download(self, taskId: str) -> bool:
         t = self.tasks.get(taskId)
-        if t and t.status == TaskStatus.PAUSED:
+        logger.info(f"尝试恢复下载: taskId={taskId}, 任务存在={t is not None}")
+        
+        if not t:
+            logger.warning(f"恢复失败: 找不到任务 {taskId}")
+            return False
+            
+        logger.info(f"任务状态: {t.status}, 文件名: {t.filename}")
+        
+        if t.status == TaskStatus.PAUSED or t.status == TaskStatus.FAILED:
+            # 恢复下载状态
+            old_status = t.status
             t.status = TaskStatus.DOWNLOADING
             self.add_progress(t)
+            logger.info(f"恢复下载: {t.filename}, 状态: {old_status} -> DOWNLOADING, 已下载: {t.downloadedSize}/{t.totalSize}")
+            
+            # 检查是否有分段信息
+            segments = self.segments.get(taskId)
+            if segments:
+                logger.info(f"找到 {len(segments)} 个分段，状态: {[seg.status for seg in segments[:5]]}")
+            else:
+                logger.warning(f"没有找到分段信息")
+            
+            # 重新启动下载任务（会检测并使用已有的分段）
+            try:
+                future = asyncio.run_coroutine_threadsafe(self._run_download(taskId), self.loop)
+                logger.info(f"已提交恢复下载任务到事件循环")
+            except Exception as e:
+                logger.error(f"提交恢复任务失败: {e}")
+                t.status = old_status
+                return False
+            
             return True
-        return False
+        else:
+            logger.warning(f"无法恢复: 任务状态不是PAUSED或FAILED，当前状态: {t.status}")
+            return False
 
     async def cancel_download(self, taskId: str) -> bool:
         t = self.tasks.get(taskId)
-        if t and t.status in {TaskStatus.PENDING, TaskStatus.DOWNLOADING, TaskStatus.PAUSED}:
+        if t:
+            old_status = t.status
             t.status = TaskStatus.CANCELLED
             self.add_progress(t)
+            
+            # 删除任务和分段信息
+            self.tasks.pop(taskId, None)
+            self.segments.pop(taskId, None)
+            
+            # 保存任务
+            self._save_tasks()
+            
             try:
                 p = Path(t.filepath)
                 if p.exists():
                     p.unlink()
-            except Exception:
-                pass
+                # 删除分段临时文件
+                for i in range(32):  # 最多32个分段
+                    temp_file = p.parent / f"{p.name}.part{i}"
+                    if temp_file.exists():
+                        temp_file.unlink()
+            except Exception as e:
+                logger.error(f"删除文件失败: {e}")
+            
+            # 如果取消的是正在下载的任务，或者任何任务，都检查一下队列
+            if old_status == TaskStatus.DOWNLOADING:
+                self._check_queue()
             return True
         return False
 
@@ -164,6 +376,90 @@ class MultiThreadDownloader:
         except Exception as e:
             logger.error(f"Failed to set download directory: {e}")
             return False
+
+    def set_speed_limit(self, limit: int):
+        """
+        设置分段限速
+        
+        Args:
+            limit: 限速值 (bytes/s)，0表示不限速
+        """
+        try:
+            self.segment_speed_limit = max(0, limit)
+            logger.info(f"分段限速已设置为: {self.segment_speed_limit} bytes/s")
+            self.save_global_config()
+            return True
+        except Exception as e:
+            logger.error(f"设置分段限速失败: {e}")
+            return False
+
+    def _calculate_optimal_config(self, file_size: int) -> tuple[int, int]:
+        """
+        根据文件大小和模式计算最优的线程数和分段数
+        
+        Returns:
+            (threads, segments) 元组
+        """
+        MB = 1024 * 1024
+        
+        if self.mode == "manual":
+            # 手动模式：使用用户指定的值
+            threads = self.threads
+            segments = self.segments_count or self.threads
+            logger.info(f"手动模式: {threads} 线程, {segments} 分段")
+            return threads, segments
+        
+        elif self.mode == "threads_only":
+            # 仅设置线程，分段数自动
+            threads = self.threads
+            # 根据文件大小自动计算分段数
+            if file_size < 10 * MB:
+                segments = min(threads, 4)
+            elif file_size < 50 * MB:
+                segments = min(threads, 8)
+            elif file_size < 200 * MB:
+                segments = min(threads, 16)
+            else:
+                segments = threads
+            logger.info(f"线程优先模式: {threads} 线程, {segments} 分段（自动）")
+            return threads, segments
+        
+        elif self.mode == "segments_only":
+            # 仅设置分段，线程数自动
+            segments = self.segments_count or 8
+            # 根据文件大小自动计算线程数
+            if file_size < 10 * MB:
+                threads = min(segments, 4)
+            elif file_size < 50 * MB:
+                threads = min(segments, 8)
+            elif file_size < 200 * MB:
+                threads = min(segments, 16)
+            else:
+                threads = segments
+            logger.info(f"分段优先模式: {threads} 线程（自动）, {segments} 分段")
+            return threads, segments
+        
+        else:  # auto mode
+            # 全自动模式：根据文件大小智能选择
+            if file_size < 1 * MB:
+                threads, segments = 1, 1
+            elif file_size < 5 * MB:
+                threads, segments = 2, 2
+            elif file_size < 10 * MB:
+                threads, segments = 4, 4
+            elif file_size < 50 * MB:
+                threads, segments = 8, 8
+            elif file_size < 100 * MB:
+                threads, segments = 12, 12
+            elif file_size < 200 * MB:
+                threads, segments = 16, 16
+            elif file_size < 500 * MB:
+                threads, segments = 24, 24
+            else:  # >= 500 MB
+                threads, segments = 32, 32
+            
+            logger.info(f"自动模式: 文件大小 {file_size/MB:.1f}MB -> {threads} 线程, {segments} 分段")
+            return threads, segments
 
     async def _get_file_size(self, url: str, headers: Dict) -> tuple[int, bool]:
         """获取文件大小和是否支持断点续传"""
@@ -207,17 +503,62 @@ class MultiThreadDownloader:
         if not t:
             return
         
+        # -------------------------------------------------------------------------
+        # 核心修复: 基于磁盘实际文件大小修正下载进度，确保断点续传的准确性
+        # -------------------------------------------------------------------------
+        temp_file = filepath.parent / f"{filepath.name}.part{segment.index}"
+        
+        if temp_file.exists():
+            disk_file_size = temp_file.stat().st_size
+            segment_total_size = segment.endByte - segment.startByte
+            
+            # 如果磁盘文件大小超过分段大小，说明可能有问题，或者是之前的错误下载
+            if disk_file_size > segment_total_size:
+                logger.warning(f"分段 {segment.index}: 临时文件大小 ({disk_file_size}) 超过分段大小 ({segment_total_size})，将截断")
+                # 截断文件
+                pass # 暂时不处理截断，而是重置进度? 或者信任它? 
+                # 安全起见，如果过大，可能需要重新下载或者截断。
+                # 这里简单处理：如果过大，重置为0（因为可能是错误的数据）
+                # 或者，为了保险，我们可以保留它，但只把进度设为满。
+                # 但为了修复“不继续下载”的问题，通常是因为 Range 范围不对。
+                
+                # 修正策略: 如果太大，就当做已完成（需校验），或者为了安全，截断到正确大小。
+                # 这里我们选择截断到正确大小，并认为已完成。
+                # 实际上 python open 'ab' 无法截断。需要 truncate。
+                # 简单起见，如果大小不对劲，我们重置这个分段，避免复杂的数据损坏。
+                logger.warning(f"分段 {segment.index}: 文件大小异常，重置该分段")
+                try:
+                    temp_file.unlink()
+                except:
+                    pass
+                segment.downloadedBytes = 0
+            else:
+                # 正常情况：信任磁盘上的文件大小作为已下载进度
+                segment.downloadedBytes = disk_file_size
+                logger.info(f"分段 {segment.index}: 根据磁盘文件校准进度 -> 已下载 {disk_file_size} bytes")
+
+        else:
+            segment.downloadedBytes = 0
+            
+        # 检查是否已完成
+        segment_size = segment.endByte - segment.startByte
+        if segment.downloadedBytes >= segment_size:
+            segment.status = "completed"
+            logger.info(f"分段 {segment.index}: 校验发现已下载完成")
+            return
+
         segment.status = "downloading"
         range_header = headers.copy()
         current_start = segment.startByte + segment.downloadedBytes
         range_header["Range"] = f"bytes={current_start}-{segment.endByte - 1}"
         
+        logger.info(f"分段 {segment.index} 请求范围: {range_header['Range']}, 模式: {'ab' if segment.downloadedBytes > 0 else 'wb'}")
+        
         timeout = aiohttp.ClientTimeout(total=None, connect=15)
         ssl_configs = [{"ssl": True}, {"ssl": False}]
         
-        start_time = time.time()
+        start_time = time.perf_counter()
         last_update = start_time
-        segment_size = segment.endByte - segment.startByte
         
         for ssl_config in ssl_configs:
             try:
@@ -233,27 +574,55 @@ class MultiThreadDownloader:
                 async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
                     async with session.get(t.url, headers=range_header, allow_redirects=True, ssl=ssl_config["ssl"]) as resp:
                         if resp.status not in (200, 206):
+                            logger.error(f"分段 {segment.index} HTTP错误: {resp.status}")
                             raise Exception(f"HTTP {resp.status}")
                         
                         # 检查是否真的支持Range
                         if resp.status == 200:
-                            # 服务器不支持Range，返回了完整文件
+                            if segment.downloadedBytes > 0:
+                                # 我们请求的是 Range，但服务器返回了 200 (完整文件)
+                                #这意味着之前的断点续传尝试失败了，必须重新下载
+                                logger.warning(f"分段 {segment.index}: 服务器忽略Range请求(200 OK)，必须重新下载")
+                                segment.downloadedBytes = 0
+                                segment.status = "failed" 
+                                # 这里的逻辑是：如果不支持Range，多线程下载器会整体回退到单线程。
+                                # 所以这里直接返回，让上层处理
+                                return
+                            
+                            # 如果是刚开始下载（downloadedBytes=0）且收到200，说明不支持分段
+                            # 也会在上层被捕获处理
                             logger.warning(f"分段 {segment.index}: 服务器不支持Range请求，收到完整文件")
                             segment.status = "failed"
                             return
                         
-                        # 打开文件进行写入
-                        temp_file = filepath.parent / f"{filepath.name}.part{segment.index}"
-                        async with aiofiles.open(temp_file, "wb") as f:
-                            bytes_written = 0
+                        # 206 Partial Content - 正常情况
+                        # 再次确认 Range 响应是否符合预期 (Content-Range)
+                        content_range = resp.headers.get("Content-Range", "")
+                        logger.debug(f"分段 {segment.index} 响应 Content-Range: {content_range}")
+                        
+                        # 打开文件进行写入（追加模式以支持断点续传）
+                        # 这里的逻辑必须与上面的 check 保持一致
+                        mode = "ab" if segment.downloadedBytes > 0 else "wb"
+                        
+                        async with aiofiles.open(temp_file, mode) as f:
+                            bytes_written_total = 0  # 总共写入的字节数（用于计算平均速度）
+                            bytes_since_last_update = 0  # 自上次更新以来写入的字节数（用于计算瞬时速度）
+                            # 使用 virtual_time 算法进行平滑限速
+                            # 初始化 virtual_time 为当前时间
+                            virtual_time = time.perf_counter()
+                            
                             async for chunk in resp.content.iter_chunked(8192):
+                                # 检查是否取消
                                 if t.status == TaskStatus.CANCELLED:
+                                    segment.status = "cancelled"
+                                    logger.info(f"分段 {segment.index} 已取消")
                                     return
                                 
-                                while t.status == TaskStatus.PAUSED:
-                                    await asyncio.sleep(0.1)
-                                    if t.status == TaskStatus.CANCELLED:
-                                        return
+                                # 检查是否暂停 - 直接退出而不是等待
+                                if t.status == TaskStatus.PAUSED or segment.status == "paused":
+                                    segment.status = "paused"
+                                    logger.info(f"分段 {segment.index} 已暂停，已下载: {segment.downloadedBytes} bytes")
+                                    return
                                 
                                 # 限制写入的字节数，不超过分段大小
                                 remaining = segment_size - segment.downloadedBytes
@@ -261,16 +630,45 @@ class MultiThreadDownloader:
                                     break
                                 
                                 chunk_to_write = chunk[:remaining] if len(chunk) > remaining else chunk
+                                chunk_len = len(chunk_to_write)
                                 await f.write(chunk_to_write)
-                                bytes_written += len(chunk_to_write)
-                                segment.downloadedBytes += len(chunk_to_write)
+                                bytes_written_total += chunk_len
+                                bytes_since_last_update += chunk_len
+                                segment.downloadedBytes += chunk_len
                                 
-                                # 更新速度
-                                now = time.time()
+                                # Speed Limiting - Virtual Time Algorithm (Token Bucket)
+                                if self.segment_speed_limit > 0:
+                                    # 计算处理这个 chunk 理论上应该消耗的时间
+                                    chunk_duration = chunk_len / self.segment_speed_limit
+                                    
+                                    # 累加到虚拟时间（信用）
+                                    virtual_time += chunk_duration
+                                    
+                                    current_now = time.perf_counter()
+                                    
+                                    # 如果虚拟时间超前于当前时间，说明下载太快了，需要等待
+                                    if virtual_time > current_now:
+                                        sleep_time = virtual_time - current_now
+                                        if sleep_time > 0:
+                                            # 如果 sleep 时间很长（比如网络极好），可能需要分段 sleep 以响应暂停/取消
+                                            # 这里简单处理，直接 sleep
+                                            await asyncio.sleep(sleep_time)
+                                            # sleep 完后，理论上 current_now 追上了 virtual_time
+                                    else:
+                                        # 如果当前时间已经超过了虚拟时间，说明下载速度慢（网络瓶颈）
+                                        # 此时不应该让 virtual_time 远远落后，否则后续下载突然变快时会瞬间超速（因为不需要 sleep）
+                                        # 所以需要重置 virtual_time 到当前时间（丢弃积累的信用，防止突发）
+                                        # 允许一定的 burst（例如 0.5秒的量），这里简化为直接重置
+                                        virtual_time = current_now
+                                
+                                # 更新速度 - 使用瞬时速度而不是平均速度
+                                now = time.perf_counter()
                                 if now - last_update >= 0.5:
-                                    elapsed = now - start_time
-                                    if elapsed > 0:
-                                        segment.speed = bytes_written / elapsed
+                                    time_elapsed = now - last_update
+                                    if time_elapsed > 0:
+                                        # 使用最近一段时间的增量计算瞬时速度
+                                        segment.speed = bytes_since_last_update / time_elapsed
+                                        bytes_since_last_update = 0  # 重置计数器
                                     last_update = now
                                 
                                 # 如果已经下载完这个分段，停止
@@ -282,11 +680,13 @@ class MultiThreadDownloader:
                         return
                         
             except Exception as e:
-                logger.warning(f"分段 {segment.index} 下载失败: {e}")
+                logger.warning(f"[分段下载] 分段 {segment.index} 失败: {e}")
                 if ssl_config != ssl_configs[-1]:
+                    logger.info(f"[分段下载] 分段 {segment.index} 切换SSL配置重试...")
                     continue
                 else:
                     segment.status = "failed"
+                    logger.error(f"[分段下载失败] 分段 {segment.index}, 原因: {e}")
                     raise
 
     async def _merge_segments(self, taskId: str, filepath: Path):
@@ -310,9 +710,34 @@ class MultiThreadDownloader:
         logger.info("分段合并完成")
 
     async def _run_download(self, taskId: str):
+        logger.info(f"_run_download 开始: taskId={taskId}")
         t = self.tasks.get(taskId)
         if not t:
+            logger.error(f"_run_download: 找不到任务 {taskId}")
             return
+        
+        logger.info(f"_run_download: 任务={t.filename}, 状态={t.status}")
+        
+        # 如果任务已经在下载中且有分段在运行，不重复启动
+        # 但如果是从暂停恢复的，需要重新启动分段下载
+        if t.status == TaskStatus.DOWNLOADING and taskId in self.segments:
+            existing_segments = self.segments[taskId]
+            downloading_count = sum(1 for seg in existing_segments if seg.status == "downloading")
+            logger.info(f"检测到已有 {len(existing_segments)} 个分段，其中 {downloading_count} 个正在下载")
+            
+            # 只有当有分段正在下载时才跳过，如果都是paused/pending/failed则需要重新启动
+            if any(seg.status == "downloading" for seg in existing_segments):
+                logger.warning(f"任务 {t.filename} 已经在下载中，跳过重复启动")
+                return
+            else:
+                # 重置所有非completed分段的状态为pending，准备重新下载
+                logger.info(f"准备重置分段状态...")
+                for seg in existing_segments:
+                    if seg.status != "completed":
+                        old_status = seg.status
+                        seg.status = "pending"
+                        logger.info(f"重置分段 {seg.index}: {old_status} -> pending, 已下载: {seg.downloadedBytes} bytes")
+                logger.info(f"任务 {t.filename} 从暂停/失败恢复，已重置分段状态")
         
         t.status = TaskStatus.DOWNLOADING
         self.add_progress(t)
@@ -351,46 +776,81 @@ class MultiThreadDownloader:
             t.totalSize = file_size
             logger.info(f"文件大小: {file_size} bytes, 支持分段: {supports_range}")
             
-            # 尝试分段下载（即使服务器没有明确支持）
-            if file_size > 1024 * 1024:  # 大于1MB才分段
-                # 创建分段
-                segment_size = file_size // self.threads
-                segments = []
+            # 检查是否已有分段（恢复下载的情况）
+            existing_segments = self.segments.get(taskId)
+            
+            if existing_segments:
+                # 恢复下载，使用已有的分段
+                segments = existing_segments
+                optimal_threads = len(segments)
+                optimal_segments = len(segments)
+                logger.info(f"恢复下载: 使用已有的 {optimal_segments} 个分段")
+            else:
+                # 新下载，计算最优配置
+                optimal_threads, optimal_segments = self._calculate_optimal_config(file_size)
                 
-                for i in range(self.threads):
-                    start = i * segment_size
-                    end = file_size if i == self.threads - 1 else (i + 1) * segment_size
-                    segment = Segment(
-                        index=i,
-                        startByte=start,
-                        endByte=end
-                    )
-                    segments.append(segment)
-                
-                self.segments[taskId] = segments
-                logger.info(f"创建 {self.threads} 个下载分段")
-                
+                # 尝试分段下载
+                if file_size > 1024 * 1024 and optimal_segments > 1:  # 大于1MB且分段数>1才分段
+                    # 创建分段
+                    segment_size = file_size // optimal_segments
+                    segments = []
+                    
+                    for i in range(optimal_segments):
+                        start = i * segment_size
+                        end = file_size if i == optimal_segments - 1 else (i + 1) * segment_size
+                        segment = Segment(
+                            index=i,
+                            startByte=start,
+                            endByte=end
+                        )
+                        segments.append(segment)
+                    
+                    self.segments[taskId] = segments
+                    logger.info(f"创建 {optimal_segments} 个下载分段，使用 {optimal_threads} 个线程")
+                else:
+                    segments = None
+            
+            # 如果有分段，进行多线程下载
+            if segments:
                 # 打印分段信息
                 print(f"\n{'='*60}")
-                print(f"开始多线程下载: {t.filename}")
+                print(f"{'恢复' if existing_segments else '开始'}多线程下载: {t.filename}")
                 print(f"文件大小: {file_size / (1024*1024):.2f} MB")
-                print(f"线程数: {self.threads}")
+                print(f"模式: {self.mode}")
+                print(f"线程数: {optimal_threads}")
+                print(f"分段数: {optimal_segments}")
                 print(f"{'='*60}\n")
                 
                 # 并发下载所有分段
                 download_tasks = []
                 for segment in segments:
-                    task_coro = self._download_segment(taskId, segment, headers, filepath)
-                    download_tasks.append(task_coro)
+                    # 下载所有未完成的分段（包括pending, failed等状态）
+                    if segment.status != "completed":
+                        logger.info(f"启动分段 {segment.index} 下载，当前状态: {segment.status}, 已下载: {segment.downloadedBytes} bytes")
+                        task_coro = self._download_segment(taskId, segment, headers, filepath)
+                        download_tasks.append(task_coro)
                 
-                # 启动进度监控
-                monitor_task = asyncio.create_task(self._monitor_progress(taskId))
+                if not download_tasks:
+                    # 如果没有任务（说明全部分段都已完成，可能是合并失败或重复启动）
+                    logger.info("所有分段已下载完成，尝试直接合并")
+                else:
+                    # 启动进度监控
+                    monitor_task = asyncio.create_task(self._monitor_progress(taskId))
+                    
+                    # 等待所有分段下载完成
+                    await asyncio.gather(*download_tasks, return_exceptions=True)
+                    
+                    # 停止监控
+                    monitor_task.cancel()
                 
-                # 等待所有分段下载完成
-                await asyncio.gather(*download_tasks, return_exceptions=True)
+                # 检查任务是否被暂停或取消
+                if t.status == TaskStatus.PAUSED:
+                    logger.info(f"任务 {t.filename} 已暂停，不进行合并")
+                    return
                 
-                # 停止监控
-                monitor_task.cancel()
+                if t.status == TaskStatus.CANCELLED:
+                    logger.info(f"任务 {t.filename} 已取消，不进行合并")
+                    return
                 
                 # 检查是否有分段失败（服务器不支持Range）
                 failed_segments = [seg for seg in segments if seg.status == "failed"]
@@ -411,6 +871,16 @@ class MultiThreadDownloader:
                     await self._single_thread_download(taskId, headers, filepath)
                     return
                 
+                # 检查是否所有分段都已完成
+                all_completed = all(seg.status == "completed" for seg in segments)
+                if not all_completed:
+                    logger.warning(f"任务 {t.filename} 有分段未完成，不进行合并")
+                    # 检查是否有暂停的分段
+                    paused_segments = [seg for seg in segments if seg.status == "paused"]
+                    if paused_segments:
+                        logger.info(f"任务 {t.filename} 有 {len(paused_segments)} 个分段被暂停")
+                    return
+                
                 # 合并分段
                 await self._merge_segments(taskId, filepath)
                 
@@ -419,26 +889,40 @@ class MultiThreadDownloader:
                 t.downloadedSize = file_size
                 t.status = TaskStatus.COMPLETED
                 self.add_complete(t)
-                logger.info(f"下载完成: {t.filename}")
+                logger.info(f"[下载完成] 文件: {t.filename}, 大小: {file_size/1024/1024:.2f} MB")
                 
                 print(f"\n{'='*60}")
                 print(f"下载完成: {t.filename}")
                 print(f"{'='*60}\n")
+
+                # 任务完成，释放位置，检查队列
+                self._check_queue()
                 
             else:
                 # 不支持分段或文件太小，使用单线程下载
                 logger.info("使用单线程下载")
                 await self._single_thread_download(taskId, headers, filepath)
                 
+                # 单线程下载完成后也需要检查队列
+                self._check_queue()
+                
         except Exception as e:
             import traceback
             error_msg = str(e)
             logger.error(f"下载失败 {t.filename}: {error_msg}")
-            logger.debug(f"详细错误: {traceback.format_exc()}")
+            logger.error(f"详细错误: {traceback.format_exc()}")
+            logger.error(f"[下载失败] 文件: {t.filename}, 原因: {error_msg}")
+            print(f"\n{'='*60}")
+            print(f"下载失败: {t.filename}")
+            print(f"错误: {error_msg}")
+            print(f"{'='*60}\n")
             
             t.status = TaskStatus.FAILED
             t.errorMessage = error_msg
             self.add_progress(t)
+            
+            # 任务失败，释放位置，检查队列
+            self._check_queue()
 
     async def _monitor_progress(self, taskId: str):
         """监控并显示下载进度"""
@@ -479,12 +963,13 @@ class MultiThreadDownloader:
                     for seg in segments
                 ]
                 
-                # 调试输出
-                if len(segments) > 0:
-                    logger.debug(f"任务 {taskId}: 设置了 {len(segments)} 个分段到Task对象")
+                # 记录下载进度日志
+                progress_display = min(t.progress, 100.0)
+                logger.info(f"[下载进度] {t.filename}: {progress_display:.1f}% | "
+                           f"速度: {total_speed/1024/1024:.2f} MB/s | "
+                           f"已下载: {total_downloaded/1024/1024:.1f}/{t.totalSize/1024/1024:.1f} MB")
                 
-                # 打印进度
-                progress_display = min(t.progress, 100.0)  # 限制显示不超过100%
+                # 打印进度到控制台
                 print(f"\r总进度: {progress_display:.1f}% | 速度: {total_speed/1024/1024:.2f} MB/s | "
                       f"已下载: {total_downloaded/1024/1024:.1f}/{t.totalSize/1024/1024:.1f} MB", end="")
                 
@@ -505,6 +990,7 @@ class MultiThreadDownloader:
                 await asyncio.sleep(0.5)
                 
         except asyncio.CancelledError:
+            logger.info(f"[下载监控] 任务 {t.filename} 的进度监控已停止")
             pass
 
     async def _single_thread_download(self, taskId: str, headers: Dict, filepath: Path):
@@ -534,6 +1020,8 @@ class MultiThreadDownloader:
                         
                         start_time = time.time()
                         last_update = start_time
+                        bytes_since_last_update = 0  # 用于计算瞬时速度
+                        virtual_time = time.perf_counter()  # 用于限速
                         
                         async with aiofiles.open(filepath, "wb") as f:
                             async for chunk in resp.content.iter_chunked(8192):
@@ -545,32 +1033,60 @@ class MultiThreadDownloader:
                                     if t.status == TaskStatus.CANCELLED:
                                         return
                                 
+                                chunk_len = len(chunk)
                                 await f.write(chunk)
-                                t.downloadedSize += len(chunk)
+                                t.downloadedSize += chunk_len
+                                bytes_since_last_update += chunk_len
+                                
+                                # 单线程模式限速（如果设置了限速）
+                                if self.segment_speed_limit > 0:
+                                    chunk_duration = chunk_len / self.segment_speed_limit
+                                    virtual_time += chunk_duration
+                                    current_now = time.perf_counter()
+                                    
+                                    if virtual_time > current_now:
+                                        sleep_time = virtual_time - current_now
+                                        if sleep_time > 0:
+                                            await asyncio.sleep(sleep_time)
+                                    else:
+                                        virtual_time = current_now
                                 
                                 now = time.time()
                                 if t.totalSize > 0:
                                     t.progress = (t.downloadedSize / t.totalSize) * 100.0
                                 
                                 if now - last_update >= 0.5:
-                                    elapsed = now - start_time
-                                    if elapsed > 0:
-                                        t.speed = t.downloadedSize / elapsed
+                                    time_elapsed = now - last_update
+                                    if time_elapsed > 0:
+                                        # 使用瞬时速度而不是平均速度
+                                        t.speed = bytes_since_last_update / time_elapsed
+                                        bytes_since_last_update = 0  # 重置计数器
                                         if t.speed > 0 and t.totalSize > 0:
                                             remaining = t.totalSize - t.downloadedSize
                                             t.eta = int(remaining / t.speed)
                                     self.add_progress(t)
                                     last_update = now
                         
+                        # 检查任务是否被暂停或取消
+                        if t.status == TaskStatus.PAUSED:
+                            logger.info(f"任务 {t.filename} 已暂停 (单线程模式)")
+                            return
+                        
+                        if t.status == TaskStatus.CANCELLED:
+                            logger.info(f"任务 {t.filename} 已取消 (单线程模式)")
+                            return
+                        
                         t.progress = 100.0
                         t.status = TaskStatus.COMPLETED
                         self.add_complete(t)
-                        logger.info(f"下载完成: {t.filename}")
+                        logger.info(f"[下载完成] 文件: {t.filename} (单线程模式)")
                         return
                         
             except Exception as e:
-                logger.warning(f"单线程下载失败: {e}")
+                logger.warning(f"[单线程下载] 尝试失败: {e}")
                 if ssl_config != ssl_configs[-1]:
+                    logger.info(f"[单线程下载] 切换SSL配置重试...")
                     continue
                 else:
+                    logger.error(f"[单线程下载失败] 文件: {t.filename}, 原因: {e}")
                     raise
