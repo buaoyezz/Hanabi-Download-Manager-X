@@ -32,27 +32,21 @@ class DownloadListenerService {
   // 检查是否有新的下载请求
   Future<void> _checkForNewDownloads() async {
     try {
-      _logger.debug('Polling pending-popup');
       final response = await http.get(
         Uri.parse('$_baseUrl/download/pending-popup'),
       ).timeout(const Duration(seconds: 2));
 
-      _logger.debug('Pending-popup status: ${response.statusCode}, length: ${response.body.length}');
       if (response.statusCode == 200) {
         final result = jsonDecode(response.body);
         final success = result['success'] == true;
         if (success && result['data'] != null) {
           final downloadData = result['data'] as Map<String, dynamic>;
-          _logger.info('New download detected from browser: url=${downloadData['url']}, filename=${downloadData['filename']}');
+          _logger.info('New download from browser: ${downloadData['filename']}');
           await _showPopupForDownload(downloadData);
-        } else if (success) {
-          _logger.debug('No pending popup download');
-        } else {
-          _logger.error('Pending-popup returned error');
         }
       }
     } catch (e) {
-      _logger.error('Check pending downloads failed: $e');
+      // 静默处理错误，避免日志刷屏
     }
   }
 
@@ -61,8 +55,6 @@ class DownloadListenerService {
     if (!context.mounted) return;
 
     try {
-      _logger.info('Showing popup: url=${downloadData['url']}, filename=${downloadData['filename']}, referer=${downloadData['referer']}');
-      
       await PopupWindowService.showPopupDownload(
         context,
         url: downloadData['url'] ?? '',
@@ -72,7 +64,6 @@ class DownloadListenerService {
         headers: downloadData['headers'] as Map<String, dynamic>?,
         isFromBrowser: true,
       );
-      _logger.info('Popup closed');
     } catch (e) {
       _logger.error('Failed to show popup: $e');
     }

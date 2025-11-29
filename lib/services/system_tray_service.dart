@@ -1,18 +1,21 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
 import 'package:system_tray/system_tray.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:path/path.dart' as path;
 import 'logger_service.dart';
+import 'kernel_service.dart';
 
 class SystemTrayService {
   final SystemTray _systemTray = SystemTray();
   final Menu _menu = Menu();
   bool _isInitialized = false;
   final _logger = LoggerService();
+  KernelService? _kernelService;
 
-  Future<void> initialize() async {
+  Future<void> initialize({KernelService? kernelService}) async {
     if (_isInitialized) return;
+
+    _kernelService = kernelService;
 
     try {
       final iconPath = await _getIconPath();
@@ -85,9 +88,20 @@ class SystemTrayService {
     appWindow.hide();
   }
 
-  void exitApp() {
-    _logger.info('Exit app from tray');
+  Future<void> exitApp() async {
+    _logger.info('Exit app from tray - cleaning up kernel...');
+    
+    // 先停止 kernel
+    if (_kernelService != null) {
+      await _kernelService!.stopKernel();
+    }
+    
+    _logger.info('Kernel cleaned up, closing window...');
     appWindow.close();
+    
+    // 强制退出进程
+    await Future.delayed(const Duration(milliseconds: 500));
+    exit(0);
   }
 
   void dispose() {

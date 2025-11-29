@@ -1,5 +1,5 @@
 name: hanabi_download_managerx
-description: 类似 IDM 的下载器软件
+description: A Modern Download Manager 
 publish_to: 'none'
 version: 1.0.0
 
@@ -19,6 +19,8 @@ dependencies:
   fluent_ui: ^4.13.0
   bitsdojo_window: ^0.1.6
   system_tray: ^2.0.3
+  file_picker: ^8.1.6
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:
