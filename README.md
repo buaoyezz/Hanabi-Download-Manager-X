@@ -83,12 +83,6 @@ This complete refactoring solves many legacy issues, bringing you an unprecedent
    flutter run
    ```
 
-> [!TIP]
-> The promotional image in this project's readme uses a Figma community template  
-**Author**: Google
-**Source**: [Google Material Design](https://www.figma.com/)  
-**License**: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
-
 <a name="license"></a>
 ## License
 ##### GNU General Public License version 3<br>Copyright © ZZBuAoYe 2025
