@@ -85,8 +85,8 @@ This complete refactoring solves many legacy issues, bringing you an unprecedent
 
 > [!TIP]
 > The promotional image in this project's readme uses a Figma community template  
-**Author**: Arafat Mahfuz  
-**Source**: [XpressWave Delivery Management Software](https://www.figma.com/community/file/1295799331129179420/xpresswave-delivery-management-software)  
+**Author**: Google
+**Source**: [Google Material Design](https://www.figma.com/)  
 **License**: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 
 <a name="license"></a>
