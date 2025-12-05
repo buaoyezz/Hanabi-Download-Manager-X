@@ -41,6 +41,12 @@ class _LogPageState extends State<LogPage> {
   final RegExp _logPrefixRegex = RegExp(r'^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2},\d{3}\s-\s.*?\s-\s[A-Z]+\s-\s');
   // 正则表达式用于匹配端口号 (例如 port = 12345, port: 12345) 
   final RegExp _portRegex = RegExp(r'(port\s*[:=]?\s*)\d+', caseSensitive: false);
+  // 正则表达式用于匹配线程编号 (例如 线程1, 线程32, Thread 1)
+  final RegExp _threadRegex = RegExp(r'(线程|Thread\s*)\d+', caseSensitive: false);
+  // 正则表达式用于匹配分段编号 (例如 分段 0, 分段 31, Segment 5)
+  final RegExp _segmentRegex = RegExp(r'(分段|Segment)\s*\d+', caseSensitive: false);
+  // 正则表达式用于匹配任务ID (例如 aa655ba5fb927967)
+  final RegExp _taskIdRegex = RegExp(r'\b[a-f0-9]{16}\b');
   // 记录已展开的日志组ID
   final Set<String> _expandedGroupIds = {};
 
@@ -66,7 +72,15 @@ class _LogPageState extends State<LogPage> {
 
   String _normalizeForDedup(String message) {
     String msg = _stripLogPrefix(message);
-    return msg.replaceAll(_portRegex, r'\1<PORT>');
+    // 替换端口号
+    msg = msg.replaceAll(_portRegex, r'\1<PORT>');
+    // 替换线程编号
+    msg = msg.replaceAll(_threadRegex, r'\1<N>');
+    // 替换分段编号
+    msg = msg.replaceAll(_segmentRegex, r'\1<N>');
+    // 替换任务ID
+    msg = msg.replaceAll(_taskIdRegex, '<TASK_ID>');
+    return msg;
   }
 
   List<LogDisplayItem> _groupLogs(List<LogEntry> logs) {
@@ -223,7 +237,7 @@ class _LogPageState extends State<LogPage> {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: FluentTheme.of(context).accentColor.withOpacity(0.15),
+                color: FluentTheme.of(context).accentColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Icon(
@@ -403,7 +417,7 @@ class _LogPageState extends State<LogPage> {
                             horizontalMargin: const EdgeInsets.symmetric(horizontal: 0),
                             thickness: 1,
                             decoration: BoxDecoration(
-                              color: FluentTheme.of(context).resources.dividerStrokeColorDefault.withOpacity(0.2),
+                              color: FluentTheme.of(context).resources.dividerStrokeColorDefault.withValues(alpha: 0.2),
                             ),
                           ),
                         ),
@@ -419,7 +433,7 @@ class _LogPageState extends State<LogPage> {
                         horizontalMargin: const EdgeInsets.symmetric(horizontal: 0),
                         thickness: 1,
                         decoration: BoxDecoration(
-                          color: FluentTheme.of(context).resources.dividerStrokeColorDefault.withOpacity(0.5),
+                          color: FluentTheme.of(context).resources.dividerStrokeColorDefault.withValues(alpha: 0.5),
                         ),
                       ),
                     ),
@@ -476,10 +490,10 @@ class _LogPageState extends State<LogPage> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: FluentTheme.of(context).accentColor.withOpacity(0.1),
+                          color: FluentTheme.of(context).accentColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: FluentTheme.of(context).accentColor.withOpacity(0.3),
+                            color: FluentTheme.of(context).accentColor.withValues(alpha: 0.3),
                           ),
                         ),
                         child: Text(
@@ -537,7 +551,7 @@ class _LogPageState extends State<LogPage> {
           child: Text(
             log.formattedTime,
             style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: Colors.white.withOpacity(isExpandedItem ? 0.3 : 0.5),
+                  color: Colors.white.withValues(alpha: isExpandedItem ? 0.3 : 0.5),
                   fontFamily: 'Courier New',
                 ),
           ),
@@ -548,7 +562,7 @@ class _LogPageState extends State<LogPage> {
         Icon(
           levelIcon,
           size: 16,
-          color: isExpandedItem ? levelColor.withOpacity(0.7) : levelColor,
+          color: isExpandedItem ? levelColor.withValues(alpha: 0.7) : levelColor,
         ),
         const SizedBox(width: 8),
 
@@ -558,7 +572,7 @@ class _LogPageState extends State<LogPage> {
           child: Text(
             log.levelString,
             style: TextStyle(
-              color: isExpandedItem ? levelColor.withOpacity(0.7) : levelColor,
+              color: isExpandedItem ? levelColor.withValues(alpha: 0.7) : levelColor,
               fontWeight: FontWeight.w600,
               fontFamily: 'Courier New',
             ),
@@ -572,7 +586,7 @@ class _LogPageState extends State<LogPage> {
           child: Text(
             log.source,
             style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: Colors.white.withOpacity(isExpandedItem ? 0.5 : 0.7),
+                  color: Colors.white.withValues(alpha: isExpandedItem ? 0.5 : 0.7),
                 ),
             overflow: TextOverflow.ellipsis,
           ),
@@ -584,7 +598,7 @@ class _LogPageState extends State<LogPage> {
           child: Text(
             displayMessage,
             style: FluentTheme.of(context).typography.body?.copyWith(
-              color: isExpandedItem ? FluentTheme.of(context).typography.body?.color?.withOpacity(0.8) : null,
+              color: isExpandedItem ? FluentTheme.of(context).typography.body?.color?.withValues(alpha: 0.8) : null,
             ),
           ),
         ),

@@ -255,6 +255,10 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
   }
 
   Widget _buildProgressSection() {
+    // 检查是否是未知文件大小（fileSize = null 或 0）
+    final isUnknownSize = (widget.task.fileSize == null || widget.task.fileSize == 0) && 
+                          widget.task.status == DownloadStatus.downloading;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -262,16 +266,23 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
         Row(
           children: [
             Expanded(
-              child: ProgressBar(
-                value: widget.task.progress * 100,
-                strokeWidth: 6,
-              ),
+              child: isUnknownSize
+                  ? const ProgressBar(
+                      strokeWidth: 6,
+                      // 不设置 value 就是 indeterminate 模式（流动动画）
+                    )
+                  : ProgressBar(
+                      value: widget.task.progress * 100,
+                      strokeWidth: 6,
+                    ),
             ),
             const SizedBox(width: 16),
             SizedBox(
               width: 60,
               child: Text(
-                '${(widget.task.progress * 100).toStringAsFixed(1)}%',
+                isUnknownSize 
+                    ? '未知'
+                    : '${(widget.task.progress * 100).toStringAsFixed(1)}%',
                 style: FluentTheme.of(context).typography.body?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -441,6 +452,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
   }
 
   Widget _buildSpeedInfo() {
+    final isUnknownSize = widget.task.fileSize == null || widget.task.fileSize == 0;
+    
     return Row(
       children: [
         const Icon(FluentIcons.speed_high, size: 12),
@@ -451,18 +464,22 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             color: Colors.white.withValues(alpha: 0.6),
           ),
         ),
-        const SizedBox(width: 16),
-        const Icon(FluentIcons.clock, size: 12),
-        const SizedBox(width: 6),
-        Text(
-          widget.task.formattedRemainingTime,
-          style: FluentTheme.of(context).typography.caption?.copyWith(
-            color: Colors.white.withValues(alpha: 0.6),
+        if (!isUnknownSize) ...[
+          const SizedBox(width: 16),
+          const Icon(FluentIcons.clock, size: 12),
+          const SizedBox(width: 6),
+          Text(
+            widget.task.formattedRemainingTime,
+            style: FluentTheme.of(context).typography.caption?.copyWith(
+              color: Colors.white.withValues(alpha: 0.6),
+            ),
           ),
-        ),
+        ],
         const SizedBox(width: 16),
         Text(
-          '${widget.task.formattedDownloadedSize} / ${widget.task.formattedFileSize}',
+          isUnknownSize
+              ? '${widget.task.formattedDownloadedSize} / 未知大小'
+              : '${widget.task.formattedDownloadedSize} / ${widget.task.formattedFileSize}',
           style: FluentTheme.of(context).typography.caption?.copyWith(
             color: Colors.white.withValues(alpha: 0.5),
             fontSize: 11,

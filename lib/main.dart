@@ -99,11 +99,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   Future<void> _initSystemTray() async {
     final kernelService = context.read<KernelService>();
-    await systemTrayService.initialize(kernelService: kernelService);
     final isAutoStart = context.read<bool>();
-    if (!isAutoStart) {
-      systemTrayService.showMainWindow();
-    }
+    await systemTrayService.initialize(
+      kernelService: kernelService,
+      showWindow: !isAutoStart,  // 只在非自启动时显示窗口
+    );
   }
 
   Future<void> _initKernel() async {

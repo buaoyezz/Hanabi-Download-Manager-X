@@ -1,9 +1,12 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
+import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../../../services/kernel_service.dart';
 import '../../../services/network_status_service.dart';
+import '../../../services/app_logger_service.dart';
 
 class StatusPage extends StatefulWidget {
   const StatusPage({super.key});
@@ -20,14 +23,54 @@ class _StatusPageState extends State<StatusPage> {
   
   Map<String, dynamic>? _apiTestResults;
   bool _testingApi = false;
+  
+  // 系统信息
+  Map<String, dynamic>? _systemInfo;
+  Map<String, dynamic>? _kernelStats;
 
   @override
   void initState() {
     super.initState();
+    _loadSystemInfo();
     _checkKernelHealth();
+    _loadKernelStats();
     _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       _checkKernelHealth();
+      _loadKernelStats();
     });
+  }
+  
+  Future<void> _loadSystemInfo() async {
+    final info = <String, dynamic>{};
+    info['platform'] = Platform.operatingSystem;
+    info['version'] = Platform.operatingSystemVersion;
+    info['processors'] = Platform.numberOfProcessors;
+    info['dart_version'] = Platform.version.split(' ').first;
+    
+    if (!mounted) return;
+    setState(() {
+      _systemInfo = info;
+    });
+  }
+  
+  Future<void> _loadKernelStats() async {
+    try {
+      final response = await http.get(
+        Uri.parse('http://127.0.0.1:9710/download/statistics'),
+      ).timeout(const Duration(seconds: 3));
+
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        if (result['success']) {
+          if (!mounted) return;
+          setState(() {
+            _kernelStats = result['data'];
+          });
+        }
+      }
+    } catch (e) {
+      // Ignore errors
+    }
   }
 
   @override
@@ -39,6 +82,7 @@ class _StatusPageState extends State<StatusPage> {
   Future<void> _checkKernelHealth() async {
     if (_checkingKernel) return;
     
+    if (!mounted) return;
     setState(() {
       _checkingKernel = true;
     });
@@ -49,20 +93,25 @@ class _StatusPageState extends State<StatusPage> {
       ).timeout(const Duration(seconds: 3));
 
       if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        if (!mounted) return;
         setState(() {
           _kernelHealthy = true;
-          _kernelVersion = '1.0.0'; // 可以从响应中解析
+          _kernelVersion = result['version'] ?? '1.0.0';
         });
       } else {
+        if (!mounted) return;
         setState(() {
           _kernelHealthy = false;
         });
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _kernelHealthy = false;
       });
     } finally {
+      if (!mounted) return;
       setState(() {
         _checkingKernel = false;
       });
@@ -70,6 +119,7 @@ class _StatusPageState extends State<StatusPage> {
   }
 
   Future<void> _testAllApis() async {
+    if (!mounted) return;
     setState(() {
       _testingApi = true;
       _apiTestResults = {};
@@ -90,6 +140,7 @@ class _StatusPageState extends State<StatusPage> {
         );
         stopwatch.stop();
 
+        if (!mounted) return;
         setState(() {
           _apiTestResults![entry.key] = {
             'success': response.statusCode == 200,
@@ -98,6 +149,7 @@ class _StatusPageState extends State<StatusPage> {
           };
         });
       } catch (e) {
+        if (!mounted) return;
         setState(() {
           _apiTestResults![entry.key] = {
             'success': false,
@@ -107,6 +159,7 @@ class _StatusPageState extends State<StatusPage> {
       }
     }
 
+    if (!mounted) return;
     setState(() {
       _testingApi = false;
     });
@@ -116,6 +169,7 @@ class _StatusPageState extends State<StatusPage> {
   Widget build(BuildContext context) {
     final kernelService = context.watch<KernelService>();
     final networkService = context.watch<NetworkStatusService>();
+    final appLogger = context.watch<AppLoggerService>();
 
     return ScaffoldPage(
       header: PageHeader(
@@ -125,7 +179,7 @@ class _StatusPageState extends State<StatusPage> {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: FluentTheme.of(context).accentColor.withOpacity(0.15),
+                color: FluentTheme.of(context).accentColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Icon(
@@ -146,6 +200,8 @@ class _StatusPageState extends State<StatusPage> {
               label: const Text('刷新'),
               onPressed: () {
                 _checkKernelHealth();
+                _loadKernelStats();
+                _loadSystemInfo();
                 networkService.startMonitoring();
               },
             ),
@@ -153,6 +209,13 @@ class _StatusPageState extends State<StatusPage> {
               icon: const Icon(FluentIcons.test_case),
               label: const Text('测试 API'),
               onPressed: _testingApi ? null : _testAllApis,
+            ),
+            CommandBarButton(
+              icon: const Icon(FluentIcons.clear),
+              label: const Text('清空日志'),
+              onPressed: () {
+                appLogger.clear();
+              },
             ),
           ],
         ),
@@ -269,6 +332,114 @@ class _StatusPageState extends State<StatusPage> {
               const SizedBox(height: 24),
             ],
 
+            // 系统信息
+            if (_systemInfo != null)
+              _buildSection(
+                context,
+                title: '系统信息',
+                icon: FluentIcons.system,
+                children: [
+                  _buildStatusItem(
+                    context,
+                    label: '操作系统',
+                    value: _systemInfo!['platform'] ?? 'Unknown',
+                    isInfo: true,
+                  ),
+                  _buildStatusItem(
+                    context,
+                    label: '系统版本',
+                    value: _systemInfo!['version'] ?? 'Unknown',
+                    isInfo: true,
+                  ),
+                  _buildStatusItem(
+                    context,
+                    label: 'CPU 核心数',
+                    value: '${_systemInfo!['processors']} 核',
+                    isInfo: true,
+                  ),
+                  _buildStatusItem(
+                    context,
+                    label: 'Dart 版本',
+                    value: _systemInfo!['dart_version'] ?? 'Unknown',
+                    isInfo: true,
+                  ),
+                ],
+              ),
+
+            const SizedBox(height: 24),
+
+            // 下载统计
+            if (_kernelStats != null)
+              _buildSection(
+                context,
+                title: '下载统计',
+                icon: FluentIcons.chart,
+                children: [
+                  _buildStatusItem(
+                    context,
+                    label: '总下载数',
+                    value: '${_kernelStats!['total_downloads'] ?? 0}',
+                    isInfo: true,
+                  ),
+                  _buildStatusItem(
+                    context,
+                    label: '活跃任务',
+                    value: '${_kernelStats!['active_tasks'] ?? 0}',
+                    isInfo: true,
+                  ),
+                  _buildStatusItem(
+                    context,
+                    label: '已完成',
+                    value: '${_kernelStats!['completed_tasks'] ?? 0}',
+                    isInfo: true,
+                  ),
+                  _buildStatusItem(
+                    context,
+                    label: '失败任务',
+                    value: '${_kernelStats!['failed_tasks'] ?? 0}',
+                    isInfo: true,
+                  ),
+                  if (_kernelStats!['total_downloaded_bytes'] != null)
+                    _buildStatusItem(
+                      context,
+                      label: '总下载量',
+                      value: _formatBytes(_kernelStats!['total_downloaded_bytes']),
+                      isInfo: true,
+                    ),
+                ],
+              ),
+
+            const SizedBox(height: 24),
+
+            // 日志统计
+            _buildSection(
+              context,
+              title: '日志统计',
+              icon: FluentIcons.text_document,
+              children: [
+                _buildStatusItem(
+                  context,
+                  label: '日志条数',
+                  value: '${appLogger.logs.length}',
+                  isInfo: true,
+                ),
+                _buildStatusItem(
+                  context,
+                  label: '错误数',
+                  value: '${appLogger.logs.where((log) => log.level == 'ERROR').length}',
+                  isInfo: true,
+                ),
+                _buildStatusItem(
+                  context,
+                  label: '警告数',
+                  value: '${appLogger.logs.where((log) => log.level == 'WARNING').length}',
+                  isInfo: true,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+
             // 浏览器扩展状态
             _buildSection(
               context,
@@ -293,6 +464,13 @@ class _StatusPageState extends State<StatusPage> {
         ),
       ),
     );
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(2)} KB';
+    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
   }
 
   Widget _buildSection(
@@ -368,7 +546,7 @@ class _StatusPageState extends State<StatusPage> {
             child: Text(
               label,
               style: FluentTheme.of(context).typography.body?.copyWith(
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                   ),
             ),
           ),
@@ -377,7 +555,7 @@ class _StatusPageState extends State<StatusPage> {
             child: Text(
               value,
               style: FluentTheme.of(context).typography.body?.copyWith(
-                    color: isInfo ? Colors.white.withOpacity(0.9) : statusColor,
+                    color: isInfo ? Colors.white.withValues(alpha: 0.9) : statusColor,
                     fontWeight: isInfo ? FontWeight.normal : FontWeight.w600,
                   ),
             ),

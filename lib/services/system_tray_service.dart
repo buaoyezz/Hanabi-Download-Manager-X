@@ -12,14 +12,17 @@ class SystemTrayService {
   final _logger = LoggerService();
   KernelService? _kernelService;
 
-  Future<void> initialize({KernelService? kernelService}) async {
+  Future<void> initialize({
+    KernelService? kernelService,
+    bool showWindow = true,  // 是否在初始化后显示窗口
+  }) async {
     if (_isInitialized) return;
 
     _kernelService = kernelService;
 
     try {
       final iconPath = await _getIconPath();
-      _logger.info('System tray init, iconPath=$iconPath');
+      _logger.info('System tray init, iconPath=$iconPath, showWindow=$showWindow');
       
       await _systemTray.initSystemTray(
         title: "Hanabi Download ManagerX",
@@ -52,6 +55,11 @@ class SystemTrayService {
 
       _isInitialized = true;
       _logger.info('System tray initialized');
+      
+      // 根据参数决定是否显示窗口
+      if (showWindow) {
+        showMainWindow();
+      }
     } catch (e) {
       _logger.error('System tray init failed: $e');
     }

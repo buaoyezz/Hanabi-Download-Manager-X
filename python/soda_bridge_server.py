@@ -192,7 +192,7 @@ async def health_check(request):
     return web.json_response({
         "status": "ok",
         "service": "Soda Speed Force Kernel",
-        "version": "1.0.0"
+        "version": "1.5.5"
     })
 
 async def empty_normal(request):
