@@ -15,11 +15,11 @@ class KernelService extends ChangeNotifier {
 
   // 过滤掉过于频繁的日志
   bool _shouldLogLine(String line) {
-    // 过滤�?aiohttp.access 的日志（太频繁）
+    // 过滤�?aiohttp.access 的日志（太频繁）
     if (line.contains('aiohttp.access')) {
       return false;
     }
-    // 过滤�?pending_popup 的日志（太频繁）
+    // 过滤�?pending_popup 的日志（太频繁）
     if (line.contains('[bridge] pending_popup')) {
       return false;
     }
@@ -37,12 +37,12 @@ class KernelService extends ChangeNotifier {
     }
 
     try {
-      // 先清理可能残留的旧进�?
+      // 先清理可能残留的旧进�?
       _logger.info('Cleaning up any orphaned kernel processes...');
       await _killOrphanedKernelProcesses();
       await Future.delayed(const Duration(milliseconds: 300));
       
-      // 检查服务器是否已经在运�?
+      // 检查服务器是否已经在运�?
       _logger.info('Checking if kernel server is running on $_baseUrl');
       
       final isHealthy = await _checkHealth();
@@ -58,7 +58,7 @@ class KernelService extends ChangeNotifier {
         // 开发模式：启动 Python 脚本
         return await _startPythonKernel();
       } else {
-        // 生产模式：启�?exe
+        // 生产模式：启�?exe
         return await _startExeKernel();
       }
     } catch (e, stackTrace) {
@@ -80,7 +80,7 @@ class KernelService extends ChangeNotifier {
     }
     
     try {
-      // 启动 Python 脚本，使用绝对路�?
+      // 启动 Python 脚本，使用绝对路�?
       _logger.info('Executing: python $scriptPath');
       _kernelProcess = await Process.start(
         'python',
@@ -93,7 +93,7 @@ class KernelService extends ChangeNotifier {
       _logger.info('Python process started, PID: ${_kernelProcess?.pid}');
       
       // 监听进程输出并同步到日志
-      // Windows 中文环境�?Python 默认使用系统编码（GBK�?
+      // Windows 中文环境�?Python 默认使用系统编码（GBK�?
       if (Platform.isWindows) {
         _kernelProcess!.stdout.transform(systemEncoding.decoder).listen(
           (data) {
@@ -183,7 +183,7 @@ class KernelService extends ChangeNotifier {
     }
   }
 
-  /// 生产模式：启�?exe
+  /// 生产模式：启�?exe
   Future<bool> _startExeKernel() async {
     final exePath = await _getKernelPath();
     _logger.info('Starting exe kernel: $exePath');
@@ -195,7 +195,7 @@ class KernelService extends ChangeNotifier {
     }
     
     try {
-      // 使用normal模式以捕获输�?
+      // 使用normal模式以捕获输�?
       _kernelProcess = await Process.start(
         exePath,
         [],
@@ -206,7 +206,7 @@ class KernelService extends ChangeNotifier {
       _logger.info('Exe process started, PID: ${_kernelProcess?.pid}');
       
       // 监听进程输出并同步到日志
-      // Windows 中文环境�?Python 默认使用系统编码（GBK�?
+      // Windows 中文环境�?Python 默认使用系统编码（GBK�?
       if (Platform.isWindows) {
         _kernelProcess!.stdout.transform(systemEncoding.decoder).listen(
           (data) {
@@ -303,7 +303,7 @@ class KernelService extends ChangeNotifier {
         _kernelProcess!.kill(ProcessSignal.sigterm);
         await Future.delayed(const Duration(milliseconds: 500));
         
-        // 如果还在运行，强制终�?
+        // 如果还在运行，强制终�?
         if (_kernelProcess != null) {
           _kernelProcess!.kill(ProcessSignal.sigkill);
         }
@@ -313,7 +313,7 @@ class KernelService extends ChangeNotifier {
       _kernelProcess = null;
     }
     
-    // 直接�?Dart 中清理可能残留的进程
+    // 直接�?Dart 中清理可能残留的进程
     await _killOrphanedKernelProcesses();
     
     _isRunning = false;
@@ -321,11 +321,11 @@ class KernelService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 清理占用 9710 端口和所�?kernel 相关进程
+  /// 清理占用 9710 端口和所�?kernel 相关进程
   Future<void> _killOrphanedKernelProcesses() async {
     try {
       if (Platform.isWindows) {
-        // 1. 查找占用 9710 端口的进�?
+        // 1. 查找占用 9710 端口的进�?
         final netstatResult = await Process.run('netstat', ['-ano']);
         if (netstatResult.exitCode == 0) {
           final lines = netstatResult.stdout.toString().split('\n');
@@ -345,22 +345,22 @@ class KernelService extends ChangeNotifier {
           }
         }
 
-        // 2. 查找所�?soda_kernel.exe 进程
-        final tasklistResult = await Process.run('tasklist', ['/FI', 'IMAGENAME eq soda_kernel.exe', '/FO', 'CSV', '/NH']);
+        // 2. 查找所有 soda_bridge_server.exe 进程
+        final tasklistResult = await Process.run('tasklist', ['/FI', 'IMAGENAME eq soda_bridge_server.exe', '/FO', 'CSV', '/NH']);
         if (tasklistResult.exitCode == 0) {
           final output = tasklistResult.stdout.toString();
           if (output.isNotEmpty && !output.contains('INFO: No tasks')) {
             final lines = output.split('\n');
             for (final line in lines) {
-              if (line.contains('soda_kernel.exe')) {
+              if (line.contains('soda_bridge_server.exe')) {
                 final parts = line.split(',');
                 if (parts.length >= 2) {
                   final pid = parts[1].replaceAll('"', '').trim();
                   try {
                     await Process.run('taskkill', ['/F', '/PID', pid]);
-                    _logger.info('Killed soda_kernel.exe, PID: $pid');
+                    _logger.info('Killed soda_bridge_server.exe, PID: $pid');
                   } catch (e) {
-                    _logger.warning('Failed to kill soda_kernel.exe PID $pid: $e');
+                    _logger.warning('Failed to kill soda_bridge_server.exe PID $pid: $e');
                   }
                 }
               }
@@ -368,8 +368,8 @@ class KernelService extends ChangeNotifier {
           }
         }
 
-        // 3. 查找 Python 进程中运�?soda_bridge_server.py 的进�?
-        // 使用 PowerShell 代替 wmic（Windows 11 已弃�?wmic�?
+        // 3. 查找 Python 进程中运�?soda_bridge_server.py 的进�?
+        // 使用 PowerShell 代替 wmic（Windows 11 已弃�?wmic�?
         try {
           final psResult = await Process.run('powershell', [
             '-Command',
@@ -417,7 +417,7 @@ class KernelService extends ChangeNotifier {
     final exeDir = kDebugMode 
         ? path.join(Directory.current.path, 'python', 'dist')
         : path.dirname(Platform.resolvedExecutable);
-    return path.join(exeDir, 'soda_kernel.exe');
+    return path.join(exeDir, 'soda_bridge_server.exe');
   }
 
   Future<bool> _checkHealth() async {
