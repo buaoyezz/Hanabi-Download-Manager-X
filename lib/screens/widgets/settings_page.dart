@@ -9,7 +9,10 @@ import '../../services/integrated_download_service.dart';
 import '../../services/kernel_service.dart';
 import '../../services/developer_mode_service.dart';
 import '../../widgets/folder_picker_dialog.dart';
+import '../../widgets/settings_components.dart';
+import '../../widgets/temp_files_dialog.dart';
 import '../../services/auto_start_service.dart';
+import '../../theme/app_theme.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -417,27 +420,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return ScaffoldPage.scrollable(
-      header: PageHeader(
-        title: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: FluentTheme.of(context).accentColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Icon(
-                FluentIcons.settings,
-                size: 16,
-                color: FluentTheme.of(context).accentColor,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Text('设置'),
-          ],
-        ),
-      ),
+      header: const SettingsPageHeader(title: '设置', icon: FluentIcons.settings),
       children: [
         const SizedBox(height: 8),
         
@@ -896,63 +879,10 @@ class _SettingsPageState extends State<SettingsPage> {
     required bool isOnline,
     required IconData icon,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isOnline 
-            ? Colors.green.withValues(alpha: 0.1)
-            : Colors.red.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: isOnline 
-              ? Colors.green.withValues(alpha: 0.3)
-              : Colors.red.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 20,
-            color: isOnline ? Colors.green : Colors.red,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: FluentTheme.of(context).typography.body?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: isOnline ? Colors.green : Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      isOnline ? '在线' : '离线',
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: isOnline ? Colors.green : Colors.red,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    return StatusIndicator(
+      title: title,
+      isOnline: isOnline,
+      icon: icon,
     );
   }
 
@@ -962,35 +892,10 @@ class _SettingsPageState extends State<SettingsPage> {
     required IconData icon,
     required List<Widget> children,
   }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: FluentTheme.of(context).resources.cardBackgroundFillColorDefault,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: FluentTheme.of(context).resources.cardStrokeColorDefault,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 16),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: FluentTheme.of(context).typography.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ...children,
-        ],
-      ),
+    return SettingsSection(
+      title: title,
+      icon: icon,
+      children: children,
     );
   }
   
@@ -1015,30 +920,10 @@ class _SettingsPageState extends State<SettingsPage> {
     required String subtitle,
     required Widget trailing,
   }) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: FluentTheme.of(context).typography.body?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.5),
-                ),
-              ),
-            ],
-          ),
-        ),
-        trailing,
-      ],
+    return SettingsItem(
+      title: title,
+      subtitle: subtitle,
+      trailing: trailing,
     );
   }
 
@@ -1066,10 +951,10 @@ class _SettingsPageState extends State<SettingsPage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: FluentTheme.of(context).accentColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
+                  color: AppTheme.accentPrimary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                   border: Border.all(
-                    color: FluentTheme.of(context).accentColor.withOpacity(0.3),
+                    color: AppTheme.accentPrimary.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Column(
@@ -1080,13 +965,13 @@ class _SettingsPageState extends State<SettingsPage> {
                         Icon(
                           FluentIcons.info,
                           size: 16,
-                          color: FluentTheme.of(context).accentColor,
+                          color: AppTheme.accentLight,
                         ),
                         const SizedBox(width: 8),
                         Text(
                           '调试页面显示设置',
                           style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                            color: FluentTheme.of(context).accentColor,
+                            color: AppTheme.accentLight,
                           ),
                         ),
                       ],
@@ -1122,10 +1007,10 @@ class _SettingsPageState extends State<SettingsPage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
+                  color: AppTheme.statusWarning.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                   border: Border.all(
-                    color: Colors.orange.withOpacity(0.3),
+                    color: AppTheme.statusWarning.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
@@ -1133,14 +1018,14 @@ class _SettingsPageState extends State<SettingsPage> {
                     Icon(
                       FluentIcons.warning,
                       size: 16,
-                      color: Colors.orange,
+                      color: AppTheme.statusWarning,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         '调试页面会占用系统资源，建议仅在需要时启用',
                         style: FluentTheme.of(context).typography.caption?.copyWith(
-                          color: Colors.orange,
+                          color: AppTheme.statusWarning,
                         ),
                       ),
                     ),
@@ -1155,62 +1040,37 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildDangerZone(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.red.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Colors.red.withValues(alpha: 0.3),
+    return DangerZone(
+      children: [
+        SettingsItem(
+          title: '清理临时文件',
+          subtitle: '扫描并删除下载目录中的 .temp 临时文件',
+          trailing: Button(
+            onPressed: _downloadPath.isEmpty ? null : _showTempFilesDialog,
+            child: const Text('清理临时文件'),
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(FluentIcons.warning, size: 16, color: Colors.red),
-              const SizedBox(width: 8),
-              Text(
-                '危险区域',
-                style: FluentTheme.of(context).typography.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.red,
-                ),
-              ),
-            ],
+        const SizedBox(height: 12),
+        SettingsItem(
+          title: '清除所有数据',
+          subtitle: '删除所有下载任务和历史记录',
+          trailing: FilledButton(
+            style: ButtonStyle(
+              backgroundColor: WidgetStateProperty.all(AppTheme.statusError),
+            ),
+            onPressed: _confirmClearData,
+            child: const Text('清除数据'),
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '清除所有数据',
-                      style: FluentTheme.of(context).typography.body?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '删除所有下载任务和历史记录',
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.5),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Button(
-                onPressed: _confirmClearData,
-                child: Text('清除数据'),
-              ),
-            ],
-          ),
-        ],
+        ),
+      ],
+    );
+  }
+
+  void _showTempFilesDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => TempFilesDialog(
+        downloadPath: _downloadPath,
       ),
     );
   }

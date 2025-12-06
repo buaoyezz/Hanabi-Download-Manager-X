@@ -4,6 +4,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import '../../services/integrated_download_service.dart';
 import '../../models/download_task.dart';
+import '../../theme/app_theme.dart';
 
 class CompletedList extends StatelessWidget {
   const CompletedList({super.key});
@@ -41,21 +42,50 @@ class CompletedList extends StatelessWidget {
 
   Widget _buildHeader(BuildContext context, int count) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: const BoxDecoration(
         border: Border(
-          bottom: BorderSide(
-            color: FluentTheme.of(context).resources.dividerStrokeColorDefault,
-          ),
+          bottom: BorderSide(color: AppTheme.borderSubtle),
         ),
       ),
       child: Row(
         children: [
-          const Icon(FluentIcons.completed, size: 16),
-          const SizedBox(width: 8),
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: AppTheme.statusSuccess.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(
+              FluentIcons.completed,
+              size: 14,
+              color: AppTheme.statusSuccess,
+            ),
+          ),
+          const SizedBox(width: 10),
           Text(
-            '已完成 ($count)',
-            style: FluentTheme.of(context).typography.bodyStrong,
+            '已完成',
+            style: FluentTheme.of(context).typography.body?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppTheme.statusSuccess.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(AppTheme.radiusRound),
+            ),
+            child: Text(
+              '$count',
+              style: FluentTheme.of(context).typography.caption?.copyWith(
+                color: AppTheme.statusSuccess,
+                fontWeight: FontWeight.w600,
+                fontSize: 11,
+              ),
+            ),
           ),
           const Spacer(),
           Button(
@@ -67,9 +97,9 @@ class CompletedList extends StatelessWidget {
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(FluentIcons.folder_open, size: 14),
+                Icon(FluentIcons.folder_open, size: 12),
                 SizedBox(width: 6),
-                Text('打开文件夹'),
+                Text('打开文件夹', style: TextStyle(fontSize: 12)),
               ],
             ),
           ),
@@ -84,16 +114,22 @@ class CompletedList extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 120,
-            height: 120,
+            width: 100,
+            height: 100,
             decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.1),
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.statusSuccess.withValues(alpha: 0.3),
+                  blurRadius: 60,
+                  spreadRadius: 10,
+                ),
+              ],
             ),
             child: Icon(
               FluentIcons.completed,
-              size: 48,
-              color: Colors.green.withValues(alpha: 0.5),
+              size: 40,
+              color: AppTheme.statusSuccess.withValues(alpha: 0.6),
             ),
           ),
           const SizedBox(height: 24),
@@ -101,13 +137,14 @@ class CompletedList extends StatelessWidget {
             '暂无已完成任务',
             style: FluentTheme.of(context).typography.subtitle?.copyWith(
               fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             '完成的下载任务将显示在这里',
-            style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: Colors.white.withValues(alpha: 0.5),
+            style: FluentTheme.of(context).typography.body?.copyWith(
+              color: AppTheme.textTertiary,
             ),
           ),
         ],
@@ -136,95 +173,35 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        margin: const EdgeInsets.only(bottom: 16),
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
           border: Border.all(
             color: _isHovered
-                ? Colors.green.withValues(alpha: 0.5)
-                : FluentTheme.of(context).resources.cardStrokeColorDefault,
+                ? AppTheme.statusSuccess.withValues(alpha: 0.4)
+                : AppTheme.borderSubtle,
             width: _isHovered ? 1.5 : 1,
           ),
+          boxShadow: _isHovered ? AppTheme.shadowMd : null,
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
             child: Container(
               decoration: BoxDecoration(
-                color: FluentTheme.of(context).resources.cardBackgroundFillColorDefault,
+                color: AppTheme.surfaceCard.withValues(alpha: 0.85),
               ),
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      FluentIcons.completed,
-                      color: Colors.green,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.task.fileName,
-                          style: FluentTheme.of(context).typography.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          widget.task.url,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: FluentTheme.of(context).typography.caption?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.5),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Button(
-                    onPressed: () => _runFile(widget.task.filePath),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(FluentIcons.play, size: 14),
-                        SizedBox(width: 6),
-                        Text('运行'),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Button(
-                    onPressed: () => _openFileLocation(widget.task.filePath),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(FluentIcons.folder_open, size: 14),
-                        SizedBox(width: 6),
-                        Text('打开位置'),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(FluentIcons.delete, size: 16),
-                    onPressed: () => _confirmDelete(downloadService),
-                  ),
+                  _buildStatusIcon(),
+                  const SizedBox(width: 14),
+                  Expanded(child: _buildTaskInfo()),
+                  const SizedBox(width: 12),
+                  _buildActions(downloadService),
                 ],
               ),
             ),
@@ -232,6 +209,121 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
         ),
       ),
     );
+  }
+
+  Widget _buildStatusIcon() {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.statusSuccess.withValues(alpha: 0.2),
+            AppTheme.statusSuccess.withValues(alpha: 0.1),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(
+          color: AppTheme.statusSuccess.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Icon(
+        FluentIcons.completed,
+        color: AppTheme.statusSuccess,
+        size: 20,
+      ),
+    );
+  }
+
+  Widget _buildTaskInfo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.task.fileName,
+          style: FluentTheme.of(context).typography.body?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Icon(
+              FluentIcons.check_mark,
+              size: 10,
+              color: AppTheme.statusSuccess,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              widget.task.formattedFileSize,
+              style: FluentTheme.of(context).typography.caption?.copyWith(
+                color: AppTheme.textTertiary,
+                fontSize: 11,
+              ),
+            ),
+            if (widget.task.endTime != null) ...[
+              Container(
+                width: 1,
+                height: 10,
+                margin: const EdgeInsets.symmetric(horizontal: 8),
+                color: AppTheme.borderSubtle,
+              ),
+              Text(
+                _formatDate(widget.task.endTime!),
+                style: FluentTheme.of(context).typography.caption?.copyWith(
+                  color: AppTheme.textTertiary,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActions(IntegratedDownloadService service) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _ActionButton(
+          icon: FluentIcons.play,
+          label: '运行',
+          color: AppTheme.accentPrimary,
+          onPressed: () => _runFile(widget.task.filePath),
+        ),
+        const SizedBox(width: 6),
+        _ActionButton(
+          icon: FluentIcons.folder_open,
+          label: '位置',
+          color: AppTheme.textSecondary,
+          onPressed: () => _openFileLocation(widget.task.filePath),
+        ),
+        const SizedBox(width: 6),
+        _IconActionButton(
+          icon: FluentIcons.delete,
+          color: AppTheme.statusError,
+          onPressed: () => _confirmDelete(service),
+        ),
+      ],
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    
+    if (diff.inMinutes < 1) return '刚刚';
+    if (diff.inHours < 1) return '${diff.inMinutes}分钟前';
+    if (diff.inDays < 1) return '${diff.inHours}小时前';
+    if (diff.inDays < 7) return '${diff.inDays}天前';
+    
+    return '${date.month}/${date.day}';
   }
 
   void _runFile(String? filePath) async {
@@ -298,6 +390,9 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
             child: const Text('取消'),
           ),
           FilledButton(
+            style: ButtonStyle(
+              backgroundColor: WidgetStateProperty.all(AppTheme.statusError),
+            ),
             onPressed: () {
               service.removeTask(widget.task.id);
               Navigator.pop(context);
@@ -305,6 +400,125 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
             child: const Text('删除'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 带文字的操作按钮
+class _ActionButton extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onPressed;
+
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onPressed,
+  });
+
+  @override
+  State<_ActionButton> createState() => _ActionButtonState();
+}
+
+class _ActionButtonState extends State<_ActionButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onPressed,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: _isHovered 
+                ? widget.color.withValues(alpha: 0.15)
+                : AppTheme.bgLayer2,
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            border: Border.all(
+              color: _isHovered 
+                  ? widget.color.withValues(alpha: 0.3)
+                  : AppTheme.borderSubtle,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                widget.icon,
+                size: 12,
+                color: _isHovered ? widget.color : AppTheme.textSecondary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                widget.label,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: _isHovered ? widget.color : AppTheme.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 纯图标操作按钮
+class _IconActionButton extends StatefulWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback onPressed;
+
+  const _IconActionButton({
+    required this.icon,
+    required this.color,
+    required this.onPressed,
+  });
+
+  @override
+  State<_IconActionButton> createState() => _IconActionButtonState();
+}
+
+class _IconActionButtonState extends State<_IconActionButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onPressed,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: _isHovered 
+                ? widget.color.withValues(alpha: 0.15)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            border: Border.all(
+              color: _isHovered 
+                  ? widget.color.withValues(alpha: 0.3)
+                  : Colors.transparent,
+            ),
+          ),
+          child: Icon(
+            widget.icon,
+            size: 12,
+            color: _isHovered ? widget.color : AppTheme.textTertiary,
+          ),
+        ),
       ),
     );
   }

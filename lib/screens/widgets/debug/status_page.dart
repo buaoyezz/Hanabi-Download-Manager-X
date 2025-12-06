@@ -7,6 +7,8 @@ import 'dart:convert';
 import '../../../services/kernel_service.dart';
 import '../../../services/network_status_service.dart';
 import '../../../services/app_logger_service.dart';
+import '../../../theme/app_theme.dart';
+import '../../../widgets/settings_components.dart';
 
 class StatusPage extends StatefulWidget {
   const StatusPage({super.key});
@@ -176,19 +178,25 @@ class _StatusPageState extends State<StatusPage> {
         title: Row(
           children: [
             Container(
-              width: 32,
-              height: 32,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
-                color: FluentTheme.of(context).accentColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(6),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppTheme.accentPrimary.withValues(alpha: 0.2),
+                    AppTheme.accentPrimary.withValues(alpha: 0.1),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                border: Border.all(
+                  color: AppTheme.accentPrimary.withValues(alpha: 0.3),
+                ),
               ),
-              child: Icon(
-                FluentIcons.health,
-                size: 16,
-                color: FluentTheme.of(context).accentColor,
-              ),
+              child: const Icon(FluentIcons.health, size: 18, color: AppTheme.accentLight),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             const Text('系统状态'),
           ],
         ),
@@ -455,7 +463,7 @@ class _StatusPageState extends State<StatusPage> {
                 _buildStatusItem(
                   context,
                   label: '提示',
-                  value: '请在浏览器中安装扩展以启用下载拦截功能',
+                  value: '插件下载可以通过Edge浏览器插件商城下载，目前只上架了Edge，手动安装请自行Github下载Chrome_extension.zip安装，未来适配Firefox',
                   isInfo: true,
                 ),
               ],
@@ -482,24 +490,31 @@ class _StatusPageState extends State<StatusPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: FluentTheme.of(context).resources.cardBackgroundFillColorDefault,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: FluentTheme.of(context).resources.cardStrokeColorDefault,
-        ),
+        color: AppTheme.surfaceCard,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(color: AppTheme.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 16),
-              const SizedBox(width: 8),
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: AppTheme.accentPrimary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(icon, size: 14, color: AppTheme.accentLight),
+              ),
+              const SizedBox(width: 10),
               Text(
                 title,
-                style: FluentTheme.of(context).typography.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                style: FluentTheme.of(context).typography.body?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
               ),
             ],
           ),
@@ -521,33 +536,42 @@ class _StatusPageState extends State<StatusPage> {
     IconData statusIcon;
 
     if (isInfo) {
-      statusColor = Colors.grey;
+      statusColor = AppTheme.textTertiary;
       statusIcon = FluentIcons.info;
     } else if (isOnline) {
-      statusColor = Colors.green;
+      statusColor = AppTheme.statusSuccess;
       statusIcon = FluentIcons.completed;
     } else {
-      statusColor = Colors.red;
+      statusColor = AppTheme.statusError;
       statusIcon = FluentIcons.status_error_full;
     }
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppTheme.bgLayer2,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      ),
       child: Row(
         children: [
-          Icon(
-            statusIcon,
-            size: 16,
-            color: statusColor,
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Icon(statusIcon, size: 12, color: statusColor),
           ),
           const SizedBox(width: 12),
           SizedBox(
-            width: 120,
+            width: 100,
             child: Text(
               label,
-              style: FluentTheme.of(context).typography.body?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.7),
-                  ),
+              style: FluentTheme.of(context).typography.caption?.copyWith(
+                color: AppTheme.textTertiary,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -555,9 +579,10 @@ class _StatusPageState extends State<StatusPage> {
             child: Text(
               value,
               style: FluentTheme.of(context).typography.body?.copyWith(
-                    color: isInfo ? Colors.white.withValues(alpha: 0.9) : statusColor,
-                    fontWeight: isInfo ? FontWeight.normal : FontWeight.w600,
-                  ),
+                color: isInfo ? AppTheme.textPrimary : statusColor,
+                fontWeight: isInfo ? FontWeight.normal : FontWeight.w600,
+                fontSize: 13,
+              ),
             ),
           ),
         ],

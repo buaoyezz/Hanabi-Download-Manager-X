@@ -1,11 +1,14 @@
-﻿import 'package:fluent_ui/fluent_ui.dart';
+import 'dart:ui';
+import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import '../utils/constants.dart';
 import '../services/integrated_download_service.dart';
 import '../services/developer_mode_service.dart';
 import '../services/app_logger_service.dart';
+import '../services/kernel_service.dart';
 import '../models/download_task.dart';
+import '../theme/app_theme.dart';
 import '../main.dart';
 import 'widgets/download_list.dart';
 import 'widgets/add_download_dialog.dart';
@@ -43,7 +46,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   List<NavigationItem> _getNavItems(BuildContext context) {
     final devMode = context.watch<DeveloperModeService>();
     
-    // 主要功能页面（显示在上方�?
     final items = <NavigationItem>[
       NavigationItem(
         icon: FluentIcons.download,
@@ -57,10 +59,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ),
     ];
     
-    // 底部页面（设置', '关于、调试）
     final bottomItems = <NavigationItem>[];
     
-    // 根据开发者模式动态添加调试页面（放在设置前面�?
     if (devMode.showLogPage) {
       bottomItems.add(NavigationItem(
         icon: FluentIcons.text_document,
@@ -77,7 +77,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ));
     }
     
-    // 设置', '关于始终显�?
     bottomItems.addAll([
       NavigationItem(
         icon: FluentIcons.settings,
@@ -91,7 +90,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ),
     ]);
     
-    // 合并主要页面和底部页�?
     return [...items, ...bottomItems];
   }
 
@@ -100,16 +98,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     super.initState();
     AppLoggerService().info('App', 'HomeScreen initialized');
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _widthAnimation = Tween<double>(begin: 200, end: 60).animate(
+    _widthAnimation = Tween<double>(begin: 220, end: 50).animate(
       CurvedAnimation(
         parent: _animationController,
-        curve: Curves.easeInOut,
+        curve: Curves.easeInOutCubic,
       ),
     );
-    _animationController.value = 0; // 初始展开
+    _animationController.value = 0; // 默认展开状态
   }
 
   @override
@@ -132,8 +130,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     final navItems = _getNavItems(context);
+    final kernelService = context.watch<KernelService>();
     
-    // 确保 _currentIndex 在有效范围内
     if (_currentIndex >= navItems.length) {
       _currentIndex = 0;
     }
@@ -142,15 +140,30 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       color: Colors.transparent,
       child: Column(
         children: [
-          _buildCustomTitleBar(context),
+          // 顶部标题栏（横跨整个窗口）
+          _buildTopTitleBar(context),
+          // 下方内容区（侧边栏 + 主内容）
           Expanded(
             child: Row(
               children: [
-                _buildSideNavigation(context),
+                // 侧边栏
+                _buildSidebar(context, navItems),
+                // 主内容区
                 Expanded(
                   child: Container(
-                    color: Colors.transparent,
-                    child: navItems[_currentIndex].body,
+                    color: AppTheme.bgSolid.withValues(alpha: 0.65),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppTheme.bgSolid.withValues(alpha: 0.85),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(12),
+                        ),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: kernelService.isRunning
+                          ? navItems[_currentIndex].body
+                          : _buildLoadingIndicator(),
+                    ),
                   ),
                 ),
               ],
@@ -161,420 +174,413 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildCustomTitleBar(BuildContext context) {
-    return SizedBox(
-      height: 40,
-      child: Stack(
+  Widget _buildLoadingIndicator() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // 纯色背景
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.transparent,
-              border: Border(
-                bottom: BorderSide(
-                  color: const Color(0xFF404040),
-                  width: 1,
-                ),
-              ),
+          const ProgressRing(),
+          const SizedBox(height: 16),
+          Text(
+            '正在启动下载内核...',
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 13,
             ),
-          ),
-          // 内容�?
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final compact = constraints.maxWidth < 360;
-              return Row(
-                children: [
-                  Expanded(
-                    child: WindowTitleBarBox(
-                      child: MoveWindow(
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 12),
-                          child: Row(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: Image.asset(
-                                  'assets/logo/logo.png',
-                                  width: 20,
-                                  height: 20,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Flexible(
-                                child: Text(
-                                  AppConstants.appName,
-                                  style: FluentTheme.of(context).typography.caption?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (!compact) ...[
-                    _buildStatsInfo(),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      height: 26,
-                      child: FilledButton(
-                        onPressed: () => _showAddDownloadDialog(context),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(FluentIcons.add, size: 11),
-                            SizedBox(width: 4),
-                            Text('新建', style: TextStyle(fontSize: 11)),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    SizedBox(
-                      height: 26,
-                      child: Button(
-                        onPressed: () => systemTrayService.hideMainWindow(),
-                        child: const Text('最小化到托盘', style: TextStyle(fontSize: 11)),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    SizedBox(
-                      width: 26,
-                      height: 26,
-                      child: IconButton(
-                        icon: const Icon(FluentIcons.info, size: 13),
-                        onPressed: () => _showAboutDialog(context),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                  _buildWindowButtons(context),
-                ],
-              );
-            },
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSideNavigation(BuildContext context) {
+  /// 顶部标题栏 - 横跨整个窗口
+  Widget _buildTopTitleBar(BuildContext context) {
+    return WindowTitleBarBox(
+      child: ClipRRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+          child: Container(
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppTheme.bgSolid.withValues(alpha: 0.65),
+            ),
+            child: Row(
+          children: [
+            // 左侧：Logo + 标题
+            MoveWindow(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 12),
+                child: Row(
+                  children: [
+                    // Logo
+                    Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(4),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.accentPrimary.withValues(alpha: 0.25),
+                            blurRadius: 12,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: Image.asset(
+                          'assets/logo/logo.png',
+                          width: 20,
+                          height: 20,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // 应用名称
+                    Text(
+                      AppConstants.appName,
+                      style: FluentTheme.of(context).typography.caption?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            const Spacer(),
+            
+            // 中间：可拖动区域
+            const Expanded(child: SizedBox()),
+            
+            const Spacer(),
+            
+            // 右侧：统计信息 + 新建按钮 + 托盘按钮 + 窗口控制
+            _buildStatsChip(),
+            const SizedBox(width: 12),
+            _buildNewTaskButton(context),
+            const SizedBox(width: 8),
+            _buildTrayButton(),
+            const SizedBox(width: 8),
+            _buildWindowButtons(context),
+          ],
+        ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 侧边栏
+  Widget _buildSidebar(BuildContext context, List<NavigationItem> navItems) {
     return AnimatedBuilder(
       animation: _widthAnimation,
       builder: (context, child) {
         final width = _widthAnimation.value;
-        final isCompact = width < 100;
+        final isCompact = width < 150;
         
         return Container(
           width: width,
           decoration: BoxDecoration(
-            color: Colors.transparent,
-            border: Border(
-              right: BorderSide(
-                color: const Color(0xFF404040),
-                width: 1,
-              ),
-            ),
+            color: AppTheme.bgSolid.withValues(alpha: 0.65),
           ),
           child: Column(
-                children: [
-                  if (!isCompact) ...[
-                    const SizedBox(height: 16),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        children: [
-                          if (width > 150)
-                            Text(
-                              'Welcome',
-                              style: FluentTheme.of(context).typography.bodyLarge?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: FluentTheme.of(context).accentColor,
-                              ),
-                            ),
-                          const Spacer(),
-                          IconButton(
-                            icon: const Icon(FluentIcons.back, size: 14),
-                            onPressed: _toggleSidebar,
-                          ),
-                        ],
+            children: [
+              const SizedBox(height: 4),
+              
+              // 汉堡菜单按钮
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isCompact ? 0 : 12,
+                  vertical: 4,
+                ),
+                child: SizedBox(
+                  height: 36,
+                  width: isCompact ? 40 : double.infinity,
+                  child: Button(
+                    onPressed: _toggleSidebar,
+                    style: ButtonStyle(
+                      padding: WidgetStateProperty.all(
+                        isCompact 
+                            ? EdgeInsets.zero 
+                            : const EdgeInsets.only(left: 12),
+                      ),
+                      backgroundColor: WidgetStateProperty.resolveWith((states) {
+                        if (states.isHovered) {
+                          return AppTheme.bgLayer2.withValues(alpha: 0.5);
+                        }
+                        return Colors.transparent;
+                      }),
+                      shape: WidgetStateProperty.all(
+                        const RoundedRectangleBorder(side: BorderSide.none),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Divider(
-                        style: DividerThemeData(
-                          decoration: BoxDecoration(
-                            color: FluentTheme.of(context)
-                                .resources
-                                .dividerStrokeColorDefault,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                  if (isCompact) ...[
-                    const SizedBox(height: 12),
-                    IconButton(
-                      icon: const Icon(FluentIcons.global_nav_button, size: 14),
-                      onPressed: _toggleSidebar,
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  const SizedBox(height: 8),
-                  // 主要导航项（上方�?
-                  ..._getNavItems(context).asMap().entries.where((entry) => !['日志', '状态', '设置', '关于'].contains(entry.value.title)).map((entry) {
-                    final index = entry.key;
-                    final item = entry.value;
-                    final isSelected = _currentIndex == index;
-                    
-                    return Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isCompact ? 6 : 12,
-                        vertical: 4,
-                      ),
-                      child: _buildNavItem(
-                        context,
-                        icon: item.icon,
-                        title: item.title,
-                        isSelected: isSelected,
-                        isCompact: isCompact,
-                        onTap: () {
-                          AppLoggerService().info('App', 'Navigated to: ${item.title}');
-                          setState(() => _currentIndex = index);
-                        },
-                      ),
-                    );
-                  }),
-                  const Spacer(),
-                  // 底部导航项（调试、设置', '关于）
-                  ..._getNavItems(context).asMap().entries.where((entry) => ['日志', '状态', '设置', '关于'].contains(entry.value.title)).map((entry) {
-                    final index = entry.key;
-                    final item = entry.value;
-                    final isSelected = _currentIndex == index;
-                    
-                    return Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isCompact ? 6 : 12,
-                        vertical: 4,
-                      ),
-                      child: _buildNavItem(
-                        context,
-                        icon: item.icon,
-                        title: item.title,
-                        isSelected: isSelected,
-                        isCompact: isCompact,
-                        onTap: () {
-                          AppLoggerService().info('App', 'Navigated to: ${item.title}');
-                          setState(() => _currentIndex = index);
-                        },
-                      ),
-                    );
-                  }),
-                  // 底部信息
-                  if (!isCompact)
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: FluentTheme.of(context)
-                              .resources
-                              .cardBackgroundFillColorDefault
-                              .withValues(alpha: 0.1), // 增加透明�?
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: FluentTheme.of(context)
-                                .resources
-                                .cardStrokeColorDefault
-                                .withValues(alpha: 0.2),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  FluentIcons.info,
-                                  size: 12,
-                                  color: FluentTheme.of(context).accentColor.withValues(alpha: 0.8),
-                                ),
-                                const SizedBox(width: 6),
-                                Flexible(
-                                  child: Text(
-                                    AppConstants.appName,
-                                    style: FluentTheme.of(context).typography.caption?.copyWith(
-                                      color: Colors.white.withValues(alpha: 0.8),
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'v${AppConstants.version}',
-                              style: FluentTheme.of(context).typography.caption?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.5),
-                                fontSize: 9,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  if (isCompact)
-                    Padding(
-                      padding: const EdgeInsets.all(12),
+                    child: Align(
+                      alignment: isCompact ? Alignment.center : Alignment.centerLeft,
                       child: Icon(
-                        FluentIcons.info,
-                        size: 12,
-                        color: Colors.white.withValues(alpha: 0.4),
+                        FluentIcons.global_nav_button,
+                        size: 16,
+                        color: AppTheme.textSecondary,
                       ),
                     ),
-                ],
+                  ),
+                ),
               ),
+
+              const SizedBox(height: 8),
+              
+              // 主导航项
+              ...navItems.asMap().entries
+                  .where((entry) => !['日志', '状态', '设置', '关于'].contains(entry.value.title))
+                  .map((entry) => _buildNavItemWidget(context, entry.key, entry.value, isCompact)),
+              
+              const Spacer(),
+              
+              // 分隔线
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 16, vertical: 8),
+                child: Container(
+                  height: 1,
+                  color: AppTheme.borderSubtle.withValues(alpha: 0.5),
+                ),
+              ),
+              
+              // 底部导航项
+              ...navItems.asMap().entries
+                  .where((entry) => ['日志', '状态', '设置', '关于'].contains(entry.value.title))
+                  .map((entry) => _buildNavItemWidget(context, entry.key, entry.value, isCompact)),
+              
+              // 底部信息
+              _buildSidebarFooter(context, isCompact),
+            ],
+          ),
         );
       },
     );
   }
 
-  Widget _buildNavItem(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required bool isSelected,
-    required bool isCompact,
-    required VoidCallback onTap,
-  }) {
-    return HoverButton(
-      onPressed: onTap,
-      builder: (context, states) {
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: EdgeInsets.symmetric(
-            horizontal: isCompact ? 6 : 12,
-            vertical: 11,
+  /// 新建任务按钮（标题栏）
+  Widget _buildNewTaskButton(BuildContext context) {
+    return SizedBox(
+      height: 28,
+      child: FilledButton(
+        style: ButtonStyle(
+          padding: WidgetStateProperty.all(
+            const EdgeInsets.symmetric(horizontal: 12),
           ),
+        ),
+        onPressed: () => _showAddDownloadDialog(context),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(FluentIcons.add, size: 12),
+            SizedBox(width: 6),
+            Text('新建', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 托盘按钮
+  Widget _buildTrayButton() {
+    return SizedBox(
+      height: 28,
+      width: 28,
+      child: Button(
+        style: ButtonStyle(
+          padding: WidgetStateProperty.all(EdgeInsets.zero),
+        ),
+        onPressed: () => systemTrayService.hideMainWindow(),
+        child: const Icon(FluentIcons.chrome_minimize, size: 12),
+      ),
+    );
+  }
+
+  Widget _buildStatsChip() {
+    return Consumer<IntegratedDownloadService>(
+      builder: (context, service, _) {
+        final downloading = service.tasks.where((t) => t.status == DownloadStatus.downloading).length;
+        final completed = service.tasks.where((t) => t.status == DownloadStatus.completed).length;
+        
+        return Container(
+          height: 28,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
-            color: isSelected
-                ? FluentTheme.of(context).accentColor.withValues(alpha: 0.15)
-                : states.isHovered
-                    ? FluentTheme.of(context).resources.subtleFillColorSecondary
-                    : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-            border: isSelected
-                ? Border.all(
-                    color: FluentTheme.of(context).accentColor.withValues(alpha: 0.4),
-                    width: 1.5,
-                  )
-                : null,
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: FluentTheme.of(context).accentColor.withValues(alpha: 0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
+            color: AppTheme.bgLayer2.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(AppTheme.radiusRound),
+            border: Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.5)),
           ),
-          child: isCompact
-              ? Center(
-                  child: Icon(
-                    icon,
-                    size: 20,
-                    color: isSelected
-                        ? FluentTheme.of(context).accentColor
-                        : Colors.white.withValues(alpha: 0.8),
-                  ),
-                )
-              : Row(
-                  children: [
-                    Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? FluentTheme.of(context).accentColor.withValues(alpha: 0.2)
-                            : states.isHovered
-                                ? Colors.white.withValues(alpha: 0.05)
-                                : Colors.transparent,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Icon(
-                        icon,
-                        size: 15,
-                        color: isSelected
-                            ? FluentTheme.of(context).accentColor
-                            : Colors.white.withValues(alpha: 0.8),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: FluentTheme.of(context).typography.body?.copyWith(
-                          color: isSelected
-                              ? FluentTheme.of(context).accentColor
-                              : Colors.white.withValues(alpha: 0.9),
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                          fontSize: 13,
-                          letterSpacing: 0.1,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (isSelected) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        width: 4,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: FluentTheme.of(context).accentColor,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildStatItem(FluentIcons.download, downloading, AppTheme.accentPrimary),
+              Container(
+                width: 1,
+                height: 12,
+                margin: const EdgeInsets.symmetric(horizontal: 8),
+                color: AppTheme.borderSubtle.withValues(alpha: 0.5),
+              ),
+              _buildStatItem(FluentIcons.completed, completed, AppTheme.statusSuccess),
+            ],
+          ),
         );
       },
+    );
+  }
+
+  Widget _buildStatItem(IconData icon, int count, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 11, color: color),
+        const SizedBox(width: 4),
+        Text(
+          '$count',
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.w600,
+            fontSize: 11,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNavItemWidget(BuildContext context, int index, NavigationItem item, bool isCompact) {
+    final isSelected = _currentIndex == index;
+    
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: isCompact ? 8 : 12,
+        vertical: 2,
+      ),
+      child: _NavItem(
+        icon: item.icon,
+        title: item.title,
+        isSelected: isSelected,
+        isCompact: isCompact,
+        onTap: () {
+          AppLoggerService().info('App', 'Navigated to: ${item.title}');
+          setState(() => _currentIndex = index);
+        },
+      ),
+    );
+  }
+
+  Widget _buildSidebarFooter(BuildContext context, bool isCompact) {
+    if (isCompact) {
+      return Padding(
+        padding: const EdgeInsets.all(8),
+        child: Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: AppTheme.accentPrimary.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: const Icon(
+            FluentIcons.info,
+            size: 12,
+            color: AppTheme.accentLight,
+          ),
+        ),
+      );
+    }
+    
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppTheme.accentPrimary.withValues(alpha: 0.1),
+              AppTheme.accentPrimary.withValues(alpha: 0.03),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          border: Border.all(
+            color: AppTheme.accentPrimary.withValues(alpha: 0.2),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: AppTheme.accentPrimary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                FluentIcons.download,
+                size: 16,
+                color: AppTheme.accentLight,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    AppConstants.appName,
+                    style: FluentTheme.of(context).typography.caption?.copyWith(
+                      color: AppTheme.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'v${AppConstants.version}',
+                    style: FluentTheme.of(context).typography.caption?.copyWith(
+                      color: AppTheme.textTertiary,
+                      fontSize: 10,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _buildWindowButtons(BuildContext context) {
     final buttonColors = WindowButtonColors(
-      iconNormal: Colors.white.withValues(alpha: 0.8),
-      iconMouseDown: Colors.white,
-      iconMouseOver: Colors.white,
+      iconNormal: AppTheme.textSecondary,
+      iconMouseDown: AppTheme.textPrimary,
+      iconMouseOver: AppTheme.textPrimary,
       normal: Colors.transparent,
-      mouseOver: Colors.white.withValues(alpha: 0.1),
-      mouseDown: Colors.white.withValues(alpha: 0.15),
+      mouseOver: AppTheme.bgLayer2.withValues(alpha: 0.8),
+      mouseDown: AppTheme.bgLayer3,
     );
 
     final closeButtonColors = WindowButtonColors(
-      iconNormal: Colors.white.withValues(alpha: 0.8),
-      iconMouseDown: Colors.white,
-      iconMouseOver: Colors.white,
+      iconNormal: AppTheme.textSecondary,
+      iconMouseDown: AppTheme.textPrimary,
+      iconMouseOver: AppTheme.textPrimary,
       normal: Colors.transparent,
-      mouseOver: const Color(0xFFE81123),
+      mouseOver: AppTheme.statusError,
       mouseDown: const Color(0xFFC50F1F),
     );
 
     return SizedBox(
-      height: 40,
+      height: 56,
       child: Row(
         children: [
           MinimizeWindowButton(colors: buttonColors),
@@ -585,137 +591,153 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildStatsInfo() {
-    return Consumer<IntegratedDownloadService>(
-      builder: (context, service, _) {
-        final downloading = service.tasks.where((t) => t.status == DownloadStatus.downloading).length;
-        final completed = service.tasks.where((t) => t.status == DownloadStatus.completed).length;
-        
-        return Container(
-          height: 24,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            color: FluentTheme.of(context).resources.cardBackgroundFillColorDefault.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-              color: FluentTheme.of(context).resources.cardStrokeColorDefault.withValues(alpha: 0.3),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                FluentIcons.download,
-                size: 10,
-                color: Colors.blue.withValues(alpha: 0.9),
-              ),
-              const SizedBox(width: 3),
-              Text(
-                '$downloading',
-                style: TextStyle(
-                  color: Colors.blue,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 10,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                width: 1,
-                height: 10,
-                color: FluentTheme.of(context).resources.dividerStrokeColorDefault,
-              ),
-              const SizedBox(width: 6),
-              Icon(
-                FluentIcons.completed,
-                size: 10,
-                color: Colors.green.withValues(alpha: 0.9),
-              ),
-              const SizedBox(width: 3),
-              Text(
-                '$completed',
-                style: TextStyle(
-                  color: Colors.green,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 10,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   void _showAddDownloadDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => const AddDownloadDialog(),
     );
   }
+}
 
-  void _showAboutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => ContentDialog(
-        title: const Text('关于'),
-        content: SizedBox(
-          width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildInfoRow(context, FluentIcons.app_icon_default, '软件名称', AppConstants.appName),
-              const SizedBox(height: 12),
-              _buildInfoRow(context, FluentIcons.build_queue, '版本', AppConstants.version),
-              const SizedBox(height: 12),
-              _buildInfoRow(context, FluentIcons.contact, '开发者', AppConstants.developer),
-              const SizedBox(height: 12),
-              _buildInfoRow(context, FluentIcons.processing, '下载核心', AppConstants.kernelName),
-            ],
-          ),
-        ),
-        actions: [
-          Button(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('关闭'),
-          ),
-        ],
+/// Fluent Design 导航项组件
+class _NavItem extends StatefulWidget {
+  final IconData icon;
+  final String title;
+  final bool isSelected;
+  final bool isCompact;
+  final VoidCallback onTap;
+
+  const _NavItem({
+    required this.icon,
+    required this.title,
+    required this.isSelected,
+    required this.isCompact,
+    required this.onTap,
+  });
+
+  @override
+  State<_NavItem> createState() => _NavItemState();
+}
+
+class _NavItemState extends State<_NavItem> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: widget.isCompact
+            ? _buildCompactContent()
+            : AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                curve: Curves.easeOutCubic,
+                height: 36,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: widget.isSelected
+                      ? AppTheme.bgLayer2.withValues(alpha: 0.8)
+                      : _isHovered
+                          ? AppTheme.bgLayer2.withValues(alpha: 0.5)
+                          : Colors.transparent,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: _buildExpandedContent(),
+              ),
       ),
     );
   }
 
-  Widget _buildInfoRow(BuildContext context, IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: FluentTheme.of(context).accentColor.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Icon(icon, size: 16, color: FluentTheme.of(context).accentColor),
+  Widget _buildCompactContent() {
+    return Center(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOutCubic,
+        width: 40,
+        height: 36,
+        decoration: BoxDecoration(
+          color: widget.isSelected
+              ? AppTheme.bgLayer2.withValues(alpha: 0.8)
+              : _isHovered
+                  ? AppTheme.bgLayer2.withValues(alpha: 0.5)
+                  : Colors.transparent,
+          borderRadius: BorderRadius.circular(4),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.6),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // 选中指示器
+            if (widget.isSelected)
+              Positioned(
+                left: 4,
+                child: Container(
+                  width: 3,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentPrimary,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-              Text(
-                value,
-                style: FluentTheme.of(context).typography.body,
-              ),
-            ],
+            Icon(
+              widget.icon,
+              size: 16,
+              color: widget.isSelected
+                  ? AppTheme.accentLight
+                  : _isHovered
+                      ? AppTheme.textPrimary
+                      : AppTheme.textSecondary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExpandedContent() {
+    return Row(
+      children: [
+        // 选中指示器
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: 3,
+          height: widget.isSelected ? 16 : 0,
+          margin: const EdgeInsets.only(right: 12),
+          decoration: BoxDecoration(
+            color: AppTheme.accentPrimary,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        // 图标
+        Icon(
+          widget.icon,
+          size: 16,
+          color: widget.isSelected
+              ? AppTheme.accentLight
+              : _isHovered
+                  ? AppTheme.textPrimary
+                  : AppTheme.textSecondary,
+        ),
+        const SizedBox(width: 12),
+        // 标题
+        Expanded(
+          child: Text(
+            widget.title,
+            style: TextStyle(
+              color: widget.isSelected
+                  ? AppTheme.textPrimary
+                  : _isHovered
+                      ? AppTheme.textPrimary
+                      : AppTheme.textSecondary,
+              fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w400,
+              fontSize: 13,
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
     );
   }
 }
-

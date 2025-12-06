@@ -1,0 +1,392 @@
+import 'dart:io';
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as path;
+import 'app_logger_service.dart';
+import '../utils/constants.dart';
+
+/// 客户端配置服务
+/// 配置目录结构：
+/// ~/.hdmx/
+///   ├── config/
+///   │   ├── app.json          (应用配置)
+///   │   ├── ui.json           (界面配置)
+///   │   └── log.json          (日志配置)
+///   ├── data/
+///   │   ├── bookmarks.json    (书签数据)
+///   │   └── history.json      (历史记录)
+///   └── cache/
+///       └── temp/             (临时文件)
+class ClientConfigService extends ChangeNotifier {
+  static final ClientConfigService _instance = ClientConfigService._internal();
+  factory ClientConfigService() => _instance;
+  ClientConfigService._internal();
+
+  final _logger = AppLoggerService();
+  
+  // 目录路径
+  late String _baseDir;
+  late String _configDir;
+  late String _dataDir;
+  late String _cacheDir;
+  
+  // 配置文件路径
+  late String _appConfigPath;
+  late String _uiConfigPath;
+  late String _logConfigPath;
+  
+  // 配置数据
+  Map<String, dynamic> _appConfig = {};
+  Map<String, dynamic> _uiConfig = {};
+  Map<String, dynamic> _logConfig = {};
+  bool _isLoaded = false;
+
+  /// 初始化配置服务
+  Future<void> initialize() async {
+    try {
+      // 获取用户主目录
+      final homeDir = Platform.environment['USERPROFILE'] ?? 
+                      Platform.environment['HOME'] ?? 
+                      Directory.current.path;
+      
+      _baseDir = path.join(homeDir, '.hdmx');
+      _configDir = path.join(_baseDir, 'config');
+      _dataDir = path.join(_baseDir, 'data');
+      _cacheDir = path.join(_baseDir, 'cache');
+      
+      _appConfigPath = path.join(_configDir, 'app.json');
+      _uiConfigPath = path.join(_configDir, 'ui.json');
+      _logConfigPath = path.join(_configDir, 'log.json');
+      
+      _logger.info('App', '配置基础目录: $_baseDir');
+      
+      // 创建目录结构
+      await _createDirectories();
+      
+      // 加载配置
+      await _loadAllConfigs();
+      _isLoaded = true;
+      
+      _logger.info('App', '配置服务初始化完成');
+    } catch (e) {
+      _logger.error('App', '初始化配置服务失败: $e');
+    }
+  }
+
+  /// 创建目录结构
+  Future<void> _createDirectories() async {
+    final dirs = [
+      _configDir,
+      _dataDir,
+      path.join(_cacheDir, 'temp'),
+    ];
+    
+    for (final dir in dirs) {
+      final directory = Directory(dir);
+      if (!await directory.exists()) {
+        await directory.create(recursive: true);
+        _logger.info('App', '创建目录: $dir');
+      }
+    }
+  }
+
+  /// 加载所有配置
+  Future<void> _loadAllConfigs() async {
+    _appConfig = await _loadConfigFile(_appConfigPath, _getDefaultAppConfig());
+    _uiConfig = await _loadConfigFile(_uiConfigPath, _getDefaultUiConfig());
+    _logConfig = await _loadConfigFile(_logConfigPath, _getDefaultLogConfig());
+  }
+
+  /// 加载单个配置文件
+  Future<Map<String, dynamic>> _loadConfigFile(String filePath, Map<String, dynamic> defaultConfig) async {
+    try {
+      final file = File(filePath);
+      if (await file.exists()) {
+        final content = await file.readAsString();
+        final config = jsonDecode(content) as Map<String, dynamic>;
+        _logger.info('App', '加载配置: ${path.basename(filePath)}');
+        return config;
+      } else {
+        _logger.info('App', '配置文件不存在，创建默认配置: ${path.basename(filePath)}');
+        await _saveConfigFile(filePath, defaultConfig);
+        return defaultConfig;
+      }
+    } catch (e) {
+      _logger.error('App', '加载配置失败 ${path.basename(filePath)}: $e');
+      return defaultConfig;
+    }
+  }
+
+  /// 保存单个配置文件
+  Future<void> _saveConfigFile(String filePath, Map<String, dynamic> config) async {
+    try {
+      final file = File(filePath);
+      final content = const JsonEncoder.withIndent('  ').convert(config);
+      await file.writeAsString(content);
+      _logger.debug('App', '保存配置: ${path.basename(filePath)}');
+    } catch (e) {
+      _logger.error('App', '保存配置失败 ${path.basename(filePath)}: $e');
+    }
+  }
+
+  /// 获取默认应用配置
+  Map<String, dynamic> _getDefaultAppConfig() {
+    return {
+      'version': AppConstants.version,
+      'last_updated': DateTime.now().toIso8601String(),
+      'behavior': {
+        'auto_start_download': true,
+        'notify_on_complete': true,
+      },
+    };
+  }
+
+  /// 获取默认界面配置
+  Map<String, dynamic> _getDefaultUiConfig() {
+    return {
+      'version': AppConstants.version,
+      'window': {
+        'effect_mode': 'acrylic',
+        'effect_alpha': 160,
+      },
+      'segments': {
+        'default_expanded': false,
+        'max_visible': 5,
+      },
+    };
+  }
+
+  /// 获取默认日志配置
+  Map<String, dynamic> _getDefaultLogConfig() {
+    return {
+      'version': AppConstants.version,
+      'display': {
+        'show_stats': true,
+        'auto_scroll': true,
+      },
+      'regex_rules': [
+        {
+          'name': 'URL',
+          'pattern': r'https?://[^\s]+',
+          'enabled': true,
+          'color': 0xFF60CDFF,
+        },
+        {
+          'name': 'IP地址',
+          'pattern': r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b',
+          'enabled': true,
+          'color': 0xFF6CCB5F,
+        },
+        {
+          'name': '文件路径',
+          'pattern': r'[A-Za-z]:\\[^\s]+|/[^\s]+',
+          'enabled': true,
+          'color': 0xFFFFB900,
+        },
+        {
+          'name': '数字',
+          'pattern': r'\b\d+\.?\d*\s*(MB|KB|GB|ms|s|%)\b',
+          'enabled': false,
+          'color': 0xFFFF6B6B,
+        },
+      ],
+    };
+  }
+
+  /// 获取配置值（从指定的配置文件）
+  T? _getFromConfig<T>(Map<String, dynamic> config, String key, {T? defaultValue}) {
+    if (!_isLoaded) {
+      return defaultValue;
+    }
+    
+    final keys = key.split('.');
+    dynamic value = config;
+    
+    for (final k in keys) {
+      if (value is Map<String, dynamic> && value.containsKey(k)) {
+        value = value[k];
+      } else {
+        return defaultValue;
+      }
+    }
+    
+    return value as T?;
+  }
+
+  /// 设置配置值（到指定的配置文件）
+  Future<void> _setToConfig(Map<String, dynamic> config, String filePath, String key, dynamic value) async {
+    final keys = key.split('.');
+    Map<String, dynamic> current = config;
+    
+    for (int i = 0; i < keys.length - 1; i++) {
+      final k = keys[i];
+      if (!current.containsKey(k) || current[k] is! Map<String, dynamic>) {
+        current[k] = <String, dynamic>{};
+      }
+      current = current[k] as Map<String, dynamic>;
+    }
+    
+    current[keys.last] = value;
+    config['last_updated'] = DateTime.now().toIso8601String();
+    
+    await _saveConfigFile(filePath, config);
+    notifyListeners();
+  }
+
+  // ========== 日志配置 ==========
+  
+  List<Map<String, dynamic>> getLogRegexRules() {
+    final rules = _getFromConfig<List>(_logConfig, 'regex_rules', defaultValue: []);
+    return rules?.cast<Map<String, dynamic>>() ?? [];
+  }
+
+  Future<void> saveLogRegexRules(List<Map<String, dynamic>> rules) async {
+    await _setToConfig(_logConfig, _logConfigPath, 'regex_rules', rules);
+  }
+
+  bool getLogShowStats() {
+    return _getFromConfig<bool>(_logConfig, 'display.show_stats', defaultValue: true) ?? true;
+  }
+
+  Future<void> setLogShowStats(bool value) async {
+    await _setToConfig(_logConfig, _logConfigPath, 'display.show_stats', value);
+  }
+
+  bool getLogAutoScroll() {
+    return _getFromConfig<bool>(_logConfig, 'display.auto_scroll', defaultValue: true) ?? true;
+  }
+
+  Future<void> setLogAutoScroll(bool value) async {
+    await _setToConfig(_logConfig, _logConfigPath, 'display.auto_scroll', value);
+  }
+
+  // ========== 界面配置 ==========
+  
+  String getWindowEffectMode() {
+    return _getFromConfig<String>(_uiConfig, 'window.effect_mode', defaultValue: 'acrylic') ?? 'acrylic';
+  }
+
+  Future<void> setWindowEffectMode(String mode) async {
+    await _setToConfig(_uiConfig, _uiConfigPath, 'window.effect_mode', mode);
+  }
+
+  int getWindowEffectAlpha() {
+    return _getFromConfig<int>(_uiConfig, 'window.effect_alpha', defaultValue: 160) ?? 160;
+  }
+
+  Future<void> setWindowEffectAlpha(int alpha) async {
+    await _setToConfig(_uiConfig, _uiConfigPath, 'window.effect_alpha', alpha);
+  }
+
+  bool getSegmentsDefaultExpanded() {
+    return _getFromConfig<bool>(_uiConfig, 'segments.default_expanded', defaultValue: false) ?? false;
+  }
+
+  Future<void> setSegmentsDefaultExpanded(bool value) async {
+    await _setToConfig(_uiConfig, _uiConfigPath, 'segments.default_expanded', value);
+  }
+
+  int getSegmentsMaxVisible() {
+    return _getFromConfig<int>(_uiConfig, 'segments.max_visible', defaultValue: 5) ?? 5;
+  }
+
+  Future<void> setSegmentsMaxVisible(int value) async {
+    await _setToConfig(_uiConfig, _uiConfigPath, 'segments.max_visible', value);
+  }
+
+  // ========== 应用配置 ==========
+  
+  bool getAutoStartDownload() {
+    return _getFromConfig<bool>(_appConfig, 'behavior.auto_start_download', defaultValue: true) ?? true;
+  }
+
+  Future<void> setAutoStartDownload(bool value) async {
+    await _setToConfig(_appConfig, _appConfigPath, 'behavior.auto_start_download', value);
+  }
+
+  bool getNotifyOnComplete() {
+    return _getFromConfig<bool>(_appConfig, 'behavior.notify_on_complete', defaultValue: true) ?? true;
+  }
+
+  Future<void> setNotifyOnComplete(bool value) async {
+    await _setToConfig(_appConfig, _appConfigPath, 'behavior.notify_on_complete', value);
+  }
+
+  // ========== 配置管理 ==========
+  
+  /// 导出所有配置到目录
+  Future<bool> exportAllConfigs(String targetDir) async {
+    try {
+      final dir = Directory(targetDir);
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+      
+      await File(_appConfigPath).copy(path.join(targetDir, 'app.json'));
+      await File(_uiConfigPath).copy(path.join(targetDir, 'ui.json'));
+      await File(_logConfigPath).copy(path.join(targetDir, 'log.json'));
+      
+      _logger.info('App', '导出所有配置到: $targetDir');
+      return true;
+    } catch (e) {
+      _logger.error('App', '导出配置失败: $e');
+      return false;
+    }
+  }
+
+  /// 从目录导入所有配置
+  Future<bool> importAllConfigs(String sourceDir) async {
+    try {
+      final appFile = File(path.join(sourceDir, 'app.json'));
+      final uiFile = File(path.join(sourceDir, 'ui.json'));
+      final logFile = File(path.join(sourceDir, 'log.json'));
+      
+      if (await appFile.exists()) {
+        _appConfig = jsonDecode(await appFile.readAsString());
+        await _saveConfigFile(_appConfigPath, _appConfig);
+      }
+      
+      if (await uiFile.exists()) {
+        _uiConfig = jsonDecode(await uiFile.readAsString());
+        await _saveConfigFile(_uiConfigPath, _uiConfig);
+      }
+      
+      if (await logFile.exists()) {
+        _logConfig = jsonDecode(await logFile.readAsString());
+        await _saveConfigFile(_logConfigPath, _logConfig);
+      }
+      
+      notifyListeners();
+      _logger.info('App', '导入配置成功');
+      return true;
+    } catch (e) {
+      _logger.error('App', '导入配置失败: $e');
+      return false;
+    }
+  }
+
+  /// 重置为默认配置
+  Future<void> resetToDefault() async {
+    _appConfig = _getDefaultAppConfig();
+    _uiConfig = _getDefaultUiConfig();
+    _logConfig = _getDefaultLogConfig();
+    
+    await _saveConfigFile(_appConfigPath, _appConfig);
+    await _saveConfigFile(_uiConfigPath, _uiConfig);
+    await _saveConfigFile(_logConfigPath, _logConfig);
+    
+    notifyListeners();
+    _logger.info('App', '重置为默认配置');
+  }
+
+  // ========== 路径访问器 ==========
+  
+  String get baseDir => _baseDir;
+  String get configDir => _configDir;
+  String get dataDir => _dataDir;
+  String get cacheDir => _cacheDir;
+  
+  String get appConfigPath => _appConfigPath;
+  String get uiConfigPath => _uiConfigPath;
+  String get logConfigPath => _logConfigPath;
+}

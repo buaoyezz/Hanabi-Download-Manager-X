@@ -1,6 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import '../services/integrated_download_service.dart';
+import '../theme/app_theme.dart';
 
 // IDM风格的弹窗下载对话框
 class PopupDownloadDialog extends StatefulWidget {
@@ -68,19 +69,13 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
     return Container(
       width: 520,
       decoration: BoxDecoration(
-        color: FluentTheme.of(context).micaBackgroundColor,
-        borderRadius: BorderRadius.circular(8),
+        color: AppTheme.bgLayer1.withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         border: Border.all(
-          color: FluentTheme.of(context).accentColor.withValues(alpha: 0.5),
+          color: AppTheme.borderSubtle.withValues(alpha: 0.6),
           width: 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 20,
-            spreadRadius: 5,
-          ),
-        ],
+        boxShadow: AppTheme.shadowLg,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -97,10 +92,16 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: FluentTheme.of(context).accentColor.withValues(alpha: 0.1),
+        color: AppTheme.bgLayer2.withValues(alpha: 0.5),
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(8),
-          topRight: Radius.circular(8),
+          topLeft: Radius.circular(AppTheme.radiusLg),
+          topRight: Radius.circular(AppTheme.radiusLg),
+        ),
+        border: Border(
+          bottom: BorderSide(
+            color: AppTheme.borderSubtle.withValues(alpha: 0.5),
+            width: 1,
+          ),
         ),
       ),
       child: Row(
@@ -109,12 +110,12 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: FluentTheme.of(context).accentColor,
-              borderRadius: BorderRadius.circular(8),
+              color: AppTheme.accentPrimary,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
             child: const Icon(
               FluentIcons.download,
-              size: 18,
+              size: 16,
               color: Colors.white,
             ),
           ),
@@ -125,24 +126,24 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
               children: [
                 Text(
                   '新建下载任务',
-                  style: FluentTheme.of(context).typography.subtitle?.copyWith(
-                    fontWeight: FontWeight.bold,
+                  style: FluentTheme.of(context).typography.body?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                    fontSize: 14,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   'Hanabi Download ManagerX',
                   style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: FluentTheme.of(context).typography.caption?.color?.withValues(alpha: 0.7),
+                    color: AppTheme.textTertiary,
+                    fontSize: 11,
                   ),
                 ),
               ],
             ),
           ),
-          IconButton(
-            icon: const Icon(FluentIcons.chrome_close, size: 12),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
+          _CloseButton(onPressed: () => Navigator.of(context).pop()),
         ],
       ),
     );
@@ -156,46 +157,81 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
         children: [
           _buildInfoLabel('下载链接', FluentIcons.link),
           const SizedBox(height: 8),
-          TextBox(
-            controller: _urlController,
-            placeholder: 'HTTP/HTTPS 下载链接',
-            maxLines: 2,
-            style: FluentTheme.of(context).typography.body,
+          Container(
+            decoration: BoxDecoration(
+              color: AppTheme.bgLayer2,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(color: AppTheme.borderSubtle),
+            ),
+            child: TextBox(
+              controller: _urlController,
+              placeholder: 'HTTP/HTTPS 下载链接',
+              maxLines: 2,
+              style: FluentTheme.of(context).typography.body,
+              decoration: WidgetStateProperty.all(const BoxDecoration()),
+            ),
           ),
           const SizedBox(height: 16),
           _buildInfoLabel('文件名', FluentIcons.document),
           const SizedBox(height: 8),
-          TextBox(
-            controller: _fileNameController,
-            placeholder: '保存的文件名',
-            style: FluentTheme.of(context).typography.body,
+          Container(
+            decoration: BoxDecoration(
+              color: AppTheme.bgLayer2,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(color: AppTheme.borderSubtle),
+            ),
+            child: TextBox(
+              controller: _fileNameController,
+              placeholder: '保存的文件名',
+              style: FluentTheme.of(context).typography.body,
+              decoration: WidgetStateProperty.all(const BoxDecoration()),
+            ),
           ),
           const SizedBox(height: 16),
           Checkbox(
             checked: _autoStart,
             onChanged: (value) => setState(() => _autoStart = value ?? true),
-            content: const Text('立即开始下载'),
+            content: Text(
+              '立即开始下载',
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+            ),
           ),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: FluentTheme.of(context).accentColor.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(6),
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.accentPrimary.withValues(alpha: 0.1),
+                  AppTheme.accentPrimary.withValues(alpha: 0.05),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(
+                color: AppTheme.accentPrimary.withValues(alpha: 0.2),
+              ),
             ),
             child: Row(
               children: [
-                Icon(
-                  FluentIcons.info,
-                  size: 14,
-                  color: FluentTheme.of(context).accentColor,
+                Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentPrimary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Icon(
+                    FluentIcons.info,
+                    size: 12,
+                    color: AppTheme.accentLight,
+                  ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     '支持多线程下载、断点续传、速度限制',
                     style: FluentTheme.of(context).typography.caption?.copyWith(
-                      color: FluentTheme.of(context).accentColor,
+                      color: AppTheme.accentLight,
                       fontSize: 11,
                     ),
                   ),
@@ -211,13 +247,14 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
   Widget _buildInfoLabel(String label, IconData icon) {
     return Row(
       children: [
-        Icon(icon, size: 14, color: FluentTheme.of(context).accentColor),
+        Icon(icon, size: 13, color: AppTheme.accentLight),
         const SizedBox(width: 6),
         Text(
           label,
           style: FluentTheme.of(context).typography.body?.copyWith(
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w500,
             fontSize: 13,
+            color: AppTheme.textPrimary,
           ),
         ),
       ],
@@ -228,10 +265,16 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: FluentTheme.of(context).cardColor.withValues(alpha: 0.3),
+        color: AppTheme.bgLayer2.withValues(alpha: 0.3),
         borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(8),
-          bottomRight: Radius.circular(8),
+          bottomLeft: Radius.circular(AppTheme.radiusLg),
+          bottomRight: Radius.circular(AppTheme.radiusLg),
+        ),
+        border: Border(
+          top: BorderSide(
+            color: AppTheme.borderSubtle.withValues(alpha: 0.5),
+            width: 1,
+          ),
         ),
       ),
       child: Row(
@@ -240,15 +283,15 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
           Button(
             onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
             child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               child: Text('取消'),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           FilledButton(
             onPressed: _isLoading ? null : _handleDownload,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               child: _isLoading
                   ? const Row(
                       mainAxisSize: MainAxisSize.min,
@@ -262,7 +305,14 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
                         Text('添加中...'),
                       ],
                     )
-                  : const Text('开始下载'),
+                  : const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(FluentIcons.download, size: 12),
+                        SizedBox(width: 6),
+                        Text('开始下载'),
+                      ],
+                    ),
             ),
           ),
         ],
@@ -312,6 +362,48 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
             child: const Text('确定'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+
+/// 关闭按钮
+class _CloseButton extends StatefulWidget {
+  final VoidCallback onPressed;
+
+  const _CloseButton({required this.onPressed});
+
+  @override
+  State<_CloseButton> createState() => _CloseButtonState();
+}
+
+class _CloseButtonState extends State<_CloseButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onPressed,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: _isHovered 
+                ? AppTheme.statusError.withValues(alpha: 0.15)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+          ),
+          child: Icon(
+            FluentIcons.chrome_close,
+            size: 10,
+            color: _isHovered ? AppTheme.statusError : AppTheme.textTertiary,
+          ),
+        ),
       ),
     );
   }

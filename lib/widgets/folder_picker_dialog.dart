@@ -1,6 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'dart:io';
 import 'package:path/path.dart' as path;
+import '../theme/app_theme.dart';
 
 class FolderPickerDialog extends StatefulWidget {
   final String initialPath;
@@ -225,54 +226,84 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
   Widget build(BuildContext context) {
     return ContentDialog(
       constraints: const BoxConstraints(maxWidth: 700, maxHeight: 600),
-      title: const Text('选择文件夹'),
+      title: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: AppTheme.accentPrimary.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
+            child: const Icon(
+              FluentIcons.folder_open,
+              size: 16,
+              color: AppTheme.accentLight,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Text('选择文件夹'),
+        ],
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // 驱动器快速选择
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             children: _getDrives().map((drive) {
-              return Button(
+              return _DriveButton(
+                drive: drive,
                 onPressed: () => _navigateToPath(drive),
-                child: Text(drive),
               );
             }).toList(),
           ),
           const SizedBox(height: 12),
 
           // 路径输入框和导航
-          Row(
-            children: [
-              Button(
-                onPressed: _navigateToParent,
-                child: const Icon(FluentIcons.up, size: 16),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextBox(
-                  controller: _pathController,
-                  placeholder: '输入路径或从下方选择',
-                  onSubmitted: (value) {
-                    if (value.isNotEmpty) {
-                      _loadDirectory(value);
-                    }
-                  },
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppTheme.bgLayer2,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(color: AppTheme.borderSubtle),
+            ),
+            child: Row(
+              children: [
+                _NavButton(
+                  icon: FluentIcons.up,
+                  onPressed: _navigateToParent,
+                  tooltip: '上级目录',
                 ),
-              ),
-              const SizedBox(width: 8),
-              Button(
-                onPressed: () => _loadDirectory(_pathController.text),
-                child: const Icon(FluentIcons.refresh, size: 16),
-              ),
-              const SizedBox(width: 8),
-              Button(
-                onPressed: _createNewFolder,
-                child: const Icon(FluentIcons.add, size: 16),
-              ),
-            ],
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextBox(
+                    controller: _pathController,
+                    placeholder: '输入路径或从下方选择',
+                    style: const TextStyle(fontSize: 12),
+                    onSubmitted: (value) {
+                      if (value.isNotEmpty) {
+                        _loadDirectory(value);
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _NavButton(
+                  icon: FluentIcons.refresh,
+                  onPressed: () => _loadDirectory(_pathController.text),
+                  tooltip: '刷新',
+                ),
+                const SizedBox(width: 4),
+                _NavButton(
+                  icon: FluentIcons.add,
+                  onPressed: _createNewFolder,
+                  tooltip: '新建文件夹',
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
 
@@ -280,80 +311,54 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                border: Border.all(
-                  color: FluentTheme.of(context).resources.cardStrokeColorDefault,
-                ),
-                borderRadius: BorderRadius.circular(4),
+                color: AppTheme.surfaceCard,
+                border: Border.all(color: AppTheme.borderSubtle),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
               ),
-              child: _loading
-                  ? const Center(child: ProgressRing())
-                  : _error != null
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  FluentIcons.error,
-                                  size: 32,
-                                  color: Colors.red,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  _error!,
-                                  style: TextStyle(color: Colors.red),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : _items.isEmpty
-                          ? Center(
-                              child: Text(
-                                '此文件夹为空',
-                                style: FluentTheme.of(context).typography.body?.copyWith(
-                                      color: Colors.white.withValues(alpha: 0.5),
-                                    ),
-                              ),
-                            )
-                          : ListView.builder(
-                              itemCount: _items.length,
-                              itemBuilder: (context, index) {
-                                final item = _items[index];
-                                final name = _getFolderName(item.path);
-
-                                return ListTile(
-                                  leading: const Icon(FluentIcons.folder, size: 20),
-                                  title: Text(name),
-                                  onPressed: () => _navigateToPath(item.path),
-                                );
-                              },
-                            ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                child: _loading
+                    ? const Center(child: ProgressRing())
+                    : _error != null
+                        ? _buildErrorState()
+                        : _items.isEmpty
+                            ? _buildEmptyState(context)
+                            : _buildFolderList(),
+              ),
             ),
           ),
           const SizedBox(height: 12),
 
           // 当前选择提示
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: FluentTheme.of(context).accentColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(4),
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.accentPrimary.withValues(alpha: 0.1),
+                  AppTheme.accentPrimary.withValues(alpha: 0.05),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(
+                color: AppTheme.accentPrimary.withValues(alpha: 0.2),
+              ),
             ),
             child: Row(
               children: [
-                Icon(
-                  FluentIcons.info,
-                  size: 16,
-                  color: FluentTheme.of(context).accentColor,
+                const Icon(
+                  FluentIcons.check_mark,
+                  size: 14,
+                  color: AppTheme.accentLight,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '当前选择: $_currentPath',
-                    style: FluentTheme.of(context).typography.caption,
+                    _currentPath,
+                    style: FluentTheme.of(context).typography.caption?.copyWith(
+                      color: AppTheme.textPrimary,
+                      fontSize: 11,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -369,9 +374,247 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context, _currentPath),
-          child: const Text('选择此文件夹'),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(FluentIcons.check_mark, size: 12),
+              SizedBox(width: 6),
+              Text('选择'),
+            ],
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppTheme.statusError.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                FluentIcons.error,
+                size: 24,
+                color: AppTheme.statusError,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _error!,
+              style: const TextStyle(color: AppTheme.statusError, fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            FluentIcons.folder,
+            size: 32,
+            color: AppTheme.textTertiary,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '此文件夹为空',
+            style: FluentTheme.of(context).typography.body?.copyWith(
+              color: AppTheme.textTertiary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFolderList() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(4),
+      itemCount: _items.length,
+      itemBuilder: (context, index) {
+        final item = _items[index];
+        final name = _getFolderName(item.path);
+        return _FolderItem(
+          name: name,
+          onPressed: () => _navigateToPath(item.path),
+        );
+      },
+    );
+  }
+}
+
+
+/// 驱动器按钮
+class _DriveButton extends StatefulWidget {
+  final String drive;
+  final VoidCallback onPressed;
+
+  const _DriveButton({required this.drive, required this.onPressed});
+
+  @override
+  State<_DriveButton> createState() => _DriveButtonState();
+}
+
+class _DriveButtonState extends State<_DriveButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onPressed,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: _isHovered ? AppTheme.accentPrimary.withValues(alpha: 0.15) : AppTheme.bgLayer2,
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            border: Border.all(
+              color: _isHovered ? AppTheme.accentPrimary.withValues(alpha: 0.3) : AppTheme.borderSubtle,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                FluentIcons.hard_drive,
+                size: 12,
+                color: _isHovered ? AppTheme.accentLight : AppTheme.textSecondary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                widget.drive,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: _isHovered ? AppTheme.accentLight : AppTheme.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 导航按钮
+class _NavButton extends StatefulWidget {
+  final IconData icon;
+  final VoidCallback onPressed;
+  final String tooltip;
+
+  const _NavButton({required this.icon, required this.onPressed, required this.tooltip});
+
+  @override
+  State<_NavButton> createState() => _NavButtonState();
+}
+
+class _NavButtonState extends State<_NavButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: widget.tooltip,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: GestureDetector(
+          onTap: widget.onPressed,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: _isHovered ? AppTheme.accentPrimary.withValues(alpha: 0.15) : Colors.transparent,
+              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            ),
+            child: Icon(
+              widget.icon,
+              size: 14,
+              color: _isHovered ? AppTheme.accentLight : AppTheme.textSecondary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 文件夹项
+class _FolderItem extends StatefulWidget {
+  final String name;
+  final VoidCallback onPressed;
+
+  const _FolderItem({required this.name, required this.onPressed});
+
+  @override
+  State<_FolderItem> createState() => _FolderItemState();
+}
+
+class _FolderItemState extends State<_FolderItem> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onPressed,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          margin: const EdgeInsets.symmetric(vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: _isHovered ? AppTheme.bgLayer2 : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                FluentIcons.folder,
+                size: 16,
+                color: _isHovered ? AppTheme.statusWarning : AppTheme.textSecondary,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  widget.name,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _isHovered ? AppTheme.textPrimary : AppTheme.textSecondary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (_isHovered)
+                const Icon(
+                  FluentIcons.chevron_right,
+                  size: 12,
+                  color: AppTheme.textTertiary,
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

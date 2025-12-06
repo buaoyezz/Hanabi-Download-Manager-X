@@ -1,6 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import '../../services/integrated_download_service.dart';
+import '../../theme/app_theme.dart';
 
 class AddDownloadDialog extends StatefulWidget {
   const AddDownloadDialog({super.key});
@@ -28,79 +29,95 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> {
       title: Row(
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
-              color: FluentTheme.of(context).accentColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(6),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppTheme.accentPrimary.withValues(alpha: 0.2),
+                  AppTheme.accentPrimary.withValues(alpha: 0.1),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+              border: Border.all(
+                color: AppTheme.accentPrimary.withValues(alpha: 0.3),
+              ),
             ),
-            child: Icon(
+            child: const Icon(
               FluentIcons.add,
-              size: 16,
-              color: FluentTheme.of(context).accentColor,
+              size: 18,
+              color: AppTheme.accentLight,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           const Text('新建下载任务'),
         ],
       ),
       content: Form(
         key: _formKey,
         child: SizedBox(
-          width: 500,
+          width: 520,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              InfoLabel(
+              _buildInputField(
+                context,
                 label: '下载链接',
-                child: TextBox(
-                  controller: _urlController,
-                  placeholder: '请输入 HTTP/HTTPS 下载链接',
-                  prefix: const Padding(
-                    padding: EdgeInsets.only(left: 12),
-                    child: Icon(FluentIcons.link, size: 16),
-                  ),
-                  maxLines: 2,
-                  style: FluentTheme.of(context).typography.body,
-                ),
+                controller: _urlController,
+                placeholder: '请输入 HTTP/HTTPS 下载链接',
+                icon: FluentIcons.link,
+                maxLines: 2,
               ),
-              const SizedBox(height: 20),
-              InfoLabel(
+              const SizedBox(height: 16),
+              _buildInputField(
+                context,
                 label: '文件名',
-                child: TextBox(
-                  controller: _fileNameController,
-                  placeholder: '请输入保存的文件名（含扩展名）',
-                  prefix: const Padding(
-                    padding: EdgeInsets.only(left: 12),
-                    child: Icon(FluentIcons.document, size: 16),
-                  ),
-                  style: FluentTheme.of(context).typography.body,
-                ),
+                controller: _fileNameController,
+                placeholder: '请输入保存的文件名（含扩展名）',
+                icon: FluentIcons.document,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: FluentTheme.of(context).accentColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppTheme.accentPrimary.withValues(alpha: 0.1),
+                      AppTheme.accentPrimary.withValues(alpha: 0.05),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                   border: Border.all(
-                    color: FluentTheme.of(context).accentColor.withValues(alpha: 0.3),
+                    color: AppTheme.accentPrimary.withValues(alpha: 0.2),
                   ),
                 ),
                 child: Row(
                   children: [
-                    Icon(
-                      FluentIcons.info,
-                      size: 16,
-                      color: FluentTheme.of(context).accentColor,
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentPrimary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Icon(
+                        FluentIcons.info,
+                        size: 12,
+                        color: AppTheme.accentLight,
+                      ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         '支持多线程下载，自动断点续传',
                         style: FluentTheme.of(context).typography.caption?.copyWith(
-                          color: FluentTheme.of(context).accentColor,
+                          color: AppTheme.accentLight,
+                          fontSize: 12,
                         ),
                       ),
                     ),
@@ -131,7 +148,55 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> {
                     Text('添加中...'),
                   ],
                 )
-              : const Text('开始下载'),
+              : const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(FluentIcons.download, size: 14),
+                    SizedBox(width: 6),
+                    Text('开始下载'),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInputField(
+    BuildContext context, {
+    required String label,
+    required TextEditingController controller,
+    required String placeholder,
+    required IconData icon,
+    int maxLines = 1,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: FluentTheme.of(context).typography.body?.copyWith(
+            fontWeight: FontWeight.w500,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          decoration: BoxDecoration(
+            color: AppTheme.bgLayer2,
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            border: Border.all(color: AppTheme.borderSubtle),
+          ),
+          child: TextBox(
+            controller: controller,
+            placeholder: placeholder,
+            prefix: Padding(
+              padding: const EdgeInsets.only(left: 12),
+              child: Icon(icon, size: 14, color: AppTheme.textTertiary),
+            ),
+            maxLines: maxLines,
+            style: FluentTheme.of(context).typography.body,
+            decoration: WidgetStateProperty.all(const BoxDecoration()),
+          ),
         ),
       ],
     );

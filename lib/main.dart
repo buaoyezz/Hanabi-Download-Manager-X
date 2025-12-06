@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fluent_ui/fluent_ui.dart' as fluent;
 import 'package:provider/provider.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'package:flutter_acrylic/flutter_acrylic.dart';
 import 'services/integrated_download_service.dart';
 import 'services/kernel_service.dart';
 import 'services/download_listener_service.dart';
@@ -9,6 +10,7 @@ import 'services/system_tray_service.dart';
 import 'services/app_logger_service.dart';
 import 'services/network_status_service.dart';
 import 'services/developer_mode_service.dart';
+import 'services/client_config_service.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
 
@@ -17,6 +19,13 @@ final navigatorKey = GlobalKey<NavigatorState>();
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // 初始化 Acrylic/Mica 效果
+  await Window.initialize();
+  await Window.setEffect(
+    effect: WindowEffect.mica,
+    dark: true,
+  );
   
   // 检查是否是开机自启动（通过命令行参数 --autostart）
   final bool isAutoStart = args.contains('--autostart');
@@ -27,8 +36,10 @@ void main(List<String> args) async {
   final appLogger = AppLoggerService();
   final networkStatus = NetworkStatusService();
   final developerMode = DeveloperModeService();
+  final clientConfig = ClientConfigService();
   
   appLogger.info('App', 'Application starting...');
+  await clientConfig.initialize();
   networkStatus.startMonitoring();
   await developerMode.loadSettings();
   appLogger.info('App', 'Services initialized');
@@ -44,6 +55,7 @@ void main(List<String> args) async {
         ChangeNotifierProvider.value(value: appLogger),
         ChangeNotifierProvider.value(value: networkStatus),
         ChangeNotifierProvider.value(value: developerMode),
+        ChangeNotifierProvider.value(value: clientConfig),
         Provider<bool>.value(value: isAutoStart), // 传递启动模式
       ],
       child: const MyApp(),

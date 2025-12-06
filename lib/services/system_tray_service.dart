@@ -1,16 +1,20 @@
 import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:fluent_ui/fluent_ui.dart' as fluent;
 import 'package:system_tray/system_tray.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:path/path.dart' as path;
 import 'logger_service.dart';
 import 'kernel_service.dart';
+import '../main.dart';
+import '../widgets/tray_menu_window.dart';
 
 class SystemTrayService {
   final SystemTray _systemTray = SystemTray();
-  final Menu _menu = Menu();
   bool _isInitialized = false;
   final _logger = LoggerService();
   KernelService? _kernelService;
+  bool _isMenuWindowShowing = false;
 
   Future<void> initialize({
     KernelService? kernelService,
@@ -30,20 +34,7 @@ class SystemTrayService {
         toolTip: "Hanabi Download ManagerX - Running in background",
       );
 
-      await _menu.buildFrom([
-        MenuItemLabel(
-          label: 'Show Window',
-          onClicked: (menuItem) => showMainWindow(),
-        ),
-        MenuSeparator(),
-        MenuItemLabel(
-          label: 'Exit',
-          onClicked: (menuItem) => exitApp(),
-        ),
-      ]);
-
-      await _systemTray.setContextMenu(_menu);
-
+      // 注册托盘事件处理器
       _systemTray.registerSystemTrayEventHandler((eventName) {
         _logger.debug('Tray event: $eventName');
         if (eventName == kSystemTrayEventClick) {
@@ -53,8 +44,22 @@ class SystemTrayService {
         }
       });
 
+      // 初始化系统菜单
+      final Menu menu = Menu();
+      await menu.buildFrom([
+        MenuItemLabel(
+          label: '显示主界面', 
+          onClicked: (menuItem) => showMainWindow(),
+        ),
+        MenuItemLabel(
+          label: '退出', 
+          onClicked: (menuItem) => exitApp(),
+        ),
+      ]);
+      await _systemTray.setContextMenu(menu);
+
       _isInitialized = true;
-      _logger.info('System tray initialized');
+      _logger.info('System tray initialized with native menu');
       
       // 根据参数决定是否显示窗口
       if (showWindow) {

@@ -3,7 +3,8 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/integrated_download_service.dart';
-import '../../models/download_task.dart';
+import '../../models/download_task.dart' show DownloadTask, DownloadStatus, SegmentInfo;
+import '../../theme/app_theme.dart';
 
 class DownloadList extends StatelessWidget {
   const DownloadList({super.key});
@@ -38,16 +39,22 @@ class DownloadList extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 120,
-            height: 120,
+            width: 100,
+            height: 100,
             decoration: BoxDecoration(
-              color: FluentTheme.of(context).accentColor.withValues(alpha: 0.1),
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.accentPrimary.withValues(alpha: 0.3),
+                  blurRadius: 60,
+                  spreadRadius: 10,
+                ),
+              ],
             ),
             child: Icon(
               FluentIcons.download,
-              size: 48,
-              color: FluentTheme.of(context).accentColor.withValues(alpha: 0.5),
+              size: 40,
+              color: AppTheme.accentPrimary.withValues(alpha: 0.6),
             ),
           ),
           const SizedBox(height: 24),
@@ -55,13 +62,14 @@ class DownloadList extends StatelessWidget {
             '暂无下载任务',
             style: FluentTheme.of(context).typography.subtitle?.copyWith(
               fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            '点击右上角"新建任务"按钮开始下载',
-            style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: Colors.white.withValues(alpha: 0.5),
+            '点击右上角"新建"按钮开始下载',
+            style: FluentTheme.of(context).typography.body?.copyWith(
+              color: AppTheme.textTertiary,
             ),
           ),
         ],
@@ -111,47 +119,33 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        margin: const EdgeInsets.only(bottom: 16),
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
           border: Border.all(
             color: _isHovered
-                ? FluentTheme.of(context).accentColor.withValues(alpha: 0.5)
-                : FluentTheme.of(context).resources.cardStrokeColorDefault,
+                ? AppTheme.accentPrimary.withValues(alpha: 0.4)
+                : AppTheme.borderSubtle,
             width: _isHovered ? 1.5 : 1,
           ),
-          boxShadow: _isHovered
-              ? [
-                  BoxShadow(
-                    color: FluentTheme.of(context).accentColor.withValues(alpha: 0.2),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
+          boxShadow: _isHovered ? AppTheme.shadowMd : null,
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
             child: Container(
               decoration: BoxDecoration(
-                color: FluentTheme.of(context).resources.cardBackgroundFillColorDefault,
+                color: AppTheme.surfaceCard.withValues(alpha: 0.85),
               ),
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      _buildStatusIcon(),
-                      const SizedBox(width: 16),
-                      Expanded(child: _buildTaskInfo()),
-                      _buildActionButtons(downloadService),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
+                  _buildHeader(downloadService),
+                  const SizedBox(height: 14),
                   _buildProgressSection(),
                   if (widget.task.status == DownloadStatus.downloading) ...[
                     const SizedBox(height: 12),
@@ -170,18 +164,41 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
     );
   }
 
+  Widget _buildHeader(IntegratedDownloadService service) {
+    return Row(
+      children: [
+        _buildStatusIcon(),
+        const SizedBox(width: 14),
+        Expanded(child: _buildTaskInfo()),
+        _buildActionButtons(service),
+      ],
+    );
+  }
+
   Widget _buildStatusIcon() {
+    final color = _getStatusColor();
     return Container(
-      width: 48,
-      height: 48,
+      width: 44,
+      height: 44,
       decoration: BoxDecoration(
-        color: _getStatusColor().withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withValues(alpha: 0.2),
+            color.withValues(alpha: 0.1),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(
+          color: color.withValues(alpha: 0.3),
+          width: 1,
+        ),
       ),
       child: Icon(
         _getStatusIcon(),
-        color: _getStatusColor(),
-        size: 24,
+        color: color,
+        size: 20,
       ),
     );
   }
@@ -192,8 +209,9 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
       children: [
         Text(
           widget.task.fileName,
-          style: FluentTheme.of(context).typography.bodyLarge?.copyWith(
+          style: FluentTheme.of(context).typography.body?.copyWith(
             fontWeight: FontWeight.w600,
+            color: AppTheme.textPrimary,
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -204,27 +222,34 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: FluentTheme.of(context).typography.caption?.copyWith(
-            color: Colors.white.withValues(alpha: 0.5),
+            color: AppTheme.textTertiary,
+            fontSize: 11,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         _buildStatusChip(),
       ],
     );
   }
 
   Widget _buildStatusChip() {
+    final color = _getStatusColor();
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: _getStatusColor().withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(4),
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(AppTheme.radiusRound),
+        border: Border.all(
+          color: color.withValues(alpha: 0.3),
+          width: 1,
+        ),
       ),
       child: Text(
         _getStatusText(),
         style: FluentTheme.of(context).typography.caption?.copyWith(
-          color: _getStatusColor(),
+          color: color,
           fontWeight: FontWeight.w600,
+          fontSize: 10,
         ),
       ),
     );
@@ -236,64 +261,72 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
       children: [
         if (widget.task.status == DownloadStatus.pending ||
             widget.task.status == DownloadStatus.paused)
-          IconButton(
-            icon: const Icon(FluentIcons.play, size: 16),
+          _ActionButton(
+            icon: FluentIcons.play,
+            color: AppTheme.statusSuccess,
             onPressed: () => service.startTask(widget.task.id),
+            tooltip: '开始',
           ),
         if (widget.task.status == DownloadStatus.downloading)
-          IconButton(
-            icon: const Icon(FluentIcons.pause, size: 16),
+          _ActionButton(
+            icon: FluentIcons.pause,
+            color: AppTheme.statusWarning,
             onPressed: () => service.pauseTask(widget.task.id),
+            tooltip: '暂停',
           ),
-        const SizedBox(width: 4),
-        IconButton(
-          icon: const Icon(FluentIcons.delete, size: 16),
+        const SizedBox(width: 6),
+        _ActionButton(
+          icon: FluentIcons.delete,
+          color: AppTheme.statusError,
           onPressed: () => _confirmDelete(service),
+          tooltip: '删除',
         ),
       ],
     );
   }
 
   Widget _buildProgressSection() {
-    // 检查是否是未知文件大小（fileSize = null 或 0）
     final isUnknownSize = (widget.task.fileSize == null || widget.task.fileSize == 0) && 
                           widget.task.status == DownloadStatus.downloading;
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 总进度条
         Row(
           children: [
             Expanded(
-              child: isUnknownSize
-                  ? const ProgressBar(
-                      strokeWidth: 6,
-                      // 不设置 value 就是 indeterminate 模式（流动动画）
-                    )
-                  : ProgressBar(
-                      value: widget.task.progress * 100,
-                      strokeWidth: 6,
-                    ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: isUnknownSize
+                    ? const ProgressBar(strokeWidth: 6)
+                    : ProgressBar(
+                        value: widget.task.progress * 100,
+                        strokeWidth: 6,
+                      ),
+              ),
             ),
-            const SizedBox(width: 16),
-            SizedBox(
-              width: 60,
+            const SizedBox(width: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppTheme.bgLayer2,
+                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              ),
               child: Text(
                 isUnknownSize 
-                    ? '未知'
+                    ? '计算中'
                     : '${(widget.task.progress * 100).toStringAsFixed(1)}%',
-                style: FluentTheme.of(context).typography.body?.copyWith(
+                style: FluentTheme.of(context).typography.caption?.copyWith(
                   fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                  fontSize: 11,
                 ),
-                textAlign: TextAlign.right,
               ),
             ),
           ],
         ),
-        // 分段进度条
         if (widget.task.segments != null && widget.task.segments!.isNotEmpty) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           _buildSegmentsProgress(),
         ],
       ],
@@ -306,16 +339,12 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         GestureDetector(
-          onTap: () {
-            setState(() {
-              _isSegmentsExpanded = !_isSegmentsExpanded;
-            });
-          },
+          onTap: () => setState(() => _isSegmentsExpanded = !_isSegmentsExpanded),
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(4),
+              color: AppTheme.bgLayer2,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -323,117 +352,148 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                 Icon(
                   FluentIcons.split_object,
                   size: 12,
-                  color: Colors.white.withValues(alpha: 0.5),
+                  color: AppTheme.textTertiary,
                 ),
                 const SizedBox(width: 6),
                 Text(
                   '分段下载 (${segments.length})',
                   style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.5),
+                    color: AppTheme.textSecondary,
                     fontSize: 11,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Icon(
-                  _isSegmentsExpanded ? FluentIcons.chevron_up : FluentIcons.chevron_down,
-                  size: 12,
-                  color: Colors.white.withValues(alpha: 0.5),
+                const SizedBox(width: 6),
+                AnimatedRotation(
+                  turns: _isSegmentsExpanded ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(
+                    FluentIcons.chevron_down,
+                    size: 10,
+                    color: AppTheme.textTertiary,
+                  ),
                 ),
               ],
             ),
           ),
         ),
-        if (_isSegmentsExpanded) ...[
-          const SizedBox(height: 8),
-          // 显示前N个分段或全部分段
-          ...(_showAllSegments ? segments : segments.take(_maxVisibleSegments)).map((segment) => Padding(
+        AnimatedCrossFade(
+          firstChild: const SizedBox.shrink(),
+          secondChild: _buildSegmentsList(segments),
+          crossFadeState: _isSegmentsExpanded 
+              ? CrossFadeState.showSecond 
+              : CrossFadeState.showFirst,
+          duration: const Duration(milliseconds: 200),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSegmentsList(List<SegmentInfo> segments) {
+    final visibleSegments = _showAllSegments 
+        ? segments 
+        : segments.take(_maxVisibleSegments).toList();
+    
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        children: [
+          ...visibleSegments.map((segment) => Padding(
             padding: const EdgeInsets.only(bottom: 4),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 60,
-                  child: Text(
-                    '分段 ${segment.index + 1}',
-                    style: FluentTheme.of(context).typography.caption?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.4),
-                      fontSize: 10,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: ProgressBar(
-                    value: segment.progress * 100,
-                    strokeWidth: 3,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: 80,
-                  child: Text(
-                    '${_formatBytes(segment.downloadedBytes)}/${_formatBytes(segment.endByte - segment.startByte)}',
-                    style: FluentTheme.of(context).typography.caption?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.4),
-                      fontSize: 10,
-                    ),
-                    textAlign: TextAlign.right,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: 60,
-                  child: Text(
-                    _formatSpeed(segment.speed),
-                    style: FluentTheme.of(context).typography.caption?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.4),
-                      fontSize: 10,
-                    ),
-                    textAlign: TextAlign.right,
-                  ),
-                ),
-              ],
-            ),
+            child: _buildSegmentRow(segment),
           )),
-          // 显示"显示更多/收起"按钮
-          if (segments.length > _maxVisibleSegments) ...[
-            const SizedBox(height: 4),
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  _showAllSegments = !_showAllSegments;
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _showAllSegments ? FluentIcons.chevron_up_small : FluentIcons.chevron_down_small,
-                      size: 12,
-                      color: FluentTheme.of(context).accentColor.withValues(alpha: 0.7),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _showAllSegments 
-                          ? '收起 (隐藏 ${segments.length - _maxVisibleSegments} 个分段)'
-                          : '显示更多 (还有 ${segments.length - _maxVisibleSegments} 个分段)',
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: FluentTheme.of(context).accentColor.withValues(alpha: 0.7),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
+          if (segments.length > _maxVisibleSegments)
+            _buildShowMoreButton(segments.length),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSegmentRow(SegmentInfo segment) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 50,
+          child: Text(
+            '分段 ${segment.index + 1}',
+            style: FluentTheme.of(context).typography.caption?.copyWith(
+              color: AppTheme.textTertiary,
+              fontSize: 10,
+            ),
+          ),
+        ),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: ProgressBar(
+              value: segment.progress * 100,
+              strokeWidth: 3,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 70,
+          child: Text(
+            '${_formatBytes(segment.downloadedBytes)}/${_formatBytes(segment.endByte - segment.startByte)}',
+            style: FluentTheme.of(context).typography.caption?.copyWith(
+              color: AppTheme.textTertiary,
+              fontSize: 9,
+            ),
+            textAlign: TextAlign.right,
+          ),
+        ),
+        const SizedBox(width: 6),
+        SizedBox(
+          width: 55,
+          child: Text(
+            _formatSpeed(segment.speed),
+            style: FluentTheme.of(context).typography.caption?.copyWith(
+              color: AppTheme.accentLight,
+              fontSize: 9,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.right,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildShowMoreButton(int totalCount) {
+    return GestureDetector(
+      onTap: () => setState(() => _showAllSegments = !_showAllSegments),
+      child: Container(
+        margin: const EdgeInsets.only(top: 4),
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+        decoration: BoxDecoration(
+          color: AppTheme.accentPrimary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          border: Border.all(
+            color: AppTheme.accentPrimary.withValues(alpha: 0.2),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _showAllSegments ? FluentIcons.chevron_up_small : FluentIcons.chevron_down_small,
+              size: 12,
+              color: AppTheme.accentLight,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              _showAllSegments 
+                  ? '收起'
+                  : '显示全部 ${totalCount - _maxVisibleSegments} 个',
+              style: FluentTheme.of(context).typography.caption?.copyWith(
+                color: AppTheme.accentLight,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
-        ],
-      ],
+        ),
+      ),
     );
   }
 
@@ -454,38 +514,61 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
   Widget _buildSpeedInfo() {
     final isUnknownSize = widget.task.fileSize == null || widget.task.fileSize == 0;
     
-    return Row(
-      children: [
-        const Icon(FluentIcons.speed_high, size: 12),
-        const SizedBox(width: 6),
-        Text(
-          widget.task.formattedSpeed,
-          style: FluentTheme.of(context).typography.caption?.copyWith(
-            color: Colors.white.withValues(alpha: 0.6),
-          ),
-        ),
-        if (!isUnknownSize) ...[
-          const SizedBox(width: 16),
-          const Icon(FluentIcons.clock, size: 12),
-          const SizedBox(width: 6),
-          Text(
-            widget.task.formattedRemainingTime,
-            style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: Colors.white.withValues(alpha: 0.6),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppTheme.bgLayer2,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      ),
+      child: Row(
+        children: [
+          _buildInfoChip(FluentIcons.speed_high, widget.task.formattedSpeed, AppTheme.accentLight),
+          if (!isUnknownSize) ...[
+            _buildDivider(),
+            _buildInfoChip(FluentIcons.clock, widget.task.formattedRemainingTime, AppTheme.textSecondary),
+          ],
+          _buildDivider(),
+          Expanded(
+            child: Text(
+              isUnknownSize
+                  ? '${widget.task.formattedDownloadedSize} / 未知'
+                  : '${widget.task.formattedDownloadedSize} / ${widget.task.formattedFileSize}',
+              style: FluentTheme.of(context).typography.caption?.copyWith(
+                color: AppTheme.textTertiary,
+                fontSize: 11,
+              ),
+              textAlign: TextAlign.right,
             ),
           ),
         ],
-        const SizedBox(width: 16),
+      ),
+    );
+  }
+
+  Widget _buildInfoChip(IconData icon, String text, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: color),
+        const SizedBox(width: 4),
         Text(
-          isUnknownSize
-              ? '${widget.task.formattedDownloadedSize} / 未知大小'
-              : '${widget.task.formattedDownloadedSize} / ${widget.task.formattedFileSize}',
+          text,
           style: FluentTheme.of(context).typography.caption?.copyWith(
-            color: Colors.white.withValues(alpha: 0.5),
+            color: color,
             fontSize: 11,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildDivider() {
+    return Container(
+      width: 1,
+      height: 12,
+      margin: const EdgeInsets.symmetric(horizontal: 10),
+      color: AppTheme.borderSubtle,
     );
   }
 
@@ -493,10 +576,10 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.red.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(6),
+        color: AppTheme.statusError.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(
-          color: Colors.red.withValues(alpha: 0.3),
+          color: AppTheme.statusError.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -505,25 +588,26 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
           Icon(
             FluentIcons.error_badge,
             size: 16,
-            color: Colors.red,
+            color: AppTheme.statusError,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   '下载失败',
-                  style: FluentTheme.of(context).typography.body?.copyWith(
-                    color: Colors.red,
+                  style: FluentTheme.of(context).typography.caption?.copyWith(
+                    color: AppTheme.statusError,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   widget.task.error!,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: Colors.red.withValues(alpha: 0.8),
+                    color: AppTheme.statusError.withValues(alpha: 0.8),
+                    fontSize: 11,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -548,6 +632,9 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             child: const Text('取消'),
           ),
           FilledButton(
+            style: ButtonStyle(
+              backgroundColor: WidgetStateProperty.all(AppTheme.statusError),
+            ),
             onPressed: () {
               service.removeTask(widget.task.id);
               Navigator.pop(context);
@@ -577,15 +664,15 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
   Color _getStatusColor() {
     switch (widget.task.status) {
       case DownloadStatus.pending:
-        return Colors.orange;
+        return AppTheme.statusWarning;
       case DownloadStatus.downloading:
-        return Colors.blue;
+        return AppTheme.accentPrimary;
       case DownloadStatus.paused:
-        return Colors.grey[100];
+        return AppTheme.textTertiary;
       case DownloadStatus.completed:
-        return Colors.green;
+        return AppTheme.statusSuccess;
       case DownloadStatus.failed:
-        return Colors.red;
+        return AppTheme.statusError;
     }
   }
 
@@ -602,5 +689,62 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
       case DownloadStatus.failed:
         return '失败';
     }
+  }
+}
+
+/// 操作按钮组件
+class _ActionButton extends StatefulWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback onPressed;
+  final String tooltip;
+
+  const _ActionButton({
+    required this.icon,
+    required this.color,
+    required this.onPressed,
+    required this.tooltip,
+  });
+
+  @override
+  State<_ActionButton> createState() => _ActionButtonState();
+}
+
+class _ActionButtonState extends State<_ActionButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: widget.tooltip,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: GestureDetector(
+          onTap: widget.onPressed,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: _isHovered 
+                  ? widget.color.withValues(alpha: 0.15)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(
+                color: _isHovered 
+                    ? widget.color.withValues(alpha: 0.3)
+                    : Colors.transparent,
+              ),
+            ),
+            child: Icon(
+              widget.icon,
+              size: 14,
+              color: _isHovered ? widget.color : AppTheme.textSecondary,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
