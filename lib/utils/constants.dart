@@ -1,6 +1,6 @@
 class AppConstants {
   static const String appName = 'Hanabi Download ManagerX';
-  static const String version = '1.0.3';
+  static const String version = '1.1.0';
   static const String channel = 'release';
   static const String developer = 'ZZBuAoYe';
   static const String kernelName = 'NextSpeedForceXKernel';

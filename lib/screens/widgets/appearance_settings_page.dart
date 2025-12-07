@@ -1,11 +1,14 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
+import 'dart:ffi' hide Size;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:screen_retriever/screen_retriever.dart';
+import 'package:win32/win32.dart';
+import 'package:ffi/ffi.dart';
 import '../../widgets/settings_components.dart';
 import '../../services/font_service.dart';
 import '../../services/window_effect_service.dart';
@@ -104,32 +107,103 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
   }
 
   Future<List<String>> _getSystemFonts() async {
-    // 常见的中文和英文字体
-    final commonFonts = [
-      'Microsoft YaHei',
-      'Microsoft YaHei UI',
-      'SimSun',
-      'SimHei',
-      'KaiTi',
-      'FangSong',
-      'NSimSun',
-      'Arial',
-      'Segoe UI',
-      'Calibri',
-      'Consolas',
-      'Courier New',
-      'Times New Roman',
-      'Verdana',
-      'Tahoma',
-      'Georgia',
-    ];
-
-    // 在 Windows 上，我们可以检查这些字体是否可用
-    if (Platform.isWindows) {
-      return commonFonts;
+    if (!Platform.isWindows) {
+      return [];
     }
 
-    return commonFonts;
+    try {
+      // 使用 Win32 API 读取注册表中的字体
+      final fontsKey = HKEY_LOCAL_MACHINE;
+      final subKey = r'SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts';
+      
+      final fontNames = <String>{};
+      
+      // 打开注册表键
+      final phkResult = calloc<HKEY>();
+      final subKeyPtr = subKey.toNativeUtf16();
+      final result = RegOpenKeyEx(
+        fontsKey,
+        subKeyPtr,
+        0,
+        KEY_READ,
+        phkResult,
+      );
+      
+      if (result == ERROR_SUCCESS) {
+        final hKey = phkResult.value;
+        
+        // 枚举所有值
+        var index = 0;
+        while (true) {
+          final valueName = wsalloc(256);
+          final valueNameSize = calloc<DWORD>()..value = 256;
+          
+          final enumResult = RegEnumValue(
+            hKey,
+            index,
+            valueName,
+            valueNameSize,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+          );
+          
+          if (enumResult == ERROR_SUCCESS) {
+            String fontName = valueName.toDartString();
+            
+            // 移除常见的后缀
+            fontName = fontName
+                .replaceAll(RegExp(r'\s*\(TrueType\)$'), '')
+                .replaceAll(RegExp(r'\s*\(OpenType\)$'), '')
+                .replaceAll(RegExp(r'\s*\(All res\)$'), '')
+                .replaceAll(RegExp(r'\s*&.*$'), '') // 移除 & 及之后的内容
+                .trim();
+            
+            if (fontName.isNotEmpty) {
+              fontNames.add(fontName);
+            }
+            
+            index++;
+          } else {
+            break;
+          }
+          
+          calloc.free(valueName);
+          calloc.free(valueNameSize);
+        }
+        
+        RegCloseKey(hKey);
+      }
+      
+      calloc.free(subKeyPtr);
+      calloc.free(phkResult);
+      
+      // 转换为列表并排序
+      final sortedFonts = fontNames.toList()..sort();
+      
+      return sortedFonts;
+    } catch (e) {
+      debugPrint('Error reading system fonts: $e');
+      // 如果读取失败，返回常见字体列表
+      return [
+        'Microsoft YaHei',
+        'Microsoft YaHei UI',
+        'SimSun',
+        'SimHei',
+        'KaiTi',
+        'FangSong',
+        'Arial',
+        'Segoe UI',
+        'Calibri',
+        'Consolas',
+        'Courier New',
+        'Times New Roman',
+        'Verdana',
+        'Tahoma',
+        'Georgia',
+      ];
+    }
   }
 
   Future<void> _saveFontSetting(String font) async {
@@ -298,7 +372,6 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
   @override
   Widget build(BuildContext context) {
     final windowEffect = context.watch<WindowEffectService>();
-    final effectMode = windowEffect.effectMode;
     final alpha = windowEffect.alpha;
     final clientConfig = context.watch<ClientConfigService>();
 
@@ -336,9 +409,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                       child: ProgressRing(strokeWidth: 2),
                     )
                   : SizedBox(
-                      width: 200,
+                      width: 250,
                       child: ComboBox<String>(
                         value: _selectedFont,
+                        isExpanded: true,
                         items: _availableFonts.map((font) {
                           return ComboBoxItem(
                             value: font,
@@ -347,6 +421,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                               style: font == 'system' 
                                   ? null 
                                   : TextStyle(fontFamily: font),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                             ),
                           );
                         }).toList(),
@@ -437,63 +513,33 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
           children: [
             _buildSettingItem(
               context,
-              title: '效果类型',
-              subtitle: _getEffectModeDescription(effectMode),
-              trailing: ComboBox<String>(
-                value: effectMode,
-                items: const [
-                  ComboBoxItem(value: 'none', child: Text('不透明')),
-                  ComboBoxItem(value: 'blur', child: Text('模糊 Blur')),
-                  ComboBoxItem(value: 'acrylic', child: Text('亚克力 Acrylic')),
-                  ComboBoxItem(value: 'mica_main', child: Text('Mica 主窗口')),
-                  ComboBoxItem(value: 'mica_transient', child: Text('Mica 瞬态')),
-                ],
-                onChanged: (v) async {
-                  if (v == null) return;
-                  await windowEffect.setEffectMode(v);
-                },
-              ),
-            ),
-            const SizedBox(height: 12),
-            Opacity(
-              opacity: (effectMode == 'acrylic' || effectMode == 'blur') ? 1.0 : 0.5,
-              child: IgnorePointer(
-                ignoring: !(effectMode == 'acrylic' || effectMode == 'blur'),
-                child: _buildSettingItem(
-                  context,
-                  title: '透明度',
-                  subtitle: effectMode == 'acrylic' 
-                      ? '调整亚克力透明度 (0-255)'
-                      : effectMode == 'blur'
-                          ? '调整模糊透明度 (0-255)'
-                          : 'Mica 和不透明模式不支持透明度调整',
-                  trailing: SizedBox(
-                    width: 220,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Slider(
-                            value: alpha.toDouble(),
-                            min: 0,
-                            max: 255,
-                            divisions: 255,
-                            label: alpha.toString(),
-                            onChanged: (v) async {
-                              await windowEffect.setAlpha(v.toInt());
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        SizedBox(
-                          width: 40,
-                          child: Text(
-                            '$alpha',
-                            style: FluentTheme.of(context).typography.bodyStrong,
-                          ),
-                        ),
-                      ],
+              title: '亚克力透明度',
+              subtitle: '调整窗口背景的透明度 (0-255，值越小越透明)',
+              trailing: SizedBox(
+                width: 250,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Slider(
+                        value: alpha.toDouble(),
+                        min: 0,
+                        max: 255,
+                        divisions: 255,
+                        label: alpha.toString(),
+                        onChanged: (v) async {
+                          await windowEffect.setAlpha(v.toInt());
+                        },
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: 40,
+                      child: Text(
+                        '$alpha',
+                        style: FluentTheme.of(context).typography.bodyStrong,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -589,6 +635,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     final rememberSize = config.getWindowRememberSize();
     final defaultWidth = config.getWindowDefaultWidth();
     final defaultHeight = config.getWindowDefaultHeight();
+    // 每次构建时获取最新的窗口大小
     final currentWidth = appWindow.size.width;
     final currentHeight = appWindow.size.height;
     
@@ -841,22 +888,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     }
   }
 
-  String _getEffectModeDescription(String mode) {
-    switch (mode) {
-      case 'none':
-        return '完全不透明的窗口背景';
-      case 'blur':
-        return '模糊背景效果';
-      case 'acrylic':
-        return '亚克力材质效果（推荐）';
-      case 'mica_main':
-        return 'Mica 材质 - 需要 Windows 11 22H2+';
-      case 'mica_transient':
-        return 'Mica 瞬态 - 需要 Windows 11 22H2+';
-      default:
-        return '';
-    }
-  }
+
 
   Widget _buildSection(
     BuildContext context, {
