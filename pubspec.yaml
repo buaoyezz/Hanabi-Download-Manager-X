@@ -1,7 +1,7 @@
 name: hanabi_download_managerx
 description: A EASY AND BEAUTIFUL DOWNLOAD MANAGER
 publish_to: 'none'
-version: 1.0.3
+version: 1.1.0
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -26,6 +26,7 @@ dependencies:
   win32: ^5.5.0
   ffi: ^2.1.0
   screen_retriever: ^0.1.9
+  google_fonts: ^6.1.0
 
 dev_dependencies:
   flutter_test:
