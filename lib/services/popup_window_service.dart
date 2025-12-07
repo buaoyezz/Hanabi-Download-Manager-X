@@ -7,7 +7,7 @@ import '../widgets/popup_download_dialog.dart';
 import 'logger_service.dart';
 import '../main.dart';
 
-// 弹窗管理服务 - 用于显示IDM风格的下载弹窗
+// 弹窗管理服务 - 用于显示下载弹窗
 class PopupWindowService {
   static const platform = MethodChannel('com.hanabi.download/window');
   static final _logger = LoggerService();
