@@ -13,6 +13,8 @@ import '../../widgets/settings_components.dart';
 import '../../widgets/temp_files_dialog.dart';
 import '../../services/auto_start_service.dart';
 import '../../theme/app_theme.dart';
+import 'appearance_settings_page.dart';
+import 'update_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -60,6 +62,9 @@ class GetUserName extends StatelessWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  // Tab state
+  int _currentTabIndex = 0;
+  
   // Download configuration state
   int _threads = 8;
   int _segments = 8;
@@ -79,13 +84,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _browserConnected = false;
   Timer? _statusTimer;
   
-  // UI settings
-  bool _segmentsDefaultExpanded = false;
-  int _segmentsMaxVisible = 5;
 
-  String _effectMode = 'acrylic';
-  int _alpha = 160;
-  final MethodChannel _windowChannel = const MethodChannel('com.hanabi.download/window');
 
   @override
   void initState() {
@@ -94,8 +93,6 @@ class _SettingsPageState extends State<SettingsPage> {
       _loadConfig();
       _loadDownloadPath();
       _startStatusMonitoring();
-      _loadUISettings();
-      _loadWindowEffectSettings();
       _loadAutoStartSettings();
     });
   }
@@ -137,49 +134,6 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
   
-  Future<void> _loadWindowEffectSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      setState(() {
-        _effectMode = prefs.getString('window_effect_mode') ?? 'acrylic';
-        _alpha = prefs.getInt('window_effect_alpha') ?? 160;
-      });
-      // 应用保存的窗口效果
-      await _applyWindowEffect();
-    }
-  }
-  
-  Future<void> _saveWindowEffectSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('window_effect_mode', _effectMode);
-    await prefs.setInt('window_effect_alpha', _alpha);
-  }
-  
-  Future<void> _loadUISettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      setState(() {
-        _segmentsDefaultExpanded = prefs.getBool('segments_default_expanded') ?? false;
-        _segmentsMaxVisible = prefs.getInt('segments_max_visible') ?? 5;
-      });
-    }
-  }
-  
-  Future<void> _saveSegmentsExpandedSetting(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('segments_default_expanded', value);
-    setState(() {
-      _segmentsDefaultExpanded = value;
-    });
-  }
-  
-  Future<void> _saveSegmentsMaxVisibleSetting(int value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('segments_max_visible', value);
-    setState(() {
-      _segmentsMaxVisible = value;
-    });
-  }
   
   @override
   void dispose() {
@@ -372,24 +326,12 @@ class _SettingsPageState extends State<SettingsPage> {
           _segmentSpeedLimit = config['segment_speed_limit'] ?? 0;
           _loadingConfig = false;
         });
-        _applyWindowEffect();
       } else {
         if (mounted) setState(() => _loadingConfig = false);
       }
     } catch (e) {
       debugPrint('Error loading config: $e');
       if (mounted) setState(() => _loadingConfig = false);
-    }
-  }
-
-  Future<void> _applyWindowEffect() async {
-    try {
-      await _windowChannel.invokeMethod('setWindowEffect', {
-        'mode': _effectMode,
-        'alpha': _alpha,
-      });
-    } catch (e) {
-      debugPrint('setWindowEffect error: $e');
     }
   }
 
@@ -420,404 +362,421 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return ScaffoldPage.scrollable(
-      header: const SettingsPageHeader(title: '设置', icon: FluentIcons.settings),
+      header: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SettingsPageHeader(title: '设置', icon: FluentIcons.settings),
+          const SizedBox(height: 12),
+          // 顶部标签栏
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: AppTheme.bgLayer1.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+              border: Border.all(
+                color: AppTheme.borderSubtle.withValues(alpha: 0.5),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildTabButton(
+                  context,
+                  icon: FluentIcons.settings,
+                  title: '常规',
+                  index: 0,
+                ),
+                const SizedBox(width: 4),
+                _buildTabButton(
+                  context,
+                  icon: FluentIcons.download,
+                  title: '下载',
+                  index: 1,
+                ),
+                const SizedBox(width: 4),
+                _buildTabButton(
+                  context,
+                  icon: FluentIcons.color,
+                  title: '界面',
+                  index: 2,
+                ),
+                const SizedBox(width: 4),
+                _buildTabButton(
+                  context,
+                  icon: FluentIcons.update_restore,
+                  title: '更新',
+                  index: 3,
+                ),
+                const SizedBox(width: 4),
+                _buildTabButton(
+                  context,
+                  icon: FluentIcons.developer_tools,
+                  title: '高级',
+                  index: 4,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
       children: [
-        const SizedBox(height: 8),
-        
-        // Status section
-        _buildStatusSection(context),
-        const SizedBox(height: 24),
-        
-        if (Platform.isWindows) ...[
-          _buildSection(
-            context,
-            title: '系统设置',
-            icon: FluentIcons.power_button,
+        if (_currentTabIndex == 0) ..._buildGeneralTab(context),
+        if (_currentTabIndex == 1) ..._buildDownloadTab(context),
+        if (_currentTabIndex == 2) const AppearanceSettingsPage(),
+        if (_currentTabIndex == 3) const UpdatePage(),
+        if (_currentTabIndex == 4) ..._buildAdvancedTab(context),
+        const SizedBox(height: 40),
+      ],
+    );
+  }
+
+  Widget _buildTabButton(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required int index,
+  }) {
+    final isSelected = _currentTabIndex == index;
+    
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => setState(() => _currentTabIndex = index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? AppTheme.accentPrimary.withValues(alpha: 0.15)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            border: Border.all(
+              color: isSelected
+                  ? AppTheme.accentPrimary.withValues(alpha: 0.4)
+                  : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              _buildSettingItem(
-                context,
-                title: '开机自启',
-                subtitle: '随系统启动自动运行',
-                trailing: ToggleSwitch(
-                  checked: _openOnStartup,
-                  onChanged: _toggleOpenOnStartup,
+              Icon(
+                icon,
+                size: 14,
+                color: isSelected ? AppTheme.accentLight : AppTheme.textSecondary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: FluentTheme.of(context).typography.body?.copyWith(
+                  color: isSelected ? AppTheme.accentLight : AppTheme.textSecondary,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  fontSize: 13,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
-        ],
-        
+        ),
+      ),
+    );
+  }
+
+  // 常规标签页
+  List<Widget> _buildGeneralTab(BuildContext context) {
+    return [
+      // 系统状态
+      _buildStatusSection(context),
+      const SizedBox(height: 24),
+      
+      // 系统设置
+      if (Platform.isWindows) ...[
         _buildSection(
           context,
-          title: '下载设置',
-          icon: FluentIcons.download,
+          title: '系统设置',
+          icon: FluentIcons.power_button,
           children: [
             _buildSettingItem(
               context,
-              title: '下载路径',
-              subtitle: _downloadPath,
-              trailing: Button(
-                onPressed: _kernelOnline ? _changeDownloadPath : null,
-                child: const Text('更改'),
+              title: '开机自启',
+              subtitle: '随系统启动自动运行',
+              trailing: ToggleSwitch(
+                checked: _openOnStartup,
+                onChanged: _toggleOpenOnStartup,
               ),
             ),
-            const SizedBox(height: 12),
-            
-            // 模式选择
-            _buildSettingItem(
-              context,
-              title: '下载模式',
-              subtitle: _getModeDescription(_mode),
-              trailing: _loadingConfig
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: ProgressRing(strokeWidth: 2),
-                    )
-                  : ComboBox<String>(
-                      value: _mode,
-                      items: const [
-                        ComboBoxItem(value: 'auto', child: Text('全自动 (推荐)')),
-                        ComboBoxItem(value: 'threads_only', child: Text('仅设置线程')),
-                        ComboBoxItem(value: 'segments_only', child: Text('仅设置分段')),
-                        ComboBoxItem(value: 'manual', child: Text('手动配置')),
-                      ],
+          ],
+        ),
+        const SizedBox(height: 24),
+      ],
+      
+      // 行为设置
+      _buildSection(
+        context,
+        title: '行为设置',
+        icon: FluentIcons.processing,
+        children: [
+          _buildSettingItem(
+            context,
+            title: '自动开始下载',
+            subtitle: '添加任务后立即开始下载',
+            trailing: ToggleSwitch(
+              checked: _autoStart,
+              onChanged: (value) => setState(() => _autoStart = value),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildSettingItem(
+            context,
+            title: '完成通知',
+            subtitle: '下载完成后显示系统通知',
+            trailing: ToggleSwitch(
+              checked: _notifyOnComplete,
+              onChanged: (value) => setState(() => _notifyOnComplete = value),
+            ),
+          ),
+        ],
+      ),
+    ];
+  }
+
+  // 下载标签页
+  List<Widget> _buildDownloadTab(BuildContext context) {
+    return [
+      _buildSection(
+        context,
+        title: '下载路径',
+        icon: FluentIcons.folder_open,
+        children: [
+          _buildSettingItem(
+            context,
+            title: '保存位置',
+            subtitle: _downloadPath,
+            trailing: Button(
+              onPressed: _kernelOnline ? _changeDownloadPath : null,
+              child: const Text('更改'),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 24),
+      
+      _buildSection(
+        context,
+        title: '下载配置',
+        icon: FluentIcons.settings,
+        children: [
+          // 模式选择
+          _buildSettingItem(
+            context,
+            title: '下载模式',
+            subtitle: _getModeDescription(_mode),
+            trailing: _loadingConfig
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: ProgressRing(strokeWidth: 2),
+                  )
+                : ComboBox<String>(
+                    value: _mode,
+                    items: const [
+                      ComboBoxItem(value: 'auto', child: Text('全自动 (推荐)')),
+                      ComboBoxItem(value: 'threads_only', child: Text('仅设置线程')),
+                      ComboBoxItem(value: 'segments_only', child: Text('仅设置分段')),
+                      ComboBoxItem(value: 'manual', child: Text('手动配置')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) _updateConfig(mode: value);
+                    },
+                  ),
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // 线程设置
+          Opacity(
+            opacity: (_mode == 'manual' || _mode == 'threads_only') ? 1.0 : 0.5,
+            child: IgnorePointer(
+              ignoring: !(_mode == 'manual' || _mode == 'threads_only'),
+              child: _buildSettingItem(
+                context,
+                title: '线程数',
+                subtitle: '每个任务使用的下载线程数量 (1-32)',
+                trailing: SizedBox(
+                  width: 200,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Slider(
+                          value: _threads.toDouble(),
+                          min: 1,
+                          max: 32,
+                          divisions: 31,
+                          label: _threads.toString(),
+                          onChanged: (value) {
+                            _updateConfig(threads: value.toInt());
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      SizedBox(
+                        width: 30,
+                        child: Text(
+                          '$_threads',
+                          style: FluentTheme.of(context).typography.bodyStrong,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // 分段设置
+          Opacity(
+            opacity: (_mode == 'manual' || _mode == 'segments_only') ? 1.0 : 0.5,
+            child: IgnorePointer(
+              ignoring: !(_mode == 'manual' || _mode == 'segments_only'),
+              child: _buildSettingItem(
+                context,
+                title: '分段数',
+                subtitle: '每个文件分割的块数 (1-32)',
+                trailing: SizedBox(
+                  width: 200,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Slider(
+                          value: _segments.toDouble(),
+                          min: 1,
+                          max: 32,
+                          divisions: 31,
+                          label: _segments.toString(),
+                          onChanged: (value) {
+                            _updateConfig(segments: value.toInt());
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      SizedBox(
+                        width: 30,
+                        child: Text(
+                          '$_segments',
+                          style: FluentTheme.of(context).typography.bodyStrong,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // 最大同时下载任务数
+          _buildSettingItem(
+            context,
+            title: '最大同时下载任务数',
+            subtitle: '同时进行的下载任务数量 (1-10)',
+            trailing: SizedBox(
+              width: 200,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Slider(
+                      value: _maxConcurrentTasks.toDouble(),
+                      min: 1,
+                      max: 10,
+                      divisions: 9,
                       onChanged: (value) {
-                        if (value != null) _updateConfig(mode: value);
+                        _updateConfig(maxConcurrentTasks: value.toInt());
                       },
                     ),
-            ),
-            
-            const SizedBox(height: 12),
-            
-            // 线程设置
-            Opacity(
-              opacity: (_mode == 'manual' || _mode == 'threads_only') ? 1.0 : 0.5,
-              child: IgnorePointer(
-                ignoring: !(_mode == 'manual' || _mode == 'threads_only'),
-                child: _buildSettingItem(
-                  context,
-                  title: '线程数',
-                  subtitle: '每个任务使用的下载线程数量 (1-32)',
-                  trailing: SizedBox(
-                    width: 200,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Slider(
-                            value: _threads.toDouble(),
-                            min: 1,
-                            max: 32,
-                            divisions: 31,
-                            label: _threads.toString(),
-                            onChanged: (value) {
-                              _updateConfig(threads: value.toInt());
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        SizedBox(
-                          width: 30,
-                          child: Text(
-                            '$_threads',
-                            style: FluentTheme.of(context).typography.bodyStrong,
-                          ),
-                        ),
-                      ],
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 30,
+                    child: Text(
+                      '$_maxConcurrentTasks',
+                      style: FluentTheme.of(context).typography.bodyStrong,
                     ),
                   ),
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 12),
-            
-            // 分段设置
-            Opacity(
-              opacity: (_mode == 'manual' || _mode == 'segments_only') ? 1.0 : 0.5,
-              child: IgnorePointer(
-                ignoring: !(_mode == 'manual' || _mode == 'segments_only'),
-                child: _buildSettingItem(
-                  context,
-                  title: '分段数',
-                  subtitle: '每个文件分割的块数 (1-32)',
-                  trailing: SizedBox(
-                    width: 200,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Slider(
-                            value: _segments.toDouble(),
-                            min: 1,
-                            max: 32,
-                            divisions: 31,
-                            label: _segments.toString(),
-                            onChanged: (value) {
-                              _updateConfig(segments: value.toInt());
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        SizedBox(
-                          width: 30,
-                          child: Text(
-                            '$_segments',
-                            style: FluentTheme.of(context).typography.bodyStrong,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 12),
-            
-            // 这里的最大连接数实际上是指同时下载的任务数
-            _buildSettingItem(
-              context,
-              title: '最大同时下载任务数',
-              subtitle: '同时进行的下载任务数量 (1-10)',
-              trailing: SizedBox(
-                width: 200,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Slider(
-                        value: _maxConcurrentTasks.toDouble(),
-                        min: 1,
-                        max: 10,
-                        divisions: 9,
-                        onChanged: (value) {
-                          _updateConfig(maxConcurrentTasks: value.toInt());
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    SizedBox(
-                      width: 30,
-                      child: Text(
-                        '$_maxConcurrentTasks',
-                        style: FluentTheme.of(context).typography.bodyStrong,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 12),
-            
-            // 分段限速
-            _buildSettingItem(
-              context,
-              title: '分段限速',
-              subtitle: '限制每个分段的下载速度 (0表示不限速)\n提示：总速度 = 分段限速 × 分段数',
-              trailing: SizedBox(
-                width: 200,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Slider(
-                        value: (_segmentSpeedLimit / 1024).clamp(0, 20480).toDouble(),
-                        min: 0,
-                        max: 20480, // 20 MB/s
-                        divisions: 200,
-                        onChanged: (value) {
-                          _updateConfig(segmentSpeedLimit: (value * 1024).toInt());
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    SizedBox(
-                      width: 90,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _segmentSpeedLimit == 0 
-                                ? '不限速' 
-                                : '${(_segmentSpeedLimit / 1024).toStringAsFixed(0)} KB/s',
-                            style: FluentTheme.of(context).typography.bodyStrong,
-                          ),
-                          if (_segmentSpeedLimit > 0 && _segments > 1)
-                            Text(
-                              '总: ${(_segmentSpeedLimit * _segments / 1024).toStringAsFixed(0)} KB/s',
-                              style: FluentTheme.of(context).typography.caption?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.5),
-                                fontSize: 10,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-
-        _buildSection(
-          context,
-          title: '外观设置',
-          icon: FluentIcons.color,
-          children: [
-            _buildSettingItem(
-              context,
-              title: '窗口效果',
-              subtitle: _effectMode == 'none'
-                  ? '不透明'
-                  : (_effectMode == 'blur' ? '模糊(Blur)' : (_effectMode == 'acrylic' ? '亚克力(Acrylic)' : (_effectMode == 'mica_main' ? 'Mica(主窗口)' : 'Mica(瞬态)'))),
-              trailing: ComboBox<String>(
-                value: _effectMode,
-                items: const [
-                  ComboBoxItem(value: 'none', child: Text('不透明')),
-                  ComboBoxItem(value: 'blur', child: Text('模糊 Blur')),
-                  ComboBoxItem(value: 'acrylic', child: Text('亚克力 Acrylic')),
-                  ComboBoxItem(value: 'mica_main', child: Text('Mica 主窗口')),
-                  ComboBoxItem(value: 'mica_transient', child: Text('Mica 瞬态')),
                 ],
-                onChanged: (v) async {
-                  if (v == null) return;
-                  setState(() => _effectMode = v);
-                  await _applyWindowEffect();
-                  await _saveWindowEffectSettings();
-                },
               ),
             ),
-            const SizedBox(height: 12),
-            Opacity(
-              opacity: (_effectMode == 'acrylic' || _effectMode == 'blur') ? 1.0 : 0.5,
-              child: IgnorePointer(
-                ignoring: !(_effectMode == 'acrylic' || _effectMode == 'blur'),
-                child: _buildSettingItem(
-                  context,
-                  title: '透明度',
-                  subtitle: _effectMode == 'acrylic' 
-                      ? '调整亚克力透明度 (0-255)'
-                      : _effectMode == 'blur'
-                          ? '调整模糊透明度 (0-255)'
-                          : 'Mica 和不透明模式不支持透明度调整',
-                  trailing: SizedBox(
-                    width: 220,
-                    child: Row(
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // 分段限速
+          _buildSettingItem(
+            context,
+            title: '分段限速',
+            subtitle: '限制每个分段的下载速度 (0表示不限速)\n提示：总速度 = 分段限速 × 分段数',
+            trailing: SizedBox(
+              width: 200,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Slider(
+                      value: (_segmentSpeedLimit / 1024).clamp(0, 20480).toDouble(),
+                      min: 0,
+                      max: 20480, // 20 MB/s
+                      divisions: 200,
+                      onChanged: (value) {
+                        _updateConfig(segmentSpeedLimit: (value * 1024).toInt());
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 90,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Expanded(
-                          child: Slider(
-                            value: _alpha.toDouble(),
-                            min: 0,
-                            max: 255,
-                            divisions: 255,
-                            label: _alpha.toString(),
-                            onChanged: (v) async {
-                              setState(() => _alpha = v.toInt());
-                              await _applyWindowEffect();
-                              await _saveWindowEffectSettings();
-                            },
-                          ),
+                        Text(
+                          _segmentSpeedLimit == 0 
+                              ? '不限速' 
+                              : '${(_segmentSpeedLimit / 1024).toStringAsFixed(0)} KB/s',
+                          style: FluentTheme.of(context).typography.bodyStrong,
                         ),
-                        const SizedBox(width: 12),
-                        SizedBox(
-                          width: 40,
-                          child: Text(
-                            '$_alpha',
-                            style: FluentTheme.of(context).typography.bodyStrong,
+                        if (_segmentSpeedLimit > 0 && _segments > 1)
+                          Text(
+                            '总: ${(_segmentSpeedLimit * _segments / 1024).toStringAsFixed(0)} KB/s',
+                            style: FluentTheme.of(context).typography.caption?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.5),
+                              fontSize: 10,
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ),
-                ),
+                ],
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 24),
+          ),
+        ],
+      ),
+    ];
+  }
 
-        _buildSection(
-          context,
-          title: '行为设置',
-          icon: FluentIcons.processing,
-          children: [
-            _buildSettingItem(
-              context,
-              title: '自动开始下载',
-              subtitle: '添加任务后立即开始下载',
-              trailing: ToggleSwitch(
-                checked: _autoStart,
-                onChanged: (value) => setState(() => _autoStart = value),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _buildSettingItem(
-              context,
-              title: '完成通知',
-              subtitle: '下载完成后显示系统通知',
-              trailing: ToggleSwitch(
-                checked: _notifyOnComplete,
-                onChanged: (value) => setState(() => _notifyOnComplete = value),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _buildSettingItem(
-              context,
-              title: '默认展开分段信息',
-              subtitle: '下载任务的分段进度默认展开显示',
-              trailing: ToggleSwitch(
-                checked: _segmentsDefaultExpanded,
-                onChanged: (value) => _saveSegmentsExpandedSetting(value),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _buildSettingItem(
-              context,
-              title: '默认显示分段数量',
-              subtitle: '展开时默认显示的分段数量 (1-32)',
-              trailing: SizedBox(
-                width: 200,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Slider(
-                        value: _segmentsMaxVisible.toDouble(),
-                        min: 1,
-                        max: 32,
-                        divisions: 31,
-                        label: _segmentsMaxVisible.toString(),
-                        onChanged: (value) {
-                          _saveSegmentsMaxVisibleSetting(value.toInt());
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    SizedBox(
-                      width: 30,
-                      child: Text(
-                        '$_segmentsMaxVisible',
-                        style: FluentTheme.of(context).typography.bodyStrong,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        
-        // 开发者模式
-        _buildDeveloperSection(context),
-        const SizedBox(height: 24),
-        
-        _buildDangerZone(context),
-        const SizedBox(height: 40),
-      ],
-    );
+  // 高级标签页
+  List<Widget> _buildAdvancedTab(BuildContext context) {
+    return [
+      // 开发者模式
+      _buildDeveloperSection(context),
+      const SizedBox(height: 24),
+      
+      _buildDangerZone(context),
+    ];
   }
 
   Widget _buildStatusSection(BuildContext context) {
@@ -902,13 +861,13 @@ class _SettingsPageState extends State<SettingsPage> {
   String _getModeDescription(String mode) {
     switch (mode) {
       case 'auto':
-        return '根据文件大小自动选择最优配置';
+        return '智能动态分段，根据文件大小自动优化 (推荐)';
       case 'threads_only':
-        return '手动设置线程数，自动计算分段数';
+        return '手动设置线程数，分段数自动计算';
       case 'segments_only':
-        return '手动设置分段数，自动计算线程数';
+        return '手动设置分段数，线程数自动计算';
       case 'manual':
-        return '完全手动控制线程和分段数量';
+        return '完全手动控制，适合高级用户';
       default:
         return '未知模式';
     }

@@ -7,6 +7,7 @@ import '../services/integrated_download_service.dart';
 import '../services/developer_mode_service.dart';
 import '../services/app_logger_service.dart';
 import '../services/kernel_service.dart';
+import '../services/window_effect_service.dart';
 import '../models/download_task.dart';
 import '../theme/app_theme.dart';
 import '../main.dart';
@@ -131,45 +132,56 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     final navItems = _getNavItems(context);
     final kernelService = context.watch<KernelService>();
+    final windowEffect = context.watch<WindowEffectService>();
+    final isTransparent = windowEffect.isTransparentBackground || 
+                          windowEffect.effectMode.startsWith('mica');
+    
+    // 根据窗口效果调整背景透明度
+    final sidebarOpacity = isTransparent ? 0.2 : 0.65;
+    final contentBgOpacity = isTransparent ? 0.3 : 0.85;
     
     if (_currentIndex >= navItems.length) {
       _currentIndex = 0;
     }
     
-    return Container(
+    return WindowBorder(
       color: Colors.transparent,
-      child: Column(
-        children: [
-          // 顶部标题栏（横跨整个窗口）
-          _buildTopTitleBar(context),
-          // 下方内容区（侧边栏 + 主内容）
-          Expanded(
-            child: Row(
-              children: [
-                // 侧边栏
-                _buildSidebar(context, navItems),
-                // 主内容区
-                Expanded(
-                  child: Container(
-                    color: AppTheme.bgSolid.withValues(alpha: 0.65),
+      width: 0,
+      child: Container(
+        color: Colors.transparent,
+        child: Column(
+          children: [
+            // 顶部标题栏（横跨整个窗口）
+            _buildTopTitleBar(context, sidebarOpacity),
+            // 下方内容区（侧边栏 + 主内容）
+            Expanded(
+              child: Row(
+                children: [
+                  // 侧边栏
+                  _buildSidebar(context, navItems, sidebarOpacity),
+                  // 主内容区
+                  Expanded(
                     child: Container(
-                      decoration: BoxDecoration(
-                        color: AppTheme.bgSolid.withValues(alpha: 0.85),
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(12),
+                      color: AppTheme.bgSolid.withValues(alpha: sidebarOpacity),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppTheme.bgSolid.withValues(alpha: contentBgOpacity),
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(12),
+                          ),
                         ),
+                        clipBehavior: Clip.antiAlias,
+                        child: kernelService.isRunning
+                            ? navItems[_currentIndex].body
+                            : _buildLoadingIndicator(),
                       ),
-                      clipBehavior: Clip.antiAlias,
-                      child: kernelService.isRunning
-                          ? navItems[_currentIndex].body
-                          : _buildLoadingIndicator(),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -194,15 +206,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   /// 顶部标题栏 - 横跨整个窗口
-  Widget _buildTopTitleBar(BuildContext context) {
-    return WindowTitleBarBox(
+  Widget _buildTopTitleBar(BuildContext context, double opacity) {
+    return SizedBox(
+      height: 60, // 标题栏高度
       child: ClipRRect(
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
           child: Container(
-            height: 56,
+            height: 60,
             decoration: BoxDecoration(
-              color: AppTheme.bgSolid.withValues(alpha: 0.65),
+              color: AppTheme.bgSolid.withValues(alpha: opacity),
             ),
             child: Row(
           children: [
@@ -251,12 +264,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
             ),
             
-            const Spacer(),
-            
             // 中间：可拖动区域
-            const Expanded(child: SizedBox()),
-            
-            const Spacer(),
+            Expanded(child: MoveWindow()),
             
             // 右侧：统计信息 + 新建按钮 + 托盘按钮 + 窗口控制
             _buildStatsChip(),
@@ -275,7 +284,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   /// 侧边栏
-  Widget _buildSidebar(BuildContext context, List<NavigationItem> navItems) {
+  Widget _buildSidebar(BuildContext context, List<NavigationItem> navItems, double opacity) {
     return AnimatedBuilder(
       animation: _widthAnimation,
       builder: (context, child) {
@@ -285,7 +294,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         return Container(
           width: width,
           decoration: BoxDecoration(
-            color: AppTheme.bgSolid.withValues(alpha: 0.65),
+            color: AppTheme.bgSolid.withValues(alpha: opacity),
           ),
           child: Column(
             children: [
@@ -353,8 +362,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   .where((entry) => ['日志', '状态', '设置', '关于'].contains(entry.value.title))
                   .map((entry) => _buildNavItemWidget(context, entry.key, entry.value, isCompact)),
               
-              // 底部信息
-              _buildSidebarFooter(context, isCompact),
+              const SizedBox(height: 12),
             ],
           ),
         );
@@ -580,7 +588,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
 
     return SizedBox(
-      height: 56,
+      height: 60,
       child: Row(
         children: [
           MinimizeWindowButton(colors: buttonColors),

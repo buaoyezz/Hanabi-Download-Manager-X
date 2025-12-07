@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:fluent_ui/fluent_ui.dart';
 import '../../utils/constants.dart';
 import '../../theme/app_theme.dart';
@@ -154,7 +155,7 @@ class _AboutPageState extends State<AboutPage> with SingleTickerProviderStateMix
                           const Icon(FluentIcons.heart_fill, size: 14, color: Color(0xFFFF6B6B)),
                           const SizedBox(width: 6),
                           Text(
-                            'Made with ❤️ by ${AppConstants.developer}',
+                            'Made by ${AppConstants.developer}',
                             style: const TextStyle(fontSize: 11),
                           ),
                         ],
@@ -313,50 +314,78 @@ class _AboutPageState extends State<AboutPage> with SingleTickerProviderStateMix
                 onTap: _onLogoTap,
                 child: MouseRegion(
                   cursor: SystemMouseCursors.click,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.accentPrimary.withValues(
-                            alpha: _logoTapCount > 5 ? 0.5 : 0.3,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    clipBehavior: Clip.none,
+                    children: [
+                      // Pigment mix gradient glow
+                      Positioned(
+                        top: 4,
+                        left: 4,
+                        right: 4,
+                        bottom: 4,
+                        child: Transform.scale(
+                          scale: 1.6,
+                          child: ImageFiltered(
+                            imageFilter: ImageFilter.blur(
+                              sigmaX: _logoTapCount > 5 ? 90 : 60,
+                              sigmaY: _logoTapCount > 5 ? 90 : 60,
+                            ),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(30),
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Color(0xFF42A5F5), // Blue
+                                    Color(0xFFAB47BC), // Purple
+                                    Color(0xFFEC407A), // Pink
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
-                          blurRadius: _logoTapCount > 5 ? 30 : 24,
-                          spreadRadius: _logoTapCount > 5 ? 4 : 2,
                         ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: Image.asset(
-                        'assets/logo/logo.png',
-                        width: 88,
-                        height: 88,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
+                      ),
+                      // Logo
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: Image.asset(
+                            'assets/logo/logo.png',
                             width: 88,
                             height: 88,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  AppTheme.accentPrimary.withValues(alpha: 0.3),
-                                  AppTheme.accentPrimary.withValues(alpha: 0.1),
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Icon(
-                              FluentIcons.download,
-                              size: 40,
-                              color: AppTheme.accentLight,
-                            ),
-                          );
-                        },
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                width: 88,
+                                height: 88,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      AppTheme.accentPrimary.withValues(alpha: 0.3),
+                                      AppTheme.accentPrimary.withValues(alpha: 0.1),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Icon(
+                                  FluentIcons.download,
+                                  size: 40,
+                                  color: AppTheme.accentLight,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ),
