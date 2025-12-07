@@ -1,7 +1,7 @@
 name: hanabi_download_managerx
-description: A Modern Download Manager 
+description: A EASY AND BEAUTIFUL DOWNLOAD MANAGER
 publish_to: 'none'
-version: 1.0.1
+version: 1.0.3
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -21,6 +21,11 @@ dependencies:
   system_tray: ^2.0.3
   file_picker: ^8.1.6
   url_launcher: ^6.3.0
+  package_info_plus: ^8.0.0
+  flutter_markdown: ^0.7.4+3
+  win32: ^5.5.0
+  ffi: ^2.1.0
+  screen_retriever: ^0.1.9
 
 dev_dependencies:
   flutter_test:
