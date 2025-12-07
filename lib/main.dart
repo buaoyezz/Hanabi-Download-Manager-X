@@ -3,6 +3,9 @@ import 'package:fluent_ui/fluent_ui.dart' as fluent;
 import 'package:provider/provider.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
+import 'dart:io';
+import 'package:flutter/services.dart';
+import 'package:screen_retriever/screen_retriever.dart';
 import 'services/integrated_download_service.dart';
 import 'services/kernel_service.dart';
 import 'services/download_listener_service.dart';
@@ -11,11 +14,34 @@ import 'services/app_logger_service.dart';
 import 'services/network_status_service.dart';
 import 'services/developer_mode_service.dart';
 import 'services/client_config_service.dart';
+import 'services/font_service.dart';
+import 'services/update_service.dart';
+import 'services/window_effect_service.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
 
 final systemTrayService = SystemTrayService();
 final navigatorKey = GlobalKey<NavigatorState>();
+
+Future<void> _loadCustomFonts(FontService fontService) async {
+  try {
+    final customFonts = fontService.customFonts;
+    for (final entry in customFonts.entries) {
+      final fontName = entry.key;
+      final fontPath = entry.value;
+      
+      final file = File(fontPath);
+      if (await file.exists()) {
+        final fontData = await file.readAsBytes();
+        final fontLoader = FontLoader(fontName);
+        fontLoader.addFont(Future.value(ByteData.view(fontData.buffer)));
+        await fontLoader.load();
+      }
+    }
+  } catch (e) {
+    debugPrint('Error loading custom fonts: $e');
+  }
+}
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,11 +63,23 @@ void main(List<String> args) async {
   final networkStatus = NetworkStatusService();
   final developerMode = DeveloperModeService();
   final clientConfig = ClientConfigService();
+  final fontService = FontService();
+  final updateService = UpdateService(logger: appLogger);
+  final windowEffectService = WindowEffectService();
   
   appLogger.info('App', 'Application starting...');
   await clientConfig.initialize();
   networkStatus.startMonitoring();
   await developerMode.loadSettings();
+  await fontService.loadFont();
+  await windowEffectService.initialize();
+  await updateService.initialize();
+  
+  // 加载自定义字体（异步，不阻塞启动）
+  _loadCustomFonts(fontService).catchError((e) {
+    debugPrint('Failed to load custom fonts: $e');
+  });
+  
   appLogger.info('App', 'Services initialized');
 
   runApp(
@@ -56,19 +94,52 @@ void main(List<String> args) async {
         ChangeNotifierProvider.value(value: networkStatus),
         ChangeNotifierProvider.value(value: developerMode),
         ChangeNotifierProvider.value(value: clientConfig),
+        ChangeNotifierProvider.value(value: fontService),
+        ChangeNotifierProvider.value(value: updateService),
+        ChangeNotifierProvider.value(value: windowEffectService),
         Provider<bool>.value(value: isAutoStart), // 传递启动模式
       ],
       child: const MyApp(),
     ),
   );
 
-  doWhenWindowReady(() {
+  doWhenWindowReady(() async {
     final win = appWindow;
-    const initialSize = Size(1200, 800);
-    win.minSize = const Size(800, 600);
+    final config = ClientConfigService();
+    
+    // 获取屏幕大小（使用 screen_retriever）
+    double screenWidth = 1920.0;
+    double screenHeight = 1080.0;
+    try {
+      final primaryDisplay = await screenRetriever.getPrimaryDisplay();
+      screenWidth = primaryDisplay.size.width;
+      screenHeight = primaryDisplay.size.height;
+    } catch (e) {
+      debugPrint('Failed to get screen size: $e');
+    }
+    
+    // 根据是否记忆大小来决定使用哪个尺寸
+    Size initialSize;
+    if (config.getWindowRememberSize()) {
+      // 使用上次保存的大小，但不超过屏幕大小
+      final savedWidth = config.getWindowWidth().clamp(600.0, screenWidth);
+      final savedHeight = config.getWindowHeight().clamp(400.0, screenHeight);
+      initialSize = Size(savedWidth, savedHeight);
+    } else {
+      // 使用默认大小，但不超过屏幕大小
+      final defaultWidth = config.getWindowDefaultWidth().clamp(600.0, screenWidth);
+      final defaultHeight = config.getWindowDefaultHeight().clamp(400.0, screenHeight);
+      initialSize = Size(defaultWidth, defaultHeight);
+    }
+    
+    win.minSize = const Size(600, 400);
     win.size = initialSize;
     win.alignment = Alignment.center;
     win.title = "Hanabi Download ManagerX";
+
+    if (config.getWindowMaximized()) {
+      win.maximize();
+    }
     
     // 如果是开机自启动，隐藏窗口；否则显示窗口
     if (isAutoStart) {
@@ -141,6 +212,22 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   Future<void> _cleanup() async {
+    // 保存窗口大小（仅在记忆模式下）
+    try {
+      final win = appWindow;
+      final config = context.read<ClientConfigService>();
+      
+      await config.setWindowMaximized(win.isMaximized);
+      
+      // 只有在启用记忆大小时才保存当前窗口大小
+      if (config.getWindowRememberSize() && !win.isMaximized) {
+        await config.setWindowWidth(win.size.width);
+        await config.setWindowHeight(win.size.height);
+      }
+    } catch (e) {
+      debugPrint('Failed to save window size: $e');
+    }
+
     _downloadListener?.stopListening();
     
     // 停止kernel服务
@@ -173,12 +260,30 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return fluent.FluentApp(
-      navigatorKey: navigatorKey,
-      title: 'Hanabi Download ManagerX',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.fluentDarkTheme,
-      home: const HomeScreen(),
+    return Consumer<FontService>(
+      builder: (context, fontService, child) {
+        final baseTheme = AppTheme.fluentDarkTheme;
+        final typography = baseTheme.typography;
+        
+        return fluent.FluentApp(
+          navigatorKey: navigatorKey,
+          title: 'Hanabi Download ManagerX',
+          debugShowCheckedModeBanner: false,
+          theme: baseTheme.copyWith(
+            typography: fluent.Typography.raw(
+              body: typography.body?.copyWith(fontFamily: fontService.fontFamily),
+              bodyLarge: typography.bodyLarge?.copyWith(fontFamily: fontService.fontFamily),
+              bodyStrong: typography.bodyStrong?.copyWith(fontFamily: fontService.fontFamily),
+              caption: typography.caption?.copyWith(fontFamily: fontService.fontFamily),
+              subtitle: typography.subtitle?.copyWith(fontFamily: fontService.fontFamily),
+              title: typography.title?.copyWith(fontFamily: fontService.fontFamily),
+              titleLarge: typography.titleLarge?.copyWith(fontFamily: fontService.fontFamily),
+              display: typography.display?.copyWith(fontFamily: fontService.fontFamily),
+            ),
+          ),
+          home: const HomeScreen(),
+        );
+      },
     );
   }
 }

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../services/integrated_download_service.dart';
 import '../../models/download_task.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/file_icon_widget.dart';
 
 class CompletedList extends StatelessWidget {
   const CompletedList({super.key});
@@ -212,28 +213,11 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
   }
 
   Widget _buildStatusIcon() {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppTheme.statusSuccess.withValues(alpha: 0.2),
-            AppTheme.statusSuccess.withValues(alpha: 0.1),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(
-          color: AppTheme.statusSuccess.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Icon(
-        FluentIcons.completed,
-        color: AppTheme.statusSuccess,
-        size: 20,
-      ),
+    // 使用系统文件图标组件
+    return FileIconWidget(
+      fileName: widget.task.fileName,
+      filePath: widget.task.filePath,
+      size: 32,
     );
   }
 

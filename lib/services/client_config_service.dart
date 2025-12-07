@@ -148,6 +148,12 @@ class ClientConfigService extends ChangeNotifier {
       'window': {
         'effect_mode': 'acrylic',
         'effect_alpha': 160,
+        'width': 889.0,
+        'height': 586.0,
+        'is_maximized': false,
+        'remember_size': false, // 默认不记忆窗口大小，使用默认值
+        'default_width': 889.0,
+        'default_height': 586.0,
       },
       'segments': {
         'default_expanded': false,
@@ -276,6 +282,54 @@ class ClientConfigService extends ChangeNotifier {
 
   Future<void> setWindowEffectAlpha(int alpha) async {
     await _setToConfig(_uiConfig, _uiConfigPath, 'window.effect_alpha', alpha);
+  }
+
+  double getWindowWidth() {
+    return _getFromConfig<double>(_uiConfig, 'window.width', defaultValue: 889.0) ?? 889.0;
+  }
+
+  Future<void> setWindowWidth(double width) async {
+    await _setToConfig(_uiConfig, _uiConfigPath, 'window.width', width);
+  }
+
+  double getWindowHeight() {
+    return _getFromConfig<double>(_uiConfig, 'window.height', defaultValue: 586.0) ?? 586.0;
+  }
+
+  Future<void> setWindowHeight(double height) async {
+    await _setToConfig(_uiConfig, _uiConfigPath, 'window.height', height);
+  }
+
+  bool getWindowMaximized() {
+    return _getFromConfig<bool>(_uiConfig, 'window.is_maximized', defaultValue: false) ?? false;
+  }
+
+  Future<void> setWindowMaximized(bool maximized) async {
+    await _setToConfig(_uiConfig, _uiConfigPath, 'window.is_maximized', maximized);
+  }
+
+  bool getWindowRememberSize() {
+    return _getFromConfig<bool>(_uiConfig, 'window.remember_size', defaultValue: true) ?? true;
+  }
+
+  Future<void> setWindowRememberSize(bool value) async {
+    await _setToConfig(_uiConfig, _uiConfigPath, 'window.remember_size', value);
+  }
+
+  double getWindowDefaultWidth() {
+    return _getFromConfig<double>(_uiConfig, 'window.default_width', defaultValue: 889.0) ?? 889.0;
+  }
+
+  Future<void> setWindowDefaultWidth(double width) async {
+    await _setToConfig(_uiConfig, _uiConfigPath, 'window.default_width', width);
+  }
+
+  double getWindowDefaultHeight() {
+    return _getFromConfig<double>(_uiConfig, 'window.default_height', defaultValue: 586.0) ?? 586.0;
+  }
+
+  Future<void> setWindowDefaultHeight(double height) async {
+    await _setToConfig(_uiConfig, _uiConfigPath, 'window.default_height', height);
   }
 
   bool getSegmentsDefaultExpanded() {

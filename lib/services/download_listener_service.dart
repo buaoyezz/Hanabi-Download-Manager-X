@@ -11,6 +11,8 @@ class DownloadListenerService {
   final _logger = LoggerService();
   Timer? _pollTimer;
   final String _baseUrl = 'http://127.0.0.1:9710';
+  bool _isChecking = false;
+  bool _isShowingPopup = false; // 防止弹窗期间重复触发
 
   DownloadListenerService(this.context);
 
@@ -26,11 +28,17 @@ class DownloadListenerService {
   void stopListening() {
     _pollTimer?.cancel();
     _pollTimer = null;
+    _isChecking = false;
+    _isShowingPopup = false;
     _logger.info('Download listener stopped');
   }
 
   // 检查是否有新的下载请求
   Future<void> _checkForNewDownloads() async {
+    // 如果正在检查或正在显示弹窗，跳过本次检查
+    if (_isChecking || _isShowingPopup) return;
+    _isChecking = true;
+
     try {
       final response = await http.get(
         Uri.parse('$_baseUrl/download/pending-popup'),
@@ -47,13 +55,16 @@ class DownloadListenerService {
       }
     } catch (e) {
       // 静默处理错误，避免日志刷屏
+    } finally {
+      _isChecking = false;
     }
   }
 
   // 为新下载显示弹窗
   Future<void> _showPopupForDownload(Map<String, dynamic> downloadData) async {
-    if (!context.mounted) return;
+    if (!context.mounted || _isShowingPopup) return;
 
+    _isShowingPopup = true;
     try {
       await PopupWindowService.showPopupDownload(
         context,
@@ -66,6 +77,8 @@ class DownloadListenerService {
       );
     } catch (e) {
       _logger.error('Failed to show popup: $e');
+    } finally {
+      _isShowingPopup = false;
     }
   }
 }

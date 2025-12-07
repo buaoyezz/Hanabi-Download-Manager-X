@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/integrated_download_service.dart';
 import '../../models/download_task.dart' show DownloadTask, DownloadStatus, SegmentInfo;
 import '../../theme/app_theme.dart';
+import '../../widgets/file_icon_widget.dart';
 
 class DownloadList extends StatelessWidget {
   const DownloadList({super.key});
@@ -21,16 +22,128 @@ class DownloadList extends StatelessWidget {
           return _buildEmptyState(context);
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(20),
-          itemCount: activeTasks.length,
-          itemBuilder: (context, index) {
-            final task = activeTasks[index];
-            return _DownloadTaskCard(task: task);
-          },
+        // 计算总体统计
+        final downloadingTasks = activeTasks.where((t) => t.status == DownloadStatus.downloading).toList();
+        final totalSpeed = downloadingTasks.fold<double>(0, (sum, t) => sum + (t.speed ?? 0));
+        final totalSegments = downloadingTasks.fold<int>(0, (sum, t) => sum + (t.segments?.length ?? 0));
+
+        return Column(
+          children: [
+            // 下载统计栏
+            if (downloadingTasks.isNotEmpty)
+              _buildStatsBar(context, downloadingTasks.length, totalSpeed, totalSegments),
+            // 任务列表
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.all(20),
+                itemCount: activeTasks.length,
+                itemBuilder: (context, index) {
+                  final task = activeTasks[index];
+                  return _DownloadTaskCard(task: task);
+                },
+              ),
+            ),
+          ],
         );
       },
     );
+  }
+  
+  Widget _buildStatsBar(BuildContext context, int activeCount, double totalSpeed, int totalSegments) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppTheme.bgLayer2,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(
+          color: AppTheme.borderSubtle,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          // 活跃任务数
+          _buildStatItem(
+            context,
+            icon: FluentIcons.download,
+            label: '下载中',
+            value: '$activeCount',
+            color: AppTheme.accentPrimary,
+          ),
+          _buildDivider(),
+          // 总速度
+          _buildStatItem(
+            context,
+            icon: FluentIcons.speed_high,
+            label: '总速度',
+            value: _formatSpeed(totalSpeed),
+            color: AppTheme.accentLight,
+          ),
+          _buildDivider(),
+          // 活跃分段
+          _buildStatItem(
+            context,
+            icon: FluentIcons.split_object,
+            label: '活跃分段',
+            value: '$totalSegments',
+            color: AppTheme.statusSuccess,
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildStatItem(BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                value,
+                style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
+                  color: color,
+                  fontSize: 13,
+                ),
+              ),
+              Text(
+                label,
+                style: FluentTheme.of(context).typography.caption?.copyWith(
+                  color: AppTheme.textTertiary,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildDivider() {
+    return Container(
+      width: 1,
+      height: 30,
+      color: AppTheme.borderSubtle,
+    );
+  }
+  
+  String _formatSpeed(double bytesPerSecond) {
+    if (bytesPerSecond < 1024) return '${bytesPerSecond.toStringAsFixed(0)} B/s';
+    if (bytesPerSecond < 1024 * 1024) return '${(bytesPerSecond / 1024).toStringAsFixed(1)} KB/s';
+    if (bytesPerSecond < 1024 * 1024 * 1024) return '${(bytesPerSecond / (1024 * 1024)).toStringAsFixed(1)} MB/s';
+    return '${(bytesPerSecond / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB/s';
   }
 
   Widget _buildEmptyState(BuildContext context) {
@@ -92,6 +205,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
   bool _isSegmentsExpanded = false;
   bool _showAllSegments = false;
   int _maxVisibleSegments = 5;
+  String _segmentsDisplayMode = 'merged'; // 'merged' (合并) 或 'list' (列表)
   
   @override
   void initState() {
@@ -103,10 +217,12 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
     final prefs = await SharedPreferences.getInstance();
     final defaultExpanded = prefs.getBool('segments_default_expanded') ?? false;
     final maxVisible = prefs.getInt('segments_max_visible') ?? 5;
+    final displayMode = prefs.getString('segments_display_mode') ?? 'merged';
     if (mounted) {
       setState(() {
         _isSegmentsExpanded = defaultExpanded;
         _maxVisibleSegments = maxVisible;
+        _segmentsDisplayMode = displayMode;
       });
     }
   }
@@ -176,30 +292,11 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
   }
 
   Widget _buildStatusIcon() {
-    final color = _getStatusColor();
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            color.withValues(alpha: 0.2),
-            color.withValues(alpha: 0.1),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(
-          color: color.withValues(alpha: 0.3),
-          width: 1,
-        ),
-      ),
-      child: Icon(
-        _getStatusIcon(),
-        color: color,
-        size: 20,
-      ),
+    // 使用系统文件图标组件
+    return FileIconWidget(
+      fileName: widget.task.fileName,
+      filePath: widget.task.filePath,
+      size: 32,
     );
   }
 
@@ -256,31 +353,34 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
   }
 
   Widget _buildActionButtons(IntegratedDownloadService service) {
+    final isMerging = widget.task.status == DownloadStatus.merging;
+    
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (widget.task.status == DownloadStatus.pending ||
-            widget.task.status == DownloadStatus.paused)
+        if (!isMerging && (widget.task.status == DownloadStatus.pending ||
+            widget.task.status == DownloadStatus.paused))
           _ActionButton(
             icon: FluentIcons.play,
             color: AppTheme.statusSuccess,
             onPressed: () => service.startTask(widget.task.id),
             tooltip: '开始',
           ),
-        if (widget.task.status == DownloadStatus.downloading)
+        if (!isMerging && widget.task.status == DownloadStatus.downloading)
           _ActionButton(
             icon: FluentIcons.pause,
             color: AppTheme.statusWarning,
             onPressed: () => service.pauseTask(widget.task.id),
             tooltip: '暂停',
           ),
-        const SizedBox(width: 6),
-        _ActionButton(
-          icon: FluentIcons.delete,
-          color: AppTheme.statusError,
-          onPressed: () => _confirmDelete(service),
-          tooltip: '删除',
-        ),
+        if (!isMerging) const SizedBox(width: 6),
+        if (!isMerging)
+          _ActionButton(
+            icon: FluentIcons.delete,
+            color: AppTheme.statusError,
+            onPressed: () => _confirmDelete(service),
+            tooltip: '删除',
+          ),
       ],
     );
   }
@@ -288,6 +388,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
   Widget _buildProgressSection() {
     final isUnknownSize = (widget.task.fileSize == null || widget.task.fileSize == 0) && 
                           widget.task.status == DownloadStatus.downloading;
+    final isMerging = widget.task.status == DownloadStatus.merging;
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -297,7 +398,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             Expanded(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(4),
-                child: isUnknownSize
+                child: (isUnknownSize || isMerging)
                     ? const ProgressBar(strokeWidth: 6)
                     : ProgressBar(
                         value: widget.task.progress * 100,
@@ -312,20 +413,40 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                 color: AppTheme.bgLayer2,
                 borderRadius: BorderRadius.circular(AppTheme.radiusSm),
               ),
-              child: Text(
-                isUnknownSize 
-                    ? '计算中'
-                    : '${(widget.task.progress * 100).toStringAsFixed(1)}%',
-                style: FluentTheme.of(context).typography.caption?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
-                  fontSize: 11,
-                ),
-              ),
+              child: isMerging
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: ProgressRing(strokeWidth: 2),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '正在校验和合并数据',
+                          style: FluentTheme.of(context).typography.caption?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.accentPrimary,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Text(
+                      isUnknownSize 
+                          ? '计算中'
+                          : '${(widget.task.progress * 100).toStringAsFixed(1)}%',
+                      style: FluentTheme.of(context).typography.caption?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary,
+                        fontSize: 11,
+                      ),
+                    ),
             ),
           ],
         ),
-        if (widget.task.segments != null && widget.task.segments!.isNotEmpty) ...[
+        if (widget.task.segments != null && widget.task.segments!.isNotEmpty && !isMerging) ...[
           const SizedBox(height: 10),
           _buildSegmentsProgress(),
         ],
@@ -335,6 +456,18 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
 
   Widget _buildSegmentsProgress() {
     final segments = widget.task.segments!;
+    
+    // 简洁模式：不显示分段信息
+    if (_segmentsDisplayMode == 'none') {
+      return const SizedBox.shrink();
+    }
+    
+    // 合并进度条模式
+    if (_segmentsDisplayMode == 'merged') {
+      return _buildMergedSegmentsBar(segments);
+    }
+    
+    // 列表模式
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -387,6 +520,100 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
       ],
     );
   }
+  
+  /// 合并分段进度条
+  Widget _buildMergedSegmentsBar(List<SegmentInfo> segments) {
+    final totalSize = widget.task.fileSize ?? 0;
+    if (totalSize == 0) return const SizedBox.shrink();
+    
+    // 统计分段状态
+    final completedCount = segments.where((s) => s.status == 'completed').length;
+    final downloadingCount = segments.where((s) => s.status == 'downloading').length;
+    final failedCount = segments.where((s) => s.status == 'failed').length;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 分段信息标题
+        Row(
+          children: [
+            Icon(
+              FluentIcons.split_object,
+              size: 12,
+              color: AppTheme.textTertiary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '分段下载',
+              style: FluentTheme.of(context).typography.caption?.copyWith(
+                color: AppTheme.textSecondary,
+                fontSize: 11,
+              ),
+            ),
+            const SizedBox(width: 8),
+            // 分段状态统计
+            _buildSegmentStatusBadge(completedCount, AppTheme.statusSuccess, '完成'),
+            const SizedBox(width: 4),
+            _buildSegmentStatusBadge(downloadingCount, AppTheme.accentPrimary, '下载'),
+            if (failedCount > 0) ...[
+              const SizedBox(width: 4),
+              _buildSegmentStatusBadge(failedCount, AppTheme.statusError, '失败'),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+        // 合并进度条
+        Container(
+          height: 20,
+          decoration: BoxDecoration(
+            color: AppTheme.bgLayer2,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: AppTheme.borderSubtle,
+              width: 1,
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: CustomPaint(
+              painter: _SegmentProgressPainter(
+                segments: segments,
+                totalSize: totalSize,
+              ),
+              size: Size.infinite,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        // 分段数量提示
+        Text(
+          '${segments.length} 个分段 · $completedCount 完成 · $downloadingCount 下载中',
+          style: FluentTheme.of(context).typography.caption?.copyWith(
+            color: AppTheme.textTertiary,
+            fontSize: 10,
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildSegmentStatusBadge(int count, Color color, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        '$count$label',
+        style: FluentTheme.of(context).typography.caption?.copyWith(
+          color: color,
+          fontSize: 9,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
 
   Widget _buildSegmentsList(List<SegmentInfo> segments) {
     final visibleSegments = _showAllSegments 
@@ -409,16 +636,49 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
   }
 
   Widget _buildSegmentRow(SegmentInfo segment) {
+    // 根据分段状态选择颜色
+    Color statusColor;
+    switch (segment.status) {
+      case 'downloading':
+        statusColor = AppTheme.accentPrimary;
+        break;
+      case 'completed':
+        statusColor = AppTheme.statusSuccess;
+        break;
+      case 'failed':
+        statusColor = AppTheme.statusError;
+        break;
+      case 'paused':
+        statusColor = AppTheme.statusWarning;
+        break;
+      default:
+        statusColor = AppTheme.textTertiary;
+    }
+    
     return Row(
       children: [
-        SizedBox(
-          width: 50,
-          child: Text(
-            '分段 ${segment.index + 1}',
-            style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: AppTheme.textTertiary,
-              fontSize: 10,
-            ),
+        // 分段编号和状态指示器
+        Container(
+          width: 60,
+          child: Row(
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '分段 ${segment.index + 1}',
+                style: FluentTheme.of(context).typography.caption?.copyWith(
+                  color: AppTheme.textTertiary,
+                  fontSize: 10,
+                ),
+              ),
+            ],
           ),
         ),
         Expanded(
@@ -448,7 +708,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
           child: Text(
             _formatSpeed(segment.speed),
             style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: AppTheme.accentLight,
+              color: segment.speed > 0 ? AppTheme.accentLight : AppTheme.textTertiary,
               fontSize: 9,
               fontWeight: FontWeight.w500,
             ),
@@ -645,22 +905,6 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
       ),
     );
   }
-
-  IconData _getStatusIcon() {
-    switch (widget.task.status) {
-      case DownloadStatus.pending:
-        return FluentIcons.clock;
-      case DownloadStatus.downloading:
-        return FluentIcons.download;
-      case DownloadStatus.paused:
-        return FluentIcons.pause;
-      case DownloadStatus.completed:
-        return FluentIcons.completed;
-      case DownloadStatus.failed:
-        return FluentIcons.error_badge;
-    }
-  }
-
   Color _getStatusColor() {
     switch (widget.task.status) {
       case DownloadStatus.pending:
@@ -673,6 +917,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
         return AppTheme.statusSuccess;
       case DownloadStatus.failed:
         return AppTheme.statusError;
+      case DownloadStatus.merging:
+        return AppTheme.accentLight;
     }
   }
 
@@ -688,7 +934,97 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
         return '已完成';
       case DownloadStatus.failed:
         return '失败';
+      case DownloadStatus.merging:
+        return '合并中';
     }
+  }
+}
+
+/// 分段进度条绘制器
+class _SegmentProgressPainter extends CustomPainter {
+  final List<SegmentInfo> segments;
+  final int totalSize;
+  
+  _SegmentProgressPainter({
+    required this.segments,
+    required this.totalSize,
+  });
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (totalSize == 0 || segments.isEmpty) return;
+    
+    final width = size.width;
+    final height = size.height;
+    
+    // 背景色
+    final bgPaint = Paint()
+      ..color = AppTheme.bgLayer1
+      ..style = PaintingStyle.fill;
+    canvas.drawRect(Rect.fromLTWH(0, 0, width, height), bgPaint);
+    
+    // 绘制每个分段
+    for (final segment in segments) {
+      final startRatio = segment.startByte / totalSize;
+      final endRatio = segment.endByte / totalSize;
+      final segmentWidth = (endRatio - startRatio) * width;
+      final startX = startRatio * width;
+      
+      // 计算分段内的进度
+      final segmentSize = segment.endByte - segment.startByte;
+      final progressRatio = segmentSize > 0 
+          ? segment.downloadedBytes / segmentSize 
+          : 0.0;
+      final progressWidth = segmentWidth * progressRatio;
+      
+      // 选择颜色
+      Color color;
+      switch (segment.status) {
+        case 'completed':
+          color = AppTheme.statusSuccess;
+          break;
+        case 'downloading':
+          color = AppTheme.accentPrimary;
+          break;
+        case 'failed':
+          color = AppTheme.statusError;
+          break;
+        case 'paused':
+          color = AppTheme.statusWarning;
+          break;
+        default:
+          color = AppTheme.textTertiary.withValues(alpha: 0.3);
+      }
+      
+      // 绘制已下载部分
+      if (progressWidth > 0) {
+        final progressPaint = Paint()
+          ..color = color
+          ..style = PaintingStyle.fill;
+        canvas.drawRect(
+          Rect.fromLTWH(startX, 0, progressWidth, height),
+          progressPaint,
+        );
+      }
+      
+      // 绘制分段边界线
+      if (segments.length > 1) {
+        final borderPaint = Paint()
+          ..color = AppTheme.borderSubtle.withValues(alpha: 0.5)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.5;
+        canvas.drawLine(
+          Offset(startX + segmentWidth, 0),
+          Offset(startX + segmentWidth, height),
+          borderPaint,
+        );
+      }
+    }
+  }
+  
+  @override
+  bool shouldRepaint(covariant _SegmentProgressPainter oldDelegate) {
+    return true; // 总是重绘以显示进度更新
   }
 }
 

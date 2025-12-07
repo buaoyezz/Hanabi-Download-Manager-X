@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../services/integrated_download_service.dart';
 import '../theme/app_theme.dart';
 
-// IDM风格的弹窗下载对话框
+// 弹窗下载对话框
 class PopupDownloadDialog extends StatefulWidget {
   final String url;
   final String? suggestedFilename;

@@ -56,6 +56,9 @@ class IntegratedDownloadService extends ChangeNotifier {
               case DownloadStatus.pending:
                 _appLogger.info('App', 'Task pending: ${newTask.fileName}');
                 break;
+              case DownloadStatus.merging:
+                _appLogger.info('App', 'Task merging: ${newTask.fileName}');
+                break;
             }
           }
           
@@ -98,11 +101,14 @@ class IntegratedDownloadService extends ChangeNotifier {
       case 'cancelled':
         status = DownloadStatus.failed;
         break;
+      case 'merging':
+        status = DownloadStatus.merging;
+        break;
       default:
         status = DownloadStatus.pending;
     }
 
-    // 解析分段信息
+    // 解析分段信息（包含新字段）
     List<SegmentInfo>? segments;
     if (kernelTask['segments'] != null && kernelTask['segments'] is List) {
       try {
@@ -114,6 +120,8 @@ class IntegratedDownloadService extends ChangeNotifier {
             endByte: seg['endByte'] is int ? seg['endByte'] : (seg['endByte'] as num).toInt(),
             downloadedBytes: seg['downloadedBytes'] is int ? seg['downloadedBytes'] : (seg['downloadedBytes'] as num).toInt(),
             speed: (seg['speed'] ?? 0.0) is double ? seg['speed'] : (seg['speed'] as num).toDouble(),
+            status: seg['status'] ?? 'pending',
+            retryCount: seg['retryCount'] is int ? seg['retryCount'] : (seg['retryCount'] as num?)?.toInt() ?? 0,
           );
         }).toList();
       } catch (e) {
