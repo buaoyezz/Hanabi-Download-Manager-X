@@ -4,6 +4,7 @@ enum DownloadStatus {
   paused,
   completed,
   failed,
+  merging,  // 正在校验和合并分段
 }
 
 class SegmentInfo {
@@ -12,6 +13,8 @@ class SegmentInfo {
   final int endByte;
   final int downloadedBytes;
   final double speed;
+  final String status;  // pending, downloading, completed, failed, paused
+  final int retryCount;  // 重试次数
 
   SegmentInfo({
     required this.index,
@@ -19,6 +22,8 @@ class SegmentInfo {
     required this.endByte,
     required this.downloadedBytes,
     required this.speed,
+    this.status = 'pending',
+    this.retryCount = 0,
   });
 
   double get progress {
@@ -26,6 +31,10 @@ class SegmentInfo {
     if (total <= 0) return 0.0;
     return downloadedBytes / total;
   }
+  
+  bool get isCompleted => status == 'completed';
+  bool get isFailed => status == 'failed';
+  bool get isDownloading => status == 'downloading';
 }
 
 class DownloadTask {

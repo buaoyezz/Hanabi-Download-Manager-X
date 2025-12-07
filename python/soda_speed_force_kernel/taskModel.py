@@ -9,6 +9,7 @@ class TaskStatus(Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+    MERGING = "merging"  # 正在校验和合并分段
 
 @dataclass
 class Task:
