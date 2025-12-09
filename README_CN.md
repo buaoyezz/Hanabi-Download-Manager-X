@@ -70,6 +70,9 @@
 <a name="许可证"></a>
 ## 许可证
 ##### GNU General Public License version 3<br>Copyright © ZZBuAoYe 2025
+#### 其他许可证
+##### >[隐私政策](https://x.zzbuaoye.top/privacy)
+##### >[服务条款](https://x.zzbuaoye.top/terms)
 
 ---
 

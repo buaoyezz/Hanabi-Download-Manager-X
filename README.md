@@ -86,6 +86,8 @@ This complete refactoring solves many legacy issues, bringing you an unprecedent
 <a name="license"></a>
 ## License
 ##### GNU General Public License version 3<br>Copyright © ZZBuAoYe 2025
+#### Other Legal
+##### >[Privacy Policy](https://x.zzbuaoye.top/privacy)<br>>[Terms of Service](https://x.zzbuaoye.top/terms)
 
 ---
 
