@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../services/integrated_download_service.dart';
 import '../../services/kernel_service.dart';
 import '../../services/developer_mode_service.dart';
+import '../../services/client_config_service.dart';
 import '../../widgets/folder_picker_dialog.dart';
 import '../../widgets/settings_components.dart';
 import '../../widgets/temp_files_dialog.dart';
@@ -78,6 +79,7 @@ class _SettingsPageState extends State<SettingsPage> {
   final _autoStartService = AutoStartService();
   bool _notifyOnComplete = true;
   String _downloadPath = '';
+  String _closeButtonBehavior = 'minimize_to_tray';
   
   // Status monitoring
   bool _kernelOnline = false;
@@ -94,6 +96,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _loadDownloadPath();
       _startStatusMonitoring();
       _loadAutoStartSettings();
+      _loadBehaviorSettings();
     });
   }
   
@@ -105,6 +108,45 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() {
         _openOnStartup = enabled;
       });
+      
+      // 如果启用了自启动，检查路径是否正确
+      if (enabled) {
+        _verifyAutoStartPath();
+      }
+    }
+  }
+  
+  Future<void> _loadBehaviorSettings() async {
+    try {
+      final config = Provider.of<ClientConfigService>(context, listen: false);
+      final closeButtonBehavior = config.getCloseButtonBehavior();
+      
+      if (mounted) {
+        setState(() {
+          _closeButtonBehavior = closeButtonBehavior;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading behavior settings: $e');
+    }
+  }
+  
+  Future<void> _verifyAutoStartPath() async {
+    final isCorrect = await _autoStartService.isRegisteredPathCorrect();
+    if (!isCorrect && mounted) {
+      // 路径不正确，自动修复
+      final fixed = await _autoStartService.verifyAndFixAutoStart();
+      if (fixed && mounted) {
+        displayInfoBar(
+          context,
+          builder: (context, close) => const InfoBar(
+            title: Text('自启动已修复'),
+            content: Text('检测到旧版本的自启动注册，已自动更新为当前版本'),
+            severity: InfoBarSeverity.success,
+          ),
+          duration: const Duration(seconds: 4),
+        );
+      }
     }
   }
 
@@ -131,6 +173,51 @@ class _SettingsPageState extends State<SettingsPage> {
           severity: InfoBarSeverity.error,
         ),
       );
+    }
+  }
+  
+  Future<void> _saveCloseButtonBehavior(String behavior) async {
+    try {
+      final config = Provider.of<ClientConfigService>(context, listen: false);
+      await config.setCloseButtonBehavior(behavior);
+      
+      if (mounted) {
+        setState(() {
+          _closeButtonBehavior = behavior;
+        });
+        
+        displayInfoBar(
+          context,
+          builder: (context, close) => InfoBar(
+            title: const Text('设置已保存'),
+            content: Text('关闭按钮行为已设为${_getCloseButtonBehaviorDescription(behavior)}'),
+            severity: InfoBarSeverity.success,
+          ),
+          duration: const Duration(seconds: 2),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        displayInfoBar(
+          context,
+          builder: (context, close) => InfoBar(
+            title: const Text('设置失败'),
+            content: Text('无法保存设置: $e'),
+            severity: InfoBarSeverity.error,
+          ),
+        );
+      }
+    }
+  }
+  
+  String _getCloseButtonBehaviorDescription(String behavior) {
+    switch (behavior) {
+      case 'minimize_to_tray':
+        return '最小化到系统托盘，保持后台运行';
+      case 'exit_app':
+        return '完全退出应用程序';
+      default:
+        return '未知行为';
     }
   }
   
@@ -536,6 +623,22 @@ class _SettingsPageState extends State<SettingsPage> {
             trailing: ToggleSwitch(
               checked: _notifyOnComplete,
               onChanged: (value) => setState(() => _notifyOnComplete = value),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildSettingItem(
+            context,
+            title: '关闭按钮行为',
+            subtitle: _getCloseButtonBehaviorDescription(_closeButtonBehavior),
+            trailing: ComboBox<String>(
+              value: _closeButtonBehavior,
+              items: const [
+                ComboBoxItem(value: 'minimize_to_tray', child: Text('最小化到托盘')),
+                ComboBoxItem(value: 'exit_app', child: Text('退出软件')),
+              ],
+              onChanged: (value) {
+                if (value != null) _saveCloseButtonBehavior(value);
+              },
             ),
           ),
         ],

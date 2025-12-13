@@ -137,6 +137,7 @@ class ClientConfigService extends ChangeNotifier {
       'behavior': {
         'auto_start_download': true,
         'notify_on_complete': true,
+        'close_button_behavior': 'minimize_to_tray', // 默认最小化到托盘
       },
     };
   }
@@ -148,12 +149,15 @@ class ClientConfigService extends ChangeNotifier {
       'window': {
         'effect_mode': 'acrylic',
         'effect_alpha': 160,
-        'width': 889.0,
-        'height': 586.0,
+        'width': 889.0,  // 上次保存的窗口宽度
+        'height': 586.0, // 上次保存的窗口高度
         'is_maximized': false,
         'remember_size': false, // 默认不记忆窗口大小，使用默认值
-        'default_width': 889.0,
-        'default_height': 586.0,
+        'default_width': 889.0,  // 默认窗口宽度
+        'default_height': 586.0, // 默认窗口高度
+      },
+      'sidebar': {
+        'default_expanded': true, // 默认侧边栏展开
       },
       'segments': {
         'default_expanded': false,
@@ -309,7 +313,7 @@ class ClientConfigService extends ChangeNotifier {
   }
 
   bool getWindowRememberSize() {
-    return _getFromConfig<bool>(_uiConfig, 'window.remember_size', defaultValue: true) ?? true;
+    return _getFromConfig<bool>(_uiConfig, 'window.remember_size', defaultValue: false) ?? false;
   }
 
   Future<void> setWindowRememberSize(bool value) async {
@@ -346,6 +350,22 @@ class ClientConfigService extends ChangeNotifier {
 
   Future<void> setSegmentsMaxVisible(int value) async {
     await _setToConfig(_uiConfig, _uiConfigPath, 'segments.max_visible', value);
+  }
+
+  bool getSidebarDefaultExpanded() {
+    return _getFromConfig<bool>(_uiConfig, 'sidebar.default_expanded', defaultValue: true) ?? true;
+  }
+
+  Future<void> setSidebarDefaultExpanded(bool value) async {
+    await _setToConfig(_uiConfig, _uiConfigPath, 'sidebar.default_expanded', value);
+  }
+
+  String getCloseButtonBehavior() {
+    return _getFromConfig<String>(_appConfig, 'behavior.close_button_behavior', defaultValue: 'minimize_to_tray') ?? 'minimize_to_tray';
+  }
+
+  Future<void> setCloseButtonBehavior(String behavior) async {
+    await _setToConfig(_appConfig, _appConfigPath, 'behavior.close_button_behavior', behavior);
   }
 
   // ========== 应用配置 ==========

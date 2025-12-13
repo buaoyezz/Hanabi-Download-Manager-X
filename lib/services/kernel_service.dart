@@ -431,20 +431,43 @@ class KernelService extends ChangeNotifier {
     }
   }
 
-  Future<String?> addDownload(String url, String filename) async {
+  Future<String?> addDownload(
+    String url, 
+    String filename, {
+    String? referer,
+    String? userAgent,
+    String? cookies,
+    Map<String, dynamic>? headers,
+  }) async {
     if (!_isRunning) {
       _logger.error('Kernel not running');
       return null;
     }
 
     try {
+      final body = <String, dynamic>{
+        'url': url,
+        'filename': filename,
+      };
+      
+      // 添加可选的身份验证参数
+      if (referer != null && referer.isNotEmpty) {
+        body['referer'] = referer;
+      }
+      if (userAgent != null && userAgent.isNotEmpty) {
+        body['user_agent'] = userAgent;
+      }
+      if (cookies != null && cookies.isNotEmpty) {
+        body['cookies'] = cookies;
+      }
+      if (headers != null && headers.isNotEmpty) {
+        body['headers'] = headers;
+      }
+      
       final response = await http.post(
         Uri.parse('$_baseUrl/download/add'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'url': url,
-          'filename': filename,
-        }),
+        body: jsonEncode(body),
       );
 
       if (response.statusCode == 200) {

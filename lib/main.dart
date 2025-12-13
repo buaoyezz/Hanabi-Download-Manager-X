@@ -105,7 +105,8 @@ void main(List<String> args) async {
 
   doWhenWindowReady(() async {
     final win = appWindow;
-    final config = ClientConfigService();
+    // 使用已经初始化的 ClientConfigService 实例
+    // 注意：不能创建新实例，因为配置还没有加载
     
     // 获取屏幕大小（使用 screen_retriever）
     double screenWidth = 1920.0;
@@ -114,38 +115,91 @@ void main(List<String> args) async {
       final primaryDisplay = await screenRetriever.getPrimaryDisplay();
       screenWidth = primaryDisplay.size.width;
       screenHeight = primaryDisplay.size.height;
+      debugPrint('Screen size: ${screenWidth}x${screenHeight}');
     } catch (e) {
       debugPrint('Failed to get screen size: $e');
     }
     
     // 根据是否记忆大小来决定使用哪个尺寸
+    // 使用已初始化的 clientConfig 实例
     Size initialSize;
-    if (config.getWindowRememberSize()) {
+    final rememberSize = clientConfig.getWindowRememberSize();
+    final defaultWidth = clientConfig.getWindowDefaultWidth();
+    final defaultHeight = clientConfig.getWindowDefaultHeight();
+    
+    debugPrint('Remember size: $rememberSize');
+    debugPrint('Default size: $defaultWidth x $defaultHeight');
+    
+    if (rememberSize) {
       // 使用上次保存的大小，但不超过屏幕大小
-      final savedWidth = config.getWindowWidth().clamp(600.0, screenWidth);
-      final savedHeight = config.getWindowHeight().clamp(400.0, screenHeight);
-      initialSize = Size(savedWidth, savedHeight);
+      final savedWidth = clientConfig.getWindowWidth();
+      final savedHeight = clientConfig.getWindowHeight();
+      debugPrint('Saved size: $savedWidth x $savedHeight');
+      
+      // 检查是否是旧配置（width/height 是旧的默认值 1280x800 或其他不合理的值）
+      // 如果 saved size 明显不合理（比如是旧的硬编码值），使用 default size
+      bool isOldConfig = false;
+      
+      // 检测常见的旧默认值
+      if ((savedWidth == 1280.0 && savedHeight == 800.0) ||
+          (savedWidth == 1200.0 && savedHeight == 800.0)) {
+        isOldConfig = true;
+        debugPrint('Detected old config with hardcoded size, migrating to default size');
+      }
+      
+      double targetWidth = savedWidth;
+      double targetHeight = savedHeight;
+      
+      if (isOldConfig) {
+        // 使用默认大小并更新配置
+        targetWidth = defaultWidth;
+        targetHeight = defaultHeight;
+        await clientConfig.setWindowWidth(defaultWidth);
+        await clientConfig.setWindowHeight(defaultHeight);
+        debugPrint('Migrated to default size: $defaultWidth x $defaultHeight');
+      }
+      
+      final safeWidth = targetWidth.clamp(600.0, screenWidth);
+      final safeHeight = targetHeight.clamp(400.0, screenHeight);
+      initialSize = Size(safeWidth, safeHeight);
+      debugPrint('Using saved size (clamped): $safeWidth x $safeHeight');
     } else {
       // 使用默认大小，但不超过屏幕大小
-      final defaultWidth = config.getWindowDefaultWidth().clamp(600.0, screenWidth);
-      final defaultHeight = config.getWindowDefaultHeight().clamp(400.0, screenHeight);
-      initialSize = Size(defaultWidth, defaultHeight);
+      final safeWidth = defaultWidth.clamp(600.0, screenWidth);
+      final safeHeight = defaultHeight.clamp(400.0, screenHeight);
+      initialSize = Size(safeWidth, safeHeight);
+      debugPrint('Using default size (clamped): $safeWidth x $safeHeight');
     }
     
+    // 设置窗口属性
     win.minSize = const Size(600, 400);
-    win.size = initialSize;
     win.alignment = Alignment.center;
     win.title = "Hanabi Download ManagerX";
+    
+    // 设置窗口大小（需要在 show 之前设置）
+    win.size = initialSize;
+    debugPrint('Window size requested: ${initialSize.width} x ${initialSize.height}');
 
-    if (config.getWindowMaximized()) {
+    if (clientConfig.getWindowMaximized()) {
       win.maximize();
+      debugPrint('Window maximized');
     }
+    
+    // 注意：bitsdojo_window 不支持 onWindowClose 事件
+    // 我们需要在 CloseWindowButton 中自定义处理逻辑
     
     // 如果是开机自启动，隐藏窗口；否则显示窗口
     if (isAutoStart) {
       win.hide();
     } else {
       win.show();
+    }
+    
+    // 显示后再次确认窗口大小（bitsdojo_window 的 bug workaround）
+    await Future.delayed(const Duration(milliseconds: 100));
+    if (!clientConfig.getWindowMaximized()) {
+      win.size = initialSize;
+      debugPrint('Window size confirmed: ${initialSize.width} x ${initialSize.height}');
     }
   });
 }
@@ -212,17 +266,21 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   Future<void> _cleanup() async {
-    // 保存窗口大小（仅在记忆模式下）
+    // 保存窗口状态
     try {
       final win = appWindow;
       final config = context.read<ClientConfigService>();
       
+      // 保存最大化状态
       await config.setWindowMaximized(win.isMaximized);
       
-      // 只有在启用记忆大小时才保存当前窗口大小
+      // 只有在启用记忆大小且窗口未最大化时才保存当前窗口大小
       if (config.getWindowRememberSize() && !win.isMaximized) {
-        await config.setWindowWidth(win.size.width);
-        await config.setWindowHeight(win.size.height);
+        final currentWidth = win.size.width;
+        final currentHeight = win.size.height;
+        debugPrint('Saving window size: $currentWidth x $currentHeight');
+        await config.setWindowWidth(currentWidth);
+        await config.setWindowHeight(currentHeight);
       }
     } catch (e) {
       debugPrint('Failed to save window size: $e');

@@ -6,6 +6,7 @@ import '../../services/integrated_download_service.dart';
 import '../../models/download_task.dart' show DownloadTask, DownloadStatus, SegmentInfo;
 import '../../theme/app_theme.dart';
 import '../../widgets/file_icon_widget.dart';
+import '../../widgets/animated_card.dart';
 
 class DownloadList extends StatelessWidget {
   const DownloadList({super.key});
@@ -39,7 +40,20 @@ class DownloadList extends StatelessWidget {
                 itemCount: activeTasks.length,
                 itemBuilder: (context, index) {
                   final task = activeTasks[index];
-                  return _DownloadTaskCard(task: task);
+                  return TweenAnimationBuilder<double>(
+                    duration: Duration(milliseconds: 300 + (index * 100)),
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, value, child) {
+                      return Transform.translate(
+                        offset: Offset(0, 30 * (1 - value)),
+                        child: Opacity(
+                          opacity: value,
+                          child: _DownloadTaskCard(task: task),
+                        ),
+                      );
+                    },
+                  );
                 },
               ),
             ),
@@ -148,44 +162,86 @@ class DownloadList extends StatelessWidget {
 
   Widget _buildEmptyState(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.accentPrimary.withValues(alpha: 0.3),
-                  blurRadius: 60,
-                  spreadRadius: 10,
-                ),
-              ],
+      child: AnimatedCard(
+        enableScaleAnimation: false,
+        enableHoverAnimation: false,
+        backgroundColor: Colors.transparent,
+        borderColor: Colors.transparent,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 1200),
+              tween: Tween(begin: 0.0, end: 1.0),
+              curve: Curves.elasticOut,
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.accentPrimary.withValues(alpha: 0.3 * value),
+                          blurRadius: 60 * value,
+                          spreadRadius: 10 * value,
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      FluentIcons.download,
+                      size: 40,
+                      color: AppTheme.accentPrimary.withValues(alpha: 0.6),
+                    ),
+                  ),
+                );
+              },
             ),
-            child: Icon(
-              FluentIcons.download,
-              size: 40,
-              color: AppTheme.accentPrimary.withValues(alpha: 0.6),
+            const SizedBox(height: 24),
+            TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 800),
+              tween: Tween(begin: 0.0, end: 1.0),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, child) {
+                return Transform.translate(
+                  offset: Offset(0, 20 * (1 - value)),
+                  child: Opacity(
+                    opacity: value,
+                    child: Text(
+                      '暂无下载任务',
+                      style: FluentTheme.of(context).typography.subtitle?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            '暂无下载任务',
-            style: FluentTheme.of(context).typography.subtitle?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
+            const SizedBox(height: 8),
+            TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 1000),
+              tween: Tween(begin: 0.0, end: 1.0),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, child) {
+                return Transform.translate(
+                  offset: Offset(0, 20 * (1 - value)),
+                  child: Opacity(
+                    opacity: value,
+                    child: Text(
+                      '点击右上角"新建"按钮开始下载',
+                      style: FluentTheme.of(context).typography.body?.copyWith(
+                        color: AppTheme.textTertiary,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '点击右上角"新建"按钮开始下载',
-            style: FluentTheme.of(context).typography.body?.copyWith(
-              color: AppTheme.textTertiary,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -201,7 +257,6 @@ class _DownloadTaskCard extends StatefulWidget {
 }
 
 class _DownloadTaskCardState extends State<_DownloadTaskCard> {
-  bool _isHovered = false;
   bool _isSegmentsExpanded = false;
   bool _showAllSegments = false;
   int _maxVisibleSegments = 5;
@@ -231,51 +286,30 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
   Widget build(BuildContext context) {
     final downloadService = context.read<IntegratedDownloadService>();
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-          border: Border.all(
-            color: _isHovered
-                ? AppTheme.accentPrimary.withValues(alpha: 0.4)
-                : AppTheme.borderSubtle,
-            width: _isHovered ? 1.5 : 1,
-          ),
-          boxShadow: _isHovered ? AppTheme.shadowMd : null,
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceCard.withValues(alpha: 0.85),
-              ),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(downloadService),
-                  const SizedBox(height: 14),
-                  _buildProgressSection(),
-                  if (widget.task.status == DownloadStatus.downloading) ...[
-                    const SizedBox(height: 12),
-                    _buildSpeedInfo(),
-                  ],
-                  if (widget.task.status == DownloadStatus.failed && widget.task.error != null) ...[
-                    const SizedBox(height: 12),
-                    _buildErrorInfo(),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ),
+    return AnimatedCard(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      backgroundColor: AppTheme.surfaceCard.withValues(alpha: 0.85),
+      hoverColor: AppTheme.surfaceCard.withValues(alpha: 0.95),
+      borderColor: AppTheme.borderSubtle,
+      hoverBorderColor: AppTheme.accentPrimary.withValues(alpha: 0.4),
+      borderRadius: AppTheme.radiusLg,
+      enableGlowAnimation: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(downloadService),
+          const SizedBox(height: 14),
+          _buildProgressSection(),
+          if (widget.task.status == DownloadStatus.downloading) ...[
+            const SizedBox(height: 12),
+            _buildSpeedInfo(),
+          ],
+          if (widget.task.status == DownloadStatus.failed && widget.task.error != null) ...[
+            const SizedBox(height: 12),
+            _buildErrorInfo(),
+          ],
+        ],
       ),
     );
   }
@@ -400,9 +434,11 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                 borderRadius: BorderRadius.circular(4),
                 child: (isUnknownSize || isMerging)
                     ? const ProgressBar(strokeWidth: 6)
-                    : ProgressBar(
-                        value: widget.task.progress * 100,
-                        strokeWidth: 6,
+                    : AnimatedProgressBar(
+                        progress: widget.task.progress,
+                        height: 6,
+                        backgroundColor: AppTheme.bgLayer1,
+                        borderRadius: BorderRadius.circular(4),
                       ),
               ),
             ),
@@ -682,12 +718,11 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
           ),
         ),
         Expanded(
-          child: ClipRRect(
+          child: AnimatedProgressBar(
+            progress: segment.progress,
+            height: 3,
+            backgroundColor: AppTheme.bgLayer1,
             borderRadius: BorderRadius.circular(2),
-            child: ProgressBar(
-              value: segment.progress * 100,
-              strokeWidth: 3,
-            ),
           ),
         ),
         const SizedBox(width: 8),
@@ -782,7 +817,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
       ),
       child: Row(
         children: [
-          _buildInfoChip(FluentIcons.speed_high, widget.task.formattedSpeed, AppTheme.accentLight),
+          _buildAnimatedInfoChip(FluentIcons.speed_high, widget.task.speed ?? 0, _formatSpeed, AppTheme.accentLight),
           if (!isUnknownSize) ...[
             _buildDivider(),
             _buildInfoChip(FluentIcons.clock, widget.task.formattedRemainingTime, AppTheme.textSecondary),
@@ -813,6 +848,25 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
         const SizedBox(width: 4),
         Text(
           text,
+          style: FluentTheme.of(context).typography.caption?.copyWith(
+            color: color,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAnimatedInfoChip(IconData icon, double value, String Function(double) formatter, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: color),
+        const SizedBox(width: 4),
+        AnimatedCounter(
+          value: value,
+          formatter: formatter,
           style: FluentTheme.of(context).typography.caption?.copyWith(
             color: color,
             fontSize: 11,
@@ -970,12 +1024,13 @@ class _SegmentProgressPainter extends CustomPainter {
       final segmentWidth = (endRatio - startRatio) * width;
       final startX = startRatio * width;
       
-      // 计算分段内的进度
+      // 计算分段内的进度（确保不超过 1.0，防止回弹）
       final segmentSize = segment.endByte - segment.startByte;
-      final progressRatio = segmentSize > 0 
-          ? segment.downloadedBytes / segmentSize 
-          : 0.0;
-      final progressWidth = segmentWidth * progressRatio;
+      double progressRatio = 0.0;
+      if (segmentSize > 0) {
+        progressRatio = (segment.downloadedBytes / segmentSize).clamp(0.0, 1.0);
+      }
+      final progressWidth = (segmentWidth * progressRatio).clamp(0.0, segmentWidth);
       
       // 选择颜色
       Color color;
@@ -1024,7 +1079,26 @@ class _SegmentProgressPainter extends CustomPainter {
   
   @override
   bool shouldRepaint(covariant _SegmentProgressPainter oldDelegate) {
-    return true; // 总是重绘以显示进度更新
+    // 只有在分段数量变化或总大小变化时才重绘
+    // 进度更新会通过 CustomPaint 的 rebuild 自动触发
+    if (oldDelegate.segments.length != segments.length) return true;
+    if (oldDelegate.totalSize != totalSize) return true;
+    
+    // 检查是否有实质性的进度变化（避免微小波动导致重绘）
+    for (int i = 0; i < segments.length; i++) {
+      final oldSeg = oldDelegate.segments[i];
+      final newSeg = segments[i];
+      
+      // 状态变化
+      if (oldSeg.status != newSeg.status) return true;
+      
+      // 进度变化超过 0.1%（避免频繁重绘）
+      final oldProgress = oldSeg.downloadedBytes / (oldSeg.endByte - oldSeg.startByte);
+      final newProgress = newSeg.downloadedBytes / (newSeg.endByte - newSeg.startByte);
+      if ((newProgress - oldProgress).abs() > 0.001) return true;
+    }
+    
+    return false;
   }
 }
 

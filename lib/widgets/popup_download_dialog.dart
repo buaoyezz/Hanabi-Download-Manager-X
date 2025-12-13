@@ -337,7 +337,15 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
     setState(() => _isLoading = true);
 
     try {
-      context.read<IntegratedDownloadService>().addTask(url, filename);
+      // 传递浏览器的身份验证信息
+      context.read<IntegratedDownloadService>().addTask(
+        url, 
+        filename,
+        referer: widget.referer,
+        userAgent: widget.userAgent,
+        cookies: widget.headers?['Cookie'] as String?,
+        headers: widget.headers,
+      );
       
       if (mounted) {
         Navigator.of(context).pop(true);

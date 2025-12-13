@@ -547,6 +547,44 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         ),
         const SizedBox(height: 24),
         
+        // 侧边栏设置
+        _buildSection(
+          context,
+          title: '侧边栏',
+          icon: FluentIcons.side_panel,
+          children: [
+            _buildSettingItem(
+              context,
+              title: '默认展开状态',
+              subtitle: '应用启动时侧边栏的默认状态',
+              trailing: ComboBox<bool>(
+                value: clientConfig.getSidebarDefaultExpanded(),
+                items: const [
+                  ComboBoxItem(value: true, child: Text('展开')),
+                  ComboBoxItem(value: false, child: Text('收缩')),
+                ],
+                onChanged: (value) async {
+                  if (value != null) {
+                    await clientConfig.setSidebarDefaultExpanded(value);
+                    if (mounted) {
+                      displayInfoBar(
+                        context,
+                        builder: (context, close) => InfoBar(
+                          title: const Text('设置已保存'),
+                          content: Text('侧边栏默认状态已设为${value ? "展开" : "收缩"}'),
+                          severity: InfoBarSeverity.success,
+                        ),
+                        duration: const Duration(seconds: 2),
+                      );
+                    }
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        
         // 下载列表显示
         _buildSection(
           context,
@@ -635,7 +673,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     final rememberSize = config.getWindowRememberSize();
     final defaultWidth = config.getWindowDefaultWidth();
     final defaultHeight = config.getWindowDefaultHeight();
-    // 每次构建时获取最新的窗口大小
+    // 直接获取当前窗口大小（每次构建时都获取最新值）
     final currentWidth = appWindow.size.width;
     final currentHeight = appWindow.size.height;
     
@@ -753,8 +791,12 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                           final safeWidth = currentWidth.clamp(600.0, maxWidth);
                           final safeHeight = currentHeight.clamp(400.0, maxHeight);
                           
+                          // 同时更新默认大小和当前保存的大小
                           await config.setWindowDefaultWidth(safeWidth);
                           await config.setWindowDefaultHeight(safeHeight);
+                          await config.setWindowWidth(safeWidth);
+                          await config.setWindowHeight(safeHeight);
+                          
                           if (mounted) {
                             displayInfoBar(
                               context,
@@ -781,8 +823,12 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                     Expanded(
                       child: Button(
                         onPressed: () async {
+                          // 同时重置默认大小和当前保存的大小
                           await config.setWindowDefaultWidth(889.0);
                           await config.setWindowDefaultHeight(586.0);
+                          await config.setWindowWidth(889.0);
+                          await config.setWindowHeight(586.0);
+                          
                           if (mounted) {
                             displayInfoBar(
                               context,

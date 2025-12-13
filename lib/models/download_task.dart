@@ -53,6 +53,13 @@ class DownloadTask {
   String? error;
   DateTime createdAt;
   List<SegmentInfo>? segments; // 分段信息
+  
+  // 统计信息
+  double? peakSpeed; // 峰值速度（字节/秒）
+  double? averageSpeed; // 平均速度（字节/秒）
+  int? threadCount; // 线程数
+  int? segmentCount; // 分段数
+  String? downloadCore; // 下载核心标识
 
   DownloadTask({
     required this.id,
@@ -70,6 +77,11 @@ class DownloadTask {
     this.error,
     DateTime? createdAt,
     this.segments,
+    this.peakSpeed,
+    this.averageSpeed,
+    this.threadCount,
+    this.segmentCount,
+    this.downloadCore,
   }) : createdAt = createdAt ?? DateTime.now();
 
   String get formattedFileSize {
@@ -86,6 +98,37 @@ class DownloadTask {
     if (speed == null || speed == 0) return '0 B/s';
     if (speed!.isInfinite || speed!.isNaN) return '0 B/s';
     return '${_formatBytes(speed!.toInt())}/s';
+  }
+  
+  String get formattedPeakSpeed {
+    if (peakSpeed == null || peakSpeed == 0) return '0 B/s';
+    if (peakSpeed!.isInfinite || peakSpeed!.isNaN) return '0 B/s';
+    return '${_formatBytes(peakSpeed!.toInt())}/s';
+  }
+  
+  String get formattedAverageSpeed {
+    if (averageSpeed == null || averageSpeed == 0) return '0 B/s';
+    if (averageSpeed!.isInfinite || averageSpeed!.isNaN) return '0 B/s';
+    return '${_formatBytes(averageSpeed!.toInt())}/s';
+  }
+  
+  Duration? get totalDuration {
+    if (startTime == null || endTime == null) return null;
+    return endTime!.difference(startTime!);
+  }
+  
+  String get formattedDuration {
+    final duration = totalDuration;
+    if (duration == null) return '--:--';
+    
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes % 60;
+    final seconds = duration.inSeconds % 60;
+    
+    if (hours > 0) {
+      return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    }
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   String get formattedRemainingTime {

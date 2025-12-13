@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
 import '../services/app_logger_service.dart';
@@ -60,16 +61,21 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
   @override
   void initState() {
     super.initState();
-    _scanTempFiles();
+    // 使用 addPostFrameCallback 延迟执行，避免在 build 过程中调用 setState
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scanTempFiles();
+    });
   }
 
   Future<void> _scanTempFiles() async {
+    if (!mounted) return;
     setState(() => _loading = true);
     final logger = AppLoggerService();
 
     try {
       final dir = Directory(widget.downloadPath);
-      logger.info('App', '开始扫描临时文件: ${widget.downloadPath}');
+      // 使用 debugPrint 代替 logger.info，避免触发 notifyListeners
+      debugPrint('开始扫描临时文件: ${widget.downloadPath}');
       
       if (!await dir.exists()) {
         logger.warning('App', '下载目录不存在: ${widget.downloadPath}');

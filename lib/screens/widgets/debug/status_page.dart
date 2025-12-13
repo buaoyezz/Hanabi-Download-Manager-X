@@ -7,6 +7,7 @@ import 'dart:convert';
 import '../../../services/kernel_service.dart';
 import '../../../services/network_status_service.dart';
 import '../../../services/app_logger_service.dart';
+import '../../../services/auto_start_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/settings_components.dart';
 
@@ -29,6 +30,12 @@ class _StatusPageState extends State<StatusPage> {
   // 系统信息
   Map<String, dynamic>? _systemInfo;
   Map<String, dynamic>? _kernelStats;
+  
+  // 自启动状态
+  bool? _autoStartEnabled;
+  bool? _autoStartPathCorrect;
+  String? _registeredPath;
+  bool _checkingAutoStart = false;
 
   @override
   void initState() {
@@ -36,6 +43,7 @@ class _StatusPageState extends State<StatusPage> {
     _loadSystemInfo();
     _checkKernelHealth();
     _loadKernelStats();
+    _checkAutoStartStatus();
     _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       _checkKernelHealth();
       _loadKernelStats();
@@ -53,6 +61,82 @@ class _StatusPageState extends State<StatusPage> {
     setState(() {
       _systemInfo = info;
     });
+  }
+  
+  Future<void> _checkAutoStartStatus() async {
+    if (!Platform.isWindows) return;
+    
+    if (!mounted) return;
+    setState(() {
+      _checkingAutoStart = true;
+    });
+    
+    try {
+      final autoStartService = AutoStartService();
+      final enabled = await autoStartService.isAutoStartEnabled();
+      final pathCorrect = await autoStartService.isRegisteredPathCorrect();
+      final registeredPath = await autoStartService.getRegisteredPath();
+      
+      if (!mounted) return;
+      setState(() {
+        _autoStartEnabled = enabled;
+        _autoStartPathCorrect = pathCorrect;
+        _registeredPath = registeredPath;
+        _checkingAutoStart = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _checkingAutoStart = false;
+      });
+    }
+  }
+  
+  Future<void> _fixAutoStart() async {
+    if (!Platform.isWindows) return;
+    
+    try {
+      final autoStartService = AutoStartService();
+      final success = await autoStartService.verifyAndFixAutoStart();
+      
+      if (!mounted) return;
+      
+      if (success) {
+        displayInfoBar(
+          context,
+          builder: (context, close) => const InfoBar(
+            title: Text('修复成功'),
+            content: Text('自启动注册已更新为当前版本'),
+            severity: InfoBarSeverity.success,
+          ),
+          duration: const Duration(seconds: 3),
+        );
+        
+        // 重新检测状态
+        await _checkAutoStartStatus();
+      } else {
+        displayInfoBar(
+          context,
+          builder: (context, close) => const InfoBar(
+            title: Text('修复失败'),
+            content: Text('无法更新自启动注册，请检查权限'),
+            severity: InfoBarSeverity.error,
+          ),
+          duration: const Duration(seconds: 3),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      displayInfoBar(
+        context,
+        builder: (context, close) => InfoBar(
+          title: const Text('修复失败'),
+          content: Text('发生错误: $e'),
+          severity: InfoBarSeverity.error,
+        ),
+        duration: const Duration(seconds: 3),
+      );
+    }
   }
   
   Future<void> _loadKernelStats() async {
@@ -448,6 +532,11 @@ class _StatusPageState extends State<StatusPage> {
 
             const SizedBox(height: 24),
 
+            // 开机自启动状态
+            _buildAutoStartSection(context),
+
+            const SizedBox(height: 24),
+
             // 浏览器扩展状态
             _buildSection(
               context,
@@ -479,6 +568,148 @@ class _StatusPageState extends State<StatusPage> {
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(2)} KB';
     if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
+  }
+  
+  Widget _buildAutoStartSection(BuildContext context) {
+    if (!Platform.isWindows) {
+      return _buildSection(
+        context,
+        title: '开机自启动',
+        icon: FluentIcons.power_button,
+        children: [
+          _buildStatusItem(
+            context,
+            label: '平台支持',
+            value: '仅支持 Windows 平台',
+            isInfo: true,
+          ),
+        ],
+      );
+    }
+    
+    final children = <Widget>[];
+    
+    if (_checkingAutoStart) {
+      children.add(
+        Container(
+          padding: const EdgeInsets.all(20),
+          child: const Center(
+            child: ProgressRing(),
+          ),
+        ),
+      );
+    } else {
+      // 启用状态
+      children.add(
+        _buildStatusItem(
+          context,
+          label: '自启动状态',
+          value: _autoStartEnabled == true ? '已启用' : '未启用',
+          isOnline: _autoStartEnabled == true,
+        ),
+      );
+      
+      if (_autoStartEnabled == true) {
+        // 路径正确性
+        children.add(
+          _buildStatusItem(
+            context,
+            label: '注册路径',
+            value: _autoStartPathCorrect == true ? '正确' : '需要更新',
+            isOnline: _autoStartPathCorrect == true,
+          ),
+        );
+        
+        // 显示注册的路径
+        if (_registeredPath != null) {
+          children.add(
+            _buildStatusItem(
+              context,
+              label: '当前注册',
+              value: _registeredPath!,
+              isInfo: true,
+            ),
+          );
+        }
+        
+        // 显示当前路径
+        children.add(
+          _buildStatusItem(
+            context,
+            label: '当前路径',
+            value: '"${Platform.resolvedExecutable}" --autostart',
+            isInfo: true,
+          ),
+        );
+        
+        // 如果路径不正确，显示修复按钮
+        if (_autoStartPathCorrect == false) {
+          children.add(const SizedBox(height: 12));
+          children.add(
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.statusWarning.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                border: Border.all(
+                  color: AppTheme.statusWarning.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        FluentIcons.warning,
+                        size: 16,
+                        color: AppTheme.statusWarning,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '检测到旧版本的自启动注册',
+                          style: FluentTheme.of(context).typography.body?.copyWith(
+                            color: AppTheme.statusWarning,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '注册的路径与当前可执行文件不匹配，可能是因为应用更新或移动了位置。点击下方按钮自动修复。',
+                    style: FluentTheme.of(context).typography.caption?.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: _fixAutoStart,
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(FluentIcons.repair, size: 14),
+                        SizedBox(width: 6),
+                        Text('自动修复注册'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+      }
+    }
+    
+    return _buildSection(
+      context,
+      title: '开机自启动',
+      icon: FluentIcons.power_button,
+      children: children,
+    );
   }
 
   Widget _buildSection(

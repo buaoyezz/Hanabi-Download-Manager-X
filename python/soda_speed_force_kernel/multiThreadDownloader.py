@@ -375,12 +375,8 @@ class MultiThreadDownloader:
                 if p.exists():
                     p.unlink()
                 
-                # 删除临时文件夹及其内容
-                temp_folder = self._get_temp_folder(p)
-                if temp_folder.exists():
-                    import shutil
-                    shutil.rmtree(temp_folder)
-                    logger.info(f"已删除临时文件夹: {temp_folder.name}")
+                # 删除所有相关的临时文件夹
+                self._cleanup_all_temp_folders(p)
             except Exception as e:
                 logger.error(f"删除文件失败: {e}")
             
@@ -646,6 +642,34 @@ class MultiThreadDownloader:
             counter += 1
         
         return temp_folder
+    
+    def _cleanup_all_temp_folders(self, filepath: Path):
+        """清理所有相关的临时文件夹（包括带后缀的）"""
+        base_name = filepath.stem
+        parent_dir = filepath.parent
+        
+        # 查找所有相关的临时文件夹
+        import shutil
+        patterns = [
+            f"{base_name}_temp",
+            f"{base_name}_temp_*"
+        ]
+        
+        cleaned_count = 0
+        for pattern in patterns:
+            for temp_folder in parent_dir.glob(pattern):
+                if temp_folder.is_dir():
+                    try:
+                        shutil.rmtree(temp_folder, ignore_errors=True)
+                        logger.info(f"已删除临时文件夹: {temp_folder.name}")
+                        cleaned_count += 1
+                    except Exception as e:
+                        logger.error(f"删除临时文件夹失败 {temp_folder.name}: {e}")
+        
+        if cleaned_count > 0:
+            logger.info(f"共清理了 {cleaned_count} 个临时文件夹")
+        
+        return cleaned_count
 
     async def _download_segment(self, semaphore: asyncio.Semaphore, session: aiohttp.ClientSession, taskId: str, segment: Segment, headers: Dict, filepath: Path):
         """
@@ -809,6 +833,7 @@ class MultiThreadDownloader:
                             if actual_size == segment_size:
                                 segment.status = "completed"
                                 segment.downloadedBytes = actual_size
+                                segment.speed = 0  # 完成后重置速度
                                 logger.info(f"分段 {segment.index} 完成: {actual_size} bytes")
                             else:
                                 logger.warning(f"分段 {segment.index} 大小不匹配: 期望 {segment_size}, 实际 {actual_size}")
@@ -817,6 +842,7 @@ class MultiThreadDownloader:
                                 if actual_size < segment_size:
                                     raise Exception(f"分段下载不完整: {actual_size}/{segment_size} bytes")
                                 segment.status = "completed"
+                                segment.speed = 0  # 完成后重置速度
                         else:
                             raise Exception(f"分段文件不存在: {temp_file}")
                         return
@@ -942,20 +968,12 @@ class MultiThreadDownloader:
         else:
             logger.info(f"文件合并成功，大小: {merged_size} bytes")
         
-        # 删除临时文件夹
+        # 删除所有相关的临时文件夹（包括带后缀的）
         try:
-            if temp_folder.exists():
-                # 确保文件夹为空后再删除
-                remaining_files = list(temp_folder.iterdir())
-                if remaining_files:
-                    logger.warning(f"临时文件夹不为空，包含 {len(remaining_files)} 个文件")
-                    for f in remaining_files:
-                        logger.warning(f"  - {f.name}")
-                else:
-                    temp_folder.rmdir()
-                    logger.info(f"已删除临时文件夹: {temp_folder.name}")
+            self._cleanup_all_temp_folders(filepath)
         except Exception as e:
-            logger.error(f"删除临时文件夹失败: {e}")
+            logger.error(f"清理临时文件夹失败: {e}")
+            # 即使删除失败也继续，不影响下载完成状态
         
         logger.info("分段合并完成")
 
@@ -988,6 +1006,16 @@ class MultiThreadDownloader:
                 logger.info(f"任务 {t.filename} 从暂停/失败恢复，已重置分段状态")
         
         t.status = TaskStatus.DOWNLOADING
+        
+        # 记录开始时间（如果还没有记录）
+        if not t.startTime:
+            from datetime import datetime
+            t.startTime = datetime.now().isoformat()
+            logger.info(f"任务开始时间: {t.startTime}")
+        
+        # 记录线程数
+        t.threadCount = self.threads
+        
         self.add_progress(t)
         
         # 准备请求头
@@ -1157,12 +1185,8 @@ class MultiThreadDownloader:
                         logger.warning(f"服务器不支持分段下载，回退到单线程模式")
                         print(f"\n服务器不支持分段下载，切换到单线程模式...\n")
                         
-                        # 清理临时文件夹
-                        temp_folder = self._get_temp_folder(filepath)
-                        if temp_folder.exists():
-                            import shutil
-                            shutil.rmtree(temp_folder)
-                            logger.info(f"已删除临时文件夹: {temp_folder.name}")
+                        # 清理所有相关的临时文件夹
+                        self._cleanup_all_temp_folders(filepath)
                         
                         # 使用单线程下载
                         t.downloadedSize = 0
@@ -1204,12 +1228,27 @@ class MultiThreadDownloader:
                 # 合并分段
                 await self._merge_segments(taskId, filepath)
                 
-                # 下载完成
+                # 下载完成 - 记录统计数据
+                from datetime import datetime
+                t.endTime = datetime.now().isoformat()
                 t.progress = 100.0
                 t.downloadedSize = file_size
+                
+                # 计算平均速度
+                if t.startTime and t.endTime:
+                    try:
+                        start = datetime.fromisoformat(t.startTime)
+                        end = datetime.fromisoformat(t.endTime)
+                        duration = (end - start).total_seconds()
+                        if duration > 0 and file_size > 0:
+                            t.averageSpeed = file_size / duration
+                            logger.info(f"平均速度: {t.averageSpeed/1024/1024:.2f} MB/s, 用时: {duration:.1f}秒")
+                    except Exception as e:
+                        logger.error(f"计算平均速度失败: {e}")
+                
                 t.status = TaskStatus.COMPLETED
                 self.add_complete(t)
-                logger.info(f"[下载完成] 文件: {t.filename}, 大小: {file_size/1024/1024:.2f} MB")
+                logger.info(f"[下载完成] 文件: {t.filename}, 大小: {file_size/1024/1024:.2f} MB, 峰值速度: {t.peakSpeed/1024/1024:.2f} MB/s")
                 
                 print(f"\n{'='*60}")
                 print(f"下载完成: {t.filename}")
@@ -1270,7 +1309,8 @@ class MultiThreadDownloader:
                 
                 # 计算总进度
                 total_downloaded = sum(seg.downloadedBytes for seg in segments)
-                total_speed = sum(seg.speed for seg in segments)
+                # 只计算正在下载的分段的速度（已完成的分段速度应该为0）
+                total_speed = sum(seg.speed for seg in segments if seg.status == "downloading")
                 
                 # 速度平滑处理
                 speed_history.append(total_speed)
@@ -1278,9 +1318,12 @@ class MultiThreadDownloader:
                     speed_history.pop(0)
                 smoothed_speed = sum(speed_history) / len(speed_history)
                 
-                # 更新峰值速度
+                # 更新峰值速度（全局和任务级别）
                 if smoothed_speed > self._network_stats['peak_speed']:
                     self._network_stats['peak_speed'] = smoothed_speed
+                if smoothed_speed > t.peakSpeed:
+                    t.peakSpeed = smoothed_speed
+                
                 self._network_stats['avg_speed'] = smoothed_speed
                 
                 t.downloadedSize = total_downloaded
@@ -1542,6 +1585,11 @@ class MultiThreadDownloader:
                                             smoothed_speed = (speed_alpha * instant_speed) + ((1 - speed_alpha) * smoothed_speed)
                                         
                                         t.speed = smoothed_speed
+                                        
+                                        # 更新峰值速度
+                                        if smoothed_speed > t.peakSpeed:
+                                            t.peakSpeed = smoothed_speed
+                                        
                                         bytes_since_last_update = 0  # 重置计数器
                                         if smoothed_speed > 0 and t.totalSize > 0:
                                             remaining = t.totalSize - t.downloadedSize
@@ -1558,10 +1606,27 @@ class MultiThreadDownloader:
                             logger.info(f"任务 {t.filename} 已取消 (单线程模式)")
                             return
                         
+                        # 单线程下载完成 - 记录统计数据
+                        from datetime import datetime
+                        t.endTime = datetime.now().isoformat()
                         t.progress = 100.0
+                        t.threadCount = 1
+                        
+                        # 计算平均速度
+                        if t.startTime and t.endTime and t.totalSize > 0:
+                            try:
+                                start = datetime.fromisoformat(t.startTime)
+                                end = datetime.fromisoformat(t.endTime)
+                                duration = (end - start).total_seconds()
+                                if duration > 0:
+                                    t.averageSpeed = t.totalSize / duration
+                                    logger.info(f"平均速度: {t.averageSpeed/1024/1024:.2f} MB/s, 用时: {duration:.1f}秒")
+                            except Exception as e:
+                                logger.error(f"计算平均速度失败: {e}")
+                        
                         t.status = TaskStatus.COMPLETED
                         self.add_complete(t)
-                        logger.info(f"[下载完成] 文件: {t.filename} (单线程模式)")
+                        logger.info(f"[下载完成] 文件: {t.filename} (单线程模式), 峰值速度: {t.peakSpeed/1024/1024:.2f} MB/s")
                         return
                         
             except Exception as e:

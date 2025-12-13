@@ -26,6 +26,13 @@ class Task:
     createdTime: float = 0.0
     errorMessage: Optional[str] = None
     segments: Optional[list] = None
+    
+    # 统计数据
+    peakSpeed: float = 0.0
+    averageSpeed: float = 0.0
+    threadCount: int = 0
+    startTime: Optional[str] = None
+    endTime: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         def _fmt_size(n: int) -> str:
@@ -74,6 +81,13 @@ class Task:
             "eta": self.eta,
             "createdTime": self.createdTime,
             "errorMessage": self.errorMessage,
+            # 统计数据
+            "peakSpeed": self.peakSpeed,
+            "averageSpeed": self.averageSpeed,
+            "threadCount": self.threadCount,
+            "startTime": self.startTime,
+            "endTime": self.endTime,
+            "downloadCore": "NSF-X",
         }
         
         if self.segments:

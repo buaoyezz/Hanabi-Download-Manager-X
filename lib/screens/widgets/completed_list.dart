@@ -6,6 +6,7 @@ import '../../services/integrated_download_service.dart';
 import '../../models/download_task.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/file_icon_widget.dart';
+import '../../widgets/animated_card.dart';
 
 class CompletedList extends StatelessWidget {
   const CompletedList({super.key});
@@ -31,7 +32,20 @@ class CompletedList extends StatelessWidget {
                 itemCount: completedTasks.length,
                 itemBuilder: (context, index) {
                   final task = completedTasks[index];
-                  return _CompletedTaskCard(task: task);
+                  return TweenAnimationBuilder<double>(
+                    duration: Duration(milliseconds: 300 + (index * 80)),
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, value, child) {
+                      return Transform.translate(
+                        offset: Offset(0, 20 * (1 - value)),
+                        child: Opacity(
+                          opacity: value,
+                          child: _CompletedTaskCard(task: task),
+                        ),
+                      );
+                    },
+                  );
                 },
               ),
             ),
@@ -111,44 +125,86 @@ class CompletedList extends StatelessWidget {
 
   Widget _buildEmptyState(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.statusSuccess.withValues(alpha: 0.3),
-                  blurRadius: 60,
-                  spreadRadius: 10,
-                ),
-              ],
+      child: AnimatedCard(
+        enableScaleAnimation: false,
+        enableHoverAnimation: false,
+        backgroundColor: Colors.transparent,
+        borderColor: Colors.transparent,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 1200),
+              tween: Tween(begin: 0.0, end: 1.0),
+              curve: Curves.elasticOut,
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.statusSuccess.withValues(alpha: 0.3 * value),
+                          blurRadius: 60 * value,
+                          spreadRadius: 10 * value,
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      FluentIcons.completed,
+                      size: 40,
+                      color: AppTheme.statusSuccess.withValues(alpha: 0.6),
+                    ),
+                  ),
+                );
+              },
             ),
-            child: Icon(
-              FluentIcons.completed,
-              size: 40,
-              color: AppTheme.statusSuccess.withValues(alpha: 0.6),
+            const SizedBox(height: 24),
+            TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 800),
+              tween: Tween(begin: 0.0, end: 1.0),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, child) {
+                return Transform.translate(
+                  offset: Offset(0, 20 * (1 - value)),
+                  child: Opacity(
+                    opacity: value,
+                    child: Text(
+                      '暂无已完成任务',
+                      style: FluentTheme.of(context).typography.subtitle?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            '暂无已完成任务',
-            style: FluentTheme.of(context).typography.subtitle?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
+            const SizedBox(height: 8),
+            TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 1000),
+              tween: Tween(begin: 0.0, end: 1.0),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, child) {
+                return Transform.translate(
+                  offset: Offset(0, 20 * (1 - value)),
+                  child: Opacity(
+                    opacity: value,
+                    child: Text(
+                      '完成的下载任务将显示在这里',
+                      style: FluentTheme.of(context).typography.body?.copyWith(
+                        color: AppTheme.textTertiary,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '完成的下载任务将显示在这里',
-            style: FluentTheme.of(context).typography.body?.copyWith(
-              color: AppTheme.textTertiary,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -164,51 +220,133 @@ class _CompletedTaskCard extends StatefulWidget {
 }
 
 class _CompletedTaskCardState extends State<_CompletedTaskCard> {
-  bool _isHovered = false;
+  bool _isExpanded = false;
 
   @override
   Widget build(BuildContext context) {
     final downloadService = context.read<IntegratedDownloadService>();
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-          border: Border.all(
-            color: _isHovered
-                ? AppTheme.statusSuccess.withValues(alpha: 0.4)
-                : AppTheme.borderSubtle,
-            width: _isHovered ? 1.5 : 1,
+    return AnimatedCard(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      backgroundColor: AppTheme.surfaceCard.withValues(alpha: 0.85),
+      hoverColor: AppTheme.surfaceCard.withValues(alpha: 0.95),
+      borderColor: AppTheme.borderSubtle,
+      hoverBorderColor: AppTheme.statusSuccess.withValues(alpha: 0.4),
+      borderRadius: AppTheme.radiusLg,
+      enableGlowAnimation: true,
+      child: Column(
+        children: [
+          Row(
+            children: [
+              _buildStatusIcon(),
+              const SizedBox(width: 14),
+              Expanded(child: _buildTaskInfo()),
+              const SizedBox(width: 12),
+              _buildActions(downloadService),
+            ],
           ),
-          boxShadow: _isHovered ? AppTheme.shadowMd : null,
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceCard.withValues(alpha: 0.85),
-              ),
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  _buildStatusIcon(),
-                  const SizedBox(width: 14),
-                  Expanded(child: _buildTaskInfo()),
-                  const SizedBox(width: 12),
-                  _buildActions(downloadService),
-                ],
-              ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: _buildStatistics(),
             ),
+            crossFadeState: _isExpanded 
+                ? CrossFadeState.showSecond 
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 300),
+            sizeCurve: Curves.easeOutCubic,
           ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildStatistics() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.bgLayer1.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(
+          color: AppTheme.borderSubtle.withValues(alpha: 0.5),
         ),
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                FluentIcons.chart,
+                size: 14,
+                color: AppTheme.accentPrimary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '下载统计',
+                style: FluentTheme.of(context).typography.body?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildStatsGrid(),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildStatsGrid() {
+    final stats = [
+      // 第一行：重要统计
+      _StatItem(
+        icon: FluentIcons.speed_high,
+        label: '峰值速度',
+        value: widget.task.formattedPeakSpeed,
+        color: AppTheme.statusSuccess,
+      ),
+      _StatItem(
+        icon: FluentIcons.timeline_progress,
+        label: '平均速度',
+        value: widget.task.formattedAverageSpeed,
+        color: AppTheme.accentPrimary,
+      ),
+      _StatItem(
+        icon: FluentIcons.clock,
+        label: '用时',
+        value: widget.task.formattedDuration,
+        color: AppTheme.statusWarning,
+      ),
+      // 第二行：详细信息
+      _StatItem(
+        icon: FluentIcons.split,
+        label: '分段数',
+        value: '${widget.task.segmentCount ?? 0}',
+        color: AppTheme.textSecondary,
+      ),
+      _StatItem(
+        icon: FluentIcons.processing,
+        label: '线程数',
+        value: '${widget.task.threadCount ?? 0}',
+        color: AppTheme.textSecondary,
+      ),
+      _StatItem(
+        icon: FluentIcons.server,
+        label: '下载核心',
+        value: widget.task.downloadCore ?? 'NSF-X',
+        color: AppTheme.textSecondary,
+      ),
+    ];
+    
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: stats,
     );
   }
 
@@ -287,6 +425,12 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
           label: '位置',
           color: AppTheme.textSecondary,
           onPressed: () => _openFileLocation(widget.task.filePath),
+        ),
+        const SizedBox(width: 6),
+        _IconActionButton(
+          icon: _isExpanded ? FluentIcons.chevron_up : FluentIcons.chevron_down,
+          color: AppTheme.textSecondary,
+          onPressed: () => setState(() => _isExpanded = !_isExpanded),
         ),
         const SizedBox(width: 6),
         _IconActionButton(
@@ -451,6 +595,73 @@ class _ActionButtonState extends State<_ActionButton> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// 统计项组件
+class _StatItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _StatItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 110,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppTheme.bgLayer2.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        border: Border.all(
+          color: AppTheme.borderSubtle.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icon,
+                size: 11,
+                color: color,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: AppTheme.textTertiary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }

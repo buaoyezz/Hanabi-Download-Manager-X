@@ -144,6 +144,31 @@ class IntegratedDownloadService extends ChangeNotifier {
       }
     }
 
+    // 解析统计信息
+    final peakSpeed = kernelTask['peakSpeed'] != null 
+        ? (kernelTask['peakSpeed'] as num).toDouble() 
+        : null;
+    final averageSpeed = kernelTask['averageSpeed'] != null 
+        ? (kernelTask['averageSpeed'] as num).toDouble() 
+        : null;
+    final threadCount = kernelTask['threadCount'] as int?;
+    final segmentCount = segments?.length;
+    final downloadCore = kernelTask['downloadCore'] as String? ?? 'NSF-X';
+    
+    // 解析时间
+    DateTime? startTime;
+    DateTime? endTime;
+    try {
+      if (kernelTask['startTime'] != null) {
+        startTime = DateTime.parse(kernelTask['startTime']);
+      }
+      if (kernelTask['endTime'] != null) {
+        endTime = DateTime.parse(kernelTask['endTime']);
+      }
+    } catch (e) {
+      _appLogger.error('App', 'Failed to parse time: $e');
+    }
+
     return DownloadTask(
       id: kernelTask['id'],
       url: kernelTask['url'],
@@ -157,17 +182,43 @@ class IntegratedDownloadService extends ChangeNotifier {
       speed: speed,
       remainingTime: remainingTime,
       segments: segments,
+      peakSpeed: peakSpeed,
+      averageSpeed: averageSpeed,
+      threadCount: threadCount,
+      segmentCount: segmentCount,
+      downloadCore: downloadCore,
+      startTime: startTime,
+      endTime: endTime,
     );
   }
 
-  Future<void> addTask(String url, String fileName) async {
+  Future<void> addTask(
+    String url, 
+    String fileName, {
+    String? referer,
+    String? userAgent,
+    String? cookies,
+    Map<String, dynamic>? headers,
+  }) async {
     if (!_kernelService.isRunning) {
       _appLogger.error('App', 'Kernel not running');
       return;
     }
 
     _appLogger.info('App', 'Adding download task: $fileName');
-    final taskId = await _kernelService.addDownload(url, fileName);
+    if (referer != null || userAgent != null || cookies != null || headers != null) {
+      _appLogger.info('App', 'With authentication headers');
+    }
+    
+    final taskId = await _kernelService.addDownload(
+      url, 
+      fileName,
+      referer: referer,
+      userAgent: userAgent,
+      cookies: cookies,
+      headers: headers,
+    );
+    
     if (taskId != null) {
       _appLogger.info('App', 'Task added successfully: $taskId - $fileName');
       await _updateTasks();

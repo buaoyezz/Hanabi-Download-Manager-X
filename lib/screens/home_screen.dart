@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:async';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
@@ -8,6 +9,7 @@ import '../services/developer_mode_service.dart';
 import '../services/app_logger_service.dart';
 import '../services/kernel_service.dart';
 import '../services/window_effect_service.dart';
+import '../services/client_config_service.dart';
 import '../models/download_task.dart';
 import '../theme/app_theme.dart';
 import '../main.dart';
@@ -44,6 +46,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   late AnimationController _animationController;
   late Animation<double> _widthAnimation;
 
+  // 当前选中的页面标识符（使用页面标题作为唯一标识）
+  String _currentPageTitle = '下载中';
+  
+  // 窗口大小监听
+  Timer? _windowSizeCheckTimer;
+  double _lastSavedWidth = 0;
+  double _lastSavedHeight = 0;
+  
   List<NavigationItem> _getNavItems(BuildContext context) {
     final devMode = context.watch<DeveloperModeService>();
     
@@ -108,13 +118,134 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         curve: Curves.easeInOutCubic,
       ),
     );
-    _animationController.value = 0; // 默认展开状态
+    
+    // 从配置中读取默认侧边栏状态
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadSidebarState();
+      _startWindowSizeMonitoring();
+    });
+  }
+  
+  void _loadSidebarState() {
+    try {
+      final config = Provider.of<ClientConfigService>(context, listen: false);
+      final defaultExpanded = config.getSidebarDefaultExpanded();
+      
+      setState(() {
+        _isSidebarExpanded = defaultExpanded;
+      });
+      
+      // 设置动画状态
+      if (defaultExpanded) {
+        _animationController.value = 0; // 展开状态
+      } else {
+        _animationController.value = 1; // 收缩状态
+      }
+      
+      AppLoggerService().info('App', 'Sidebar default state loaded: ${defaultExpanded ? "expanded" : "collapsed"}');
+    } catch (e) {
+      AppLoggerService().error('App', 'Failed to load sidebar state: $e');
+      // 如果加载失败，使用默认展开状态
+      _isSidebarExpanded = true;
+      _animationController.value = 0;
+    }
+  }
+  
+  /// 智能更新当前索引，根据页面标题找到正确的索引
+  void _updateCurrentIndex(List<NavigationItem> navItems) {
+    // 尝试根据当前页面标题找到对应的索引
+    int newIndex = -1;
+    for (int i = 0; i < navItems.length; i++) {
+      if (navItems[i].title == _currentPageTitle) {
+        newIndex = i;
+        break;
+      }
+    }
+    
+    // 如果找到了对应的页面，更新索引
+    if (newIndex != -1) {
+      _currentIndex = newIndex;
+    } else {
+      // 如果当前页面不存在了（比如调试页面被关闭），回退到安全的页面
+      if (_currentIndex >= navItems.length) {
+        // 如果当前索引超出范围，尝试回退到设置页面或第一个页面
+        int settingsIndex = -1;
+        for (int i = 0; i < navItems.length; i++) {
+          if (navItems[i].title == '设置') {
+            settingsIndex = i;
+            break;
+          }
+        }
+        
+        if (settingsIndex != -1) {
+          _currentIndex = settingsIndex;
+          _currentPageTitle = '设置';
+        } else {
+          _currentIndex = 0;
+          _currentPageTitle = navItems.isNotEmpty ? navItems[0].title : '下载中';
+        }
+        
+        AppLoggerService().info('App', 'Page not found, fallback to: $_currentPageTitle');
+      } else {
+        // 更新当前页面标题为实际显示的页面
+        _currentPageTitle = navItems[_currentIndex].title;
+      }
+    }
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    _windowSizeCheckTimer?.cancel();
     super.dispose();
+  }
+  
+  /// 启动窗口大小监听
+  void _startWindowSizeMonitoring() {
+    // 初始化上次保存的大小
+    _lastSavedWidth = appWindow.size.width;
+    _lastSavedHeight = appWindow.size.height;
+    
+    // 每秒检查一次窗口大小变化
+    _windowSizeCheckTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _checkAndSaveWindowSize();
+    });
+  }
+  
+  /// 检查并保存窗口大小
+  Future<void> _checkAndSaveWindowSize() async {
+    if (!mounted) return;
+    
+    try {
+      final config = Provider.of<ClientConfigService>(context, listen: false);
+      final rememberSize = config.getWindowRememberSize();
+      
+      // 只有在启用记忆大小时才保存
+      if (!rememberSize) return;
+      
+      final currentWidth = appWindow.size.width;
+      final currentHeight = appWindow.size.height;
+      final isMaximized = appWindow.isMaximized;
+      
+      // 如果窗口最大化，不保存大小
+      if (isMaximized) return;
+      
+      // 检查大小是否有变化（允许1像素的误差）
+      if ((currentWidth - _lastSavedWidth).abs() > 1 || 
+          (currentHeight - _lastSavedHeight).abs() > 1) {
+        
+        // 保存新的窗口大小
+        await config.setWindowWidth(currentWidth);
+        await config.setWindowHeight(currentHeight);
+        
+        _lastSavedWidth = currentWidth;
+        _lastSavedHeight = currentHeight;
+        
+        AppLoggerService().debug('App', 'Window size saved: ${currentWidth.toInt()}x${currentHeight.toInt()}');
+      }
+    } catch (e) {
+      AppLoggerService().error('App', 'Failed to save window size: $e');
+    }
   }
 
   void _toggleSidebar() {
@@ -140,9 +271,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final sidebarOpacity = isTransparent ? 0.2 : 0.65;
     final contentBgOpacity = isTransparent ? 0.3 : 0.85;
     
-    if (_currentIndex >= navItems.length) {
-      _currentIndex = 0;
-    }
+    // 智能索引管理：根据页面标题找到正确的索引
+    _updateCurrentIndex(navItems);
     
     return WindowBorder(
       color: Colors.transparent,
@@ -187,12 +317,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildLoadingIndicator() {
-    return Center(
+    return const Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const ProgressRing(),
-          const SizedBox(height: 16),
+          ProgressRing(),
+          SizedBox(height: 16),
           Text(
             '正在启动下载内核...',
             style: TextStyle(
@@ -272,7 +402,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             const SizedBox(width: 12),
             _buildNewTaskButton(context),
             const SizedBox(width: 8),
-            _buildTrayButton(),
+            _buildAnimatedTrayButton(context),
             const SizedBox(width: 8),
             _buildWindowButtons(context),
           ],
@@ -281,6 +411,40 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         ),
       ),
     );
+  }
+
+  /// 构建底部导航项（简化版本，移除有问题的动画）
+  List<Widget> _buildBottomNavItems(BuildContext context, List<NavigationItem> navItems, bool isCompact) {
+    final bottomItems = navItems.asMap().entries
+        .where((entry) => ['日志', '状态', '设置', '关于'].contains(entry.value.title))
+        .toList();
+    
+    return bottomItems.map((entry) {
+      final item = entry.value;
+      final index = entry.key;
+      
+      // 使用简单的 AnimatedSwitcher 来处理页面的出现和消失
+      return AnimatedSwitcher(
+        key: ValueKey('${item.title}_switcher'),
+        duration: const Duration(milliseconds: 250),
+        transitionBuilder: (child, animation) {
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.3, 0),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+            )),
+            child: FadeTransition(
+              opacity: animation,
+              child: child,
+            ),
+          );
+        },
+        child: _buildNavItemWidget(context, index, item, isCompact),
+      );
+    }).toList();
   }
 
   /// 侧边栏
@@ -329,7 +493,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ),
                     child: Align(
                       alignment: isCompact ? Alignment.center : Alignment.centerLeft,
-                      child: Icon(
+                      child: const Icon(
                         FluentIcons.global_nav_button,
                         size: 16,
                         color: AppTheme.textSecondary,
@@ -357,10 +521,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
               ),
               
-              // 底部导航项
-              ...navItems.asMap().entries
-                  .where((entry) => ['日志', '状态', '设置', '关于'].contains(entry.value.title))
-                  .map((entry) => _buildNavItemWidget(context, entry.key, entry.value, isCompact)),
+              // 底部导航项（带动画的调试页面）
+              ..._buildBottomNavItems(context, navItems, isCompact),
               
               const SizedBox(height: 12),
             ],
@@ -393,18 +555,55 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  /// 托盘按钮
-  Widget _buildTrayButton() {
-    return SizedBox(
-      height: 28,
-      width: 28,
-      child: Button(
-        style: ButtonStyle(
-          padding: WidgetStateProperty.all(EdgeInsets.zero),
-        ),
-        onPressed: () => systemTrayService.hideMainWindow(),
-        child: const Icon(FluentIcons.chrome_minimize, size: 12),
-      ),
+  /// 托盘按钮（带动画效果）
+  Widget _buildAnimatedTrayButton(BuildContext context) {
+    final config = context.watch<ClientConfigService>();
+    final closeButtonBehavior = config.getCloseButtonBehavior();
+    final shouldShowTrayButton = closeButtonBehavior != 'minimize_to_tray';
+    
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 400),
+      transitionBuilder: (child, animation) {
+        return ScaleTransition(
+          scale: Tween<double>(
+            begin: 0.0,
+            end: 1.0,
+          ).animate(CurvedAnimation(
+            parent: animation,
+            curve: Curves.elasticOut,
+          )),
+          child: FadeTransition(
+            opacity: Tween<double>(
+              begin: 0.0,
+              end: 1.0,
+            ).animate(CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+            )),
+            child: child,
+          ),
+        );
+      },
+      child: shouldShowTrayButton
+          ? Container(
+              key: const ValueKey('tray_button'),
+              child: SizedBox(
+                height: 28,
+                width: 28,
+                child: Button(
+                  style: ButtonStyle(
+                    padding: WidgetStateProperty.all(EdgeInsets.zero),
+                  ),
+                  onPressed: () => systemTrayService.hideMainWindow(),
+                  child: const Icon(FluentIcons.chrome_minimize, size: 12),
+                ),
+              ),
+            )
+          : Container(
+              key: const ValueKey('empty_tray'),
+              width: 0,
+              height: 28,
+            ),
     );
   }
 
@@ -473,100 +672,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         isCompact: isCompact,
         onTap: () {
           AppLoggerService().info('App', 'Navigated to: ${item.title}');
-          setState(() => _currentIndex = index);
+          setState(() {
+            _currentIndex = index;
+            _currentPageTitle = item.title;
+          });
         },
       ),
     );
   }
 
-  Widget _buildSidebarFooter(BuildContext context, bool isCompact) {
-    if (isCompact) {
-      return Padding(
-        padding: const EdgeInsets.all(8),
-        child: Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: AppTheme.accentPrimary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: const Icon(
-            FluentIcons.info,
-            size: 12,
-            color: AppTheme.accentLight,
-          ),
-        ),
-      );
-    }
-    
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppTheme.accentPrimary.withValues(alpha: 0.1),
-              AppTheme.accentPrimary.withValues(alpha: 0.03),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-          border: Border.all(
-            color: AppTheme.accentPrimary.withValues(alpha: 0.2),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: AppTheme.accentPrimary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                FluentIcons.download,
-                size: 16,
-                color: AppTheme.accentLight,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Flexible(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    AppConstants.appName,
-                    style: FluentTheme.of(context).typography.caption?.copyWith(
-                      color: AppTheme.textPrimary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'v${AppConstants.version}',
-                    style: FluentTheme.of(context).typography.caption?.copyWith(
-                      color: AppTheme.textTertiary,
-                      fontSize: 10,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildWindowButtons(BuildContext context) {
     final buttonColors = WindowButtonColors(
@@ -593,9 +708,40 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         children: [
           MinimizeWindowButton(colors: buttonColors),
           MaximizeWindowButton(colors: buttonColors),
-          CloseWindowButton(colors: closeButtonColors),
+          _buildCustomCloseButton(closeButtonColors),
         ],
       ),
+    );
+  }
+
+  Widget _buildCustomCloseButton(WindowButtonColors colors) {
+    return WindowButton(
+      colors: colors,
+      iconBuilder: (context) => Icon(
+        FluentIcons.chrome_close,
+        color: colors.iconNormal,
+        size: 10,
+      ),
+      onPressed: () async {
+        try {
+          final config = Provider.of<ClientConfigService>(context, listen: false);
+          final closeButtonBehavior = config.getCloseButtonBehavior();
+          
+          AppLoggerService().info('App', 'Close button pressed, behavior: $closeButtonBehavior');
+          
+          if (closeButtonBehavior == 'minimize_to_tray') {
+            // 最小化到托盘
+            systemTrayService.hideMainWindow();
+          } else {
+            // 退出应用
+            await systemTrayService.exitApp();
+          }
+        } catch (e) {
+          AppLoggerService().error('App', 'Error handling close button: $e');
+          // 如果出错，默认退出应用
+          await systemTrayService.exitApp();
+        }
+      },
     );
   }
 
