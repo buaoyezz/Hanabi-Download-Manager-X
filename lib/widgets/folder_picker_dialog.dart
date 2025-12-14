@@ -1,7 +1,9 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'dart:io';
 import 'package:path/path.dart' as path;
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
+import '../services/quick_path_service.dart';
 
 class FolderPickerDialog extends StatefulWidget {
   final String initialPath;
@@ -150,12 +152,15 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
         final newFolder = Directory(newFolderPath);
         
         if (await newFolder.exists()) {
+          // 文件夹已存在，导航到该文件夹
+          await _loadDirectory(newFolderPath);
+          
           if (mounted) {
             await showDialog(
               context: context,
               builder: (context) => ContentDialog(
-                title: const Text('创建失败'),
-                content: const Text('文件夹已存在'),
+                title: const Text('创建取消'),
+                content: Text('文件夹 "$result" 已存在\n已自动选择到该文件夹'),
                 actions: [
                   FilledButton(
                     onPressed: () => Navigator.pop(context),
@@ -170,15 +175,15 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
 
         await newFolder.create(recursive: true);
         
-        // 刷新当前目录
-        await _loadDirectory(_currentPath);
+        // 创建成功后，导航到新创建的文件夹
+        await _loadDirectory(newFolderPath);
         
         if (mounted) {
           await showDialog(
             context: context,
             builder: (context) => ContentDialog(
               title: const Text('创建成功'),
-              content: Text('文件夹 "$result" 已创建'),
+              content: Text('文件夹 "$result" 已创建并选择'),
               actions: [
                 FilledButton(
                   onPressed: () => Navigator.pop(context),
@@ -222,6 +227,140 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
     return drives;
   }
 
+  Widget _buildDrivesAndQuickPaths(BuildContext context) {
+    final quickPathService = context.watch<QuickPathService>();
+    final quickPaths = quickPathService.quickPaths;
+    final drives = _getDrives();
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        // 驱动器按钮
+        ...drives.map((drive) {
+          return _DriveButton(
+            drive: drive,
+            onPressed: () => _navigateToPath(drive),
+          );
+        }),
+        
+        // 快捷路径按钮
+        ...quickPaths.map((quickPath) {
+          return _QuickPathButton(
+            quickPath: quickPath,
+            onPressed: () => _navigateToPath(quickPath.path),
+            onRemove: () => _removeQuickPath(context, quickPath.path),
+          );
+        }),
+        
+        // 添加快捷路径按钮
+        _AddQuickPathButton(
+          onPressed: () => _addQuickPath(context),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _addQuickPath(BuildContext context) async {
+    final controller = TextEditingController();
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (context) => ContentDialog(
+        title: const Text('添加快捷路径'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('将当前路径添加到快捷路径：'),
+            const SizedBox(height: 8),
+            Text(
+              _currentPath,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.7),
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              '自定义名称（留空自动生成）：',
+              style: TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            TextBox(
+              controller: controller,
+              placeholder: '例如：我的项目',
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          Button(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, {
+              'path': _currentPath,
+              'name': controller.text,
+            }),
+            child: const Text('添加'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && mounted) {
+      final quickPathService = Provider.of<QuickPathService>(context, listen: false);
+      final success = await quickPathService.addQuickPath(
+        result['path']!,
+        customName: result['name']!.isEmpty ? null : result['name'],
+      );
+
+      if (mounted) {
+        await showDialog(
+          context: context,
+          builder: (context) => ContentDialog(
+            title: Text(success ? '添加成功' : '添加失败'),
+            content: Text(success ? '快捷路径已添加' : '该路径已存在或无效'),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('确定'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+
+    controller.dispose();
+  }
+
+  Future<void> _removeQuickPath(BuildContext context, String pathStr) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => ContentDialog(
+        title: const Text('删除快捷路径'),
+        content: Text('确定要删除这个快捷路径吗？\n\n$pathStr'),
+        actions: [
+          Button(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && mounted) {
+      final quickPathService = Provider.of<QuickPathService>(context, listen: false);
+      await quickPathService.removeQuickPath(pathStr);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ContentDialog(
@@ -249,17 +388,8 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 驱动器快速选择
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: _getDrives().map((drive) {
-              return _DriveButton(
-                drive: drive,
-                onPressed: () => _navigateToPath(drive),
-              );
-            }).toList(),
-          ),
+          // 驱动器和快捷路径（合并在一行）
+          _buildDrivesAndQuickPaths(context),
           const SizedBox(height: 12),
 
           // 路径输入框和导航
@@ -551,6 +681,132 @@ class _NavButtonState extends State<_NavButton> {
               size: 14,
               color: _isHovered ? AppTheme.accentLight : AppTheme.textSecondary,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 添加快捷路径按钮
+class _AddQuickPathButton extends StatefulWidget {
+  final VoidCallback onPressed;
+
+  const _AddQuickPathButton({required this.onPressed});
+
+  @override
+  State<_AddQuickPathButton> createState() => _AddQuickPathButtonState();
+}
+
+class _AddQuickPathButtonState extends State<_AddQuickPathButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: '添加当前路径为快捷路径',
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: GestureDetector(
+          onTap: widget.onPressed,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: _isHovered ? AppTheme.accentPrimary.withValues(alpha: 0.2) : AppTheme.bgLayer2,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(
+                color: _isHovered ? AppTheme.accentPrimary.withValues(alpha: 0.4) : AppTheme.borderSubtle,
+                width: _isHovered ? 1.5 : 1,
+              ),
+            ),
+            child: Icon(
+              FluentIcons.add,
+              size: 12,
+              color: _isHovered ? AppTheme.accentLight : AppTheme.textSecondary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 快捷路径按钮
+class _QuickPathButton extends StatefulWidget {
+  final QuickPath quickPath;
+  final VoidCallback onPressed;
+  final VoidCallback onRemove;
+
+  const _QuickPathButton({
+    required this.quickPath,
+    required this.onPressed,
+    required this.onRemove,
+  });
+
+  @override
+  State<_QuickPathButton> createState() => _QuickPathButtonState();
+}
+
+class _QuickPathButtonState extends State<_QuickPathButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onPressed,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: _isHovered ? AppTheme.accentPrimary.withValues(alpha: 0.15) : AppTheme.bgLayer2,
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            border: Border.all(
+              color: _isHovered ? AppTheme.accentPrimary.withValues(alpha: 0.3) : AppTheme.borderSubtle,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                FluentIcons.pinned_solid,
+                size: 12,
+                color: _isHovered ? AppTheme.accentLight : AppTheme.textSecondary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                widget.quickPath.name,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: _isHovered ? AppTheme.accentLight : AppTheme.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (_isHovered) ...[
+                const SizedBox(width: 4),
+                GestureDetector(
+                  onTap: () {
+                    widget.onRemove();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: AppTheme.statusError.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: const Icon(
+                      FluentIcons.chrome_close,
+                      size: 10,
+                      color: AppTheme.statusError,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ),

@@ -74,6 +74,15 @@ class _SettingsPageState extends State<SettingsPage> {
   int _segmentSpeedLimit = 0;
   bool _loadingConfig = true;
   
+  // Proxy configuration state
+  bool _useProxy = false;
+  String _proxyType = 'system'; // system, http, socks5
+  String _proxyHost = '';
+  int _proxyPort = 8080;
+  String _proxyUsername = '';
+  String _proxyPassword = '';
+  bool _proxyRequiresAuth = false;
+  
   bool _autoStart = true;
   bool _openOnStartup = false;
   final _autoStartService = AutoStartService();
@@ -411,6 +420,19 @@ class _SettingsPageState extends State<SettingsPage> {
           _mode = config['mode'] ?? 'auto';
           _maxConcurrentTasks = config['max_concurrent_tasks'] ?? 3;
           _segmentSpeedLimit = config['segment_speed_limit'] ?? 0;
+          
+          // Load proxy configuration
+          final proxyConfig = config['proxy'] as Map<String, dynamic>?;
+          if (proxyConfig != null) {
+            _useProxy = proxyConfig['enabled'] ?? false;
+            _proxyType = proxyConfig['type'] ?? 'http';
+            _proxyHost = proxyConfig['host'] ?? '';
+            _proxyPort = proxyConfig['port'] ?? 8080;
+            _proxyUsername = proxyConfig['username'] ?? '';
+            _proxyPassword = proxyConfig['password'] ?? '';
+            _proxyRequiresAuth = proxyConfig['requires_auth'] ?? false;
+          }
+          
           _loadingConfig = false;
         });
       } else {
@@ -422,7 +444,14 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  Future<void> _updateConfig({int? threads, int? segments, String? mode, int? maxConcurrentTasks, int? segmentSpeedLimit}) async {
+  Future<void> _updateConfig({
+    int? threads, 
+    int? segments, 
+    String? mode, 
+    int? maxConcurrentTasks, 
+    int? segmentSpeedLimit,
+    Map<String, dynamic>? proxyConfig,
+  }) async {
     final service = context.read<IntegratedDownloadService>();
     
     // Optimistic update
@@ -440,10 +469,37 @@ class _SettingsPageState extends State<SettingsPage> {
       mode: mode ?? _mode,
       maxConcurrentTasks: maxConcurrentTasks ?? _maxConcurrentTasks,
       segmentSpeedLimit: segmentSpeedLimit ?? _segmentSpeedLimit,
+      proxyConfig: proxyConfig,
     );
     
     // Reload to ensure sync
     await _loadConfig();
+  }
+
+  Future<void> _updateProxyConfig() async {
+    final proxyConfig = {
+      'enabled': _useProxy,
+      'type': _proxyType,
+      'host': _proxyHost,
+      'port': _proxyPort,
+      'username': _proxyUsername,
+      'password': _proxyPassword,
+      'requires_auth': _proxyRequiresAuth,
+    };
+    
+    await _updateConfig(proxyConfig: proxyConfig);
+    
+    if (mounted) {
+      displayInfoBar(
+        context,
+        builder: (context, close) => InfoBar(
+          title: const Text('代理设置已保存'),
+          content: Text(_useProxy ? '已启用代理: $_proxyHost:$_proxyPort' : '已禁用代理'),
+          severity: InfoBarSeverity.success,
+        ),
+        duration: const Duration(seconds: 2),
+      );
+    }
   }
 
   @override
@@ -868,7 +924,297 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ],
       ),
+      const SizedBox(height: 24),
+      
+      // 代理设置
+      _buildSection(
+        context,
+        title: '代理设置',
+        icon: FluentIcons.network_tower,
+        children: [
+          _buildSettingItem(
+            context,
+            title: '使用代理',
+            subtitle: '通过代理服务器进行下载',
+            trailing: ToggleSwitch(
+              checked: _useProxy,
+              onChanged: (value) {
+                setState(() => _useProxy = value);
+                _updateProxyConfig();
+              },
+            ),
+          ),
+          
+          if (_useProxy) ...[
+            const SizedBox(height: 12),
+            
+            // 代理类型
+            _buildSettingItem(
+              context,
+              title: '代理类型',
+              subtitle: '选择代理协议类型',
+              trailing: ComboBox<String>(
+                value: _proxyType,
+                items: const [
+                  ComboBoxItem(value: 'system', child: Text('跟随系统')),
+                  ComboBoxItem(value: 'http', child: Text('HTTP/HTTPS')),
+                  ComboBoxItem(value: 'socks5', child: Text('SOCKS5')),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _proxyType = value);
+                    _updateProxyConfig();
+                  }
+                },
+              ),
+            ),
+            
+            
+            // 只有非系统代理才显示手动配置
+            if (_proxyType != 'system') ...[
+              const SizedBox(height: 12),
+              
+              // 代理服务器地址
+              _buildSettingItem(
+                context,
+                title: '代理服务器',
+                subtitle: '代理服务器的地址和端口',
+                trailing: SizedBox(
+                  width: 300,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: TextBox(
+                          placeholder: '代理地址 (如: 127.0.0.1)',
+                          controller: TextEditingController(text: _proxyHost)
+                            ..selection = TextSelection.fromPosition(
+                              TextPosition(offset: _proxyHost.length),
+                            ),
+                          onChanged: (value) => _proxyHost = value,
+                          onSubmitted: (_) => _updateProxyConfig(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(':'),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 1,
+                        child: NumberBox<int>(
+                          value: _proxyPort,
+                          min: 1,
+                          max: 65535,
+                          mode: SpinButtonPlacementMode.none,
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() => _proxyPort = value);
+                              _updateProxyConfig();
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: 12),
+            
+              // 代理认证
+              _buildSettingItem(
+                context,
+                title: '代理认证',
+                subtitle: '代理服务器需要用户名和密码',
+                trailing: ToggleSwitch(
+                  checked: _proxyRequiresAuth,
+                  onChanged: (value) {
+                    setState(() => _proxyRequiresAuth = value);
+                    _updateProxyConfig();
+                  },
+                ),
+              ),
+              
+              if (_proxyRequiresAuth) ...[
+                const SizedBox(height: 12),
+                
+                // 用户名
+                _buildSettingItem(
+                  context,
+                  title: '用户名',
+                  subtitle: '代理服务器的用户名',
+                  trailing: SizedBox(
+                    width: 200,
+                    child: TextBox(
+                      placeholder: '用户名',
+                      controller: TextEditingController(text: _proxyUsername)
+                        ..selection = TextSelection.fromPosition(
+                          TextPosition(offset: _proxyUsername.length),
+                        ),
+                      onChanged: (value) => _proxyUsername = value,
+                      onSubmitted: (_) => _updateProxyConfig(),
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(height: 12),
+                
+                // 密码
+                _buildSettingItem(
+                  context,
+                  title: '密码',
+                  subtitle: '代理服务器的密码',
+                  trailing: SizedBox(
+                    width: 200,
+                    child: PasswordBox(
+                      placeholder: '密码',
+                      controller: TextEditingController(text: _proxyPassword)
+                        ..selection = TextSelection.fromPosition(
+                          TextPosition(offset: _proxyPassword.length),
+                        ),
+                      onChanged: (value) => _proxyPassword = value,
+                      onSubmitted: (_) => _updateProxyConfig(),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+            
+            const SizedBox(height: 12),
+            
+            // 代理配置提示
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.accentPrimary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                border: Border.all(
+                  color: AppTheme.accentPrimary.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    FluentIcons.info,
+                    size: 16,
+                    color: AppTheme.accentLight,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '代理配置提示',
+                          style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
+                            color: AppTheme.accentLight,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _getProxyConfigTips(),
+                          style: FluentTheme.of(context).typography.caption?.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Button(
+                    onPressed: _testProxyConnection,
+                    child: const Text('测试连接'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
     ];
+  }
+
+  Future<void> _testProxyConnection() async {
+    // 对于非系统代理，检查主机地址是否为空
+    if (_proxyType != 'system' && _proxyHost.isEmpty) {
+      displayInfoBar(
+        context,
+        builder: (context, close) => const InfoBar(
+          title: Text('配置错误'),
+          content: Text('请先输入代理服务器地址'),
+          severity: InfoBarSeverity.error,
+        ),
+      );
+      return;
+    }
+
+    // 显示测试中的提示
+    displayInfoBar(
+      context,
+      builder: (context, close) => const InfoBar(
+        title: Text('正在测试...'),
+        content: Text('正在测试代理连接，请稍候'),
+        severity: InfoBarSeverity.info,
+      ),
+    );
+
+    try {
+      final service = context.read<IntegratedDownloadService>();
+      
+      // 对于系统代理，使用特殊的参数
+      String testHost = _proxyHost;
+      int testPort = _proxyPort;
+      
+      if (_proxyType == 'system') {
+        // 系统代理不需要手动指定主机和端口
+        testHost = 'system'; // 使用特殊标识
+        testPort = 0; // 端口设为0表示系统代理
+      }
+      
+      final result = await service.testProxyConnection(
+        type: _proxyType,
+        host: testHost,
+        port: testPort,
+        username: _proxyRequiresAuth ? _proxyUsername : null,
+        password: _proxyRequiresAuth ? _proxyPassword : null,
+      );
+
+      if (mounted) {
+        displayInfoBar(
+          context,
+          builder: (context, close) => InfoBar(
+            title: Text(result ? '连接成功' : '连接失败'),
+            content: Text(result 
+                ? '代理服务器连接正常，可以正常使用' 
+                : '无法连接到代理服务器，请检查配置'),
+            severity: result ? InfoBarSeverity.success : InfoBarSeverity.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        displayInfoBar(
+          context,
+          builder: (context, close) => InfoBar(
+            title: const Text('测试失败'),
+            content: Text('代理连接测试失败: $e'),
+            severity: InfoBarSeverity.error,
+          ),
+        );
+      }
+    }
+  }
+
+  String _getProxyConfigTips() {
+    switch (_proxyType) {
+      case 'system':
+        return '• 自动使用系统配置的代理设置\n• 支持 Windows、macOS 和 Linux 系统代理\n• 配置后将应用到所有新的下载任务\n• 正在进行的下载不会受到影响';
+      case 'http':
+        return '• 使用 HTTP/HTTPS 代理协议\n• 配置后将应用到所有新的下载任务\n• 正在进行的下载不会受到影响\n• 支持用户名密码认证';
+      case 'socks5':
+        return '• 使用 SOCKS5 代理协议\n• 需要安装 aiohttp-socks 库支持\n• 配置后将应用到所有新的下载任务\n• 正在进行的下载不会受到影响';
+      default:
+        return '• 支持系统代理、HTTP/HTTPS 和 SOCKS5 代理\n• 配置后将应用到所有新的下载任务\n• 正在进行的下载不会受到影响';
+    }
   }
 
   // 高级标签页
@@ -887,10 +1233,10 @@ class _SettingsPageState extends State<SettingsPage> {
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: FluentTheme.of(context).resources.cardBackgroundFillColorDefault,
+        color: AppTheme.surfaceCard.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: FluentTheme.of(context).resources.cardStrokeColorDefault,
+          color: AppTheme.borderSubtle.withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -1058,6 +1404,17 @@ class _SettingsPageState extends State<SettingsPage> {
                       trailing: ToggleSwitch(
                         checked: devMode.showStatusPage,
                         onChanged: (value) => devMode.setShowStatusPage(value),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    
+                    _buildSettingItem(
+                      context,
+                      title: '显示 Web 检测页面',
+                      subtitle: '在导航栏显示网站状态检测工具',
+                      trailing: ToggleSwitch(
+                        checked: devMode.showWebCheckPage,
+                        onChanged: (value) => devMode.setShowWebCheckPage(value),
                       ),
                     ),
                   ],
