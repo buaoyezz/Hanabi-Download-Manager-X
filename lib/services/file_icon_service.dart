@@ -6,8 +6,6 @@ import 'package:ffi/ffi.dart';
 import 'package:win32/win32.dart';
 import 'package:flutter/foundation.dart' show Uint8List, kDebugMode;
 
-/// Windows 文件图标服务
-/// 使用 Win32 API 提取系统真实的文件图标
 class FileIconService {
   static final FileIconService _instance = FileIconService._internal();
   factory FileIconService() => _instance;

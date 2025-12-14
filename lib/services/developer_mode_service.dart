@@ -9,19 +9,22 @@ class DeveloperModeService extends ChangeNotifier {
   bool _developerMode = false;
   bool _showLogPage = false;
   bool _showStatusPage = false;
+  bool _showWebCheckPage = false;
 
   bool get developerMode => _developerMode;
   bool get showLogPage => _showLogPage;
   bool get showStatusPage => _showStatusPage;
+  bool get showWebCheckPage => _showWebCheckPage;
 
   // 是否显示任何调试页面
-  bool get hasAnyDebugPage => _showLogPage || _showStatusPage;
+  bool get hasAnyDebugPage => _showLogPage || _showStatusPage || _showWebCheckPage;
 
   Future<void> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     _developerMode = prefs.getBool('developer_mode') ?? false;
     _showLogPage = prefs.getBool('show_log_page') ?? false;
     _showStatusPage = prefs.getBool('show_status_page') ?? false;
+    _showWebCheckPage = prefs.getBool('show_web_check_page') ?? false;
     notifyListeners();
   }
 
@@ -34,8 +37,10 @@ class DeveloperModeService extends ChangeNotifier {
     if (!value) {
       _showLogPage = false;
       _showStatusPage = false;
+      _showWebCheckPage = false;
       await prefs.setBool('show_log_page', false);
       await prefs.setBool('show_status_page', false);
+      await prefs.setBool('show_web_check_page', false);
     }
     
     notifyListeners();
@@ -52,6 +57,13 @@ class DeveloperModeService extends ChangeNotifier {
     _showStatusPage = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('show_status_page', value);
+    notifyListeners();
+  }
+
+  Future<void> setShowWebCheckPage(bool value) async {
+    _showWebCheckPage = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('show_web_check_page', value);
     notifyListeners();
   }
 }

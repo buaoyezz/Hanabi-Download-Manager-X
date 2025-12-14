@@ -81,14 +81,24 @@ class _AnimatedCardState extends State<AnimatedCard>
       curve: Curves.easeOutCubic,
     ));
 
+    final bgColor = widget.backgroundColor ?? AppTheme.surfaceCard.withValues(alpha: 0.85);
+    final hoverColor = widget.hoverColor ?? (widget.backgroundColor == Colors.transparent 
+        ? Colors.transparent 
+        : AppTheme.surfaceCard.withValues(alpha: 0.95));
+    
     _backgroundColorAnimation = ColorTween(
-      begin: widget.backgroundColor ?? AppTheme.surfaceCard.withValues(alpha: 0.85),
-      end: widget.hoverColor ?? AppTheme.surfaceCard.withValues(alpha: 0.95),
+      begin: bgColor,
+      end: hoverColor,
     ).animate(_hoverAnimation);
 
+    final borderColor = widget.borderColor ?? AppTheme.borderSubtle;
+    final hoverBorderColor = widget.hoverBorderColor ?? (widget.borderColor == Colors.transparent 
+        ? Colors.transparent 
+        : AppTheme.accentPrimary.withValues(alpha: 0.4));
+    
     _borderColorAnimation = ColorTween(
-      begin: widget.borderColor ?? AppTheme.borderSubtle,
-      end: widget.hoverBorderColor ?? AppTheme.accentPrimary.withValues(alpha: 0.4),
+      begin: borderColor,
+      end: hoverBorderColor,
     ).animate(_hoverAnimation);
 
     _glowAnimation = Tween<double>(

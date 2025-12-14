@@ -7,10 +7,11 @@ import '../utils/constants.dart';
 import 'app_logger_service.dart';
 
 /// 版本通道枚举
+/// alpha < beta < release
 enum VersionChannel {
-  alpha,   // 测试版 - 最不稳定
-  beta,    // 较稳定的测试版
-  release, // 稳定版
+  alpha, 
+  beta,   
+  release, 
 }
 
 /// 版本信息类

@@ -278,6 +278,7 @@ class IntegratedDownloadService extends ChangeNotifier {
     String? mode,
     int? maxConcurrentTasks,
     int? segmentSpeedLimit,
+    Map<String, dynamic>? proxyConfig,
   }) async {
     final success = await _kernelService.setDownloadConfig(
       threads: threads,
@@ -285,11 +286,64 @@ class IntegratedDownloadService extends ChangeNotifier {
       mode: mode,
       maxConcurrentTasks: maxConcurrentTasks,
       segmentSpeedLimit: segmentSpeedLimit,
+      proxyConfig: proxyConfig,
     );
     if (success) {
-      _appLogger.info('App', 'Download config updated: threads=$threads, segments=$segments, mode=$mode, concurrent=$maxConcurrentTasks, limit=$segmentSpeedLimit');
+      _appLogger.info('App', 'Download config updated: threads=$threads, segments=$segments, mode=$mode, concurrent=$maxConcurrentTasks, limit=$segmentSpeedLimit, proxy=${proxyConfig != null ? 'enabled' : 'unchanged'}');
     }
     return success;
+  }
+
+  /// 测试代理连接
+  Future<bool> testProxyConnection({
+    required String type,
+    required String host,
+    required int port,
+    String? username,
+    String? password,
+  }) async {
+    try {
+      final result = await _kernelService.testProxyConnection(
+        type: type,
+        host: host,
+        port: port,
+        username: username,
+        password: password,
+      );
+      _appLogger.info('App', 'Proxy connection test: $type://$host:$port - ${result ? 'success' : 'failed'}');
+      return result;
+    } catch (e) {
+      _appLogger.error('App', 'Proxy connection test failed: $e');
+      return false;
+    }
+  }
+
+  /// 重试失败的分段
+  Future<void> retryFailedSegments(String id) async {
+    final task = _tasks.firstWhere((t) => t.id == id, orElse: () => _tasks.first);
+    _appLogger.info('App', 'Retrying failed segments for task: ${task.fileName} (ID: $id)');
+    
+    final success = await _kernelService.retryFailedSegments(id);
+    if (success) {
+      _appLogger.info('App', 'Failed segments retry initiated: ${task.fileName}');
+      await _updateTasks();
+    } else {
+      _appLogger.error('App', 'Failed to retry segments: ${task.fileName}');
+    }
+  }
+
+  /// 重试特定分段
+  Future<void> retrySegment(String id, int segmentIndex) async {
+    final task = _tasks.firstWhere((t) => t.id == id, orElse: () => _tasks.first);
+    _appLogger.info('App', 'Retrying segment $segmentIndex for task: ${task.fileName} (ID: $id)');
+    
+    final success = await _kernelService.retrySegment(id, segmentIndex);
+    if (success) {
+      _appLogger.info('App', 'Segment $segmentIndex retry initiated: ${task.fileName}');
+      await _updateTasks();
+    } else {
+      _appLogger.error('App', 'Failed to retry segment $segmentIndex: ${task.fileName}');
+    }
   }
 
   @override
