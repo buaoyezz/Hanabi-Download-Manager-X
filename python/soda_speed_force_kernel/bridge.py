@@ -78,7 +78,7 @@ class NsfXCoreBridge:
     def get_download_dir(self) -> str:
         return str(self.downloader.downloadDir)
 
-    def set_download_config(self, threads: int = None, segments: int = None, mode: str = None, max_concurrent_tasks: int = None, segment_speed_limit: int = None) -> Dict[str, Any]:
+    def set_download_config(self, threads: int = None, segments: int = None, mode: str = None, max_concurrent_tasks: int = None, segment_speed_limit: int = None, proxy_config: Dict = None) -> Dict[str, Any]:
         """
         动态设置下载配置
         
@@ -88,6 +88,7 @@ class NsfXCoreBridge:
             mode: 模式 ("auto", "threads_only", "segments_only", "manual")
             max_concurrent_tasks: 最大同时下载任务数
             segment_speed_limit: 分段限速 (bytes/s), 0表示不限速
+            proxy_config: 代理配置
         
         Returns:
             当前配置信息
@@ -97,7 +98,8 @@ class NsfXCoreBridge:
             segments=segments,
             mode=mode,
             max_concurrent_tasks=max_concurrent_tasks,
-            segment_speed_limit=segment_speed_limit
+            segment_speed_limit=segment_speed_limit,
+            proxy_config=proxy_config
         )
         
         return self.get_download_config()
@@ -110,6 +112,7 @@ class NsfXCoreBridge:
             "mode": self.downloader.mode,
             "max_concurrent_tasks": self.downloader.max_concurrent_tasks,
             "segment_speed_limit": self.downloader.segment_speed_limit,
+            "proxy": self.downloader.proxy_config,
             "mode_description": {
                 "auto": "全自动（根据文件大小自动设置）",
                 "threads_only": "仅设置线程数，分段数自动",
@@ -141,6 +144,43 @@ class NsfXCoreBridge:
         except Exception as e:
             from .utils.logger import logger
             logger.error(f"清除所有数据失败: {e}")
+            return False
+    
+    def cleanup_temp_files(self) -> Dict[str, Any]:
+        """清理所有临时文件"""
+        return self.downloader.cleanup_all_temp_files()
+
+    async def retry_failed_segments(self, task_id: str) -> bool:
+        """重试失败的分段"""
+        try:
+            return await self.downloader.retry_failed_segments(task_id)
+        except Exception as e:
+            from .utils.logger import logger
+            logger.error(f"重试失败分段失败: {e}")
+            return False
+
+    async def retry_segment(self, task_id: str, segment_index: int) -> bool:
+        """重试特定分段"""
+        try:
+            return await self.downloader.retry_segment(task_id, segment_index)
+        except Exception as e:
+            from .utils.logger import logger
+            logger.error(f"重试分段失败: {e}")
+            return False
+
+    async def test_proxy_connection(self, proxy_type: str, host: str, port: int, username: str = None, password: str = None) -> bool:
+        """测试代理连接"""
+        try:
+            return await self.downloader.test_proxy_connection(
+                proxy_type=proxy_type,
+                host=host,
+                port=port,
+                username=username,
+                password=password
+            )
+        except Exception as e:
+            from .utils.logger import logger
+            logger.error(f"代理连接测试失败: {e}")
             return False
     
     def cleanup(self):

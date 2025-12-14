@@ -75,6 +75,17 @@ class MultiThreadDownloader:
         self.max_concurrent_tasks = 3  # 默认最大同时下载数
         self.segment_speed_limit = 0   # 分段限速 (bytes/s), 0表示不限速
         
+        # 代理配置
+        self.proxy_config = {
+            'enabled': False,
+            'type': 'system',  # 默认跟随系统
+            'host': '',
+            'port': 8080,
+            'username': '',
+            'password': '',
+            'requires_auth': False
+        }
+        
         # 高级配置
         self.chunk_size = 131072  # 128KB 读取块大小（提升IO效率）
         self.connection_timeout = 30  # 连接超时
@@ -133,6 +144,8 @@ class MultiThreadDownloader:
                     self.max_concurrent_tasks = config['max_concurrent_tasks']
                 if 'segment_speed_limit' in config:
                     self.segment_speed_limit = config['segment_speed_limit']
+                if 'proxy' in config:
+                    self.proxy_config.update(config['proxy'])
                 logger.info(f"已加载全局配置: {config}")
         except Exception as e:
             logger.error(f"加载全局配置失败: {e}")
@@ -144,11 +157,12 @@ class MultiThreadDownloader:
             'segments': self.segments_count,
             'mode': self.mode,
             'max_concurrent_tasks': self.max_concurrent_tasks,
-            'segment_speed_limit': self.segment_speed_limit
+            'segment_speed_limit': self.segment_speed_limit,
+            'proxy': self.proxy_config
         }
         self.persistence.save_config(config)
 
-    def update_config(self, threads: int = None, segments: int = None, mode: str = None, max_concurrent_tasks: int = None, segment_speed_limit: int = None):
+    def update_config(self, threads: int = None, segments: int = None, mode: str = None, max_concurrent_tasks: int = None, segment_speed_limit: int = None, proxy_config: dict = None):
         """更新并保存配置"""
         changed = False
         if threads is not None:
@@ -171,6 +185,11 @@ class MultiThreadDownloader:
         if segment_speed_limit is not None:
             self.segment_speed_limit = max(0, segment_speed_limit)
             logger.info(f"分段限速更新: {self.segment_speed_limit} bytes/s (from input: {segment_speed_limit})")
+            changed = True
+            
+        if proxy_config is not None:
+            self.proxy_config = proxy_config
+            logger.info(f"代理配置更新: enabled={proxy_config.get('enabled', False)}, type={proxy_config.get('type', 'http')}, host={proxy_config.get('host', '')}")
             changed = True
             
         if changed:
@@ -589,7 +608,14 @@ class MultiThreadDownloader:
                         range_header = headers.copy()
                         range_header["Range"] = "bytes=0-0"  # 只请求第一个字节
                         
-                        async with session.get(url, headers=range_header, allow_redirects=True, ssl=ssl_config["ssl"]) as resp:
+                        proxy_settings = self._get_proxy_settings()
+                        async with session.get(
+                            url, 
+                            headers=range_header, 
+                            allow_redirects=True, 
+                            ssl=ssl_config["ssl"],
+                            proxy=proxy_settings['proxy']
+                        ) as resp:
                             if resp.status in (200, 206):
                                 content_length = resp.headers.get("Content-Length")
                                 content_range = resp.headers.get("Content-Range", "")
@@ -625,9 +651,14 @@ class MultiThreadDownloader:
         return 0, False
 
     def _get_temp_folder(self, filepath: Path) -> Path:
-        """获取临时文件夹路径，如果存在重名则添加后缀"""
+        """获取临时文件夹路径，统一放在 .hanabi_temp 总文件夹下"""
+        # 创建统一的临时文件夹根目录
+        temp_root = filepath.parent / ".hanabi_temp"
+        temp_root.mkdir(parents=True, exist_ok=True)
+        
+        # 使用文件名作为子文件夹名
         base_name = filepath.stem  # 文件名（不含扩展名）
-        temp_folder = filepath.parent / f"{base_name}_temp"
+        temp_folder = temp_root / base_name
         
         # 处理重名情况
         counter = 2
@@ -638,7 +669,7 @@ class MultiThreadDownloader:
                 # 如果包含分段文件，说明是之前的下载，可以复用
                 break
             # 否则添加后缀
-            temp_folder = filepath.parent / f"{base_name}_temp_{counter}"
+            temp_folder = temp_root / f"{base_name}_{counter}"
             counter += 1
         
         return temp_folder
@@ -647,17 +678,37 @@ class MultiThreadDownloader:
         """清理所有相关的临时文件夹（包括带后缀的）"""
         base_name = filepath.stem
         parent_dir = filepath.parent
+        temp_root = parent_dir / ".hanabi_temp"
         
-        # 查找所有相关的临时文件夹
+        # 如果统一临时文件夹不存在，尝试清理旧格式的临时文件夹
+        if not temp_root.exists():
+            # 兼容旧版本：清理旧格式的临时文件夹
+            import shutil
+            patterns = [
+                f"{base_name}_temp",
+                f"{base_name}_temp_*"
+            ]
+            
+            for pattern in patterns:
+                for temp_folder in parent_dir.glob(pattern):
+                    if temp_folder.is_dir():
+                        try:
+                            shutil.rmtree(temp_folder, ignore_errors=True)
+                            logger.info(f"已删除旧格式临时文件夹: {temp_folder.name}")
+                        except Exception as e:
+                            logger.error(f"删除旧格式临时文件夹失败: {e}")
+            return
+        
+        # 清理新格式：删除 .hanabi_temp 下的相关子文件夹
         import shutil
         patterns = [
-            f"{base_name}_temp",
-            f"{base_name}_temp_*"
+            base_name,
+            f"{base_name}_*"
         ]
         
         cleaned_count = 0
         for pattern in patterns:
-            for temp_folder in parent_dir.glob(pattern):
+            for temp_folder in temp_root.glob(pattern):
                 if temp_folder.is_dir():
                     try:
                         shutil.rmtree(temp_folder, ignore_errors=True)
@@ -670,6 +721,48 @@ class MultiThreadDownloader:
             logger.info(f"共清理了 {cleaned_count} 个临时文件夹")
         
         return cleaned_count
+    
+    def cleanup_all_temp_files(self) -> dict:
+        """清理下载目录中的所有临时文件"""
+        import shutil
+        
+        temp_root = self.downloadDir / ".hanabi_temp"
+        result = {
+            'success': False,
+            'cleaned_folders': 0,
+            'cleaned_size': 0,
+            'error': None
+        }
+        
+        try:
+            if not temp_root.exists():
+                result['success'] = True
+                result['error'] = '没有找到临时文件夹'
+                return result
+            
+            # 计算临时文件夹大小
+            total_size = 0
+            folder_count = 0
+            for item in temp_root.iterdir():
+                if item.is_dir():
+                    folder_count += 1
+                    for file in item.rglob('*'):
+                        if file.is_file():
+                            total_size += file.stat().st_size
+            
+            # 删除整个临时文件夹
+            shutil.rmtree(temp_root, ignore_errors=False)
+            
+            result['success'] = True
+            result['cleaned_folders'] = folder_count
+            result['cleaned_size'] = total_size
+            logger.info(f"已清理所有临时文件: {folder_count} 个文件夹, {total_size / (1024*1024):.2f} MB")
+            
+        except Exception as e:
+            result['error'] = str(e)
+            logger.error(f"清理临时文件失败: {e}")
+        
+        return result
 
     async def _download_segment(self, semaphore: asyncio.Semaphore, session: aiohttp.ClientSession, taskId: str, segment: Segment, headers: Dict, filepath: Path):
         """
@@ -755,7 +848,14 @@ class MultiThreadDownloader:
                             ssl_ctx.verify_mode = ssl.CERT_NONE
 
                         # 发起请求
-                        async with session.get(t.url, headers=range_header, allow_redirects=True, ssl=ssl_ctx) as resp:
+                        proxy_settings = self._get_proxy_settings()
+                        async with session.get(
+                            t.url, 
+                            headers=range_header, 
+                            allow_redirects=True, 
+                            ssl=ssl_ctx,
+                            proxy=proxy_settings['proxy']
+                        ) as resp:
                             if resp.status not in (200, 206):
                                 raise Exception(f"HTTP {resp.status}")
                             
@@ -1136,7 +1236,14 @@ class MultiThreadDownloader:
                 # 不再使用慢启动，直接使用目标并发数
                 semaphore = asyncio.Semaphore(optimal_threads)
                 
-                async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
+                # 获取代理设置
+                proxy_settings = self._get_proxy_settings()
+                
+                async with aiohttp.ClientSession(
+                    timeout=timeout, 
+                    connector=connector,
+                    trust_env=proxy_settings['trust_env']
+                ) as session:
                     # 并发下载所有分段
                     download_tasks = []
                     for segment in segments:
@@ -1529,8 +1636,20 @@ class MultiThreadDownloader:
                     connector_kwargs["ssl"] = ssl_context
                 
                 connector = aiohttp.TCPConnector(**connector_kwargs)
-                async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
-                    async with session.get(t.url, headers=headers, allow_redirects=True, ssl=ssl_config["ssl"]) as resp:
+                proxy_settings = self._get_proxy_settings()
+                
+                async with aiohttp.ClientSession(
+                    timeout=timeout, 
+                    connector=connector,
+                    trust_env=proxy_settings['trust_env']
+                ) as session:
+                    async with session.get(
+                        t.url, 
+                        headers=headers, 
+                        allow_redirects=True, 
+                        ssl=ssl_config["ssl"],
+                        proxy=proxy_settings['proxy']
+                    ) as resp:
                         if resp.status not in (200, 206):
                             raise Exception(f"HTTP {resp.status}")
                         
@@ -1637,3 +1756,234 @@ class MultiThreadDownloader:
                 else:
                     logger.error(f"[单线程下载失败] 文件: {t.filename}, 原因: {e}")
                     raise
+
+    async def retry_failed_segments(self, taskId: str) -> bool:
+        """
+        重试失败的分段
+        
+        Args:
+            taskId: 任务ID
+            
+        Returns:
+            bool: 是否成功启动重试
+        """
+        try:
+            task = self.tasks.get(taskId)
+            if not task:
+                logger.error(f"任务不存在: {taskId}")
+                return False
+            
+            segments = self.segments.get(taskId, [])
+            if not segments:
+                logger.error(f"任务 {taskId} 没有分段信息")
+                return False
+            
+            # 查找失败的分段
+            failed_segments = [seg for seg in segments if seg.status == "failed"]
+            if not failed_segments:
+                logger.info(f"任务 {taskId} 没有失败的分段")
+                return True
+            
+            logger.info(f"开始重试任务 {taskId} 的 {len(failed_segments)} 个失败分段")
+            
+            # 重置失败分段的状态
+            for segment in failed_segments:
+                segment.status = "pending"
+                segment.retryCount += 1
+                logger.info(f"重置分段 {segment.index} 状态为 pending，重试次数: {segment.retryCount}")
+            
+            # 如果任务状态是失败，改为下载中
+            if task.status == TaskStatus.FAILED:
+                task.status = TaskStatus.DOWNLOADING
+                logger.info(f"任务 {taskId} 状态从失败改为下载中")
+            
+            # 启动重试下载
+            asyncio.run_coroutine_threadsafe(self._run_download(taskId), self.loop)
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"重试失败分段时出错: {e}")
+            return False
+
+    async def retry_segment(self, taskId: str, segment_index: int) -> bool:
+        """
+        重试特定分段
+        
+        Args:
+            taskId: 任务ID
+            segment_index: 分段索引
+            
+        Returns:
+            bool: 是否成功启动重试
+        """
+        try:
+            task = self.tasks.get(taskId)
+            if not task:
+                logger.error(f"任务不存在: {taskId}")
+                return False
+            
+            segments = self.segments.get(taskId, [])
+            if not segments:
+                logger.error(f"任务 {taskId} 没有分段信息")
+                return False
+            
+            # 查找指定的分段
+            target_segment = None
+            for segment in segments:
+                if segment.index == segment_index:
+                    target_segment = segment
+                    break
+            
+            if not target_segment:
+                logger.error(f"任务 {taskId} 中找不到分段 {segment_index}")
+                return False
+            
+            if target_segment.status not in ["failed", "paused"]:
+                logger.warning(f"分段 {segment_index} 状态为 {target_segment.status}，无需重试")
+                return True
+            
+            logger.info(f"开始重试任务 {taskId} 的分段 {segment_index}")
+            
+            # 重置分段状态
+            target_segment.status = "pending"
+            target_segment.retryCount += 1
+            logger.info(f"重置分段 {segment_index} 状态为 pending，重试次数: {target_segment.retryCount}")
+            
+            # 如果任务状态是失败，改为下载中
+            if task.status == TaskStatus.FAILED:
+                task.status = TaskStatus.DOWNLOADING
+                logger.info(f"任务 {taskId} 状态从失败改为下载中")
+            
+            # 启动重试下载
+            asyncio.run_coroutine_threadsafe(self._run_download(taskId), self.loop)
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"重试分段时出错: {e}")
+            return False
+
+    async def test_proxy_connection(self, proxy_type: str, host: str, port: int, username: str = None, password: str = None) -> bool:
+        """
+        测试代理连接
+        
+        Args:
+            proxy_type: 代理类型 ('system', 'http' 或 'socks5')
+            host: 代理服务器地址 (系统代理时可以为空或'system')
+            port: 代理服务器端口 (系统代理时可以为0)
+            username: 用户名（可选）
+            password: 密码（可选）
+            
+        Returns:
+            bool: 连接是否成功
+        """
+        try:
+            import aiohttp
+            
+            logger.info(f"测试代理连接: {proxy_type}")
+            
+            # 系统代理
+            if proxy_type.lower() == 'system':
+                logger.info("测试系统代理设置")
+                # 使用系统代理设置
+                connector = aiohttp.TCPConnector(use_dns_cache=False)
+                timeout = aiohttp.ClientTimeout(total=10, connect=5)
+                
+                async with aiohttp.ClientSession(
+                    connector=connector,
+                    timeout=timeout,
+                    trust_env=True  # 使用环境变量中的代理设置
+                ) as session:
+                    test_url = "http://httpbin.org/ip"
+                    async with session.get(test_url) as response:
+                        if response.status == 200:
+                            result = await response.json()
+                            logger.info(f"系统代理测试成功，IP: {result.get('origin', 'unknown')}")
+                            return True
+                logger.warning("系统代理测试失败")
+                return False
+            
+            # 手动配置的代理
+            if username and password:
+                proxy_url = f"{proxy_type}://{username}:{password}@{host}:{port}"
+            else:
+                proxy_url = f"{proxy_type}://{host}:{port}"
+            
+            logger.info(f"测试手动代理: {proxy_type}://{host}:{port}")
+            
+            # 创建代理连接器
+            if proxy_type.lower() == 'http':
+                connector = aiohttp.TCPConnector()
+            else:
+                # SOCKS5 需要额外的库支持
+                try:
+                    import aiohttp_socks
+                    connector = aiohttp_socks.ProxyConnector.from_url(proxy_url)
+                except ImportError:
+                    logger.error("SOCKS5 代理需要安装 aiohttp-socks 库")
+                    return False
+            
+            # 测试连接
+            timeout = aiohttp.ClientTimeout(total=10, connect=5)
+            async with aiohttp.ClientSession(
+                connector=connector,
+                timeout=timeout
+            ) as session:
+                # 使用一个简单的HTTP请求测试代理
+                test_url = "http://httpbin.org/ip"
+                if proxy_type.lower() == 'http':
+                    async with session.get(test_url, proxy=proxy_url) as response:
+                        if response.status == 200:
+                            result = await response.json()
+                            logger.info(f"代理测试成功，IP: {result.get('origin', 'unknown')}")
+                            return True
+                else:
+                    # SOCKS5 代理
+                    async with session.get(test_url) as response:
+                        if response.status == 200:
+                            result = await response.json()
+                            logger.info(f"SOCKS5代理测试成功，IP: {result.get('origin', 'unknown')}")
+                            return True
+                            
+            return False
+            
+        except Exception as e:
+            logger.error(f"代理连接测试失败: {e}")
+            return False
+
+    def _get_proxy_settings(self) -> dict:
+        """
+        获取代理设置
+        
+        Returns:
+            dict: 包含代理配置的字典
+        """
+        if not self.proxy_config.get('enabled', False):
+            return {'proxy': None, 'trust_env': False}
+        
+        proxy_type = self.proxy_config.get('type', 'system')
+        
+        if proxy_type == 'system':
+            # 使用系统代理
+            return {'proxy': None, 'trust_env': True}
+        
+        # 手动配置的代理
+        host = self.proxy_config.get('host', '')
+        port = self.proxy_config.get('port', 8080)
+        
+        if not host:
+            return {'proxy': None, 'trust_env': False}
+        
+        # 构建代理URL
+        if self.proxy_config.get('requires_auth', False):
+            username = self.proxy_config.get('username', '')
+            password = self.proxy_config.get('password', '')
+            if username and password:
+                proxy_url = f"{proxy_type}://{username}:{password}@{host}:{port}"
+            else:
+                proxy_url = f"{proxy_type}://{host}:{port}"
+        else:
+            proxy_url = f"{proxy_type}://{host}:{port}"
+        
+        return {'proxy': proxy_url, 'trust_env': False}
