@@ -20,6 +20,7 @@ import 'widgets/settings_page.dart';
 import 'widgets/about_page.dart';
 import 'widgets/debug/log_page.dart';
 import 'widgets/debug/status_page.dart';
+import 'widgets/debug/web_check_page.dart';
 
 class NavigationItem {
   final IconData icon;
@@ -85,6 +86,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         icon: FluentIcons.health,
         title: '状态',
         body: const StatusPage(),
+      ));
+    }
+    
+    if (devMode.showWebCheckPage) {
+      bottomItems.add(NavigationItem(
+        icon: FluentIcons.globe,
+        title: 'Web检测',
+        body: const WebCheckPage(),
       ));
     }
     
@@ -230,6 +239,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       // 如果窗口最大化，不保存大小
       if (isMaximized) return;
       
+      // 验证窗口大小是否合理（防止保存异常值）
+      // 最小尺寸 600x400，最大尺寸 4096x2160
+      // 窗口最小化时，size 可能会变成很小的值（如 160x28），需要过滤掉
+      if (currentWidth < 600 || currentHeight < 400 || 
+          currentWidth > 4096 || currentHeight > 2160) {
+        AppLoggerService().warning('App', 'Invalid window size detected: ${currentWidth.toInt()}x${currentHeight.toInt()}, skipping save');
+        return;
+      }
+      
       // 检查大小是否有变化（允许1像素的误差）
       if ((currentWidth - _lastSavedWidth).abs() > 1 || 
           (currentHeight - _lastSavedHeight).abs() > 1) {
@@ -269,7 +287,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     
     // 根据窗口效果调整背景透明度
     final sidebarOpacity = isTransparent ? 0.2 : 0.65;
-    final contentBgOpacity = isTransparent ? 0.3 : 0.85;
     
     // 智能索引管理：根据页面标题找到正确的索引
     _updateCurrentIndex(navItems);
@@ -291,20 +308,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   _buildSidebar(context, navItems, sidebarOpacity),
                   // 主内容区
                   Expanded(
-                    child: Container(
-                      color: AppTheme.bgSolid.withValues(alpha: sidebarOpacity),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: AppTheme.bgSolid.withValues(alpha: contentBgOpacity),
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(12),
-                          ),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: kernelService.isRunning
-                            ? navItems[_currentIndex].body
-                            : _buildLoadingIndicator(),
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(12),
                       ),
+                      child: _buildPageContent(kernelService, navItems),
                     ),
                   ),
                 ],
@@ -316,22 +324,164 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
+  Widget _buildPageContent(KernelService kernelService, List<NavigationItem> navItems) {
+    // 如果内核正在运行，或者当前页面是调试页面（日志、状态、Web检测），直接显示页面
+    final currentPageTitle = navItems[_currentIndex].title;
+    final isDebugPage = currentPageTitle == '日志' || 
+                        currentPageTitle == '状态' || 
+                        currentPageTitle == 'Web检测';
+    
+    if (kernelService.isRunning || isDebugPage) {
+      return navItems[_currentIndex].body;
+    }
+    
+    // 否则显示加载动画
+    return _buildLoadingIndicator();
+  }
+
   Widget _buildLoadingIndicator() {
-    return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ProgressRing(),
-          SizedBox(height: 16),
-          Text(
-            '正在启动下载内核...',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 13,
+    return Consumer<KernelService>(
+      builder: (context, kernelService, child) {
+        final progress = kernelService.startupProgress;
+        final status = kernelService.startupStatus;
+        final percentage = (progress * 100).toInt();
+        
+        return Center(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 450),
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceCard.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(
+                color: AppTheme.borderSubtle.withValues(alpha: 0.5),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const ProgressRing(),
+                const SizedBox(height: 20),
+                const Text(
+                  '正在启动下载内核...',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (status.isNotEmpty)
+                  Text(
+                    status,
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 13,
+                    ),
+                  )
+                else
+                  const Text(
+                    '请稍候，这可能需要几秒钟',
+                    style: TextStyle(
+                      color: AppTheme.textTertiary,
+                      fontSize: 12,
+                    ),
+                  ),
+                const SizedBox(height: 20),
+                // 进度条
+                Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: AppTheme.bgLayer2,
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: FractionallySizedBox(
+                              alignment: Alignment.centerLeft,
+                              widthFactor: progress.clamp(0.0, 1.0),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: AppTheme.accentPrimary,
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: 45,
+                          child: Text(
+                            '$percentage%',
+                            style: const TextStyle(
+                              color: AppTheme.textSecondary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Button(
+                      onPressed: () async {
+                        // 打开日志页面
+                        final devMode = Provider.of<DeveloperModeService>(context, listen: false);
+                        if (!devMode.showLogPage) {
+                          await devMode.setShowLogPage(true);
+                        }
+                        // 等待一帧，让 UI 更新
+                        await Future.delayed(const Duration(milliseconds: 100));
+                        // 切换到日志页面（日志页面通常在索引 2）
+                        if (mounted) {
+                          setState(() {
+                            _currentIndex = 2;  // 下载中(0), 已完成(1), 日志(2)
+                            _currentPageTitle = '日志';
+                          });
+                        }
+                      },
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(FluentIcons.text_document, size: 14),
+                          SizedBox(width: 6),
+                          Text('查看日志'),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    FilledButton(
+                      onPressed: () async {
+                        // 重试启动
+                        final kernelService = Provider.of<KernelService>(context, listen: false);
+                        await kernelService.startKernel();
+                      },
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(FluentIcons.refresh, size: 14),
+                          SizedBox(width: 6),
+                          Text('重试'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -347,68 +497,118 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             decoration: BoxDecoration(
               color: AppTheme.bgSolid.withValues(alpha: opacity),
             ),
-            child: Row(
-          children: [
-            // 左侧：Logo + 标题
-            MoveWindow(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 12),
-                child: Row(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final availableWidth = constraints.maxWidth;
+                final isNarrow = availableWidth < 600; // 窄屏阈值
+                final isVeryNarrow = availableWidth < 400; // 极窄屏阈值
+                
+                return Row(
                   children: [
-                    // Logo
-                    Container(
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(4),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.accentPrimary.withValues(alpha: 0.25),
-                            blurRadius: 12,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: Image.asset(
-                          'assets/logo/logo.png',
-                          width: 20,
-                          height: 20,
-                          fit: BoxFit.cover,
+                    // 左侧：Logo + 标题
+                    MoveWindow(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 12),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Logo
+                            Container(
+                              width: 20,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(4),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.accentPrimary.withValues(alpha: 0.25),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: Image.asset(
+                                  'assets/logo/logo.png',
+                                  width: 20,
+                                  height: 20,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            if (!isVeryNarrow) ...[
+                              const SizedBox(width: 12),
+                              // 应用名称 - 极窄屏时隐藏
+                              Text(
+                                AppConstants.appName,
+                                style: FluentTheme.of(context).typography.caption?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    // 应用名称
-                    Text(
-                      AppConstants.appName,
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
+                    
+                    // 中间：可拖动区域
+                    Expanded(child: MoveWindow()),
+                    
+                    // 右侧：响应式组件布局
+                    _buildResponsiveRightSide(context, isNarrow, isVeryNarrow),
                   ],
-                ),
-              ),
+                );
+              },
             ),
-            
-            // 中间：可拖动区域
-            Expanded(child: MoveWindow()),
-            
-            // 右侧：统计信息 + 新建按钮 + 托盘按钮 + 窗口控制
-            _buildStatsChip(),
-            const SizedBox(width: 12),
-            _buildNewTaskButton(context),
-            const SizedBox(width: 8),
-            _buildAnimatedTrayButton(context),
-            const SizedBox(width: 8),
-            _buildWindowButtons(context),
-          ],
-        ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// 构建响应式右侧组件
+  Widget _buildResponsiveRightSide(BuildContext context, bool isNarrow, bool isVeryNarrow) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 统计信息 - 窄屏时隐藏
+        if (!isNarrow) ...[
+          _buildStatsChip(),
+          const SizedBox(width: 12),
+        ],
+        
+        // 新建按钮 - 极窄屏时使用图标版本
+        if (isVeryNarrow)
+          _buildCompactNewTaskButton(context)
+        else
+          _buildNewTaskButton(context),
+        
+        const SizedBox(width: 8),
+        
+        // 托盘按钮
+        _buildAnimatedTrayButton(context),
+        
+        const SizedBox(width: 8),
+        
+        // 窗口控制按钮
+        _buildWindowButtons(context),
+      ],
+    );
+  }
+
+  /// 紧凑版新建任务按钮（仅图标）
+  Widget _buildCompactNewTaskButton(BuildContext context) {
+    return SizedBox(
+      height: 28,
+      width: 28,
+      child: Button(
+        style: ButtonStyle(
+          padding: WidgetStateProperty.all(EdgeInsets.zero),
+        ),
+        onPressed: () => _showAddDownloadDialog(context),
+        child: const Icon(FluentIcons.add, size: 12),
       ),
     );
   }
@@ -416,7 +616,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   /// 构建底部导航项（简化版本，移除有问题的动画）
   List<Widget> _buildBottomNavItems(BuildContext context, List<NavigationItem> navItems, bool isCompact) {
     final bottomItems = navItems.asMap().entries
-        .where((entry) => ['日志', '状态', '设置', '关于'].contains(entry.value.title))
+        .where((entry) => ['日志', '状态', 'Web检测', '设置', '关于'].contains(entry.value.title))
         .toList();
     
     return bottomItems.map((entry) {
@@ -507,7 +707,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               
               // 主导航项
               ...navItems.asMap().entries
-                  .where((entry) => !['日志', '状态', '设置', '关于'].contains(entry.value.title))
+                  .where((entry) => !['日志', '状态', 'Web检测', '设置', '关于'].contains(entry.value.title))
                   .map((entry) => _buildNavItemWidget(context, entry.key, entry.value, isCompact)),
               
               const Spacer(),
