@@ -155,6 +155,7 @@ class ClientConfigService extends ChangeNotifier {
         'remember_size': false, // 默认不记忆窗口大小，使用默认值
         'default_width': 889.0,  // 默认窗口宽度
         'default_height': 586.0, // 默认窗口高度
+        'scale_factor': 1.0, // UI缩放比例，1.0为100%
       },
       'sidebar': {
         'default_expanded': true, // 默认侧边栏展开
@@ -366,6 +367,54 @@ class ClientConfigService extends ChangeNotifier {
 
   Future<void> setCloseButtonBehavior(String behavior) async {
     await _setToConfig(_appConfig, _appConfigPath, 'behavior.close_button_behavior', behavior);
+  }
+
+  double getWindowScaleFactor() {
+    return _getFromConfig<double>(_uiConfig, 'window.scale_factor', defaultValue: 1.0) ?? 1.0;
+  }
+
+  Future<void> setWindowScaleFactor(double scale) async {
+    await _setToConfig(_uiConfig, _uiConfigPath, 'window.scale_factor', scale);
+  }
+
+  /// 根据屏幕分辨率自动设置缩放比例（仅在首次启动或缩放为默认值时）
+  Future<void> autoSetScaleFactorByResolution(double screenWidth, double screenHeight) async {
+    // 只有当前缩放为默认值 1.0 时才自动设置
+    final currentScale = getWindowScaleFactor();
+    if (currentScale != 1.0) {
+      _logger.info('App', '缩放已手动设置为 ${(currentScale * 100).toInt()}%，跳过自动设置');
+      return;
+    }
+
+    // 根据屏幕分辨率计算推荐的缩放比例
+    double recommendedScale = 1.0;
+    
+    // 计算屏幕的像素密度（以 1920x1080 为基准）
+    final pixelCount = screenWidth * screenHeight;
+    
+    if (pixelCount >= 3840 * 2160) {
+      // 4K 及以上 (8,294,400 像素)
+      recommendedScale = 1.25;
+      _logger.info('App', '检测到 4K 或更高分辨率屏幕 (${screenWidth.toInt()}x${screenHeight.toInt()})，推荐缩放: 125%');
+    } else if (pixelCount >= 2560 * 1440) {
+      // 2K (3,686,400 像素)
+      recommendedScale = 1.15;
+      _logger.info('App', '检测到 2K 分辨率屏幕 (${screenWidth.toInt()}x${screenHeight.toInt()})，推荐缩放: 115%');
+    } else if (pixelCount >= 1920 * 1080) {
+      // FHD (2,073,600 像素)
+      recommendedScale = 1.0;
+      _logger.info('App', '检测到 FHD 分辨率屏幕 (${screenWidth.toInt()}x${screenHeight.toInt()})，使用默认缩放: 100%');
+    } else {
+      // 低于 FHD
+      recommendedScale = 1.0;
+      _logger.info('App', '检测到标准分辨率屏幕 (${screenWidth.toInt()}x${screenHeight.toInt()})，使用默认缩放: 100%');
+    }
+
+    // 应用推荐的缩放比例
+    if (recommendedScale != currentScale) {
+      await setWindowScaleFactor(recommendedScale);
+      _logger.info('App', '已自动设置 UI 缩放为 ${(recommendedScale * 100).toInt()}%');
+    }
   }
 
   // ========== 应用配置 ==========

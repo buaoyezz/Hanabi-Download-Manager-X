@@ -392,6 +392,135 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         ),
         const SizedBox(height: 24),
         
+        // UI 缩放设置
+        _buildSection(
+          context,
+          title: 'UI 缩放',
+          icon: FluentIcons.font_size,
+          children: [
+            _buildSettingItem(
+              context,
+              title: '界面缩放比例',
+              subtitle: '调整整个应用的UI缩放，适配高分辨率屏幕 (50%-200%)',
+              trailing: SizedBox(
+                width: 250,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Slider(
+                        value: clientConfig.getWindowScaleFactor(),
+                        min: 0.5,
+                        max: 2.0,
+                        divisions: 30,
+                        label: '${(clientConfig.getWindowScaleFactor() * 100).toInt()}%',
+                        onChanged: (value) async {
+                          await clientConfig.setWindowScaleFactor(value);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: 50,
+                      child: Text(
+                        '${(clientConfig.getWindowScaleFactor() * 100).toInt()}%',
+                        style: FluentTheme.of(context).typography.bodyStrong,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: Button(
+                    onPressed: () async {
+                      await clientConfig.setWindowScaleFactor(1.0);
+                      if (mounted) {
+                        displayInfoBar(
+                          context,
+                          builder: (context, close) => const InfoBar(
+                            title: Text('已重置'),
+                            content: Text('UI缩放已重置为100%'),
+                            severity: InfoBarSeverity.info,
+                          ),
+                          duration: const Duration(seconds: 2),
+                        );
+                      }
+                    },
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(FluentIcons.refresh, size: 14),
+                        SizedBox(width: 6),
+                        Text('重置为100%'),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Button(
+                    onPressed: () async {
+                      await clientConfig.setWindowScaleFactor(1.25);
+                      if (mounted) {
+                        displayInfoBar(
+                          context,
+                          builder: (context, close) => const InfoBar(
+                            title: Text('已应用'),
+                            content: Text('UI缩放已设为125% (推荐4K屏幕)'),
+                            severity: InfoBarSeverity.success,
+                          ),
+                          duration: const Duration(seconds: 2),
+                        );
+                      }
+                    },
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(FluentIcons.full_screen, size: 14),
+                        SizedBox(width: 6),
+                        Text('4K推荐 (125%)'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: FluentTheme.of(context).accentColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: FluentTheme.of(context).accentColor.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    FluentIcons.info,
+                    size: 16,
+                    color: FluentTheme.of(context).accentColor,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '调整此设置可以让应用在高分辨率屏幕上显示更清晰。4K屏幕推荐125%-150%',
+                      style: FluentTheme.of(context).typography.caption?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        
         // 字体设置
         _buildSection(
           context,

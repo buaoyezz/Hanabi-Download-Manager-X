@@ -79,7 +79,7 @@ class AutoStartService {
     }
   }
 
-  /// 验证并修复自启动注册（如果路径不正确）
+  /// verify auto-start registration and fix if necessary
   Future<bool> verifyAndFixAutoStart() async {
     if (!Platform.isWindows) return true;
 
@@ -121,7 +121,8 @@ class AutoStartService {
     try {
       String exePath = Platform.resolvedExecutable;
       
-      // 添加 --autostart 参数，这样启动时会隐藏窗口
+      // 添加 --autostart 参数，让其支持特殊的最小化启动，不影响其他启动方式
+      // 准备新增一个彩蛋参数（rainbow egg xD）
       String command = '"$exePath" --autostart';
       
       final result = await Process.run(

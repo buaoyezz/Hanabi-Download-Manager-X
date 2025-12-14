@@ -1,6 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart';
 
-/// Hanabi Download Manager 主题配置
+/// Hanabi Download Manager X 主题配置
+/// Dev By ZZBuAoYe
 /// 基于 Fluent Design 2 设计语言，优化 Mica 效果和一体化视觉
 class AppTheme {
   // ============ 核心颜色系统 ============
