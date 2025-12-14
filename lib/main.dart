@@ -14,6 +14,7 @@ import 'services/app_logger_service.dart';
 import 'services/network_status_service.dart';
 import 'services/developer_mode_service.dart';
 import 'services/client_config_service.dart';
+import 'services/quick_path_service.dart';
 import 'services/font_service.dart';
 import 'services/update_service.dart';
 import 'services/window_effect_service.dart';
@@ -63,12 +64,14 @@ void main(List<String> args) async {
   final networkStatus = NetworkStatusService();
   final developerMode = DeveloperModeService();
   final clientConfig = ClientConfigService();
+  final quickPathService = QuickPathService();
   final fontService = FontService();
   final updateService = UpdateService(logger: appLogger);
   final windowEffectService = WindowEffectService();
   
   appLogger.info('App', 'Application starting...');
   await clientConfig.initialize();
+  await quickPathService.initialize(clientConfig.configDir);
   networkStatus.startMonitoring();
   await developerMode.loadSettings();
   await fontService.loadFont();
@@ -94,6 +97,7 @@ void main(List<String> args) async {
         ChangeNotifierProvider.value(value: networkStatus),
         ChangeNotifierProvider.value(value: developerMode),
         ChangeNotifierProvider.value(value: clientConfig),
+        ChangeNotifierProvider.value(value: quickPathService),
         ChangeNotifierProvider.value(value: fontService),
         ChangeNotifierProvider.value(value: updateService),
         ChangeNotifierProvider.value(value: windowEffectService),
@@ -115,7 +119,10 @@ void main(List<String> args) async {
       final primaryDisplay = await screenRetriever.getPrimaryDisplay();
       screenWidth = primaryDisplay.size.width;
       screenHeight = primaryDisplay.size.height;
-      debugPrint('Screen size: ${screenWidth}x${screenHeight}');
+      debugPrint('Screen size: $screenWidth x $screenHeight');
+      
+      // 根据屏幕分辨率自动设置缩放比例
+      await clientConfig.autoSetScaleFactorByResolution(screenWidth, screenHeight);
     } catch (e) {
       debugPrint('Failed to get screen size: $e');
     }
@@ -220,7 +227,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initSystemTray();
-      _initKernel();
+      _initKernel();  // 异步启动，不阻塞 UI
       _initDownloadListener();
     });
   }
@@ -245,17 +252,55 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   Future<void> _initKernel() async {
     final kernelService = context.read<KernelService>();
-    final success = await kernelService.startKernel();
+    final appLogger = AppLoggerService();
     
-    if (!success && mounted) {
-      final messenger = ScaffoldMessenger.maybeOf(context);
-      if (messenger != null) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Failed to start download kernel'),
-            backgroundColor: Colors.red,
-          ),
-        );
+    try {
+      // 设置30秒超时
+      final success = await kernelService.startKernel().timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          appLogger.error('App', 'Kernel startup timeout after 30 seconds');
+          return false;
+        },
+      );
+      
+      if (!success && mounted) {
+        appLogger.error('App', 'Failed to start download kernel');
+        final messenger = ScaffoldMessenger.maybeOf(context);
+        if (messenger != null) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: const Text('下载内核启动失败，请查看日志了解详情'),
+              backgroundColor: Colors.red,
+              action: SnackBarAction(
+                label: '查看日志',
+                textColor: Colors.white,
+                onPressed: () async {
+                  // 打开日志页面
+                  final devMode = Provider.of<DeveloperModeService>(context, listen: false);
+                  if (!devMode.showLogPage) {
+                    await devMode.setShowLogPage(true);
+                  }
+                },
+              ),
+            ),
+          );
+        }
+      } else if (success) {
+        appLogger.info('App', 'Download kernel started successfully');
+      }
+    } catch (e) {
+      appLogger.error('App', 'Error starting kernel: $e');
+      if (mounted) {
+        final messenger = ScaffoldMessenger.maybeOf(context);
+        if (messenger != null) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('启动内核时发生错误: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -278,9 +323,17 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       if (config.getWindowRememberSize() && !win.isMaximized) {
         final currentWidth = win.size.width;
         final currentHeight = win.size.height;
-        debugPrint('Saving window size: $currentWidth x $currentHeight');
-        await config.setWindowWidth(currentWidth);
-        await config.setWindowHeight(currentHeight);
+        
+        // 验证窗口大小是否合理（防止保存异常值）
+        // 窗口最小化时，size 可能会变成很小的值（如 160x28），需要过滤掉
+        if (currentWidth >= 600 && currentHeight >= 400 && 
+            currentWidth <= 4096 && currentHeight <= 2160) {
+          debugPrint('Saving window size: $currentWidth x $currentHeight');
+          await config.setWindowWidth(currentWidth);
+          await config.setWindowHeight(currentHeight);
+        } else {
+          debugPrint('Invalid window size, not saving: $currentWidth x $currentHeight');
+        }
       }
     } catch (e) {
       debugPrint('Failed to save window size: $e');
@@ -318,10 +371,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<FontService>(
-      builder: (context, fontService, child) {
+    return Consumer2<FontService, ClientConfigService>(
+      builder: (context, fontService, clientConfig, child) {
         final baseTheme = AppTheme.fluentDarkTheme;
         final typography = baseTheme.typography;
+        final scaleFactor = clientConfig.getWindowScaleFactor();
         
         return fluent.FluentApp(
           navigatorKey: navigatorKey,
@@ -339,6 +393,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               display: typography.display?.copyWith(fontFamily: fontService.fontFamily),
             ),
           ),
+          builder: (context, child) {
+            return MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: TextScaler.linear(scaleFactor),
+              ),
+              child: child!,
+            );
+          },
           home: const HomeScreen(),
         );
       },
