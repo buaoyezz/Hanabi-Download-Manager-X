@@ -13,45 +13,48 @@ class CompletedList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<IntegratedDownloadService>(
-      builder: (context, downloadService, child) {
-        final completedTasks = downloadService.tasks
-            .where((t) => t.status == DownloadStatus.completed)
-            .toList();
+    return ColoredBox(
+      color: Colors.transparent,
+      child: Consumer<IntegratedDownloadService>(
+        builder: (context, downloadService, child) {
+          final completedTasks = downloadService.tasks
+              .where((t) => t.status == DownloadStatus.completed)
+              .toList();
 
-        if (completedTasks.isEmpty) {
-          return _buildEmptyState(context);
-        }
+          if (completedTasks.isEmpty) {
+            return _buildEmptyState(context);
+          }
 
-        return Column(
-          children: [
-            _buildHeader(context, completedTasks.length),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(20),
-                itemCount: completedTasks.length,
-                itemBuilder: (context, index) {
-                  final task = completedTasks[index];
-                  return TweenAnimationBuilder<double>(
-                    duration: Duration(milliseconds: 300 + (index * 80)),
-                    tween: Tween(begin: 0.0, end: 1.0),
-                    curve: Curves.easeOutCubic,
-                    builder: (context, value, child) {
-                      return Transform.translate(
-                        offset: Offset(0, 20 * (1 - value)),
-                        child: Opacity(
-                          opacity: value,
-                          child: _CompletedTaskCard(task: task),
-                        ),
-                      );
-                    },
-                  );
-                },
+          return Column(
+            children: [
+              _buildHeader(context, completedTasks.length),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(20),
+                  itemCount: completedTasks.length,
+                  itemBuilder: (context, index) {
+                    final task = completedTasks[index];
+                    return TweenAnimationBuilder<double>(
+                      duration: Duration(milliseconds: 300 + (index * 80)),
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, value, child) {
+                        return Transform.translate(
+                          offset: Offset(0, 20 * (1 - value)),
+                          child: Opacity(
+                            opacity: value,
+                            child: _CompletedTaskCard(task: task),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
-        );
-      },
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -125,14 +128,9 @@ class CompletedList extends StatelessWidget {
 
   Widget _buildEmptyState(BuildContext context) {
     return Center(
-      child: AnimatedCard(
-        enableScaleAnimation: false,
-        enableHoverAnimation: false,
-        backgroundColor: Colors.transparent,
-        borderColor: Colors.transparent,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
             TweenAnimationBuilder<double>(
               duration: const Duration(milliseconds: 1200),
               tween: Tween(begin: 0.0, end: 1.0),
@@ -204,7 +202,6 @@ class CompletedList extends StatelessWidget {
               },
             ),
           ],
-        ),
       ),
     );
   }

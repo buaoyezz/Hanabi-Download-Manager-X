@@ -35,6 +35,29 @@ class SegmentInfo {
   bool get isCompleted => status == 'completed';
   bool get isFailed => status == 'failed';
   bool get isDownloading => status == 'downloading';
+  bool get isPending => status == 'pending';
+  bool get isPaused => status == 'paused';
+  
+  /// 是否可以重试（失败或暂停状态）
+  bool get canRetry => isFailed || isPaused;
+  
+  /// 获取状态显示文本
+  String get statusText {
+    switch (status) {
+      case 'pending':
+        return '等待';
+      case 'downloading':
+        return '下载中';
+      case 'completed':
+        return '完成';
+      case 'failed':
+        return '失败';
+      case 'paused':
+        return '暂停';
+      default:
+        return '未知';
+    }
+  }
 }
 
 class DownloadTask {
@@ -149,4 +172,22 @@ class DownloadTask {
     if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
   }
+  
+  /// 获取失败的分段列表
+  List<SegmentInfo> get failedSegments {
+    if (segments == null) return [];
+    return segments!.where((s) => s.isFailed).toList();
+  }
+  
+  /// 是否有失败的分段
+  bool get hasFailedSegments => failedSegments.isNotEmpty;
+  
+  /// 获取可重试的分段列表
+  List<SegmentInfo> get retryableSegments {
+    if (segments == null) return [];
+    return segments!.where((s) => s.canRetry).toList();
+  }
+  
+  /// 是否有可重试的分段
+  bool get hasRetryableSegments => retryableSegments.isNotEmpty;
 }

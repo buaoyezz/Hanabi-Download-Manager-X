@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/integrated_download_service.dart';
@@ -13,15 +14,17 @@ class DownloadList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<IntegratedDownloadService>(
-      builder: (context, downloadService, child) {
-        final activeTasks = downloadService.tasks
-            .where((t) => t.status != DownloadStatus.completed)
-            .toList();
+    return ColoredBox(
+      color: Colors.transparent,
+      child: Consumer<IntegratedDownloadService>(
+        builder: (context, downloadService, child) {
+          final activeTasks = downloadService.tasks
+              .where((t) => t.status != DownloadStatus.completed)
+              .toList();
 
-        if (activeTasks.isEmpty) {
-          return _buildEmptyState(context);
-        }
+          if (activeTasks.isEmpty) {
+            return _buildEmptyState(context);
+          }
 
         // 计算总体统计
         final downloadingTasks = activeTasks.where((t) => t.status == DownloadStatus.downloading).toList();
@@ -59,7 +62,8 @@ class DownloadList extends StatelessWidget {
             ),
           ],
         );
-      },
+        },
+      ),
     );
   }
   
@@ -68,10 +72,10 @@ class DownloadList extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: AppTheme.bgLayer2,
+        color: AppTheme.bgLayer2.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(
-          color: AppTheme.borderSubtle,
+          color: AppTheme.borderSubtle.withValues(alpha: 0.5),
           width: 1,
         ),
       ),
@@ -162,14 +166,9 @@ class DownloadList extends StatelessWidget {
 
   Widget _buildEmptyState(BuildContext context) {
     return Center(
-      child: AnimatedCard(
-        enableScaleAnimation: false,
-        enableHoverAnimation: false,
-        backgroundColor: Colors.transparent,
-        borderColor: Colors.transparent,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
             TweenAnimationBuilder<double>(
               duration: const Duration(milliseconds: 1200),
               tween: Tween(begin: 0.0, end: 1.0),
@@ -241,7 +240,6 @@ class DownloadList extends StatelessWidget {
               },
             ),
           ],
-        ),
       ),
     );
   }
@@ -348,19 +346,54 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
           overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 4),
-        Text(
-          widget.task.url,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: FluentTheme.of(context).typography.caption?.copyWith(
-            color: AppTheme.textTertiary,
-            fontSize: 11,
-          ),
-        ),
+        _buildUrlWithCopy(),
         const SizedBox(height: 6),
         _buildStatusChip(),
       ],
     );
+  }
+
+  Widget _buildUrlWithCopy() {
+    return _HoverableUrl(
+      url: widget.task.url,
+      onTap: _copyUrlToClipboard,
+    );
+  }
+
+  Future<void> _copyUrlToClipboard() async {
+    try {
+      await Clipboard.setData(ClipboardData(text: widget.task.url));
+      if (mounted) {
+        // 显示复制成功的提示
+        displayInfoBar(
+          context,
+          builder: (context, close) => InfoBar(
+            title: const Text('复制成功'),
+            content: const Text('链接已复制到剪贴板'),
+            severity: InfoBarSeverity.success,
+            action: IconButton(
+              icon: const Icon(FluentIcons.clear),
+              onPressed: close,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        displayInfoBar(
+          context,
+          builder: (context, close) => InfoBar(
+            title: const Text('复制失败'),
+            content: Text('无法复制链接: $e'),
+            severity: InfoBarSeverity.error,
+            action: IconButton(
+              icon: const Icon(FluentIcons.clear),
+              onPressed: close,
+            ),
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildStatusChip() {
@@ -388,6 +421,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
 
   Widget _buildActionButtons(IntegratedDownloadService service) {
     final isMerging = widget.task.status == DownloadStatus.merging;
+    final hasRetryableSegments = widget.task.hasRetryableSegments;
+    final isFailed = widget.task.status == DownloadStatus.failed;
     
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -407,7 +442,21 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             onPressed: () => service.pauseTask(widget.task.id),
             tooltip: '暂停',
           ),
-        if (!isMerging) const SizedBox(width: 6),
+        // 添加间距
+        if (!isMerging && (widget.task.status == DownloadStatus.pending ||
+            widget.task.status == DownloadStatus.paused ||
+            widget.task.status == DownloadStatus.downloading))
+          const SizedBox(width: 6),
+        // 重试失败分段按钮 - 显示在删除按钮左边
+        if (!isMerging && (hasRetryableSegments || isFailed)) ...[
+          _ActionButton(
+            icon: FluentIcons.refresh,
+            color: AppTheme.accentLight,
+            onPressed: () => service.retryFailedSegments(widget.task.id),
+            tooltip: hasRetryableSegments ? '重试失败分段' : '重新下载',
+          ),
+          const SizedBox(width: 6),
+        ],
         if (!isMerging)
           _ActionButton(
             icon: FluentIcons.delete,
@@ -622,12 +671,56 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
         ),
         const SizedBox(height: 4),
         // 分段数量提示
-        Text(
-          '${segments.length} 个分段 · $completedCount 完成 · $downloadingCount 下载中',
-          style: FluentTheme.of(context).typography.caption?.copyWith(
-            color: AppTheme.textTertiary,
-            fontSize: 10,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '${segments.length} 个分段 · $completedCount 完成 · $downloadingCount 下载中' +
+                (failedCount > 0 ? ' · $failedCount 失败' : ''),
+                style: FluentTheme.of(context).typography.caption?.copyWith(
+                  color: AppTheme.textTertiary,
+                  fontSize: 10,
+                ),
+              ),
+            ),
+            // 快速重试按钮
+            if (failedCount > 0) ...[
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => context.read<IntegratedDownloadService>().retryFailedSegments(widget.task.id),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentLight.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: AppTheme.accentLight.withValues(alpha: 0.3),
+                      width: 0.5,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        FluentIcons.refresh,
+                        size: 8,
+                        color: AppTheme.accentLight,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        '重试',
+                        style: FluentTheme.of(context).typography.caption?.copyWith(
+                          color: AppTheme.accentLight,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
       ],
     );
@@ -672,6 +765,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
   }
 
   Widget _buildSegmentRow(SegmentInfo segment) {
+    final downloadService = context.read<IntegratedDownloadService>();
+    
     // 根据分段状态选择颜色
     Color statusColor;
     switch (segment.status) {
@@ -726,6 +821,20 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
           ),
         ),
         const SizedBox(width: 8),
+        // 状态文本
+        SizedBox(
+          width: 35,
+          child: Text(
+            segment.statusText,
+            style: FluentTheme.of(context).typography.caption?.copyWith(
+              color: statusColor,
+              fontSize: 9,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        const SizedBox(width: 6),
         SizedBox(
           width: 70,
           child: Text(
@@ -750,6 +859,49 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             textAlign: TextAlign.right,
           ),
         ),
+        // 重试次数显示
+        if (segment.retryCount > 0) ...[
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+            decoration: BoxDecoration(
+              color: AppTheme.statusWarning.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: Text(
+              '重试${segment.retryCount}',
+              style: FluentTheme.of(context).typography.caption?.copyWith(
+                color: AppTheme.statusWarning,
+                fontSize: 8,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+        // 单个分段重试按钮
+        if (segment.canRetry) ...[
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: () => downloadService.retrySegment(widget.task.id, segment.index),
+            child: Container(
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                color: AppTheme.accentLight.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(3),
+                border: Border.all(
+                  color: AppTheme.accentLight.withValues(alpha: 0.3),
+                  width: 0.5,
+                ),
+              ),
+              child: Icon(
+                FluentIcons.refresh,
+                size: 8,
+                color: AppTheme.accentLight,
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -887,6 +1039,10 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
   }
 
   Widget _buildErrorInfo() {
+    final downloadService = context.read<IntegratedDownloadService>();
+    final hasRetryableSegments = widget.task.hasRetryableSegments;
+    final failedCount = widget.task.failedSegments.length;
+    
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -897,38 +1053,111 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
           width: 1,
         ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            FluentIcons.error_badge,
-            size: 16,
-            color: AppTheme.statusError,
+          Row(
+            children: [
+              Icon(
+                FluentIcons.error_badge,
+                size: 16,
+                color: AppTheme.statusError,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '下载失败',
+                      style: FluentTheme.of(context).typography.caption?.copyWith(
+                        color: AppTheme.statusError,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      widget.task.error!,
+                      style: FluentTheme.of(context).typography.caption?.copyWith(
+                        color: AppTheme.statusError.withValues(alpha: 0.8),
+                        fontSize: 11,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '下载失败',
-                  style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: AppTheme.statusError,
-                    fontWeight: FontWeight.w600,
-                  ),
+          // 分段失败信息和重试按钮
+          if (hasRetryableSegments) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.accentLight.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: AppTheme.accentLight.withValues(alpha: 0.2),
+                  width: 1,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  widget.task.error!,
-                  style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: AppTheme.statusError.withValues(alpha: 0.8),
-                    fontSize: 11,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    FluentIcons.info,
+                    size: 12,
+                    color: AppTheme.accentLight,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '$failedCount 个分段失败，可以尝试重新下载',
+                      style: FluentTheme.of(context).typography.caption?.copyWith(
+                        color: AppTheme.accentLight,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => downloadService.retryFailedSegments(widget.task.id),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentLight.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: AppTheme.accentLight.withValues(alpha: 0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            FluentIcons.refresh,
+                            size: 10,
+                            color: AppTheme.accentLight,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '重试',
+                            style: FluentTheme.of(context).typography.caption?.copyWith(
+                              color: AppTheme.accentLight,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -1151,6 +1380,53 @@ class _ActionButtonState extends State<_ActionButton> {
               widget.icon,
               size: 14,
               color: _isHovered ? widget.color : AppTheme.textSecondary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 可悬停的URL组件，支持hover动画
+class _HoverableUrl extends StatefulWidget {
+  final String url;
+  final VoidCallback onTap;
+
+  const _HoverableUrl({
+    required this.url,
+    required this.onTap,
+  });
+
+  @override
+  State<_HoverableUrl> createState() => _HoverableUrlState();
+}
+
+class _HoverableUrlState extends State<_HoverableUrl> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Tooltip(
+          message: '点击复制链接',
+          child: AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 200),
+            style: FluentTheme.of(context).typography.caption?.copyWith(
+              color: AppTheme.textTertiary,
+              fontSize: 11,
+              decoration: _isHovered ? TextDecoration.underline : TextDecoration.none,
+              decorationColor: AppTheme.textTertiary.withValues(alpha: 0.7),
+            ) ?? const TextStyle(),
+            child: Text(
+              widget.url,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ),
