@@ -30,32 +30,32 @@ class Segment:
 class DynamicSegmentConfig:
     """动态分段配置，根据网络状况自动调整"""
     
-    # 最小分段大小 (1MB)
-    MIN_SEGMENT_SIZE = 1 * 1024 * 1024
+    # 最小分段大小 (2MB) - 提升以减少分段数量
+    MIN_SEGMENT_SIZE = 2 * 1024 * 1024
     
-    # 最大分段大小 (50MB)
-    MAX_SEGMENT_SIZE = 50 * 1024 * 1024
+    # 最大分段大小 (100MB) - 提升以适应大文件
+    MAX_SEGMENT_SIZE = 100 * 1024 * 1024
     
-    # 理想分段大小 (5MB) - 平衡速度和稳定性
-    IDEAL_SEGMENT_SIZE = 5 * 1024 * 1024
+    # 理想分段大小 (10MB) - 提升以减少连接开销
+    IDEAL_SEGMENT_SIZE = 10 * 1024 * 1024
     
-    # 小文件阈值 (10MB以下不分段)
-    SMALL_FILE_THRESHOLD = 10 * 1024 * 1024
+    # 小文件阈值 (20MB以下不分段)
+    SMALL_FILE_THRESHOLD = 20 * 1024 * 1024
     
     # 超大文件阈值 (1GB以上使用更多分段)
     LARGE_FILE_THRESHOLD = 1024 * 1024 * 1024
 
 
 class MultiThreadDownloader:
-    def __init__(self, downloadDir: Optional[str] = None, bus=None, threads: int = 8, segments: int = None, mode: str = "auto"):
+    def __init__(self, downloadDir: Optional[str] = None, bus=None, threads: int = 16, segments: int = None, mode: str = "auto"):
         """
         初始化下载器
         
         Args:
             downloadDir: 下载目录
             bus: 事件总线
-            threads: 线程数 (1-32)，默认8
-            segments: 分段数 (1-32)，默认None（自动）
+            threads: 线程数 (1-64)，默认16
+            segments: 分段数 (1-64)，默认None（自动）
             mode: 模式
                 - "auto": 全自动（根据文件大小自动设置线程和分段）
                 - "threads_only": 仅设置线程数，分段数自动
@@ -68,9 +68,9 @@ class MultiThreadDownloader:
         self.tasks: Dict[str, Task] = {}
         self.segments: Dict[str, List[Segment]] = {}  # taskId -> segments
         
-        # 限制线程数和分段数在 1-32 之间
-        self.threads = max(1, min(32, threads))
-        self.segments_count = max(1, min(32, segments)) if segments else None
+        # 限制线程数和分段数在 1-64 之间（提升上限）
+        self.threads = max(1, min(64, threads))
+        self.segments_count = max(1, min(64, segments)) if segments else None
         self.mode = mode
         self.max_concurrent_tasks = 3  # 默认最大同时下载数
         self.segment_speed_limit = 0   # 分段限速 (bytes/s), 0表示不限速
@@ -86,14 +86,18 @@ class MultiThreadDownloader:
             'requires_auth': False
         }
         
-        # 高级配置
-        self.chunk_size = 131072  # 128KB 读取块大小（提升IO效率）
+        # 高级配置 - 性能优化
+        self.chunk_size = 1048576  # 1MB 读取块大小（大幅提升IO效率）
         self.connection_timeout = 30  # 连接超时
-        self.read_timeout = 60  # 读取超时
-        self.max_retries = 5  # 最大重试次数（提升）
+        self.read_timeout = 120  # 读取超时（增加以适应大块读取）
+        self.max_retries = 5  # 最大重试次数
         self.retry_delay_base = 2  # 重试延迟基数
         self.enable_dynamic_segments = True  # 启用动态分段
         self.enable_speed_boost = True  # 启用速度提升模式
+        
+        # TCP 优化参数
+        self.tcp_nodelay = True  # 禁用 Nagle 算法
+        self.socket_buffer_size = 2 * 1024 * 1024  # 2MB socket 缓冲区
         
         # 网络状态监控
         self._network_stats = {
@@ -166,11 +170,11 @@ class MultiThreadDownloader:
         """更新并保存配置"""
         changed = False
         if threads is not None:
-            self.threads = max(1, min(32, threads))
+            self.threads = max(1, min(64, threads))
             changed = True
         
         if segments is not None:
-            self.segments_count = max(1, min(32, segments)) if segments > 0 else None
+            self.segments_count = max(1, min(64, segments)) if segments > 0 else None
             changed = True
             
         if mode is not None and mode in ["auto", "threads_only", "segments_only", "manual"]:
@@ -524,13 +528,13 @@ class MultiThreadDownloader:
     def _calculate_dynamic_segments(self, file_size: int) -> tuple[int, int]:
         """
         动态计算最优分段数，基于理想分段大小
-        目标：每个分段 5-10MB，平衡速度和稳定性
+        目标：每个分段 10-20MB，平衡速度和稳定性
         """
         MB = 1024 * 1024
         
         # 小文件不分段
         if file_size < DynamicSegmentConfig.SMALL_FILE_THRESHOLD:
-            segments = max(1, file_size // (2 * MB))  # 每2MB一个分段
+            segments = max(1, file_size // (5 * MB))  # 每5MB一个分段
             segments = min(segments, 8)
             logger.info(f"动态分段(小文件): {file_size/MB:.1f}MB -> {segments} 分段")
             return segments, segments
@@ -538,14 +542,14 @@ class MultiThreadDownloader:
         # 计算理想分段数
         ideal_segments = file_size // DynamicSegmentConfig.IDEAL_SEGMENT_SIZE
         
-        # 限制分段数范围 (最大32)
-        min_segments = 4
-        max_segments = 32
+        # 限制分段数范围 (最大64)
+        min_segments = 8
+        max_segments = 64
         
         # 超大文件使用更多分段
         if file_size >= DynamicSegmentConfig.LARGE_FILE_THRESHOLD:
-            min_segments = 16
-            max_segments = 32
+            min_segments = 32
+            max_segments = 64
         
         segments = max(min_segments, min(max_segments, ideal_segments))
         
@@ -558,7 +562,7 @@ class MultiThreadDownloader:
         if segment_size > DynamicSegmentConfig.MAX_SEGMENT_SIZE:
             segments = max(segments, file_size // DynamicSegmentConfig.MAX_SEGMENT_SIZE)
         
-        segments = max(1, min(32, segments))
+        segments = max(1, min(64, segments))
         
         logger.info(f"动态分段: 文件大小 {file_size/MB:.1f}MB -> {segments} 分段 (每段约 {file_size/segments/MB:.1f}MB)")
         return segments, segments
@@ -870,11 +874,12 @@ class MultiThreadDownloader:
                             
                             mode = "ab" if segment.downloadedBytes > 0 else "wb"
                             
-                            async with aiofiles.open(temp_file, mode) as f:
+                            # 使用带缓冲的文件写入
+                            async with aiofiles.open(temp_file, mode, buffering=self.chunk_size * 4) as f:
                                 bytes_since_last_update = 0
                                 virtual_time = time.perf_counter()
                                 
-                                # 使用更大的 Buffer Size (128KB) 以提高IO效率
+                                # 使用 1MB 块大小以提高IO效率
                                 async for chunk in resp.content.iter_chunked(self.chunk_size):
                                     if t.status == TaskStatus.CANCELLED:
                                         segment.status = "cancelled"
@@ -905,9 +910,9 @@ class MultiThreadDownloader:
                                         else:
                                             virtual_time = current_now
                                     
-                                    # 更新速度 (EMA 平滑)
+                                    # 更新速度 (EMA 平滑) - 降低更新频率
                                     now = time.perf_counter()
-                                    if now - last_update >= 0.5:
+                                    if now - last_update >= 1.0:  # 每秒更新一次，减少开销
                                         time_elapsed = now - last_update
                                         if time_elapsed > 0:
                                             instant_speed = bytes_since_last_update / time_elapsed
@@ -923,9 +928,9 @@ class MultiThreadDownloader:
                                     
                                     if segment.downloadedBytes >= segment_size:
                                         break
-                            
-                            # 确保文件写入完成
-                            await f.flush()
+                                
+                                # 确保文件写入完成（在 async with 块内）
+                                await f.flush()
                             
                         # 验证下载完整性
                         if temp_file.exists():
@@ -1221,15 +1226,15 @@ class MultiThreadDownloader:
                 ssl_context.check_hostname = False
                 ssl_context.verify_mode = ssl.CERT_NONE
                 
-                # 高性能连接器配置
+                # 高性能连接器配置 - 激进优化
                 connector = aiohttp.TCPConnector(
-                    limit=optimal_threads * 2,  # 允许更多连接池
-                    limit_per_host=min(32, max(1, optimal_threads)),  # 提升单主机并发
+                    limit=0,  # 无连接数限制
+                    limit_per_host=0,  # 无单主机连接限制
                     ttl_dns_cache=600,  # DNS缓存10分钟
                     force_close=False,
                     enable_cleanup_closed=True,
                     ssl=ssl_context,
-                    keepalive_timeout=60,  # 保持连接60秒
+                    keepalive_timeout=120,  # 保持连接120秒
                 )
                 
                 # 修复：自动模式下所有分段同时开始下载
@@ -1405,13 +1410,13 @@ class MultiThreadDownloader:
         
         # 速度平滑参数
         speed_history = []
-        max_history = 10
+        max_history = 5  # 减少历史记录以提高响应速度
         
         try:
             while t.status == TaskStatus.DOWNLOADING:
                 segments = self.segments.get(taskId, [])
                 if not segments:
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(1.0)
                     continue
                 
                 # 计算总进度
@@ -1462,9 +1467,9 @@ class MultiThreadDownloader:
                 completed_count = sum(1 for seg in segments if seg.status == "completed")
                 failed_count = sum(1 for seg in segments if seg.status == "failed")
                 
-                # 记录下载进度日志
+                # 记录下载进度日志 - 降低频率
                 progress_display = min(t.progress, 100.0)
-                logger.info(f"[下载进度] {t.filename}: {progress_display:.1f}% | "
+                logger.debug(f"[下载进度] {t.filename}: {progress_display:.1f}% | "
                            f"速度: {smoothed_speed/1024/1024:.2f} MB/s | "
                            f"已下载: {total_downloaded/1024/1024:.1f}/{t.totalSize/1024/1024:.1f} MB | "
                            f"分段: {downloading_count}下载/{completed_count}完成/{failed_count}失败")
@@ -1476,7 +1481,7 @@ class MultiThreadDownloader:
                 # 发布进度更新
                 self.add_progress(t)
                 
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(1.0)  # 每秒更新一次，减少开销
                 
         except asyncio.CancelledError:
             logger.info(f"[下载监控] 任务 {t.filename} 的进度监控已停止")
@@ -1693,7 +1698,7 @@ class MultiThreadDownloader:
                                 if t.totalSize > 0:
                                     t.progress = (t.downloadedSize / t.totalSize) * 100.0
                                 
-                                if now - last_update >= 0.5:
+                                if now - last_update >= 1.0:  # 每秒更新一次
                                     time_elapsed = now - last_update
                                     if time_elapsed > 0:
                                         # 使用EMA平滑速度

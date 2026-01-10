@@ -14,7 +14,7 @@ ws_server = None
 async def init_bridge(app):
     global bridge, ws_server
     download_dir = os.path.join(os.path.expanduser("~"), "Downloads")
-    bridge = NsfXCoreBridge(downloadDir=download_dir, threads=8)
+    bridge = NsfXCoreBridge(downloadDir=download_dir, threads=16)
     
     # 初始化 WebSocket 服务器
     ws_server = WebSocketServer(bridge)
@@ -22,7 +22,7 @@ async def init_bridge(app):
     
     print(f"Soda Speed Force Kernel started")
     print(f"Download directory: {download_dir}")
-    print(f"Multi-thread download: 8 threads")
+    print(f"Multi-thread download: 16 threads")
     print(f"WebSocket server initialized")
 
 async def cleanup_bridge(app):
