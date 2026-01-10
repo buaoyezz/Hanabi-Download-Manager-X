@@ -1,6 +1,8 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import '../../../services/kernel_service.dart';
+import '../../../services/kernel/kernel_manager.dart';
+import '../../../services/client_config_service.dart';
 import '../../../theme/app_theme.dart';
 
 class WebCheckPage extends StatefulWidget {
@@ -44,6 +46,14 @@ class _WebCheckPageState extends State<WebCheckPage> {
       return;
     }
 
+    // 检查是否使用新内核
+    final config = context.read<ClientConfigService>();
+    final useNewKernel = config.getBool('kernel.use_new_kernel', defaultValue: true);
+    if (useNewKernel) {
+      _showError('Web 检测功能暂不支持新版内核，请在设置中切换到旧版内核');
+      return;
+    }
+
     // 自动添加协议
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'https://$url';
@@ -81,6 +91,14 @@ class _WebCheckPageState extends State<WebCheckPage> {
   }
 
   Future<void> _scanLan() async {
+    // 检查是否使用新内核
+    final config = context.read<ClientConfigService>();
+    final useNewKernel = config.getBool('kernel.use_new_kernel', defaultValue: true);
+    if (useNewKernel) {
+      _showError('局域网扫描功能暂不支持新版内核，请在设置中切换到旧版内核');
+      return;
+    }
+
     setState(() {
       _isScanning = true;
       _scanResult = null;

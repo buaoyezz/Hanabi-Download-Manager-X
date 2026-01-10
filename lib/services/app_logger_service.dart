@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 enum LogLevel {
@@ -48,8 +49,29 @@ class AppLoggerService extends ChangeNotifier {
 
   final Queue<LogEntry> _logs = Queue();
   final int _maxLogs = 1000;
+  
+  // 节流：最多每 100ms 通知一次
+  Timer? _notifyTimer;
+  bool _pendingNotify = false;
 
   List<LogEntry> get logs => _logs.toList();
+
+  void _scheduleNotify() {
+    if (_notifyTimer != null) {
+      _pendingNotify = true;
+      return;
+    }
+    
+    notifyListeners();
+    
+    _notifyTimer = Timer(const Duration(milliseconds: 100), () {
+      _notifyTimer = null;
+      if (_pendingNotify) {
+        _pendingNotify = false;
+        _scheduleNotify();
+      }
+    });
+  }
 
   void log(LogLevel level, String source, String message) {
     final entry = LogEntry(
@@ -64,12 +86,11 @@ class AppLoggerService extends ChangeNotifier {
       _logs.removeFirst();
     }
 
-    // out
     if (kDebugMode) {
       print('[${entry.formattedTime}] [${entry.levelString}] [$source] $message');
     }
 
-    notifyListeners();
+    _scheduleNotify();
   }
 
   void debug(String source, String message) => log(LogLevel.debug, source, message);

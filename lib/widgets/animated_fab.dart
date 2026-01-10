@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fluent_ui/fluent_ui.dart' as fluent;
 import '../theme/app_theme.dart';
 
-/// 带动画效果的浮动操作按钮
+/// 带动画效果的浮动操作按钮 - 优化版本
 class AnimatedFab extends StatefulWidget {
   final VoidCallback? onPressed;
   final IconData icon;
@@ -30,65 +30,39 @@ class AnimatedFab extends StatefulWidget {
 class _AnimatedFabState extends State<AnimatedFab>
     with TickerProviderStateMixin {
   late AnimationController _scaleController;
-  late AnimationController _rotationController;
-  late AnimationController _pulseController;
-  
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _rotationAnimation;
-  late Animation<double> _pulseAnimation;
+  late AnimationController _hoverController;
+  late AnimationController _pressController;
+  late AnimationController _iconController;
   
   bool _isHovered = false;
-  bool _isPressed = false;
 
   @override
   void initState() {
     super.initState();
     
     _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 200),
-      vsync: this,
-    );
-    
-    _rotationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
     
-    _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+    _hoverController = AnimationController(
+      duration: const Duration(milliseconds: 150),
       vsync: this,
     );
-
-    _scaleAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _scaleController,
-      curve: Curves.elasticOut,
-    ));
-
-    _rotationAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _rotationController,
-      curve: Curves.easeOutCubic,
-    ));
-
-    _pulseAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.1,
-    ).animate(CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeInOut,
-    ));
+    
+    _pressController = AnimationController(
+      duration: const Duration(milliseconds: 80),
+      vsync: this,
+    );
+    
+    _iconController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
 
     if (widget.isVisible) {
       _scaleController.forward();
     }
-
-    // 启动脉冲动画
-    _pulseController.repeat(reverse: true);
   }
 
   @override
@@ -103,8 +77,8 @@ class _AnimatedFabState extends State<AnimatedFab>
     }
     
     if (oldWidget.icon != widget.icon) {
-      _rotationController.forward().then((_) {
-        _rotationController.reset();
+      _iconController.forward().then((_) {
+        _iconController.reset();
       });
     }
   }
@@ -112,81 +86,105 @@ class _AnimatedFabState extends State<AnimatedFab>
   @override
   void dispose() {
     _scaleController.dispose();
-    _rotationController.dispose();
-    _pulseController.dispose();
+    _hoverController.dispose();
+    _pressController.dispose();
+    _iconController.dispose();
     super.dispose();
   }
 
-  void _handleTapDown(TapDownDetails details) {
-    setState(() => _isPressed = true);
+  void _onEnter(PointerEvent _) {
+    setState(() => _isHovered = true);
+    _hoverController.forward();
   }
 
-  void _handleTapUp(TapUpDetails details) {
-    setState(() => _isPressed = false);
+  void _onExit(PointerEvent _) {
+    setState(() => _isHovered = false);
+    _hoverController.reverse();
+  }
+
+  void _onTapDown(TapDownDetails _) => _pressController.forward();
+  
+  void _onTapUp(TapUpDetails _) {
+    _pressController.reverse();
     widget.onPressed?.call();
   }
-
-  void _handleTapCancel() {
-    setState(() => _isPressed = false);
-  }
+  
+  void _onTapCancel() => _pressController.reverse();
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([_scaleAnimation, _rotationAnimation, _pulseAnimation]),
-      builder: (context, child) {
-        return Transform.scale(
-          scale: _scaleAnimation.value * 
-                 (_isPressed ? 0.95 : 1.0) * 
-                 (_isHovered ? _pulseAnimation.value : 1.0),
-          child: MouseRegion(
-            onEnter: (_) => setState(() => _isHovered = true),
-            onExit: (_) => setState(() => _isHovered = false),
-            child: GestureDetector(
-              onTapDown: _handleTapDown,
-              onTapUp: _handleTapUp,
-              onTapCancel: _handleTapCancel,
-              child: Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: widget.backgroundColor ?? AppTheme.accentPrimary,
-                  borderRadius: BorderRadius.circular(28),
-                  boxShadow: [
-                    BoxShadow(
-                      color: (widget.backgroundColor ?? AppTheme.accentPrimary)
-                          .withValues(alpha: 0.3),
-                      blurRadius: _isHovered ? 20 : 12,
-                      offset: Offset(0, _isHovered ? 8 : 4),
-                    ),
-                  ],
-                ),
-                child: widget.isLoading
-                    ? const Center(
-                        child: SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: fluent.ProgressRing(strokeWidth: 2),
-                        ),
-                      )
-                    : Transform.rotate(
-                        angle: _rotationAnimation.value * 0.5,
-                        child: Icon(
-                          widget.icon,
-                          size: 24,
-                          color: widget.foregroundColor ?? Colors.white,
-                        ),
+    final bgColor = widget.backgroundColor ?? AppTheme.accentPrimary;
+    
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: Listenable.merge([
+          _scaleController, 
+          _hoverController, 
+          _pressController, 
+          _iconController
+        ]),
+        builder: (context, child) {
+          final scaleValue = Curves.easeOutBack.transform(_scaleController.value);
+          final hoverValue = Curves.easeOutCubic.transform(_hoverController.value);
+          final pressValue = Curves.easeOutCubic.transform(_pressController.value);
+          
+          // 计算最终缩放
+          final scale = scaleValue * (1.0 - pressValue * 0.05) * (1.0 + hoverValue * 0.05);
+          
+          // 计算阴影
+          final shadowBlur = 12.0 + (hoverValue * 8);
+          final shadowOffset = 4.0 + (hoverValue * 4);
+          
+          return Transform.scale(
+            scale: scale,
+            child: MouseRegion(
+              onEnter: _onEnter,
+              onExit: _onExit,
+              child: GestureDetector(
+                onTapDown: _onTapDown,
+                onTapUp: _onTapUp,
+                onTapCancel: _onTapCancel,
+                child: Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: [
+                      BoxShadow(
+                        color: bgColor.withValues(alpha: 0.25 + hoverValue * 0.1),
+                        blurRadius: shadowBlur,
+                        offset: Offset(0, shadowOffset),
                       ),
+                    ],
+                  ),
+                  child: widget.isLoading
+                      ? const Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: fluent.ProgressRing(strokeWidth: 2),
+                          ),
+                        )
+                      : Transform.rotate(
+                          angle: _iconController.value * 0.3,
+                          child: Icon(
+                            widget.icon,
+                            size: 24,
+                            color: widget.foregroundColor ?? Colors.white,
+                          ),
+                        ),
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
 
-/// 展开式浮动操作按钮
+/// 展开式浮动操作按钮 - 优化版本
 class ExpandableFab extends StatefulWidget {
   final List<FabAction> actions;
   final IconData icon;
@@ -210,20 +208,14 @@ class ExpandableFab extends StatefulWidget {
 class _ExpandableFabState extends State<ExpandableFab>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _expandAnimation;
   bool _isExpanded = false;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 250),
       vsync: this,
-    );
-
-    _expandAnimation = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutCubic,
     );
   }
 
@@ -244,83 +236,96 @@ class _ExpandableFabState extends State<ExpandableFab>
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        // 展开的操作按钮
-        ...widget.actions.asMap().entries.map((entry) {
-          final index = entry.key;
-          final action = entry.value;
-          
-          return AnimatedBuilder(
-            animation: _expandAnimation,
-            builder: (context, child) {
-              final delay = index * 0.1;
-              final animationValue = Curves.easeOutCubic.transform(
-                (_expandAnimation.value - delay).clamp(0.0, 1.0) / (1.0 - delay),
-              );
-              
-              return Transform.translate(
-                offset: Offset(0, (1 - animationValue) * 60),
-                child: Opacity(
-                  opacity: animationValue,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (action.label != null) ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppTheme.surfaceCard,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: AppTheme.shadowSm,
-                            ),
-                            child: Text(
-                              action.label!,
-                              style: fluent.FluentTheme.of(context)
-                                  .typography.caption?.copyWith(
-                                color: AppTheme.textPrimary,
-                                fontSize: 12,
+    return RepaintBoundary(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // 展开的操作按钮
+          ...widget.actions.asMap().entries.map((entry) {
+            final index = entry.key;
+            final action = entry.value;
+            
+            return AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                // 计算每个按钮的动画进度（交错效果）
+                final delay = index * 0.1;
+                final progress = ((_controller.value - delay) / (1.0 - delay)).clamp(0.0, 1.0);
+                final curvedProgress = Curves.easeOutCubic.transform(progress);
+                
+                return Transform.translate(
+                  offset: Offset(0, (1 - curvedProgress) * 40),
+                  child: Opacity(
+                    opacity: curvedProgress,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (action.label != null) ...[
+                            Transform.scale(
+                              scale: curvedProgress,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.surfaceCard,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: AppTheme.shadowSm,
+                                ),
+                                child: Text(
+                                  action.label!,
+                                  style: fluent.FluentTheme.of(context)
+                                      .typography.caption?.copyWith(
+                                    color: AppTheme.textPrimary,
+                                    fontSize: 12,
+                                  ),
+                                ),
                               ),
                             ),
+                            const SizedBox(width: 12),
+                          ],
+                          AnimatedFab(
+                            icon: action.icon,
+                            onPressed: () {
+                              action.onPressed?.call();
+                              _toggle();
+                            },
+                            backgroundColor: action.backgroundColor,
+                            foregroundColor: action.foregroundColor,
+                            tooltip: action.tooltip,
                           ),
-                          const SizedBox(width: 12),
                         ],
-                        AnimatedFab(
-                          icon: action.icon,
-                          onPressed: () {
-                            action.onPressed?.call();
-                            _toggle();
-                          },
-                          backgroundColor: action.backgroundColor,
-                          foregroundColor: action.foregroundColor,
-                          tooltip: action.tooltip,
-                        ),
-                      ],
+                      ),
                     ),
                   ),
+                );
+              },
+            );
+          }),
+          
+          // 主按钮
+          AnimatedBuilder(
+            animation: _controller,
+            builder: (context, _) {
+              return Transform.rotate(
+                angle: _controller.value * 0.75,
+                child: AnimatedFab(
+                  icon: _isExpanded 
+                      ? (widget.expandedIcon ?? fluent.FluentIcons.chrome_close)
+                      : widget.icon,
+                  onPressed: _toggle,
+                  backgroundColor: widget.backgroundColor,
+                  foregroundColor: widget.foregroundColor,
                 ),
               );
             },
-          );
-        }),
-        
-        // 主按钮
-        AnimatedFab(
-          icon: _isExpanded 
-              ? (widget.expandedIcon ?? fluent.FluentIcons.chrome_close)
-              : widget.icon,
-          onPressed: _toggle,
-          backgroundColor: widget.backgroundColor,
-          foregroundColor: widget.foregroundColor,
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 }

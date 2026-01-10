@@ -5,11 +5,14 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../../services/kernel_service.dart';
+import '../../../services/kernel/kernel_manager.dart';
 import '../../../services/network_status_service.dart';
 import '../../../services/app_logger_service.dart';
 import '../../../services/auto_start_service.dart';
+import '../../../services/client_config_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/settings_components.dart';
+import '../../../utils/constants.dart';
 
 class StatusPage extends StatefulWidget {
   const StatusPage({super.key});
@@ -173,6 +176,22 @@ class _StatusPageState extends State<StatusPage> {
       _checkingKernel = true;
     });
 
+    final clientConfig = context.read<ClientConfigService>();
+    final useNewKernel = clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
+
+    if (useNewKernel) {
+      // 新内核：直接从 KernelManager 获取状态
+      final kernelManager = context.read<KernelManager>();
+      if (!mounted) return;
+      setState(() {
+        _kernelHealthy = kernelManager.isRunning;
+        _kernelVersion = AppConstants.newKernelVersion;
+        _checkingKernel = false;
+      });
+      return;
+    }
+
+    // 旧内核：通过 HTTP API 检查
     try {
       final response = await http.get(
         Uri.parse('http://127.0.0.1:9710/health'),
@@ -183,18 +202,20 @@ class _StatusPageState extends State<StatusPage> {
         if (!mounted) return;
         setState(() {
           _kernelHealthy = true;
-          _kernelVersion = result['version'] ?? '1.0.0';
+          _kernelVersion = result['version'] ?? AppConstants.kernelVersion;
         });
       } else {
         if (!mounted) return;
         setState(() {
           _kernelHealthy = false;
+          _kernelVersion = AppConstants.kernelVersion;
         });
       }
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _kernelHealthy = false;
+        _kernelVersion = AppConstants.kernelVersion;
       });
     } finally {
       if (!mounted) return;
@@ -254,8 +275,15 @@ class _StatusPageState extends State<StatusPage> {
   @override
   Widget build(BuildContext context) {
     final kernelService = context.watch<KernelService>();
+    final kernelManager = context.watch<KernelManager>();
+    final clientConfig = context.watch<ClientConfigService>();
     final networkService = context.watch<NetworkStatusService>();
     final appLogger = context.watch<AppLoggerService>();
+    
+    // 判断使用哪个内核
+    final useNewKernel = clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
+    final kernelRunning = useNewKernel ? kernelManager.isRunning : kernelService.isRunning;
+    final kernelName = useNewKernel ? kernelManager.kernelName : 'Soda Kernel (Legacy)';
 
     return ScaffoldPage(
       header: PageHeader(
@@ -326,14 +354,20 @@ class _StatusPageState extends State<StatusPage> {
                 _buildStatusItem(
                   context,
                   label: '核心服务',
-                  value: kernelService.isRunning ? '运行中' : '已停止',
-                  isOnline: kernelService.isRunning,
+                  value: kernelRunning ? '运行中' : '已停止',
+                  isOnline: kernelRunning,
+                ),
+                _buildStatusItem(
+                  context,
+                  label: '当前内核',
+                  value: kernelName,
+                  isInfo: true,
                 ),
                 _buildStatusItem(
                   context,
                   label: 'HTTP 服务',
-                  value: _kernelHealthy ? '正常' : '异常',
-                  isOnline: _kernelHealthy,
+                  value: _kernelHealthy ? '正常' : (useNewKernel ? '内置' : '异常'),
+                  isOnline: useNewKernel ? kernelRunning : _kernelHealthy,
                 ),
                 _buildStatusItem(
                   context,

@@ -13,6 +13,7 @@ class AppTheme {
   
   // 背景色系 - 优化透明度以配合 Mica
   static const Color bgSolid = Color(0xFF202020);
+  static const Color bgBase = Color(0xFF1A1A1A);  // 内容区基础背景色
   static const Color bgLayer1 = Color(0xFF2B2B2B);
   static const Color bgLayer2 = Color(0xFF323232);
   static const Color bgLayer3 = Color(0xFF3B3B3B);

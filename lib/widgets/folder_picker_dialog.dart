@@ -20,16 +20,51 @@ class FolderPickerDialog extends StatefulWidget {
 class _FolderPickerDialogState extends State<FolderPickerDialog> {
   late String _currentPath;
   List<FileSystemEntity> _items = [];
-  bool _loading = false;
+  bool _loading = true;  // 初始为 true，等待路径初始化
   String? _error;
   final TextEditingController _pathController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _currentPath = widget.initialPath;
+    _initializePath();
+  }
+
+  Future<void> _initializePath() async {
+    String pathToLoad = widget.initialPath;
+    
+    // 如果初始路径为空或无效，使用默认路径
+    if (pathToLoad.isEmpty) {
+      pathToLoad = _getDefaultPath();
+    } else {
+      // 检查路径是否存在
+      final dir = Directory(pathToLoad);
+      if (!await dir.exists()) {
+        pathToLoad = _getDefaultPath();
+      }
+    }
+    
+    _currentPath = pathToLoad;
     _pathController.text = _currentPath;
     _loadDirectory(_currentPath);
+  }
+
+  String _getDefaultPath() {
+    // 获取用户下载目录
+    final home = Platform.environment['USERPROFILE'] ?? 
+                 Platform.environment['HOME'] ?? 
+                 'C:\\';
+    final downloads = '$home\\Downloads';
+    
+    // 如果下载目录存在，使用它；否则使用用户目录
+    if (Directory(downloads).existsSync()) {
+      return downloads;
+    } else if (Directory(home).existsSync()) {
+      return home;
+    }
+    
+    // 最后回退到 C 盘
+    return 'C:\\';
   }
 
   @override

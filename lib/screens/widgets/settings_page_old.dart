@@ -7,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import '../../services/integrated_download_service.dart';
 import '../../services/kernel_service.dart';
-import '../../services/kernel/kernel_manager.dart';
 import '../../services/developer_mode_service.dart';
 import '../../services/client_config_service.dart';
 import '../../widgets/folder_picker_dialog.dart';
@@ -15,7 +14,6 @@ import '../../widgets/settings_components.dart';
 import '../../widgets/temp_files_dialog.dart';
 import '../../services/auto_start_service.dart';
 import '../../theme/app_theme.dart';
-import '../../utils/constants.dart';
 import 'appearance_settings_page.dart';
 import 'update_page.dart';
 
@@ -97,10 +95,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _browserConnected = false;
   Timer? _statusTimer;
   
-  // 新内核相关
-  bool _useNewKernel = true;
-  String _currentKernelName = 'NSFX (Next Speed Force X)';
-  bool _switchingKernel = false;
+
 
   @override
   void initState() {
@@ -111,110 +106,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _startStatusMonitoring();
       _loadAutoStartSettings();
       _loadBehaviorSettings();
-      _loadKernelSettings();
     });
-  }
-
-  Future<void> _loadKernelSettings() async {
-    final config = Provider.of<ClientConfigService>(context, listen: false);
-    final kernelManager = KernelManager();
-    
-    if (mounted) {
-      setState(() {
-        _useNewKernel = config.getBool('kernel.use_new_kernel', defaultValue: true);
-        _currentKernelName = kernelManager.kernelName;
-      });
-    }
-  }
-
-  Future<void> _switchKernel(bool useNew) async {
-    if (_switchingKernel) return;
-    
-    setState(() => _switchingKernel = true);
-    
-    try {
-      final config = Provider.of<ClientConfigService>(context, listen: false);
-      final kernelManager = Provider.of<KernelManager>(context, listen: false);
-      final kernelService = Provider.of<KernelService>(context, listen: false);
-      
-      if (useNew) {
-        // 切换到新内核：先停止旧内核，再启动新内核
-        await kernelService.stopKernel();
-        final success = await kernelManager.start(type: KernelType.next);
-        
-        if (success) {
-          await config.setBool('kernel.use_new_kernel', true);
-          
-          if (mounted) {
-            setState(() {
-              _useNewKernel = true;
-              _currentKernelName = kernelManager.kernelName;
-            });
-            
-            displayInfoBar(
-              context,
-              builder: (context, close) => InfoBar(
-                title: const Text('内核已切换'),
-                content: Text('当前使用: ${kernelManager.kernelName}'),
-                severity: InfoBarSeverity.success,
-              ),
-              duration: const Duration(seconds: 2),
-            );
-          }
-        } else {
-          if (mounted) {
-            displayInfoBar(
-              context,
-              builder: (context, close) => const InfoBar(
-                title: Text('切换失败'),
-                content: Text('无法启动新内核，请稍后重试'),
-                severity: InfoBarSeverity.error,
-              ),
-            );
-          }
-        }
-      } else {
-        // 切换到旧内核：先停止新内核，再启动旧内核
-        await kernelManager.stop();
-        final success = await kernelService.startKernel();
-        
-        if (success) {
-          await config.setBool('kernel.use_new_kernel', false);
-          
-          if (mounted) {
-            setState(() {
-              _useNewKernel = false;
-              _currentKernelName = 'Soda Speed Force (Legacy)';
-            });
-            
-            displayInfoBar(
-              context,
-              builder: (context, close) => const InfoBar(
-                title: Text('内核已切换'),
-                content: Text('当前使用: Soda Speed Force (Legacy)'),
-                severity: InfoBarSeverity.success,
-              ),
-              duration: const Duration(seconds: 2),
-            );
-          }
-        } else {
-          if (mounted) {
-            displayInfoBar(
-              context,
-              builder: (context, close) => const InfoBar(
-                title: Text('切换失败'),
-                content: Text('无法启动旧内核，请稍后重试'),
-                severity: InfoBarSeverity.error,
-              ),
-            );
-          }
-        }
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _switchingKernel = false);
-      }
-    }
   }
   
   Future<void> _loadAutoStartSettings() async {
@@ -355,22 +247,18 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _checkStatus() async {
     if (!mounted) return;
     
-    final kernelManager = KernelManager();
-    final legacyKernelService = context.read<KernelService>();
+    final kernelService = context.read<KernelService>();
+    final kernelOnline = kernelService.isRunning;
     
-    // 检查新内核或旧内核的运行状态
-    final kernelOnline = _useNewKernel 
-        ? kernelManager.isRunning 
-        : legacyKernelService.isRunning;
-    
-    // 浏览器连接状态（暂时与内核状态一致）
-    final browserConnected = kernelOnline;
+    // Check browser connection by checking if extension is sending data
+    // For now, we'll assume browser is connected if kernel is running
+    // You can enhance this by adding a specific endpoint to check extension status
+    final browserConnected = kernelOnline; // Placeholder logic
     
     if (mounted) {
       setState(() {
         _kernelOnline = kernelOnline;
         _browserConnected = browserConnected;
-        _currentKernelName = kernelManager.kernelName;
       });
     }
   }
@@ -379,21 +267,12 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!mounted) return;
     
     try {
-      final clientConfig = context.read<ClientConfigService>();
-      final useNewKernel = clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
-      
-      String? path;
-      if (useNewKernel) {
-        final kernelManager = context.read<KernelManager>();
-        path = await kernelManager.getDownloadDir();
-      } else {
-        final kernelService = context.read<KernelService>();
-        path = await kernelService.getDownloadDir();
-      }
+      final kernelService = context.read<KernelService>();
+      final path = await kernelService.getDownloadDir();
       
       if (path != null && mounted) {
         setState(() {
-          _downloadPath = path!;
+          _downloadPath = path;
         });
       }
     } catch (e) {
@@ -491,17 +370,8 @@ class _SettingsPageState extends State<SettingsPage> {
     );
 
     if (result != null && result.isNotEmpty && mounted) {
-      final clientConfig = context.read<ClientConfigService>();
-      final useNewKernel = clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
-      
-      bool success;
-      if (useNewKernel) {
-        final kernelManager = context.read<KernelManager>();
-        success = await kernelManager.setDownloadDir(result);
-      } else {
-        final kernelService = context.read<KernelService>();
-        success = await kernelService.setDownloadDir(result);
-      }
+      final kernelService = context.read<KernelService>();
+      final success = await kernelService.setDownloadDir(result);
 
       if (success && mounted) {
         setState(() {
@@ -1350,10 +1220,6 @@ class _SettingsPageState extends State<SettingsPage> {
   // 高级标签页
   List<Widget> _buildAdvancedTab(BuildContext context) {
     return [
-      // 内核切换
-      _buildKernelSection(context),
-      const SizedBox(height: 24),
-      
       // 开发者模式
       _buildDeveloperSection(context),
       const SizedBox(height: 24),
@@ -1362,89 +1228,7 @@ class _SettingsPageState extends State<SettingsPage> {
     ];
   }
 
-  Widget _buildKernelSection(BuildContext context) {
-    return _buildSection(
-      context,
-      title: '下载内核',
-      icon: FluentIcons.processing,
-      children: [
-        _buildSettingItem(
-          context,
-          title: '当前内核',
-          subtitle: _useNewKernel 
-              ? '${AppConstants.newKernelFullName} | ${AppConstants.newKernelVersion} | ${AppConstants.newKernelBuildNumber}'
-              : '${AppConstants.kernelFullName} | ${AppConstants.kernelVersion} | ${AppConstants.kernelBuildNumber}',
-          trailing: _switchingKernel
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: ProgressRing(strokeWidth: 2),
-                )
-              : Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _kernelOnline 
-                        ? AppTheme.statusSuccess.withValues(alpha: 0.2)
-                        : AppTheme.statusError.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    _kernelOnline ? '在线' : '离线',
-                    style: FluentTheme.of(context).typography.caption?.copyWith(
-                      color: _kernelOnline ? AppTheme.statusSuccess : AppTheme.statusError,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-        ),
-        const SizedBox(height: 12),
-        _buildSettingItem(
-          context,
-          title: 'NSFX',
-          subtitle: 'NSFX - NEXT SPEED FORCE X KERNEL',
-          trailing: ToggleSwitch(
-            checked: _useNewKernel,
-            onChanged: _switchingKernel ? null : _switchKernel,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppTheme.accentPrimary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            border: Border.all(
-              color: AppTheme.accentPrimary.withValues(alpha: 0.3),
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                FluentIcons.info,
-                size: 16,
-                color: AppTheme.accentLight,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  _useNewKernel
-                      ? 'NSFX Kernel: 高效 | 简洁 | 新思路'
-                      : 'Soda Kernel: 稳定 | 兼容 | 问题少 ',
-                  style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildStatusSection(BuildContext context) {
-    final kernelDisplayName = _useNewKernel ? 'NSFX Kernel' : 'Soda Kernel (Legacy)';
-    
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(20),
@@ -1476,7 +1260,7 @@ class _SettingsPageState extends State<SettingsPage> {
               Expanded(
                 child: _buildStatusIndicator(
                   context,
-                  title: kernelDisplayName,
+                  title: 'NSFX Download Kernel',
                   isOnline: _kernelOnline,
                   icon: FluentIcons.server,
                 ),
@@ -1485,7 +1269,7 @@ class _SettingsPageState extends State<SettingsPage> {
               Expanded(
                 child: _buildStatusIndicator(
                   context,
-                  title: 'Browser Extension',
+                  title: 'NSFX Browser Extension',
                   isOnline: _browserConnected,
                   icon: FluentIcons.edge_logo,
                 ),

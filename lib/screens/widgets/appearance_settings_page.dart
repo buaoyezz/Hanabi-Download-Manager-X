@@ -539,27 +539,23 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                     )
                   : SizedBox(
                       width: 250,
-                      child: ComboBox<String>(
-                        value: _selectedFont,
-                        isExpanded: true,
-                        items: _availableFonts.map((font) {
-                          return ComboBoxItem(
-                            value: font,
-                            child: Text(
-                              font == 'system' ? '系统默认' : font,
-                              style: font == 'system' 
-                                  ? null 
-                                  : TextStyle(fontFamily: font),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
+                      child: Button(
+                        onPressed: () => _showFontPickerDialog(context),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _selectedFont == 'system' ? '系统默认' : _selectedFont,
+                                style: _selectedFont == 'system' 
+                                    ? null 
+                                    : TextStyle(fontFamily: _selectedFont),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          if (value != null) {
-                            _saveFontSetting(value);
-                          }
-                        },
+                            const SizedBox(width: 8),
+                            const Icon(FluentIcons.chevron_down, size: 12),
+                          ],
+                        ),
                       ),
                     ),
             ),
@@ -1088,6 +1084,212 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
       title: title,
       subtitle: subtitle,
       trailing: trailing,
+    );
+  }
+
+  /// 显示字体选择对话框（带搜索功能）
+  Future<void> _showFontPickerDialog(BuildContext context) async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => _FontPickerDialog(
+        availableFonts: _availableFonts,
+        selectedFont: _selectedFont,
+      ),
+    );
+
+    if (result != null && result != _selectedFont) {
+      _saveFontSetting(result);
+    }
+  }
+}
+
+/// 字体选择对话框（带搜索功能）
+class _FontPickerDialog extends StatefulWidget {
+  final List<String> availableFonts;
+  final String selectedFont;
+
+  const _FontPickerDialog({
+    required this.availableFonts,
+    required this.selectedFont,
+  });
+
+  @override
+  State<_FontPickerDialog> createState() => _FontPickerDialogState();
+}
+
+class _FontPickerDialogState extends State<_FontPickerDialog> {
+  final _searchController = TextEditingController();
+  late List<String> _filteredFonts;
+  String? _hoveredFont;
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredFonts = widget.availableFonts;
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _filterFonts(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        _filteredFonts = widget.availableFonts;
+      } else {
+        _filteredFonts = widget.availableFonts
+            .where((font) => font.toLowerCase().contains(query.toLowerCase()))
+            .toList();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ContentDialog(
+      title: const Text('选择字体'),
+      constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 搜索框
+          TextBox(
+            controller: _searchController,
+            placeholder: '搜索字体...',
+            prefix: const Padding(
+              padding: EdgeInsets.only(left: 10),
+              child: Icon(FluentIcons.search, size: 16),
+            ),
+            suffix: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(FluentIcons.clear, size: 14),
+                    onPressed: () {
+                      _searchController.clear();
+                      _filterFonts('');
+                    },
+                  )
+                : null,
+            onChanged: _filterFonts,
+          ),
+          const SizedBox(height: 12),
+          // 字体数量提示
+          Row(
+            children: [
+              Text(
+                '共 ${_filteredFonts.length} 个字体',
+                style: FluentTheme.of(context).typography.caption,
+              ),
+              if (_searchController.text.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Text(
+                  '(已过滤)',
+                  style: FluentTheme.of(context).typography.caption?.copyWith(
+                    color: FluentTheme.of(context).accentColor,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          // 字体列表
+          Expanded(
+            child: _filteredFonts.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(FluentIcons.search, size: 48, color: Colors.grey),
+                        const SizedBox(height: 12),
+                        Text(
+                          '没有找到匹配的字体',
+                          style: FluentTheme.of(context).typography.body,
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: _filteredFonts.length,
+                    itemBuilder: (context, index) {
+                      final font = _filteredFonts[index];
+                      final isSelected = font == widget.selectedFont;
+                      final isHovered = font == _hoveredFont;
+                      
+                      return MouseRegion(
+                        onEnter: (_) => setState(() => _hoveredFont = font),
+                        onExit: (_) => setState(() => _hoveredFont = null),
+                        child: GestureDetector(
+                          onTap: () => Navigator.pop(context, font),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            margin: const EdgeInsets.only(bottom: 2),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? FluentTheme.of(context).accentColor.withValues(alpha: 0.2)
+                                  : isHovered
+                                      ? FluentTheme.of(context).accentColor.withValues(alpha: 0.1)
+                                      : Colors.transparent,
+                              borderRadius: BorderRadius.circular(6),
+                              border: isSelected
+                                  ? Border.all(
+                                      color: FluentTheme.of(context).accentColor.withValues(alpha: 0.5),
+                                    )
+                                  : null,
+                            ),
+                            child: Row(
+                              children: [
+                                if (isSelected)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 10),
+                                    child: Icon(
+                                      FluentIcons.check_mark,
+                                      size: 14,
+                                      color: FluentTheme.of(context).accentColor,
+                                    ),
+                                  ),
+                                Expanded(
+                                  child: Text(
+                                    font == 'system' ? '系统默认' : font,
+                                    style: font == 'system'
+                                        ? FluentTheme.of(context).typography.body
+                                        : FluentTheme.of(context).typography.body?.copyWith(
+                                            fontFamily: font,
+                                          ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (font == 'system')
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: FluentTheme.of(context).accentColor.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      '推荐',
+                                      style: FluentTheme.of(context).typography.caption?.copyWith(
+                                        color: FluentTheme.of(context).accentColor,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+      actions: [
+        Button(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('取消'),
+        ),
+      ],
     );
   }
 }

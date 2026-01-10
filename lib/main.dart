@@ -5,9 +5,11 @@ import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
 import 'dart:io';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 import 'services/integrated_download_service.dart';
 import 'services/kernel_service.dart';
+import 'services/kernel/kernel_manager.dart';
 import 'services/download_listener_service.dart';
 import 'services/system_tray_service.dart';
 import 'services/app_logger_service.dart';
@@ -47,6 +49,21 @@ Future<void> _loadCustomFonts(FontService fontService) async {
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // 捕获 Flutter 框架错误，防止 Windows 消息队列错误导致崩溃
+  FlutterError.onError = (FlutterErrorDetails details) {
+    // 忽略 Windows 消息队列相关的错误
+    final message = details.exception.toString();
+    if (message.contains('Failed to post message to main thread')) {
+      // 静默忽略这个已知的 Windows 问题
+      if (kDebugMode) {
+        debugPrint('Ignored Windows message queue error');
+      }
+      return;
+    }
+    // 其他错误正常处理
+    FlutterError.presentError(details);
+  };
+  
   // 初始化 Acrylic/Mica 效果
   await Window.initialize();
   await Window.setEffect(
@@ -58,6 +75,7 @@ void main(List<String> args) async {
   final bool isAutoStart = args.contains('--autostart');
   
   final kernelService = KernelService();
+  final kernelManager = KernelManager();
   
   // 初始化服务
   final appLogger = AppLoggerService();
@@ -89,6 +107,7 @@ void main(List<String> args) async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: kernelService),
+        ChangeNotifierProvider.value(value: kernelManager),
         ChangeNotifierProxyProvider<KernelService, IntegratedDownloadService>(
           create: (context) => IntegratedDownloadService(kernelService),
           update: (context, kernel, previous) => previous ?? IntegratedDownloadService(kernel),
@@ -251,57 +270,78 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   Future<void> _initKernel() async {
+    final kernelManager = context.read<KernelManager>();
     final kernelService = context.read<KernelService>();
     final appLogger = AppLoggerService();
+    final clientConfig = context.read<ClientConfigService>();
+    
+    // 读取用户选择的内核类型
+    final useNewKernel = clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
     
     try {
-      // 设置30秒超时
-      final success = await kernelService.startKernel().timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          appLogger.error('App', 'Kernel startup timeout after 30 seconds');
-          return false;
-        },
-      );
-      
-      if (!success && mounted) {
-        appLogger.error('App', 'Failed to start download kernel');
-        final messenger = ScaffoldMessenger.maybeOf(context);
-        if (messenger != null) {
-          messenger.showSnackBar(
-            SnackBar(
-              content: const Text('下载内核启动失败，请查看日志了解详情'),
-              backgroundColor: Colors.red,
-              action: SnackBarAction(
-                label: '查看日志',
-                textColor: Colors.white,
-                onPressed: () async {
-                  // 打开日志页面
-                  final devMode = Provider.of<DeveloperModeService>(context, listen: false);
-                  if (!devMode.showLogPage) {
-                    await devMode.setShowLogPage(true);
-                  }
-                },
-              ),
-            ),
+      if (useNewKernel) {
+        // 使用新的 NSFX 内核（默认）
+        appLogger.info('App', 'Starting NSFX kernel (new)...');
+        final success = await kernelManager.start(type: KernelType.next);
+        
+        if (success) {
+          appLogger.info('App', 'NSFX kernel started successfully');
+        } else {
+          appLogger.error('App', 'Failed to start NSFX kernel, falling back to legacy kernel');
+          // 回退到旧内核
+          await kernelService.startKernel().timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              appLogger.error('App', 'Legacy kernel startup timeout');
+              return false;
+            },
           );
         }
-      } else if (success) {
-        appLogger.info('App', 'Download kernel started successfully');
+      } else {
+        // 使用旧的 Python 内核
+        appLogger.info('App', 'Starting legacy kernel...');
+        final success = await kernelService.startKernel().timeout(
+          const Duration(seconds: 30),
+          onTimeout: () {
+            appLogger.error('App', 'Kernel startup timeout after 30 seconds');
+            return false;
+          },
+        );
+        
+        if (!success && mounted) {
+          appLogger.error('App', 'Failed to start download kernel');
+          _showKernelError();
+        } else if (success) {
+          appLogger.info('App', 'Download kernel started successfully');
+        }
       }
     } catch (e) {
       appLogger.error('App', 'Error starting kernel: $e');
       if (mounted) {
-        final messenger = ScaffoldMessenger.maybeOf(context);
-        if (messenger != null) {
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text('启动内核时发生错误: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+        _showKernelError(error: e.toString());
       }
+    }
+  }
+  
+  void _showKernelError({String? error}) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger != null) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(error != null ? '启动内核时发生错误: $error' : '下载内核启动失败，请查看日志了解详情'),
+          backgroundColor: Colors.red,
+          action: SnackBarAction(
+            label: '查看日志',
+            textColor: Colors.white,
+            onPressed: () async {
+              final devMode = Provider.of<DeveloperModeService>(context, listen: false);
+              if (!devMode.showLogPage) {
+                await devMode.setShowLogPage(true);
+              }
+            },
+          ),
+        ),
+      );
     }
   }
 
@@ -341,7 +381,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     _downloadListener?.stopListening();
     
-    // 停止kernel服务
+    // 停止新内核
+    try {
+      final kernelManager = context.read<KernelManager>();
+      await kernelManager.stop();
+    } catch (e) {
+      // 忽略错误
+    }
+    
+    // 停止旧kernel服务
     try {
       final kernelService = context.read<KernelService>();
       await kernelService.stopKernel();
@@ -359,7 +407,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _downloadListener?.stopListening();
     systemTrayService.dispose();
     
-    // 异步清理 kernel（不等待）
+    // 异步清理新内核（不等待）
+    try {
+      final kernelManager = context.read<KernelManager>();
+      kernelManager.stop();
+    } catch (e) {
+      // 忽略错误
+    }
+    
+    // 异步清理旧 kernel（不等待）
     try {
       final kernelService = context.read<KernelService>();
       kernelService.stopKernel();

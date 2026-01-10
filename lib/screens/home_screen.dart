@@ -8,6 +8,7 @@ import '../services/integrated_download_service.dart';
 import '../services/developer_mode_service.dart';
 import '../services/app_logger_service.dart';
 import '../services/kernel_service.dart';
+import '../services/kernel/kernel_manager.dart';
 import '../services/window_effect_service.dart';
 import '../services/client_config_service.dart';
 import '../models/download_task.dart';
@@ -41,10 +42,10 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
   bool _isSidebarExpanded = true;
-  late AnimationController _animationController;
+  late AnimationController _sidebarController;
   late Animation<double> _widthAnimation;
 
   // 当前选中的页面标识符（使用页面标题作为唯一标识）
@@ -117,14 +118,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   void initState() {
     super.initState();
     AppLoggerService().info('App', 'HomeScreen initialized');
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
+    
+    // 侧边栏动画控制器
+    _sidebarController = AnimationController(
+      duration: const Duration(milliseconds: 250),
       vsync: this,
     );
-    _widthAnimation = Tween<double>(begin: 220, end: 50).animate(
+    
+    // 宽度动画
+    _widthAnimation = Tween<double>(begin: 200, end: 52).animate(
       CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeInOutCubic,
+        parent: _sidebarController,
+        curve: Curves.easeOutCubic,
       ),
     );
     
@@ -146,9 +151,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       
       // 设置动画状态
       if (defaultExpanded) {
-        _animationController.value = 0; // 展开状态
+        _sidebarController.value = 0; // 展开状态
       } else {
-        _animationController.value = 1; // 收缩状态
+        _sidebarController.value = 1; // 收缩状态
       }
       
       AppLoggerService().info('App', 'Sidebar default state loaded: ${defaultExpanded ? "expanded" : "collapsed"}');
@@ -156,7 +161,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       AppLoggerService().error('App', 'Failed to load sidebar state: $e');
       // 如果加载失败，使用默认展开状态
       _isSidebarExpanded = true;
-      _animationController.value = 0;
+      _sidebarController.value = 0;
     }
   }
   
@@ -204,7 +209,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   @override
   void dispose() {
-    _animationController.dispose();
+    _sidebarController.dispose();
     _windowSizeCheckTimer?.cancel();
     super.dispose();
   }
@@ -270,9 +275,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     setState(() {
       _isSidebarExpanded = !_isSidebarExpanded;
       if (_isSidebarExpanded) {
-        _animationController.reverse();
+        _sidebarController.reverse();
       } else {
-        _animationController.forward();
+        _sidebarController.forward();
       }
     });
   }
@@ -281,6 +286,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     final navItems = _getNavItems(context);
     final kernelService = context.watch<KernelService>();
+    final kernelManager = context.watch<KernelManager>();
     final windowEffect = context.watch<WindowEffectService>();
     final isTransparent = windowEffect.isTransparentBackground || 
                           windowEffect.effectMode.startsWith('mica');
@@ -299,20 +305,42 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         child: Column(
           children: [
             // 顶部标题栏（横跨整个窗口）
-            _buildTopTitleBar(context, sidebarOpacity),
-            // 下方内容区（侧边栏 + 主内容）
+            _buildUnifiedTitleBar(context, sidebarOpacity),
+            // 下方：侧边栏 + 内容区
             Expanded(
               child: Row(
                 children: [
-                  // 侧边栏
-                  _buildSidebar(context, navItems, sidebarOpacity),
-                  // 主内容区
+                  // 左侧：侧边栏（不含标题）
+                  _buildEdgeSidebar(context, navItems, sidebarOpacity),
+                  // 右侧：内容区（带圆角）
                   Expanded(
                     child: ClipRRect(
                       borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(12),
+                        topLeft: Radius.circular(8),
                       ),
-                      child: _buildPageContent(kernelService, navItems),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: AppTheme.bgBase.withValues(alpha: isTransparent ? 0.75 : 0.95),
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(8),
+                            ),
+                            border: Border(
+                              left: BorderSide(
+                                color: AppTheme.borderSubtle.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                              top: BorderSide(
+                                color: AppTheme.borderSubtle.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: _buildPageContent(kernelService, kernelManager, navItems),
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -324,14 +352,140 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildPageContent(KernelService kernelService, List<NavigationItem> navItems) {
+  /// 统一的顶部标题栏 - 横跨整个窗口
+  Widget _buildUnifiedTitleBar(BuildContext context, double opacity) {
+    return ClipRRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+        child: Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: AppTheme.bgSolid.withValues(alpha: opacity),
+          ),
+          child: Row(
+            children: [
+              // 左侧：汉堡菜单（固定52px，与收缩后的侧边栏对齐）
+              SizedBox(
+                width: 52,
+                child: Center(
+                  child: SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: Button(
+                      onPressed: _toggleSidebar,
+                      style: ButtonStyle(
+                        padding: WidgetStateProperty.all(EdgeInsets.zero),
+                        backgroundColor: WidgetStateProperty.resolveWith((states) {
+                          if (states.isHovered) {
+                            return AppTheme.bgLayer2.withValues(alpha: 0.5);
+                          }
+                          return Colors.transparent;
+                        }),
+                        shape: WidgetStateProperty.all(
+                          RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            side: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                      child: const Icon(
+                        FluentIcons.global_nav_button,
+                        size: 14,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              // Logo + 标题（始终可见）
+              Container(
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.accentPrimary.withValues(alpha: 0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Image.asset(
+                    'assets/logo/logo.png',
+                    width: 18,
+                    height: 18,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Hanabi Download Manager X',
+                style: FluentTheme.of(context).typography.caption?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              // 中间：可拖动区域
+              Expanded(child: MoveWindow()),
+              // 右侧：操作按钮
+              _buildTitleBarActions(context),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 标题栏右侧操作按钮
+  Widget _buildTitleBarActions(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 500;
+        final isVeryNarrow = constraints.maxWidth < 350;
+        
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 统计信息 - 窄屏时隐藏
+            if (!isNarrow) ...[
+              _buildStatsChip(),
+              const SizedBox(width: 12),
+            ],
+            // 新建按钮
+            if (isVeryNarrow)
+              _buildCompactNewTaskButton(context)
+            else
+              _buildNewTaskButton(context),
+            const SizedBox(width: 8),
+            // 托盘按钮
+            _buildAnimatedTrayButton(context),
+            const SizedBox(width: 8),
+            // 窗口控制按钮
+            _buildWindowButtons(context),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildPageContent(KernelService kernelService, KernelManager kernelManager, List<NavigationItem> navItems) {
+    // 检查新内核或旧内核是否在运行
+    final isKernelRunning = kernelManager.isRunning || kernelService.isRunning;
+    
     // 如果内核正在运行，或者当前页面是调试页面（日志、状态、Web检测），直接显示页面
     final currentPageTitle = navItems[_currentIndex].title;
     final isDebugPage = currentPageTitle == '日志' || 
                         currentPageTitle == '状态' || 
-                        currentPageTitle == 'Web检测';
+                        currentPageTitle == 'Web检测' ||
+                        currentPageTitle == '设置' ||
+                        currentPageTitle == '关于';
     
-    if (kernelService.isRunning || isDebugPage) {
+    if (isKernelRunning || isDebugPage) {
       return navItems[_currentIndex].body;
     }
     
@@ -340,10 +494,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildLoadingIndicator() {
-    return Consumer<KernelService>(
-      builder: (context, kernelService, child) {
-        final progress = kernelService.startupProgress;
-        final status = kernelService.startupStatus;
+    return Consumer2<KernelService, KernelManager>(
+      builder: (context, kernelService, kernelManager, child) {
+        // 优先使用新内核的状态
+        final useNewKernel = context.read<ClientConfigService>().getBool('kernel.use_new_kernel', defaultValue: true);
+        
+        double progress;
+        String status;
+        
+        if (useNewKernel) {
+          progress = kernelManager.startupProgress;
+          status = kernelManager.startupStatus;
+        } else {
+          progress = kernelService.startupProgress;
+          status = kernelService.startupStatus;
+        }
+        
         final percentage = (progress * 100).toInt();
         
         return Center(
@@ -463,8 +629,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     FilledButton(
                       onPressed: () async {
                         // 重试启动
-                        final kernelService = Provider.of<KernelService>(context, listen: false);
-                        await kernelService.startKernel();
+                        final config = Provider.of<ClientConfigService>(context, listen: false);
+                        final useNewKernel = config.getBool('kernel.use_new_kernel', defaultValue: true);
+                        
+                        if (useNewKernel) {
+                          final kernelManager = Provider.of<KernelManager>(context, listen: false);
+                          await kernelManager.start(type: KernelType.next);
+                        } else {
+                          final kernelService = Provider.of<KernelService>(context, listen: false);
+                          await kernelService.startKernel();
+                        }
                       },
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
@@ -485,116 +659,52 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  /// 顶部标题栏 - 横跨整个窗口
-  Widget _buildTopTitleBar(BuildContext context, double opacity) {
-    return SizedBox(
-      height: 60, // 标题栏高度
-      child: ClipRRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-          child: Container(
-            height: 60,
-            decoration: BoxDecoration(
-              color: AppTheme.bgSolid.withValues(alpha: opacity),
-            ),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final availableWidth = constraints.maxWidth;
-                final isNarrow = availableWidth < 600; // 窄屏阈值
-                final isVeryNarrow = availableWidth < 400; // 极窄屏阈值
-                
-                return Row(
-                  children: [
-                    // 左侧：Logo + 标题
-                    MoveWindow(
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 12),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Logo
-                            Container(
-                              width: 20,
-                              height: 20,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(4),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppTheme.accentPrimary.withValues(alpha: 0.25),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: Image.asset(
-                                  'assets/logo/logo.png',
-                                  width: 20,
-                                  height: 20,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            ),
-                            if (!isVeryNarrow) ...[
-                              const SizedBox(width: 12),
-                              // 应用名称 - 极窄屏时隐藏
-                              Text(
-                                AppConstants.appName,
-                                style: FluentTheme.of(context).typography.caption?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
+  /// Edge 风格侧边栏 - 只包含导航项
+  Widget _buildEdgeSidebar(BuildContext context, List<NavigationItem> navItems, double opacity) {
+    return AnimatedBuilder(
+      animation: _sidebarController,
+      builder: (context, child) {
+        final width = _widthAnimation.value;
+        final isCompact = width < 100;
+        
+        return ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+            child: Container(
+              width: width,
+              decoration: BoxDecoration(
+                color: AppTheme.bgSolid.withValues(alpha: opacity),
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+                  
+                  // 主导航项
+                  ...navItems.asMap().entries
+                      .where((entry) => !['日志', '状态', 'Web检测', '设置', '关于'].contains(entry.value.title))
+                      .map((entry) => _buildNavItemWidget(context, entry.key, entry.value, isCompact)),
+                  
+                  const Spacer(),
+                  
+                  // 分隔线
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 16, vertical: 8),
+                    child: Container(
+                      height: 1,
+                      color: AppTheme.borderSubtle.withValues(alpha: 0.3),
                     ),
-                    
-                    // 中间：可拖动区域
-                    Expanded(child: MoveWindow()),
-                    
-                    // 右侧：响应式组件布局
-                    _buildResponsiveRightSide(context, isNarrow, isVeryNarrow),
-                  ],
-                );
-              },
+                  ),
+                  
+                  // 底部导航项
+                  ..._buildBottomNavItems(context, navItems, isCompact),
+                  
+                  const SizedBox(height: 8),
+                ],
+              ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  /// 构建响应式右侧组件
-  Widget _buildResponsiveRightSide(BuildContext context, bool isNarrow, bool isVeryNarrow) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // 统计信息 - 窄屏时隐藏
-        if (!isNarrow) ...[
-          _buildStatsChip(),
-          const SizedBox(width: 12),
-        ],
-        
-        // 新建按钮 - 极窄屏时使用图标版本
-        if (isVeryNarrow)
-          _buildCompactNewTaskButton(context)
-        else
-          _buildNewTaskButton(context),
-        
-        const SizedBox(width: 8),
-        
-        // 托盘按钮
-        _buildAnimatedTrayButton(context),
-        
-        const SizedBox(width: 8),
-        
-        // 窗口控制按钮
-        _buildWindowButtons(context),
-      ],
+        );
+      },
     );
   }
 
@@ -613,7 +723,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  /// 构建底部导航项（简化版本，移除有问题的动画）
+  /// 构建底部导航项
   List<Widget> _buildBottomNavItems(BuildContext context, List<NavigationItem> navItems, bool isCompact) {
     final bottomItems = navItems.asMap().entries
         .where((entry) => ['日志', '状态', 'Web检测', '设置', '关于'].contains(entry.value.title))
@@ -622,114 +732,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     return bottomItems.map((entry) {
       final item = entry.value;
       final index = entry.key;
-      
-      // 使用简单的 AnimatedSwitcher 来处理页面的出现和消失
-      return AnimatedSwitcher(
-        key: ValueKey('${item.title}_switcher'),
-        duration: const Duration(milliseconds: 250),
-        transitionBuilder: (child, animation) {
-          return SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0.3, 0),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-            )),
-            child: FadeTransition(
-              opacity: animation,
-              child: child,
-            ),
-          );
-        },
-        child: _buildNavItemWidget(context, index, item, isCompact),
-      );
+      return _buildNavItemWidget(context, index, item, isCompact);
     }).toList();
-  }
-
-  /// 侧边栏
-  Widget _buildSidebar(BuildContext context, List<NavigationItem> navItems, double opacity) {
-    return AnimatedBuilder(
-      animation: _widthAnimation,
-      builder: (context, child) {
-        final width = _widthAnimation.value;
-        final isCompact = width < 150;
-        
-        return Container(
-          width: width,
-          decoration: BoxDecoration(
-            color: AppTheme.bgSolid.withValues(alpha: opacity),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 4),
-              
-              // 汉堡菜单按钮
-              Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isCompact ? 0 : 12,
-                  vertical: 4,
-                ),
-                child: SizedBox(
-                  height: 36,
-                  width: isCompact ? 40 : double.infinity,
-                  child: Button(
-                    onPressed: _toggleSidebar,
-                    style: ButtonStyle(
-                      padding: WidgetStateProperty.all(
-                        isCompact 
-                            ? EdgeInsets.zero 
-                            : const EdgeInsets.only(left: 12),
-                      ),
-                      backgroundColor: WidgetStateProperty.resolveWith((states) {
-                        if (states.isHovered) {
-                          return AppTheme.bgLayer2.withValues(alpha: 0.5);
-                        }
-                        return Colors.transparent;
-                      }),
-                      shape: WidgetStateProperty.all(
-                        const RoundedRectangleBorder(side: BorderSide.none),
-                      ),
-                    ),
-                    child: Align(
-                      alignment: isCompact ? Alignment.center : Alignment.centerLeft,
-                      child: const Icon(
-                        FluentIcons.global_nav_button,
-                        size: 16,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 8),
-              
-              // 主导航项
-              ...navItems.asMap().entries
-                  .where((entry) => !['日志', '状态', 'Web检测', '设置', '关于'].contains(entry.value.title))
-                  .map((entry) => _buildNavItemWidget(context, entry.key, entry.value, isCompact)),
-              
-              const Spacer(),
-              
-              // 分隔线
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 16, vertical: 8),
-                child: Container(
-                  height: 1,
-                  color: AppTheme.borderSubtle.withValues(alpha: 0.5),
-                ),
-              ),
-              
-              // 底部导航项（带动画的调试页面）
-              ..._buildBottomNavItems(context, navItems, isCompact),
-              
-              const SizedBox(height: 12),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   /// 新建任务按钮（标题栏）
@@ -808,10 +812,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildStatsChip() {
-    return Consumer<IntegratedDownloadService>(
-      builder: (context, service, _) {
+    // 使用 Selector 只在任务数量变化时重建，而不是每次任务更新都重建
+    return Selector<IntegratedDownloadService, (int, int)>(
+      selector: (_, service) {
         final downloading = service.tasks.where((t) => t.status == DownloadStatus.downloading).length;
         final completed = service.tasks.where((t) => t.status == DownloadStatus.completed).length;
+        return (downloading, completed);
+      },
+      builder: (context, counts, _) {
+        final (downloading, completed) = counts;
         
         return Container(
           height: 28,
@@ -862,7 +871,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     
     return Padding(
       padding: EdgeInsets.symmetric(
-        horizontal: isCompact ? 8 : 12,
+        horizontal: isCompact ? 6 : 12,
         vertical: 2,
       ),
       child: _NavItem(
@@ -953,7 +962,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 }
 
-/// Fluent Design 导航项组件
+/// Fluent Design 导航项组件 - 简洁版本
 class _NavItem extends StatefulWidget {
   final IconData icon;
   final String title;
@@ -973,125 +982,193 @@ class _NavItem extends StatefulWidget {
   State<_NavItem> createState() => _NavItemState();
 }
 
-class _NavItemState extends State<_NavItem> {
+class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
+  late AnimationController _pressController;
+  late AnimationController _hoverController;
+  late AnimationController _selectController;
+  
   bool _isHovered = false;
 
   @override
+  void initState() {
+    super.initState();
+    _pressController = AnimationController(
+      duration: const Duration(milliseconds: 80),
+      vsync: this,
+    );
+    _hoverController = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
+    );
+    _selectController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    
+    if (widget.isSelected) {
+      _selectController.value = 1.0;
+    }
+  }
+
+  @override
+  void didUpdateWidget(_NavItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isSelected != widget.isSelected) {
+      if (widget.isSelected) {
+        _selectController.forward();
+      } else {
+        _selectController.reverse();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _pressController.dispose();
+    _hoverController.dispose();
+    _selectController.dispose();
+    super.dispose();
+  }
+
+  void _onEnter(PointerEvent _) {
+    setState(() => _isHovered = true);
+    _hoverController.forward();
+  }
+
+  void _onExit(PointerEvent _) {
+    setState(() => _isHovered = false);
+    _hoverController.reverse();
+  }
+
+  void _onTapDown(TapDownDetails _) => _pressController.forward();
+  
+  void _onTapUp(TapUpDetails _) {
+    _pressController.reverse();
+    widget.onTap();
+  }
+  
+  void _onTapCancel() => _pressController.reverse();
+
+  @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: widget.isCompact
-            ? _buildCompactContent()
-            : AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                curve: Curves.easeOutCubic,
-                height: 36,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: widget.isSelected
-                      ? AppTheme.bgLayer2.withValues(alpha: 0.8)
-                      : _isHovered
-                          ? AppTheme.bgLayer2.withValues(alpha: 0.5)
-                          : Colors.transparent,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: _buildExpandedContent(),
-              ),
+    return RepaintBoundary(
+      child: MouseRegion(
+        onEnter: _onEnter,
+        onExit: _onExit,
+        child: GestureDetector(
+          onTapDown: _onTapDown,
+          onTapUp: _onTapUp,
+          onTapCancel: _onTapCancel,
+          child: AnimatedBuilder(
+            animation: Listenable.merge([_pressController, _hoverController, _selectController]),
+            builder: (context, _) {
+              final pressValue = Curves.easeOutCubic.transform(_pressController.value);
+              final hoverValue = Curves.easeOutCubic.transform(_hoverController.value);
+              final selectValue = Curves.easeOutCubic.transform(_selectController.value);
+              
+              final scale = 1.0 - (pressValue * 0.02);
+              
+              return Transform.scale(
+                scale: scale,
+                child: widget.isCompact
+                    ? _buildCompactContent(hoverValue, selectValue)
+                    : _buildExpandedContent(hoverValue, selectValue),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildCompactContent() {
+  Widget _buildCompactContent(double hoverValue, double selectValue) {
+    final bgAlpha = (selectValue * 0.8 + hoverValue * 0.4 * (1 - selectValue)).clamp(0.0, 0.8);
+    
+    final iconColor = Color.lerp(
+      Color.lerp(AppTheme.textSecondary, AppTheme.textPrimary, hoverValue),
+      AppTheme.accentLight,
+      selectValue,
+    )!;
+    
     return Center(
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOutCubic,
+      child: Container(
         width: 40,
         height: 36,
         decoration: BoxDecoration(
-          color: widget.isSelected
-              ? AppTheme.bgLayer2.withValues(alpha: 0.8)
-              : _isHovered
-                  ? AppTheme.bgLayer2.withValues(alpha: 0.5)
-                  : Colors.transparent,
-          borderRadius: BorderRadius.circular(4),
+          color: AppTheme.bgLayer2.withValues(alpha: bgAlpha),
+          borderRadius: BorderRadius.circular(6),
         ),
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // 选中指示器
-            if (widget.isSelected)
+            if (selectValue > 0.01)
               Positioned(
                 left: 4,
                 child: Container(
                   width: 3,
-                  height: 16,
+                  height: (16 * selectValue).clamp(0.0, 16.0),
                   decoration: BoxDecoration(
                     color: AppTheme.accentPrimary,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
-            Icon(
-              widget.icon,
-              size: 16,
-              color: widget.isSelected
-                  ? AppTheme.accentLight
-                  : _isHovered
-                      ? AppTheme.textPrimary
-                      : AppTheme.textSecondary,
-            ),
+            Icon(widget.icon, size: 16, color: iconColor),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildExpandedContent() {
-    return Row(
-      children: [
-        // 选中指示器
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          width: 3,
-          height: widget.isSelected ? 16 : 0,
-          margin: const EdgeInsets.only(right: 12),
-          decoration: BoxDecoration(
-            color: AppTheme.accentPrimary,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        // 图标
-        Icon(
-          widget.icon,
-          size: 16,
-          color: widget.isSelected
-              ? AppTheme.accentLight
-              : _isHovered
-                  ? AppTheme.textPrimary
-                  : AppTheme.textSecondary,
-        ),
-        const SizedBox(width: 12),
-        // 标题
-        Expanded(
-          child: Text(
-            widget.title,
-            style: TextStyle(
-              color: widget.isSelected
-                  ? AppTheme.textPrimary
-                  : _isHovered
-                      ? AppTheme.textPrimary
-                      : AppTheme.textSecondary,
-              fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w400,
-              fontSize: 13,
+  Widget _buildExpandedContent(double hoverValue, double selectValue) {
+    final bgAlpha = (selectValue * 0.8 + hoverValue * 0.4 * (1 - selectValue)).clamp(0.0, 0.8);
+    
+    final iconColor = Color.lerp(
+      Color.lerp(AppTheme.textSecondary, AppTheme.textPrimary, hoverValue),
+      AppTheme.accentLight,
+      selectValue,
+    )!;
+    
+    final textColor = Color.lerp(
+      AppTheme.textSecondary,
+      AppTheme.textPrimary,
+      (selectValue + hoverValue * (1 - selectValue)).clamp(0.0, 1.0),
+    )!;
+    
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppTheme.bgLayer2.withValues(alpha: bgAlpha),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        children: [
+          if (selectValue > 0.01)
+            Container(
+              width: 3,
+              height: (16 * selectValue).clamp(0.0, 16.0),
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                color: AppTheme.accentPrimary,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-            overflow: TextOverflow.ellipsis,
+          Icon(widget.icon, size: 16, color: iconColor),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              widget.title,
+              style: TextStyle(
+                color: textColor,
+                fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w400,
+                fontSize: 13,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

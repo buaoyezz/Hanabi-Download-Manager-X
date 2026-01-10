@@ -419,6 +419,16 @@ class ClientConfigService extends ChangeNotifier {
 
   // ========== 应用配置 ==========
   
+  /// 通用的 bool 配置获取方法
+  bool getBool(String key, {bool defaultValue = false}) {
+    return _getFromConfig<bool>(_appConfig, key, defaultValue: defaultValue) ?? defaultValue;
+  }
+
+  /// 通用的 bool 配置设置方法
+  Future<void> setBool(String key, bool value) async {
+    await _setToConfig(_appConfig, _appConfigPath, key, value);
+  }
+
   bool getAutoStartDownload() {
     return _getFromConfig<bool>(_appConfig, 'behavior.auto_start_download', defaultValue: true) ?? true;
   }
