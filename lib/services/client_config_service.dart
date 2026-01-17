@@ -164,6 +164,9 @@ class ClientConfigService extends ChangeNotifier {
         'default_expanded': false,
         'max_visible': 5,
       },
+      'completed_list': {
+        'custom_categories': [], // 自定义分类列表
+      },
     };
   }
 
@@ -375,6 +378,53 @@ class ClientConfigService extends ChangeNotifier {
 
   Future<void> setWindowScaleFactor(double scale) async {
     await _setToConfig(_uiConfig, _uiConfigPath, 'window.scale_factor', scale);
+  }
+
+  // ========== 自定义分类配置 ==========
+  
+  /// 获取自定义分类列表
+  List<Map<String, dynamic>> getCustomCategories() {
+    final categories = _getFromConfig<List>(_uiConfig, 'completed_list.custom_categories', defaultValue: []);
+    return categories?.cast<Map<String, dynamic>>() ?? [];
+  }
+
+  /// 保存自定义分类列表
+  Future<void> saveCustomCategories(List<Map<String, dynamic>> categories) async {
+    await _setToConfig(_uiConfig, _uiConfigPath, 'completed_list.custom_categories', categories);
+  }
+
+  /// 添加自定义分类
+  Future<void> addCustomCategory(String name, List<String> extensions) async {
+    final categories = getCustomCategories();
+    categories.add({
+      'name': name,
+      'extensions': extensions,
+      'created_at': DateTime.now().toIso8601String(),
+    });
+    await saveCustomCategories(categories);
+  }
+
+  /// 删除自定义分类
+  Future<void> removeCustomCategory(int index) async {
+    final categories = getCustomCategories();
+    if (index >= 0 && index < categories.length) {
+      categories.removeAt(index);
+      await saveCustomCategories(categories);
+    }
+  }
+
+  /// 更新自定义分类
+  Future<void> updateCustomCategory(int index, String name, List<String> extensions) async {
+    final categories = getCustomCategories();
+    if (index >= 0 && index < categories.length) {
+      categories[index] = {
+        'name': name,
+        'extensions': extensions,
+        'created_at': categories[index]['created_at'],
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+      await saveCustomCategories(categories);
+    }
   }
 
   /// 根据屏幕分辨率自动设置缩放比例（仅在首次启动或缩放为默认值时）

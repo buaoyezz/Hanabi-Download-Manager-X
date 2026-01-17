@@ -11,6 +11,7 @@ import '../services/kernel_service.dart';
 import '../services/kernel/kernel_manager.dart';
 import '../services/window_effect_service.dart';
 import '../services/client_config_service.dart';
+import '../services/user_profile_service.dart';
 import '../models/download_task.dart';
 import '../theme/app_theme.dart';
 import '../main.dart';
@@ -22,6 +23,7 @@ import 'widgets/about_page.dart';
 import 'widgets/debug/log_page.dart';
 import 'widgets/debug/status_page.dart';
 import 'widgets/debug/web_check_page.dart';
+import 'widgets/debug/online_stats_page.dart';
 
 class NavigationItem {
   final IconData icon;
@@ -58,6 +60,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   
   List<NavigationItem> _getNavItems(BuildContext context) {
     final devMode = context.watch<DeveloperModeService>();
+    final userProfile = context.watch<UserProfileService>();
     
     final items = <NavigationItem>[
       NavigationItem(
@@ -95,6 +98,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         icon: FluentIcons.globe,
         title: 'Web检测',
         body: const WebCheckPage(),
+      ));
+    }
+    
+    // 在线统计页面（调试模式 + 统计开关启用）
+    if (devMode.showStatusPage && userProfile.statsEnabled) {
+      bottomItems.add(NavigationItem(
+        icon: FluentIcons.people,
+        title: '在线统计',
+        body: const OnlineStatsPage(),
       ));
     }
     
@@ -477,11 +489,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // 检查新内核或旧内核是否在运行
     final isKernelRunning = kernelManager.isRunning || kernelService.isRunning;
     
-    // 如果内核正在运行，或者当前页面是调试页面（日志、状态、Web检测），直接显示页面
+    // 如果内核正在运行，或者当前页面是调试页面（日志、状态、Web检测、在线统计），直接显示页面
     final currentPageTitle = navItems[_currentIndex].title;
     final isDebugPage = currentPageTitle == '日志' || 
                         currentPageTitle == '状态' || 
                         currentPageTitle == 'Web检测' ||
+                        currentPageTitle == '在线统计' ||
                         currentPageTitle == '设置' ||
                         currentPageTitle == '关于';
     
@@ -681,7 +694,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   
                   // 主导航项
                   ...navItems.asMap().entries
-                      .where((entry) => !['日志', '状态', 'Web检测', '设置', '关于'].contains(entry.value.title))
+                      .where((entry) => !['日志', '状态', 'Web检测', '在线统计', '设置', '关于'].contains(entry.value.title))
                       .map((entry) => _buildNavItemWidget(context, entry.key, entry.value, isCompact)),
                   
                   const Spacer(),
@@ -726,7 +739,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   /// 构建底部导航项
   List<Widget> _buildBottomNavItems(BuildContext context, List<NavigationItem> navItems, bool isCompact) {
     final bottomItems = navItems.asMap().entries
-        .where((entry) => ['日志', '状态', 'Web检测', '设置', '关于'].contains(entry.value.title))
+        .where((entry) => ['日志', '状态', 'Web检测', '在线统计', '设置', '关于'].contains(entry.value.title))
         .toList();
     
     return bottomItems.map((entry) {

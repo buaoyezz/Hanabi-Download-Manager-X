@@ -10,6 +10,8 @@ import '../../../services/network_status_service.dart';
 import '../../../services/app_logger_service.dart';
 import '../../../services/auto_start_service.dart';
 import '../../../services/client_config_service.dart';
+import '../../../services/integrated_download_service.dart';
+import '../../../models/download_task.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/settings_components.dart';
 import '../../../utils/constants.dart';
@@ -144,17 +146,61 @@ class _StatusPageState extends State<StatusPage> {
   
   Future<void> _loadKernelStats() async {
     try {
-      final response = await http.get(
-        Uri.parse('http://127.0.0.1:9710/download/statistics'),
-      ).timeout(const Duration(seconds: 3));
+      // 优先从 IntegratedDownloadService 获取真实数据
+      final downloadService = context.read<IntegratedDownloadService>();
+      final tasks = downloadService.tasks;
+      
+      // 统计各状态的任务
+      int totalDownloads = tasks.length;
+      int activeTasks = tasks.where((t) => 
+        t.status == DownloadStatus.downloading || 
+        t.status == DownloadStatus.pending
+      ).length;
+      int completedTasks = tasks.where((t) => t.status == DownloadStatus.completed).length;
+      int failedTasks = tasks.where((t) => t.status == DownloadStatus.failed).length;
+      
+      // 计算总下载量
+      int totalDownloadedBytes = 0;
+      for (final task in tasks) {
+        if (task.status == DownloadStatus.completed && task.fileSize != null) {
+          totalDownloadedBytes += task.fileSize!;
+        } else if (task.status == DownloadStatus.downloading && task.downloadedSize != null) {
+          totalDownloadedBytes += task.downloadedSize!;
+        }
+      }
+      
+      if (!mounted) return;
+      setState(() {
+        _kernelStats = {
+          'total_downloads': totalDownloads,
+          'active_tasks': activeTasks,
+          'completed_tasks': completedTasks,
+          'failed_tasks': failedTasks,
+          'total_downloaded_bytes': totalDownloadedBytes,
+        };
+      });
+      
+      // 如果是旧内核，尝试从 HTTP API 获取（作为备用）
+      final clientConfig = context.read<ClientConfigService>();
+      final useNewKernel = clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
+      
+      if (!useNewKernel) {
+        try {
+          final response = await http.get(
+            Uri.parse('http://127.0.0.1:9710/download/statistics'),
+          ).timeout(const Duration(seconds: 2));
 
-      if (response.statusCode == 200) {
-        final result = jsonDecode(response.body);
-        if (result['success']) {
-          if (!mounted) return;
-          setState(() {
-            _kernelStats = result['data'];
-          });
+          if (response.statusCode == 200) {
+            final result = jsonDecode(response.body);
+            if (result['success'] && result['data'] != null) {
+              if (!mounted) return;
+              setState(() {
+                _kernelStats = result['data'];
+              });
+            }
+          }
+        } catch (e) {
+          // 使用已经从 IntegratedDownloadService 获取的数据
         }
       }
     } catch (e) {

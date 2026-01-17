@@ -14,6 +14,17 @@ class NsfxHttpServer {
   
   // 待弹窗的下载请求队列
   final List<Map<String, dynamic>> _pendingPopups = [];
+  
+  // 在线用户统计
+  final Map<String, DateTime> _activeSessions = {};
+  final Map<String, Map<String, dynamic>> _deviceFingerprints = {}; // fingerprint -> device info
+  final Map<String, String> _sessionToFingerprint = {}; // session_id -> fingerprint
+  final List<Map<String, dynamic>> _onlineHistory = [];
+  final List<Map<String, dynamic>> _allDevices = []; // 所有历史设备
+  Timer? _cleanupTimer;
+  Timer? _historyTimer;
+  static const Duration _sessionTimeout = Duration(minutes: 2);
+  static const Duration _historyInterval = Duration(seconds: 10);
 
   bool get isRunning => _isRunning;
 
@@ -28,6 +39,13 @@ class NsfxHttpServer {
       _logger.info('NSFX-HTTP', 'HTTP server started on port $port');
 
       _server!.listen(_handleRequest);
+      
+      // 启动会话清理定时器
+      _startCleanupTimer();
+      
+      // 启动历史记录定时器
+      _startHistoryTimer();
+      
       return true;
     } catch (e) {
       _logger.error('NSFX-HTTP', 'Failed to start HTTP server: $e');
@@ -36,6 +54,14 @@ class NsfxHttpServer {
   }
 
   Future<void> stop() async {
+    _cleanupTimer?.cancel();
+    _historyTimer?.cancel();
+    _activeSessions.clear();
+    _deviceFingerprints.clear();
+    _sessionToFingerprint.clear();
+    _onlineHistory.clear();
+    // 不清空 _allDevices，保留历史记录
+    
     await _server?.close(force: true);
     _server = null;
     _isRunning = false;
@@ -101,6 +127,15 @@ class NsfxHttpServer {
           } else {
             await _handleSetDownloadDir(request);
           }
+          break;
+        case '/stats/heartbeat':
+          await _handleHeartbeat(request);
+          break;
+        case '/stats/offline':
+          await _handleOffline(request);
+          break;
+        case '/stats/online':
+          await _handleGetOnlineStats(request);
           break;
         default:
           _logger.warning('NSFX-HTTP', 'Unknown path: $path');
@@ -171,13 +206,29 @@ class NsfxHttpServer {
 
   Future<void> _handleGetStatistics(HttpRequest request) async {
     final stats = await _kernel.getStatistics();
+    final tasks = await _kernel.getTasks();
+    
+    // 统计各状态的任务数
+    int completedCount = 0;
+    int failedCount = 0;
+    
+    if (tasks != null) {
+      for (final task in tasks) {
+        if (task.status == 'completed') {
+          completedCount++;
+        } else if (task.status == 'failed' || task.status == 'error') {
+          failedCount++;
+        }
+      }
+    }
+    
     _sendJson(request, {
       'success': true,
       'data': stats != null ? {
         'total_downloads': stats.totalTasks,
         'active_tasks': stats.activeDownloads,
-        'completed_tasks': 0,
-        'failed_tasks': 0,
+        'completed_tasks': completedCount,
+        'failed_tasks': failedCount,
         'total_downloaded_bytes': stats.totalDownloaded,
         'total_speed': stats.totalSpeed,
       } : null,
@@ -297,6 +348,215 @@ class NsfxHttpServer {
     _logger.info('NSFX-HTTP', 'Set download dir: $path');
     final success = await _kernel.setDownloadDir(path);
     _sendJson(request, {'success': success});
+  }
+  
+  // ========== 在线统计相关处理 ==========
+  
+  /// 启动会话清理定时器
+  void _startCleanupTimer() {
+    _cleanupTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      _cleanupExpiredSessions();
+    });
+  }
+  
+  /// 启动历史记录定时器
+  void _startHistoryTimer() {
+    _historyTimer = Timer.periodic(_historyInterval, (_) {
+      _recordOnlineHistory();
+    });
+  }
+  
+  /// 清理过期会话
+  void _cleanupExpiredSessions() {
+    final now = DateTime.now();
+    final expiredSessions = <String>[];
+    
+    _activeSessions.forEach((sessionId, lastHeartbeat) {
+      if (now.difference(lastHeartbeat) > _sessionTimeout) {
+        expiredSessions.add(sessionId);
+      }
+    });
+    
+    for (final sessionId in expiredSessions) {
+      _activeSessions.remove(sessionId);
+      _sessionToFingerprint.remove(sessionId); // 同时清理指纹映射
+      _logger.debug('NSFX-HTTP', 'Session expired: $sessionId');
+    }
+    
+    if (expiredSessions.isNotEmpty) {
+      _logger.info('NSFX-HTTP', 'Cleaned up ${expiredSessions.length} expired sessions');
+    }
+  }
+  
+  /// 记录在线历史
+  void _recordOnlineHistory() {
+    final now = DateTime.now();
+    final uniqueDevices = _getUniqueDeviceCount(); // 使用唯一设备数而不是会话数
+    
+    _onlineHistory.add({
+      'timestamp': now.toIso8601String(),
+      'count': uniqueDevices, // 记录唯一设备数
+    });
+    
+    // 保留最近100个数据点（约16分钟）
+    if (_onlineHistory.length > 100) {
+      _onlineHistory.removeAt(0);
+    }
+  }
+  
+  /// 处理心跳请求
+  Future<void> _handleHeartbeat(HttpRequest request) async {
+    final body = await _readBody(request);
+    final sessionId = body['session_id'] as String?;
+    final fingerprint = body['device_fingerprint'] as String?;
+    final deviceInfo = body['device_info'] as Map<String, dynamic>?;
+    
+    if (sessionId == null) {
+      _sendError(request, 400, 'Missing session_id');
+      return;
+    }
+    
+    // 更新会话最后活跃时间
+    final isNewSession = !_activeSessions.containsKey(sessionId);
+    _activeSessions[sessionId] = DateTime.now();
+    
+    // 处理设备指纹
+    if (fingerprint != null) {
+      _sessionToFingerprint[sessionId] = fingerprint;
+      _logger.debug('NSFX-HTTP', 'Mapped session $sessionId to fingerprint $fingerprint');
+      
+      // 更新设备信息
+      if (!_deviceFingerprints.containsKey(fingerprint)) {
+        final fingerprintShort = fingerprint.length >= 8 
+            ? fingerprint.substring(0, 8) 
+            : fingerprint;
+        
+        _deviceFingerprints[fingerprint] = {
+          'fingerprint': fingerprint,
+          'fingerprint_short': fingerprintShort,
+          'device_info': deviceInfo,
+          'device_summary': _getDeviceSummary(deviceInfo),
+          'first_seen': DateTime.now().toIso8601String(),
+          'last_seen': DateTime.now().toIso8601String(),
+          'session_count': 1,
+        };
+        
+        // 添加到历史设备列表
+        _allDevices.add({
+          ..._deviceFingerprints[fingerprint]!,
+          'added_at': DateTime.now().toIso8601String(),
+        });
+        
+        _logger.info('NSFX-HTTP', 'New device registered: $fingerprintShort');
+      } else {
+        // 更新现有设备
+        _deviceFingerprints[fingerprint]!['last_seen'] = DateTime.now().toIso8601String();
+        _deviceFingerprints[fingerprint]!['session_count'] = 
+            (_deviceFingerprints[fingerprint]!['session_count'] as int) + 1;
+      }
+    }
+    
+    if (isNewSession) {
+      _logger.info('NSFX-HTTP', 'New session: $sessionId');
+    }
+    
+    // 计算唯一设备数（去重）
+    final uniqueDevices = _getUniqueDeviceCount();
+    
+    _sendJson(request, {
+      'success': true,
+      'data': {
+        'online_users': _activeSessions.length,
+        'unique_devices': uniqueDevices,
+        'session_id': sessionId,
+      },
+    });
+  }
+  
+  /// 获取唯一设备数量
+  int _getUniqueDeviceCount() {
+    final activeFingerprints = <String>{};
+    
+    for (final sessionId in _activeSessions.keys) {
+      final fingerprint = _sessionToFingerprint[sessionId];
+      if (fingerprint != null) {
+        activeFingerprints.add(fingerprint);
+      }
+    }
+    
+    _logger.debug('NSFX-HTTP', 'Unique devices: ${activeFingerprints.length} (sessions: ${_activeSessions.length}, mappings: ${_sessionToFingerprint.length})');
+    
+    return activeFingerprints.length;
+  }
+  
+  /// 获取设备摘要信息
+  String _getDeviceSummary(Map<String, dynamic>? deviceInfo) {
+    if (deviceInfo == null) return 'Unknown Device';
+    
+    final browser = deviceInfo['browser'] ?? 'Unknown';
+    final os = deviceInfo['os'] ?? 'Unknown';
+    final deviceType = deviceInfo['deviceType'] ?? 'Unknown';
+    
+    return '$browser on $os ($deviceType)';
+  }
+  
+  /// 处理下线请求
+  Future<void> _handleOffline(HttpRequest request) async {
+    final body = await _readBody(request);
+    final sessionId = body['session_id'] as String?;
+    
+    if (sessionId == null) {
+      _sendError(request, 400, 'Missing session_id');
+      return;
+    }
+    
+    _activeSessions.remove(sessionId);
+    _sessionToFingerprint.remove(sessionId);
+    _logger.info('NSFX-HTTP', 'Session offline: $sessionId');
+    
+    _sendJson(request, {
+      'success': true,
+      'data': {
+        'online_users': _activeSessions.length,
+        'unique_devices': _getUniqueDeviceCount(),
+      },
+    });
+  }
+  
+  /// 获取在线统计数据
+  Future<void> _handleGetOnlineStats(HttpRequest request) async {
+    final uniqueDevices = _getUniqueDeviceCount();
+    
+    // 获取活跃设备列表
+    final activeDevices = <Map<String, dynamic>>[];
+    final activeFingerprints = <String>{};
+    
+    for (final sessionId in _activeSessions.keys) {
+      final fingerprint = _sessionToFingerprint[sessionId];
+      if (fingerprint != null && !activeFingerprints.contains(fingerprint)) {
+        activeFingerprints.add(fingerprint);
+        final deviceData = _deviceFingerprints[fingerprint];
+        if (deviceData != null) {
+          activeDevices.add(deviceData);
+        }
+      }
+    }
+    
+    // 计算平均会话时间（简化版）
+    final avgSessionTime = _activeSessions.isEmpty ? 0 : 5.0; // 简化计算
+    
+    _sendJson(request, {
+      'success': true,
+      'data': {
+        'current_online': _activeSessions.length,
+        'unique_devices': uniqueDevices,
+        'avg_session_time': avgSessionTime,
+        'history': _onlineHistory,
+        'active_sessions': _activeSessions.length,
+        'devices': activeDevices,
+        'total_devices_ever': _allDevices.length,
+      },
+    });
   }
 
   Map<String, dynamic> _taskToJson(DownloadTask task) {

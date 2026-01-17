@@ -10,6 +10,7 @@ import '../../services/kernel_service.dart';
 import '../../services/kernel/kernel_manager.dart';
 import '../../services/developer_mode_service.dart';
 import '../../services/client_config_service.dart';
+import '../../services/user_profile_service.dart';
 import '../../widgets/folder_picker_dialog.dart';
 import '../../widgets/settings_components.dart';
 import '../../widgets/temp_files_dialog.dart';
@@ -89,6 +90,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _openOnStartup = false;
   final _autoStartService = AutoStartService();
   bool _notifyOnComplete = true;
+  bool _enableOnlineStats = true; // 在线统计开关
   String _downloadPath = '';
   String _closeButtonBehavior = 'minimize_to_tray';
   
@@ -112,7 +114,40 @@ class _SettingsPageState extends State<SettingsPage> {
       _loadAutoStartSettings();
       _loadBehaviorSettings();
       _loadKernelSettings();
+      _loadOnlineStatsSettings();
     });
+  }
+
+  Future<void> _loadOnlineStatsSettings() async {
+    final userProfile = UserProfileService();
+    if (mounted) {
+      setState(() {
+        _enableOnlineStats = userProfile.statsEnabled;
+      });
+    }
+  }
+
+  Future<void> _toggleOnlineStats(bool value) async {
+    final userProfile = UserProfileService();
+    await userProfile.setStatsEnabled(value);
+    
+    if (mounted) {
+      setState(() {
+        _enableOnlineStats = value;
+      });
+      
+      displayInfoBar(
+        context,
+        builder: (context, close) => InfoBar(
+          title: Text(value ? '在线统计已启用' : '在线统计已禁用'),
+          content: Text(value 
+              ? '您的设备将参与在线用户统计，帮助我们了解软件使用情况' 
+              : '您的设备将不再发送统计信息'),
+          severity: InfoBarSeverity.success,
+        ),
+        duration: const Duration(seconds: 3),
+      );
+    }
   }
 
   Future<void> _loadKernelSettings() async {
@@ -809,6 +844,16 @@ class _SettingsPageState extends State<SettingsPage> {
             trailing: ToggleSwitch(
               checked: _notifyOnComplete,
               onChanged: (value) => setState(() => _notifyOnComplete = value),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildSettingItem(
+            context,
+            title: '参与在线统计',
+            subtitle: '帮助我们了解软件使用情况（匿名统计）',
+            trailing: ToggleSwitch(
+              checked: _enableOnlineStats,
+              onChanged: _toggleOnlineStats,
             ),
           ),
           const SizedBox(height: 12),

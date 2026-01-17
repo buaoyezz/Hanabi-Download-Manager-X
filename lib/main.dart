@@ -20,6 +20,8 @@ import 'services/quick_path_service.dart';
 import 'services/font_service.dart';
 import 'services/update_service.dart';
 import 'services/window_effect_service.dart';
+import 'services/online_stats_service.dart';
+import 'services/user_profile_service.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
 
@@ -86,6 +88,8 @@ void main(List<String> args) async {
   final fontService = FontService();
   final updateService = UpdateService(logger: appLogger);
   final windowEffectService = WindowEffectService();
+  final onlineStatsService = OnlineStatsService();
+  final userProfileService = UserProfileService();
   
   appLogger.info('App', 'Application starting...');
   await clientConfig.initialize();
@@ -95,6 +99,13 @@ void main(List<String> args) async {
   await fontService.loadFont();
   await windowEffectService.initialize();
   await updateService.initialize();
+  
+  // 初始化用户配置并启动心跳
+  await userProfileService.initialize();
+  appLogger.info('App', 'User profile initialized: ${userProfileService.deviceId}');
+  
+  // 注意：在线统计功能已移至网页端
+  // 访问 https://online.zzbuaoye.top 查看实时统计数据
   
   // 加载自定义字体（异步，不阻塞启动）
   _loadCustomFonts(fontService).catchError((e) {
@@ -120,6 +131,8 @@ void main(List<String> args) async {
         ChangeNotifierProvider.value(value: fontService),
         ChangeNotifierProvider.value(value: updateService),
         ChangeNotifierProvider.value(value: windowEffectService),
+        ChangeNotifierProvider.value(value: onlineStatsService),
+        ChangeNotifierProvider.value(value: userProfileService),
         Provider<bool>.value(value: isAutoStart), // 传递启动模式
       ],
       child: const MyApp(),
@@ -348,9 +361,20 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void _initDownloadListener() {
     _downloadListener = DownloadListenerService(context);
     _downloadListener!.startListening();
+    
+    // 注意：在线统计功能已移至网页端
+    // 访问 https://online.zzbuaoye.top 查看统计数据
   }
 
   Future<void> _cleanup() async {
+    // 停止在线统计
+    try {
+      final onlineStats = context.read<OnlineStatsService>();
+      onlineStats.stopFetching();
+    } catch (e) {
+      // 忽略错误
+    }
+    
     // 保存窗口状态
     try {
       final win = appWindow;
