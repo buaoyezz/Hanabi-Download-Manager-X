@@ -1,9 +1,7 @@
 class AppConstants {
   // App Information
   static const String appName = 'Hanabi Download ManagerX';
-  // 注意：version 现在从 pubspec.yaml 动态读取，这里的值仅作为后备
-  // 实际版本号请在 pubspec.yaml 中修改
-  static const String version = '1.2.7'; // 后备版本号，与 pubspec.yaml 保持一致
+  static const String version = '1.2.8';
   static const String channel = 'release';
   static const String developer = 'ZZBuAoYe';
 
@@ -11,10 +9,10 @@ class AppConstants {
   static const String kernelName = 'NextSpeedForceXKernel';
   static const String kernelName2 = 'SodaDownloadKernel';
     // Kernel -Version
-  static const String newKernelVersion = '2.0.0';
+  static const String newKernelVersion = '2.1.0';
   static const String kernelVersion = '1.5.9';
     // Kernel -BuildNumber
-  static const String newKernelBuildNumber = 'b260110-nsfx-r';
+  static const String newKernelBuildNumber = 'b260118-nsfx-r';
   static const String kernelBuildNumber = 'b260110-soda-r';
     // Kernel - FullName
   static const String newKernelFullName = 'NSFX (Next Speed Force X)';

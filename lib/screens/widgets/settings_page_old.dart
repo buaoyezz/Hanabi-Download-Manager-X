@@ -1410,6 +1410,17 @@ class _SettingsPageState extends State<SettingsPage> {
                     
                     _buildSettingItem(
                       context,
+                      title: '显示在线统计页面',
+                      subtitle: '在导航栏显示在线用户统计',
+                      trailing: ToggleSwitch(
+                        checked: devMode.showOnlineStatsPage,
+                        onChanged: (value) => devMode.setShowOnlineStatsPage(value),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    
+                    _buildSettingItem(
+                      context,
                       title: '显示 Web 检测页面',
                       subtitle: '在导航栏显示网站状态检测工具',
                       trailing: ToggleSwitch(

@@ -101,8 +101,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ));
     }
     
-    // 在线统计页面（调试模式 + 统计开关启用）
-    if (devMode.showStatusPage && userProfile.statsEnabled) {
+    // 在线统计页面（独立开关）
+    if (devMode.showOnlineStatsPage && userProfile.statsEnabled) {
       bottomItems.add(NavigationItem(
         icon: FluentIcons.people,
         title: '在线统计',
@@ -441,7 +441,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   fontSize: 13,
                   letterSpacing: 0.3,
                 ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
+              const SizedBox(width: 16),
               // 中间：可拖动区域
               Expanded(child: MoveWindow()),
               // 右侧：操作按钮
@@ -673,6 +676,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   /// Edge 风格侧边栏 - 只包含导航项
+  /// Edge 风格侧边栏 - 只包含导航项
   Widget _buildEdgeSidebar(BuildContext context, List<NavigationItem> navItems, double opacity) {
     return AnimatedBuilder(
       animation: _sidebarController,
@@ -680,42 +684,66 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         final width = _widthAnimation.value;
         final isCompact = width < 100;
         
-        return ClipRRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-            child: Container(
-              width: width,
-              decoration: BoxDecoration(
-                color: AppTheme.bgSolid.withValues(alpha: opacity),
-              ),
-              child: Column(
-                children: [
-                  const SizedBox(height: 8),
-                  
-                  // 主导航项
-                  ...navItems.asMap().entries
-                      .where((entry) => !['日志', '状态', 'Web检测', '在线统计', '设置', '关于'].contains(entry.value.title))
-                      .map((entry) => _buildNavItemWidget(context, entry.key, entry.value, isCompact)),
-                  
-                  const Spacer(),
-                  
-                  // 分隔线
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 16, vertical: 8),
-                    child: Container(
-                      height: 1,
-                      color: AppTheme.borderSubtle.withValues(alpha: 0.3),
+        return Stack(
+          children: [
+            // 主侧边栏
+            BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+              child: Container(
+                width: width,
+                decoration: BoxDecoration(
+                  color: AppTheme.bgSolid.withValues(alpha: opacity),
+                  border: const Border(
+                    right: BorderSide(
+                      color: AppTheme.borderSubtle,
+                      width: 0.5,
                     ),
                   ),
-                  
-                  // 底部导航项
-                  ..._buildBottomNavItems(context, navItems, isCompact),
-                  
-                  const SizedBox(height: 8),
-                ],
+                ),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 8),
+                    
+                    // 主导航项
+                    ...navItems.asMap().entries
+                        .where((entry) => !['日志', '状态', 'Web检测', '在线统计', '设置', '关于'].contains(entry.value.title))
+                        .map((entry) => _buildNavItemWidget(context, entry.key, entry.value, isCompact)),
+                    
+                    const Spacer(),
+                    
+                    // 分隔线
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 16, vertical: 8),
+                      child: Container(
+                        height: 1,
+                        color: AppTheme.borderSubtle.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    
+                    // 底部导航项
+                    ..._buildBottomNavItems(context, navItems, isCompact),
+                    
+                    const SizedBox(height: 8),
+                  ],
+                ),
               ),
             ),
-          ),
+            // 右上角圆角装饰 - 填补三角形缝隙
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: AppTheme.bgSolid.withValues(alpha: opacity),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+          ],
         );
       },
     );

@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../services/kernel_service.dart';
 import '../../../services/kernel/kernel_manager.dart';
 import '../../../services/network_status_service.dart';
@@ -94,6 +95,64 @@ class _StatusPageState extends State<StatusPage> {
       setState(() {
         _checkingAutoStart = false;
       });
+    }
+  }
+  
+  /// 下载浏览器扩展插件
+  Future<void> _downloadExtension() async {
+    const extensionUrl = 'https://github.com/buaoyezz/Hanabi-Download-Manager-X/releases/download/V1.0.0/chrome_extension.zip';
+    
+    try {
+      final downloadService = context.read<IntegratedDownloadService>();
+      await downloadService.addTask(extensionUrl, 'chrome_extension.zip');
+      
+      if (mounted) {
+        displayInfoBar(
+          context,
+          builder: (context, close) => const InfoBar(
+            title: Text('下载已添加'),
+            content: Text('浏览器扩展插件已添加到下载列表'),
+            severity: InfoBarSeverity.success,
+          ),
+          duration: const Duration(seconds: 3),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        displayInfoBar(
+          context,
+          builder: (context, close) => InfoBar(
+            title: const Text('下载失败'),
+            content: Text('无法添加下载任务: $e'),
+            severity: InfoBarSeverity.error,
+          ),
+        );
+      }
+    }
+  }
+  
+  /// 打开浏览器扩展商店页面
+  Future<void> _openExtensionStore() async {
+    const storeUrl = 'https://microsoftedge.microsoft.com/addons/detail/nifalaonnaeobogcnhfoeaklpihcaeia';
+    
+    try {
+      final uri = Uri.parse(storeUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        throw Exception('无法打开链接');
+      }
+    } catch (e) {
+      if (mounted) {
+        displayInfoBar(
+          context,
+          builder: (context, close) => InfoBar(
+            title: const Text('打开失败'),
+            content: Text('无法打开浏览器: $e'),
+            severity: InfoBarSeverity.error,
+          ),
+        );
+      }
     }
   }
   
@@ -625,15 +684,41 @@ class _StatusPageState extends State<StatusPage> {
               children: [
                 _buildStatusItem(
                   context,
-                  label: '扩展状态',
-                  value: '未知',
+                  label: '提示',
+                  value: '感谢使用，现已支持软件内下载插件以及跳转至网页',
                   isInfo: true,
                 ),
-                _buildStatusItem(
-                  context,
-                  label: '提示',
-                  value: '插件下载可以通过Edge浏览器插件商城下载，目前只上架了Edge，手动安装请自行Github下载Chrome_extension.zip安装，未来适配Firefox',
-                  isInfo: true,
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: _downloadExtension,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(FluentIcons.download, size: 16),
+                            SizedBox(width: 8),
+                            Text('下载扩展插件'),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Button(
+                        onPressed: _openExtensionStore,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(FluentIcons.edge_logo, size: 16),
+                            SizedBox(width: 8),
+                            Text('打开商店页面'),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

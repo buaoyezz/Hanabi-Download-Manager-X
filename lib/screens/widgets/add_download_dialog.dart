@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import '../../services/integrated_download_service.dart';
@@ -10,221 +11,645 @@ class AddDownloadDialog extends StatefulWidget {
   State<AddDownloadDialog> createState() => _AddDownloadDialogState();
 }
 
-class _AddDownloadDialogState extends State<AddDownloadDialog> {
+class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTickerProviderStateMixin {
   final _urlController = TextEditingController();
   final _fileNameController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+  bool _showAdvanced = false;
+  String? _parsedFileName;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    // 监听 URL 变化，自动解析文件名
+    _urlController.addListener(_onUrlChanged);
+    
+    // 初始化动画
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    );
+    _animationController.forward();
+  }
+
+  void _onUrlChanged() {
+    final url = _urlController.text.trim();
+    if (url.isEmpty) {
+      setState(() => _parsedFileName = null);
+      return;
+    }
+    
+    try {
+      final uri = Uri.parse(url);
+      final path = uri.path;
+      if (path.isNotEmpty) {
+        final segments = path.split('/');
+        final lastSegment = segments.lastWhere((s) => s.isNotEmpty, orElse: () => '');
+        if (lastSegment.isNotEmpty && lastSegment.contains('.')) {
+          // 解码 URL 编码的文件名
+          final decodedName = Uri.decodeComponent(lastSegment);
+          setState(() => _parsedFileName = decodedName);
+          // 如果用户没有手动输入文件名，自动填充
+          if (_fileNameController.text.isEmpty) {
+            _fileNameController.text = decodedName;
+          }
+        }
+      }
+    } catch (e) {
+      // 忽略解析错误
+    }
+  }
 
   @override
   void dispose() {
+    _urlController.removeListener(_onUrlChanged);
     _urlController.dispose();
     _fileNameController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return ContentDialog(
-      title: Row(
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: ContentDialog(
+        constraints: const BoxConstraints(maxWidth: 600),
+        style: ContentDialogThemeData(
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceCard.withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppTheme.borderSubtle.withValues(alpha: 0.5),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 40,
+                offset: const Offset(0, 20),
+              ),
+            ],
+          ),
+        ),
+        title: _buildHeader(context),
+        content: _buildContent(context),
+        actions: _buildActions(context),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.only(bottom: 16),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: AppTheme.borderSubtle,
+            width: 1,
+          ),
+        ),
+      ),
+      child: Row(
         children: [
+          // 图标容器
           Container(
-            width: 36,
-            height: 36,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
                   AppTheme.accentPrimary.withValues(alpha: 0.2),
-                  AppTheme.accentPrimary.withValues(alpha: 0.1),
+                  AppTheme.accentLight.withValues(alpha: 0.1),
                 ],
               ),
-              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: AppTheme.accentPrimary.withValues(alpha: 0.3),
+                width: 1.5,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.accentPrimary.withValues(alpha: 0.2),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: const Icon(
-              FluentIcons.add,
-              size: 18,
+              FluentIcons.download,
+              size: 22,
               color: AppTheme.accentLight,
             ),
           ),
-          const SizedBox(width: 14),
-          const Text('新建下载任务'),
-        ],
-      ),
-      content: Form(
-        key: _formKey,
-        child: SizedBox(
-          width: 520,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildInputField(
-                context,
-                label: '下载链接',
-                controller: _urlController,
-                placeholder: '请输入 HTTP/HTTPS 下载链接',
-                icon: FluentIcons.link,
-                maxLines: 2,
-              ),
-              const SizedBox(height: 16),
-              _buildInputField(
-                context,
-                label: '文件名',
-                controller: _fileNameController,
-                placeholder: '请输入保存的文件名（含扩展名）',
-                icon: FluentIcons.document,
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AppTheme.accentPrimary.withValues(alpha: 0.1),
-                      AppTheme.accentPrimary.withValues(alpha: 0.05),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                  border: Border.all(
-                    color: AppTheme.accentPrimary.withValues(alpha: 0.2),
+          const SizedBox(width: 16),
+          // 标题和描述
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '新建下载任务',
+                  style: FluentTheme.of(context).typography.subtitle?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 18,
+                    color: AppTheme.textPrimary,
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: AppTheme.accentPrimary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Icon(
-                        FluentIcons.info,
-                        size: 12,
-                        color: AppTheme.accentLight,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        '支持多线程下载，自动断点续传',
-                        style: FluentTheme.of(context).typography.caption?.copyWith(
-                          color: AppTheme.accentLight,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 4),
+                Text(
+                  '支持多线程下载和断点续传',
+                  style: FluentTheme.of(context).typography.caption?.copyWith(
+                    color: AppTheme.textTertiary,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
+    return Form(
+      key: _formKey,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 20),
+            // URL 输入框
+            _buildUrlInput(context),
+            const SizedBox(height: 20),
+            // 自动解析的文件名提示
+            if (_parsedFileName != null && _fileNameController.text.isEmpty)
+              _buildParsedFileNameHint(context),
+            // 高级选项切换
+            _buildAdvancedToggle(context),
+            // 高级选项内容
+            if (_showAdvanced) ...[
+              const SizedBox(height: 16),
+              _buildFileNameInput(context),
+            ],
+            const SizedBox(height: 20),
+            // 功能提示卡片
+            _buildFeatureCard(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUrlInput(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(
+              FluentIcons.link,
+              size: 14,
+              color: AppTheme.accentLight,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '下载链接',
+              style: FluentTheme.of(context).typography.body?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.statusError.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                '必填',
+                style: FluentTheme.of(context).typography.caption?.copyWith(
+                  color: AppTheme.statusError,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Container(
+          decoration: BoxDecoration(
+            color: AppTheme.bgLayer2.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: _urlController.text.isNotEmpty
+                  ? AppTheme.accentPrimary.withValues(alpha: 0.4)
+                  : AppTheme.borderSubtle.withValues(alpha: 0.5),
+              width: 1.5,
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: TextBox(
+                controller: _urlController,
+                placeholder: 'https://example.com/file.zip',
+                maxLines: 3,
+                minLines: 2,
+                style: FluentTheme.of(context).typography.body?.copyWith(
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+                placeholderStyle: FluentTheme.of(context).typography.body?.copyWith(
+                  color: AppTheme.textTertiary.withValues(alpha: 0.6),
+                  fontSize: 13,
+                ),
+                decoration: WidgetStateProperty.all(
+                  BoxDecoration(
+                    color: Colors.transparent,
+                  ),
+                ),
+                padding: const EdgeInsets.all(14),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildParsedFileNameHint(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.statusSuccess.withValues(alpha: 0.1),
+            AppTheme.statusSuccess.withValues(alpha: 0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AppTheme.statusSuccess.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: AppTheme.statusSuccess.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Icon(
+              FluentIcons.check_mark,
+              size: 14,
+              color: AppTheme.statusSuccess,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '已自动识别文件名',
+                  style: FluentTheme.of(context).typography.caption?.copyWith(
+                    color: AppTheme.statusSuccess,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _parsedFileName!,
+                  style: FluentTheme.of(context).typography.body?.copyWith(
+                    color: AppTheme.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdvancedToggle(BuildContext context) {
+    return GestureDetector(
+      onTap: () => setState(() => _showAdvanced = !_showAdvanced),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: _showAdvanced
+              ? AppTheme.accentPrimary.withValues(alpha: 0.1)
+              : AppTheme.bgLayer2.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: _showAdvanced
+                ? AppTheme.accentPrimary.withValues(alpha: 0.3)
+                : AppTheme.borderSubtle.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              _showAdvanced ? FluentIcons.chevron_down : FluentIcons.chevron_right,
+              size: 12,
+              color: _showAdvanced ? AppTheme.accentLight : AppTheme.textSecondary,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '高级选项',
+              style: FluentTheme.of(context).typography.body?.copyWith(
+                color: _showAdvanced ? AppTheme.accentLight : AppTheme.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              _showAdvanced ? '收起' : '自定义文件名',
+              style: FluentTheme.of(context).typography.caption?.copyWith(
+                color: AppTheme.textTertiary,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFileNameInput(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(
+              FluentIcons.document,
+              size: 14,
+              color: AppTheme.textSecondary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '自定义文件名',
+              style: FluentTheme.of(context).typography.body?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.textTertiary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                '可选',
+                style: FluentTheme.of(context).typography.caption?.copyWith(
+                  color: AppTheme.textTertiary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Container(
+          decoration: BoxDecoration(
+            color: AppTheme.bgLayer2.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: AppTheme.borderSubtle.withValues(alpha: 0.5),
+              width: 1.5,
+            ),
+          ),
+          child: TextBox(
+            controller: _fileNameController,
+            placeholder: '留空则使用自动识别的文件名',
+            style: FluentTheme.of(context).typography.body?.copyWith(
+              fontSize: 13,
+            ),
+            placeholderStyle: FluentTheme.of(context).typography.body?.copyWith(
+              color: AppTheme.textTertiary.withValues(alpha: 0.6),
+              fontSize: 13,
+            ),
+            decoration: WidgetStateProperty.all(
+              const BoxDecoration(
+                color: Colors.transparent,
+              ),
+            ),
+            padding: const EdgeInsets.all(14),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFeatureCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.accentPrimary.withValues(alpha: 0.08),
+            AppTheme.accentLight.withValues(alpha: 0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.accentPrimary.withValues(alpha: 0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: AppTheme.accentPrimary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(
+                  FluentIcons.lightbulb,
+                  size: 12,
+                  color: AppTheme.accentLight,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '智能下载特性',
+                style: FluentTheme.of(context).typography.body?.copyWith(
+                  color: AppTheme.accentLight,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildFeatureItem(context, FluentIcons.split_object, '多线程分段下载', '最大化下载速度'),
+          const SizedBox(height: 8),
+          _buildFeatureItem(context, FluentIcons.sync, '自动断点续传', '网络中断后自动恢复'),
+          const SizedBox(height: 8),
+          _buildFeatureItem(context, FluentIcons.processing, '动态分段优化', '智能调整下载策略'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeatureItem(BuildContext context, IconData icon, String title, String description) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 14,
+          color: AppTheme.accentLight.withValues(alpha: 0.8),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: FluentTheme.of(context).typography.body?.copyWith(
+                  color: AppTheme.textPrimary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                description,
+                style: FluentTheme.of(context).typography.caption?.copyWith(
+                  color: AppTheme.textTertiary,
+                  fontSize: 11,
                 ),
               ),
             ],
           ),
         ),
-      ),
-      actions: [
-        Button(
-          onPressed: _isLoading ? null : () => Navigator.pop(context),
-          child: const Text('取消'),
-        ),
-        FilledButton(
-          onPressed: _isLoading ? null : _handleSubmit,
-          child: _isLoading
-              ? const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: ProgressRing(strokeWidth: 2),
-                    ),
-                    SizedBox(width: 8),
-                    Text('添加中...'),
-                  ],
-                )
-              : const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(FluentIcons.download, size: 14),
-                    SizedBox(width: 6),
-                    Text('开始下载'),
-                  ],
-                ),
-        ),
       ],
     );
   }
 
-  Widget _buildInputField(
-    BuildContext context, {
-    required String label,
-    required TextEditingController controller,
-    required String placeholder,
-    required IconData icon,
-    int maxLines = 1,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: FluentTheme.of(context).typography.body?.copyWith(
-            fontWeight: FontWeight.w500,
-            color: AppTheme.textPrimary,
+  List<Widget> _buildActions(BuildContext context) {
+    return [
+      Button(
+        onPressed: _isLoading ? null : () => Navigator.pop(context),
+        style: ButtonStyle(
+          padding: WidgetStateProperty.all(
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           ),
         ),
-        const SizedBox(height: 6),
-        Container(
-          decoration: BoxDecoration(
-            color: AppTheme.bgLayer2,
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            border: Border.all(color: AppTheme.borderSubtle),
+        child: const Text('取消'),
+      ),
+      FilledButton(
+        onPressed: _isLoading ? null : _handleSubmit,
+        style: ButtonStyle(
+          padding: WidgetStateProperty.all(
+            const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
           ),
-          child: TextBox(
-            controller: controller,
-            placeholder: placeholder,
-            prefix: Padding(
-              padding: const EdgeInsets.only(left: 12),
-              child: Icon(icon, size: 14, color: AppTheme.textTertiary),
-            ),
-            maxLines: maxLines,
-            style: FluentTheme.of(context).typography.body,
-            decoration: WidgetStateProperty.all(const BoxDecoration()),
-          ),
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.isDisabled) {
+              return AppTheme.accentPrimary.withValues(alpha: 0.3);
+            }
+            if (states.isHovered) {
+              return AppTheme.accentLight;
+            }
+            return AppTheme.accentPrimary;
+          }),
         ),
-      ],
-    );
+        child: _isLoading
+            ? const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: ProgressRing(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 10),
+                  Text('添加中...'),
+                ],
+              )
+            : const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(FluentIcons.download, size: 16),
+                  SizedBox(width: 8),
+                  Text('开始下载'),
+                ],
+              ),
+      ),
+    ];
   }
 
   Future<void> _handleSubmit() async {
-    if (_urlController.text.isEmpty || _fileNameController.text.isEmpty) {
-      await _showErrorDialog('请填写完整信息');
+    // 验证 URL
+    if (_urlController.text.trim().isEmpty) {
+      await _showErrorDialog('请输入下载链接');
       return;
     }
 
-    if (!_urlController.text.startsWith('http://') &&
-        !_urlController.text.startsWith('https://')) {
+    final url = _urlController.text.trim();
+    // 允许测试URL或正常的HTTP/HTTPS链接
+    if (!url.startsWith('test_task_') && 
+        !url.startsWith('http://') && 
+        !url.startsWith('https://')) {
       await _showErrorDialog('请输入有效的 HTTP/HTTPS 链接');
       return;
+    }
+
+    // 获取文件名：优先使用用户输入，否则使用自动解析的，最后使用默认名称
+    String fileName = _fileNameController.text.trim();
+    if (fileName.isEmpty) {
+      fileName = _parsedFileName ?? 'download_${DateTime.now().millisecondsSinceEpoch}';
     }
 
     setState(() => _isLoading = true);
 
     try {
-      context.read<IntegratedDownloadService>().addTask(
-            _urlController.text,
-            _fileNameController.text,
-          );
+      context.read<IntegratedDownloadService>().addTask(url, fileName);
       
       if (mounted) {
         Navigator.pop(context);
-        _showSuccessMessage();
+        _showSuccessMessage(fileName);
       }
     } catch (e) {
       if (mounted) {
@@ -238,10 +663,36 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> {
     await showDialog(
       context: context,
       builder: (context) => ContentDialog(
-        title: const Text('错误'),
-        content: Text(message),
+        title: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: AppTheme.statusError.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                FluentIcons.error_badge,
+                size: 16,
+                color: AppTheme.statusError,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text('错误'),
+          ],
+        ),
+        content: Text(
+          message,
+          style: FluentTheme.of(context).typography.body?.copyWith(
+            color: AppTheme.textSecondary,
+          ),
+        ),
         actions: [
           FilledButton(
+            style: ButtonStyle(
+              backgroundColor: WidgetStateProperty.all(AppTheme.statusError),
+            ),
             onPressed: () => Navigator.pop(context),
             child: const Text('确定'),
           ),
@@ -250,15 +701,19 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> {
     );
   }
 
-  void _showSuccessMessage() {
+  void _showSuccessMessage(String fileName) {
     displayInfoBar(
       context,
       builder: (context, close) => InfoBar(
         title: const Text('任务已添加'),
-        content: const Text('下载任务已成功添加到队列'),
+        content: Text('正在下载: $fileName'),
         severity: InfoBarSeverity.success,
-        onClose: close,
+        action: IconButton(
+          icon: const Icon(FluentIcons.clear),
+          onPressed: close,
+        ),
       ),
+      duration: const Duration(seconds: 3),
     );
   }
 }

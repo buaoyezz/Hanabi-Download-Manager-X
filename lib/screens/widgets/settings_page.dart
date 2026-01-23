@@ -75,6 +75,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String _mode = 'auto'; // auto, threads_only, segments_only, manual
   int _maxConcurrentTasks = 3;
   int _segmentSpeedLimit = 0;
+  bool _enableDynamicSegments = true; // 动态分段开关
   bool _loadingConfig = true;
   
   // Proxy configuration state
@@ -585,6 +586,7 @@ class _SettingsPageState extends State<SettingsPage> {
           _mode = config['mode'] ?? 'auto';
           _maxConcurrentTasks = config['max_concurrent_tasks'] ?? 3;
           _segmentSpeedLimit = config['segment_speed_limit'] ?? 0;
+          _enableDynamicSegments = config['enable_dynamic_segments'] ?? true;
           
           // Load proxy configuration
           final proxyConfig = config['proxy'] as Map<String, dynamic>?;
@@ -615,6 +617,7 @@ class _SettingsPageState extends State<SettingsPage> {
     String? mode, 
     int? maxConcurrentTasks, 
     int? segmentSpeedLimit,
+    bool? enableDynamicSegments,
     Map<String, dynamic>? proxyConfig,
   }) async {
     final service = context.read<IntegratedDownloadService>();
@@ -626,6 +629,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (mode != null) _mode = mode;
       if (maxConcurrentTasks != null) _maxConcurrentTasks = maxConcurrentTasks;
       if (segmentSpeedLimit != null) _segmentSpeedLimit = segmentSpeedLimit;
+      if (enableDynamicSegments != null) _enableDynamicSegments = enableDynamicSegments;
     });
     
     await service.setDownloadConfig(
@@ -634,6 +638,7 @@ class _SettingsPageState extends State<SettingsPage> {
       mode: mode ?? _mode,
       maxConcurrentTasks: maxConcurrentTasks ?? _maxConcurrentTasks,
       segmentSpeedLimit: segmentSpeedLimit ?? _segmentSpeedLimit,
+      enableDynamicSegments: enableDynamicSegments ?? _enableDynamicSegments,
       proxyConfig: proxyConfig,
     );
     
@@ -1009,6 +1014,21 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ),
               ),
+            ),
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // 动态分段开关
+          _buildSettingItem(
+            context,
+            title: '动态分段',
+            subtitle: '自动分割慢速分段以提升下载速度 (推荐开启)',
+            trailing: ToggleSwitch(
+              checked: _enableDynamicSegments,
+              onChanged: (value) {
+                _updateConfig(enableDynamicSegments: value);
+              },
             ),
           ),
           
@@ -1665,6 +1685,17 @@ class _SettingsPageState extends State<SettingsPage> {
                       trailing: ToggleSwitch(
                         checked: devMode.showStatusPage,
                         onChanged: (value) => devMode.setShowStatusPage(value),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    
+                    _buildSettingItem(
+                      context,
+                      title: '显示在线统计页面',
+                      subtitle: '在导航栏显示在线用户统计',
+                      trailing: ToggleSwitch(
+                        checked: devMode.showOnlineStatsPage,
+                        onChanged: (value) => devMode.setShowOnlineStatsPage(value),
                       ),
                     ),
                     const SizedBox(height: 8),

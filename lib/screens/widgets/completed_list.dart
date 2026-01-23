@@ -65,11 +65,20 @@ class CompletedList extends StatefulWidget {
 class _CompletedListState extends State<CompletedList> {
   int _currentTabIndex = 0;
   List<CustomCategory> _customCategories = [];
+  bool _showSearch = false;
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _loadCustomCategories();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _loadCustomCategories() {
@@ -152,36 +161,122 @@ class _CompletedListState extends State<CompletedList> {
             currentTasks = customTasksByIndex[customIndex] ?? [];
           }
 
+          // 应用搜索过滤
+          if (_searchQuery.isNotEmpty) {
+            currentTasks = currentTasks.where((t) => 
+              t.fileName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+              t.url.toLowerCase().contains(_searchQuery.toLowerCase())
+            ).toList();
+          }
+
           return Column(
             children: [
               _buildHeader(context, completedTasks.length),
               _buildTabBar(context, tabs, tasksByCategory, customTasksByIndex, completedTasks.length),
               Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(20),
-                  itemCount: currentTasks.length,
-                  itemBuilder: (context, index) {
-                    final task = currentTasks[index];
-                    return TweenAnimationBuilder<double>(
-                      duration: Duration(milliseconds: 300 + (index * 50)),
-                      tween: Tween(begin: 0.0, end: 1.0),
-                      curve: Curves.easeOutCubic,
-                      builder: (context, value, child) {
-                        return Transform.translate(
-                          offset: Offset(0, 20 * (1 - value)),
-                          child: Opacity(
-                            opacity: value,
+                child: currentTasks.isEmpty
+                    ? _buildNoResultsState(context)
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(20),
+                        itemCount: currentTasks.length,
+                        itemBuilder: (context, index) {
+                          final task = currentTasks[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
                             child: _CompletedTaskCard(task: task),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
+                          );
+                        },
+                      ),
               ),
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildSearchBar(BuildContext context) {
+    if (!_showSearch) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppTheme.bgLayer2.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(
+          color: AppTheme.borderSubtle.withValues(alpha: 0.5),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(FluentIcons.search, size: 14, color: AppTheme.accentLight),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextBox(
+              controller: _searchController,
+              placeholder: '搜索已完成的文件...',
+              onChanged: (value) => setState(() => _searchQuery = value),
+              decoration: WidgetStateProperty.all(const BoxDecoration()),
+              style: FluentTheme.of(context).typography.body?.copyWith(fontSize: 13),
+              autofocus: true,
+            ),
+          ),
+          if (_searchQuery.isNotEmpty)
+            IconButton(
+              icon: const Icon(FluentIcons.clear, size: 12),
+              onPressed: () {
+                _searchController.clear();
+                setState(() => _searchQuery = '');
+              },
+              style: ButtonStyle(
+                padding: WidgetStateProperty.all(const EdgeInsets.all(6)),
+              ),
+            ),
+          IconButton(
+            icon: const Icon(FluentIcons.chrome_close, size: 14),
+            onPressed: () {
+              _searchController.clear();
+              setState(() {
+                _showSearch = false;
+                _searchQuery = '';
+              });
+            },
+            style: ButtonStyle(
+              padding: WidgetStateProperty.all(const EdgeInsets.all(6)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoResultsState(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            FluentIcons.search_issue,
+            size: 64,
+            color: AppTheme.textTertiary.withValues(alpha: 0.5),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '未找到匹配的文件',
+            style: FluentTheme.of(context).typography.subtitle?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '尝试修改搜索条件',
+            style: FluentTheme.of(context).typography.caption?.copyWith(
+              color: AppTheme.textTertiary,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -193,111 +288,113 @@ class _CompletedListState extends State<CompletedList> {
     Map<int, List<DownloadTask>> customTasksByIndex,
     int totalCount,
   ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: AppTheme.borderSubtle),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  // 预定义分类
-                  ...tabs.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final category = entry.value;
-                    final count = category == FileCategory.all
-                        ? totalCount
-                        : (tasksByCategory[category]?.length ?? 0);
-                    final isSelected = _currentTabIndex == index;
-
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: _TabButton(
-                        icon: category.icon,
-                        label: category.label,
-                        count: count,
-                        isSelected: isSelected,
-                        onTap: () => setState(() => _currentTabIndex = index),
-                      ),
-                    );
-                  }),
-                  // 自定义分类
-                  ..._customCategories.asMap().entries.map((entry) {
-                    final customIndex = entry.key;
-                    final category = entry.value;
-                    final tabIndex = tabs.length + customIndex;
-                    final count = customTasksByIndex[customIndex]?.length ?? 0;
-                    final isSelected = _currentTabIndex == tabIndex;
-
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: _CustomTabButton(
-                        icon: FluentIcons.tag,
-                        label: category.name,
-                        count: count,
-                        isSelected: isSelected,
-                        onTap: () => setState(() => _currentTabIndex = tabIndex),
-                        onDelete: () => _deleteCustomCategory(customIndex),
-                      ),
-                    );
-                  }),
-                ],
-              ),
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          decoration: const BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: AppTheme.borderSubtle),
             ),
           ),
-          const SizedBox(width: 8),
-          // 添加自定义分类按钮
-          _buildAddCategoryButton(context),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAddCategoryButton(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: () => _showAddCategoryDialog(context),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: AppTheme.bgLayer2,
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            border: Border.all(
-              color: AppTheme.borderSubtle,
-            ),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
+          child: Row(
             children: [
-              Icon(
-                FluentIcons.add,
-                size: 12,
-                color: AppTheme.textSecondary,
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      // 预定义分类
+                      ...tabs.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final category = entry.value;
+                        final count = category == FileCategory.all
+                            ? totalCount
+                            : (tasksByCategory[category]?.length ?? 0);
+                        final isSelected = _currentTabIndex == index;
+
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: _TabButton(
+                            icon: category.icon,
+                            label: category.label,
+                            count: count,
+                            isSelected: isSelected,
+                            onTap: () => setState(() => _currentTabIndex = index),
+                          ),
+                        );
+                      }),
+                      // 自定义分类
+                      ..._customCategories.asMap().entries.map((entry) {
+                        final customIndex = entry.key;
+                        final category = entry.value;
+                        final tabIndex = tabs.length + customIndex;
+                        final count = customTasksByIndex[customIndex]?.length ?? 0;
+                        final isSelected = _currentTabIndex == tabIndex;
+
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: _CustomTabButton(
+                            icon: FluentIcons.tag,
+                            label: category.name,
+                            count: count,
+                            isSelected: isSelected,
+                            onTap: () => setState(() => _currentTabIndex = tabIndex),
+                            onDelete: () => _deleteCustomCategory(customIndex),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
               ),
-              SizedBox(width: 4),
-              Text(
-                '自定义',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.textSecondary,
-                  fontWeight: FontWeight.w500,
+              const SizedBox(width: 8),
+              // 搜索按钮
+              IconButton(
+                icon: Icon(
+                  _showSearch ? FluentIcons.search : FluentIcons.search,
+                  size: 14,
+                  color: _showSearch ? AppTheme.accentLight : AppTheme.textSecondary,
+                ),
+                onPressed: () => setState(() => _showSearch = !_showSearch),
+                style: ButtonStyle(
+                  padding: WidgetStateProperty.all(const EdgeInsets.all(8)),
+                  backgroundColor: WidgetStateProperty.resolveWith((states) {
+                    if (_showSearch) {
+                      return AppTheme.accentPrimary.withValues(alpha: 0.1);
+                    }
+                    if (states.isHovered) {
+                      return AppTheme.bgLayer2.withValues(alpha: 0.5);
+                    }
+                    return Colors.transparent;
+                  }),
+                ),
+              ),
+              const SizedBox(width: 4),
+              // 新建自定义分类按钮
+              IconButton(
+                icon: const Icon(FluentIcons.add, size: 14, color: AppTheme.textSecondary),
+                onPressed: _showCreateCategoryDialog,
+                style: ButtonStyle(
+                  padding: WidgetStateProperty.all(const EdgeInsets.all(8)),
+                  backgroundColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.isHovered) {
+                      return AppTheme.bgLayer2.withValues(alpha: 0.5);
+                    }
+                    return Colors.transparent;
+                  }),
                 ),
               ),
             ],
           ),
         ),
-      ),
+        // 搜索栏（展开时显示）
+        if (_showSearch) _buildSearchBar(context),
+      ],
     );
   }
 
-  void _showAddCategoryDialog(BuildContext context) {
+  void _showCreateCategoryDialog() {
     final nameController = TextEditingController();
     final extensionsController = TextEditingController();
 

@@ -42,6 +42,7 @@ class IntegratedDownloadService extends ChangeNotifier {
     final now = DateTime.now();
     if (now.difference(_lastNotify) >= _minNotifyInterval) {
       _lastNotify = now;
+      _appLogger.debug('App', 'Notifying UI listeners (immediate)');
       notifyListeners();
       return;
     }
@@ -54,6 +55,7 @@ class IntegratedDownloadService extends ChangeNotifier {
     _notifyTimer = Timer(_minNotifyInterval, () {
       _pendingNotify = false;
       _lastNotify = DateTime.now();
+      _appLogger.debug('App', 'Notifying UI listeners (throttled)');
       notifyListeners();
     });
   }
@@ -244,12 +246,21 @@ class IntegratedDownloadService extends ChangeNotifier {
       _appLogger.error('App', 'Failed to parse time: $e');
     }
 
+    // 注意：kernelTask['progress'] 是 0-100 的百分比，需要转换为 0-1 的小数供 UI 使用
+    final progressValue = (kernelTask['progress'] ?? 0.0).toDouble();
+    final normalizedProgress = progressValue / 100.0;
+    
+    // 调试日志：输出进度值
+    if (status == DownloadStatus.downloading) {
+      _appLogger.debug('App', 'Progress conversion: ${kernelTask['filename']} - raw: $progressValue%, normalized: ${(normalizedProgress * 100).toStringAsFixed(2)}%, downloaded: ${kernelTask['downloadedSize']}/${kernelTask['totalSize']}');
+    }
+    
     return DownloadTask(
       id: kernelTask['id'],
       url: kernelTask['url'],
       fileName: kernelTask['filename'],
       status: status,
-      progress: (kernelTask['progress'] ?? 0.0) / 100.0,
+      progress: normalizedProgress,
       filePath: kernelTask['filepath'],
       error: kernelTask['errorMessage'],
       fileSize: kernelTask['totalSize'],
@@ -275,6 +286,12 @@ class IntegratedDownloadService extends ChangeNotifier {
     String? cookies,
     Map<String, dynamic>? headers,
   }) async {
+    // 检查是否是测试任务
+    if (url.startsWith('test_task_')) {
+      _addTestTask(url, fileName);
+      return;
+    }
+    
     if (!isKernelRunning) {
       _appLogger.error('App', 'Kernel not running');
       return;
@@ -312,6 +329,139 @@ class IntegratedDownloadService extends ChangeNotifier {
     } else {
       _appLogger.error('App', 'Failed to add task: $fileName');
     }
+  }
+  
+  // 添加测试任务
+  void _addTestTask(String testType, String fileName) {
+    final id = 'test_${DateTime.now().millisecondsSinceEpoch}';
+    DownloadTask testTask;
+    
+    switch (testType) {
+      case 'test_task_merging':
+        testTask = DownloadTask(
+          id: id,
+          url: testType,
+          fileName: fileName.isEmpty ? 'test_merging_file.zip' : fileName,
+          status: DownloadStatus.merging,
+          progress: 0.75, // 75% 合并进度
+          fileSize: 1024 * 1024 * 500, // 500 MB
+          downloadedSize: 1024 * 1024 * 375, // 375 MB
+          filePath: '/test/path/$fileName',
+        );
+        break;
+        
+      case 'test_task_downloading':
+        testTask = DownloadTask(
+          id: id,
+          url: testType,
+          fileName: fileName.isEmpty ? 'test_downloading_file.iso' : fileName,
+          status: DownloadStatus.downloading,
+          progress: 0.45, // 45%
+          fileSize: 1024 * 1024 * 1024 * 4, // 4 GB
+          downloadedSize: 1024 * 1024 * 1024 * 4 * 0.45.toInt(),
+          speed: 1024 * 1024 * 15.5, // 15.5 MB/s
+          remainingTime: const Duration(minutes: 5, seconds: 30),
+          filePath: '/test/path/$fileName',
+          segments: _generateTestSegments(32, 0.45),
+        );
+        break;
+        
+      case 'test_task_paused':
+        testTask = DownloadTask(
+          id: id,
+          url: testType,
+          fileName: fileName.isEmpty ? 'test_paused_file.mp4' : fileName,
+          status: DownloadStatus.paused,
+          progress: 0.62, // 62%
+          fileSize: 1024 * 1024 * 800, // 800 MB
+          downloadedSize: 1024 * 1024 * 800 * 0.62.toInt(),
+          filePath: '/test/path/$fileName',
+          segments: _generateTestSegments(16, 0.62),
+        );
+        break;
+        
+      case 'test_task_pending':
+        testTask = DownloadTask(
+          id: id,
+          url: testType,
+          fileName: fileName.isEmpty ? 'test_pending_file.pdf' : fileName,
+          status: DownloadStatus.pending,
+          progress: 0.0,
+          fileSize: 1024 * 1024 * 50, // 50 MB
+          downloadedSize: 0,
+          filePath: '/test/path/$fileName',
+        );
+        break;
+        
+      case 'test_task_failed':
+        testTask = DownloadTask(
+          id: id,
+          url: testType,
+          fileName: fileName.isEmpty ? 'test_failed_file.exe' : fileName,
+          status: DownloadStatus.failed,
+          progress: 0.28, // 28%
+          fileSize: 1024 * 1024 * 200, // 200 MB
+          downloadedSize: 1024 * 1024 * 200 * 0.28.toInt(),
+          error: 'Network connection lost',
+          filePath: '/test/path/$fileName',
+          segments: _generateTestSegments(8, 0.28, failedCount: 2),
+        );
+        break;
+        
+      default:
+        _appLogger.warning('App', 'Unknown test task type: $testType');
+        return;
+    }
+    
+    _tasks.add(testTask);
+    _appLogger.info('App', 'Test task added: ${testTask.fileName} (${testTask.status})');
+    _throttledNotify();
+  }
+  
+  // 生成测试分段
+  List<SegmentInfo> _generateTestSegments(int count, double overallProgress, {int failedCount = 0}) {
+    final segments = <SegmentInfo>[];
+    final segmentSize = 1024 * 1024 * 100; // 每个分段 100 MB
+    
+    for (int i = 0; i < count; i++) {
+      final startByte = i * segmentSize;
+      final endByte = (i + 1) * segmentSize;
+      
+      String status;
+      int downloadedBytes;
+      double speed = 0;
+      
+      if (i < count * overallProgress) {
+        // 已完成的分段
+        status = 'completed';
+        downloadedBytes = segmentSize;
+      } else if (i == (count * overallProgress).floor() && overallProgress % 1 != 0) {
+        // 正在下载的分段
+        status = 'downloading';
+        downloadedBytes = (segmentSize * (overallProgress % 1)).toInt();
+        speed = 1024 * 1024 * 0.5; // 0.5 MB/s
+      } else if (failedCount > 0 && i >= count - failedCount) {
+        // 失败的分段
+        status = 'failed';
+        downloadedBytes = (segmentSize * 0.3).toInt();
+      } else {
+        // 等待的分段
+        status = 'pending';
+        downloadedBytes = 0;
+      }
+      
+      segments.add(SegmentInfo(
+        index: i,
+        startByte: startByte,
+        endByte: endByte,
+        downloadedBytes: downloadedBytes,
+        speed: speed,
+        status: status,
+        retryCount: status == 'failed' ? 2 : 0,
+      ));
+    }
+    
+    return segments;
   }
 
   Future<void> pauseTask(String id) async {
@@ -406,6 +556,7 @@ class IntegratedDownloadService extends ChangeNotifier {
     String? mode,
     int? maxConcurrentTasks,
     int? segmentSpeedLimit,
+    bool? enableDynamicSegments,
     Map<String, dynamic>? proxyConfig,
   }) async {
     bool success;
@@ -430,6 +581,7 @@ class IntegratedDownloadService extends ChangeNotifier {
         mode: mode ?? 'auto',
         maxConcurrentTasks: maxConcurrentTasks ?? 3,
         segmentSpeedLimit: segmentSpeedLimit ?? 0,
+        enableDynamicSegments: enableDynamicSegments ?? true,
         proxy: proxy,
       );
       success = await _kernelManager.setConfig(config);
@@ -440,12 +592,13 @@ class IntegratedDownloadService extends ChangeNotifier {
         mode: mode,
         maxConcurrentTasks: maxConcurrentTasks,
         segmentSpeedLimit: segmentSpeedLimit,
+        enableDynamicSegments: enableDynamicSegments,
         proxyConfig: proxyConfig,
       );
     }
     
     if (success) {
-      _appLogger.info('App', 'Download config updated: threads=$threads, segments=$segments, mode=$mode, concurrent=$maxConcurrentTasks, limit=$segmentSpeedLimit, proxy=${proxyConfig != null ? 'enabled' : 'unchanged'}');
+      _appLogger.info('App', 'Download config updated: threads=$threads, segments=$segments, mode=$mode, concurrent=$maxConcurrentTasks, limit=$segmentSpeedLimit, dynamicSegments=$enableDynamicSegments, proxy=${proxyConfig != null ? 'enabled' : 'unchanged'}');
     }
     return success;
   }

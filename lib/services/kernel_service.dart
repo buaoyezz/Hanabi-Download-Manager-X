@@ -657,6 +657,7 @@ class KernelService extends ChangeNotifier {
     String? mode,
     int? maxConcurrentTasks,
     int? segmentSpeedLimit,
+    bool? enableDynamicSegments,
     Map<String, dynamic>? proxyConfig,
   }) async {
     if (!_isRunning) return false;
@@ -668,6 +669,7 @@ class KernelService extends ChangeNotifier {
       if (mode != null) body['mode'] = mode;
       if (maxConcurrentTasks != null) body['max_concurrent_tasks'] = maxConcurrentTasks;
       if (segmentSpeedLimit != null) body['segment_speed_limit'] = segmentSpeedLimit;
+      if (enableDynamicSegments != null) body['enable_dynamic_segments'] = enableDynamicSegments;
       if (proxyConfig != null) body['proxy'] = proxyConfig;
 
       final response = await http.post(

@@ -150,6 +150,7 @@ class DownloadConfig {
   String mode;
   int maxConcurrentTasks;
   int segmentSpeedLimit;
+  bool enableDynamicSegments;
   ProxyConfig? proxy;
 
   DownloadConfig({
@@ -158,6 +159,7 @@ class DownloadConfig {
     this.mode = 'auto',
     this.maxConcurrentTasks = 3,
     this.segmentSpeedLimit = 0,
+    this.enableDynamicSegments = true,
     this.proxy,
   });
 
@@ -167,6 +169,7 @@ class DownloadConfig {
     'mode': mode,
     'max_concurrent_tasks': maxConcurrentTasks,
     'segment_speed_limit': segmentSpeedLimit,
+    'enable_dynamic_segments': enableDynamicSegments,
     'proxy': proxy?.toJson(),
   };
 
@@ -176,6 +179,7 @@ class DownloadConfig {
     mode: json['mode'] ?? 'auto',
     maxConcurrentTasks: json['max_concurrent_tasks'] ?? json['maxConcurrentTasks'] ?? 3,
     segmentSpeedLimit: json['segment_speed_limit'] ?? json['segmentSpeedLimit'] ?? 0,
+    enableDynamicSegments: json['enable_dynamic_segments'] ?? json['enableDynamicSegments'] ?? true,
     proxy: json['proxy'] != null ? ProxyConfig.fromJson(json['proxy']) : null,
   );
 }

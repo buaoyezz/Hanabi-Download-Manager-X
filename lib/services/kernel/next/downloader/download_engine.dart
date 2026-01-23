@@ -17,6 +17,12 @@ class DownloadEngine {
 
   final Map<String, bool> _cancelledTasks = {};
   final Map<String, bool> _pausedTasks = {};
+  final Map<String, List<Isolate>> _taskIsolates = {}; // 跟踪每个任务的 Isolate
+  final Map<String, ReceivePort> _progressPorts = {}; // 跟踪每个任务的进度端口
+  
+  // 用于速度计算的历史数据（基于内存计数器）
+  final Map<String, int> _lastDownloaded = {};
+  final Map<String, DateTime> _lastUpdateTime = {};
 
   DownloadEngine({
     required this.config,
@@ -29,6 +35,16 @@ class DownloadEngine {
   Future<void> startDownload(Task task) async {
     _cancelledTasks[task.id] = false;
     _pausedTasks[task.id] = false;
+    _taskIsolates[task.id] = []; // 初始化 Isolate 列表
+    
+    // 创建进度监听端口
+    final progressPort = ReceivePort();
+    _progressPorts[task.id] = progressPort;
+    progressPort.listen((message) {
+      if (message is _ProgressMessage) {
+        _handleProgressMessage(task, message);
+      }
+    });
 
     try {
       _logger.info('NSFX-Engine', 'Starting download: ${task.filename}');
@@ -70,17 +86,52 @@ class DownloadEngine {
     } finally {
       _cancelledTasks.remove(task.id);
       _pausedTasks.remove(task.id);
+      
+      // 清理速度计算的历史数据
+      _lastDownloaded.remove(task.id);
+      _lastUpdateTime.remove(task.id);
+      
+      // 关闭进度端口
+      final progressPort = _progressPorts.remove(task.id);
+      progressPort?.close();
+      
+      // 清理并终止所有相关的 Isolate
+      final isolates = _taskIsolates.remove(task.id);
+      if (isolates != null) {
+        for (final isolate in isolates) {
+          isolate.kill(priority: Isolate.immediate);
+        }
+      }
+    }
+  }
+  
+  /// 处理来自 Isolate 的进度消息（内存累加）
+  void _handleProgressMessage(Task task, _ProgressMessage message) {
+    // 找到对应的分段
+    if (message.segmentIndex < task.segments.length) {
+      final segment = task.segments[message.segmentIndex];
+      segment.downloadedBytes += message.bytesDelta;
+      task.downloadedSize += message.bytesDelta;
+      
+      // 更新进度百分比
+      if (task.totalSize > 0) {
+        task.progress = (task.downloadedSize / task.totalSize) * 100;
+      }
     }
   }
 
   /// 使用 Isolate 的多线程下载
   Future<void> _isolateMultiThreadDownload(Task task, Map<String, String> headers, int fileSize) async {
     final (threads, segmentCount) = DynamicSegmentConfig.calculate(fileSize, config);
-    final actualThreads = threads.clamp(1, 8);
+    // 移除线程数限制，使用计算出的值
+    final actualThreads = threads;
     task.threadCount = actualThreads;
     _logger.info('NSFX-Engine', 'Using $actualThreads concurrent isolates, $segmentCount segments');
 
-    // 创建分段
+    final tempDir = await _getTempDir(task);
+    await tempDir.create(recursive: true);
+    
+    // 创建分段（仅在首次下载时）
     if (task.segments.isEmpty) {
       final segmentSize = fileSize ~/ segmentCount;
       for (int i = 0; i < segmentCount; i++) {
@@ -88,16 +139,58 @@ class DownloadEngine {
         final end = (i == segmentCount - 1) ? fileSize : (i + 1) * segmentSize;
         task.segments.add(Segment(index: i, startByte: start, endByte: end));
       }
+    } else {
+      // 恢复时：重置所有分段的下载状态（将从临时文件恢复实际进度）
+      _logger.info('NSFX-Engine', 'Resuming download with ${task.segments.length} existing segments');
+      for (final segment in task.segments) {
+        // 重置状态，稍后会根据临时文件实际情况更新
+        if (segment.status != SegmentStatus.completed) {
+          segment.downloadedBytes = 0;
+          segment.status = SegmentStatus.pending;
+        }
+      }
     }
+    
+    // 恢复已下载的进度（从临时文件）- 对所有分段都执行
+    int restoredBytes = 0;
+    for (final segment in task.segments) {
+      final partFile = File('${tempDir.path}/${task.filename}.part${segment.index}');
+      if (await partFile.exists()) {
+        final downloadedBytes = await partFile.length();
+        segment.downloadedBytes = downloadedBytes;
+        restoredBytes += downloadedBytes;
+        if (downloadedBytes >= segment.size) {
+          segment.status = SegmentStatus.completed;
+          _logger.debug('NSFX-Engine', 'Segment ${segment.index} already completed (${downloadedBytes} bytes)');
+        } else if (downloadedBytes > 0) {
+          _logger.debug('NSFX-Engine', 'Segment ${segment.index} restored: ${downloadedBytes}/${segment.size} bytes');
+        }
+      }
+    }
+    
+    if (restoredBytes > 0) {
+      _logger.info('NSFX-Engine', 'Restored ${(restoredBytes / 1024 / 1024).toStringAsFixed(2)} MB from temp files');
+    }
+    
+    // 立即更新一次进度（基于内存计数器）
+    task.downloadedSize = restoredBytes;
+    if (task.totalSize > 0) {
+      task.progress = (task.downloadedSize / task.totalSize) * 100;
+    }
+    onProgress(task);
 
-    final tempDir = await _getTempDir(task);
-    await tempDir.create(recursive: true);
-
-    // 进度更新定时器
+    // 进度更新定时器（仅用于速度计算和 ETA，不再读取文件）
     final progressTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (task.status == TaskStatus.downloading) {
-        _updateTaskProgress(task, tempDir);
+        _calculateSpeed(task);
         onProgress(task);
+      }
+    });
+
+    // 动态分段检查定时器（每5秒检查一次）
+    final dynamicSegmentTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (task.status == TaskStatus.downloading) {
+        _checkAndSplitSlowSegments(task);
       }
     });
 
@@ -128,6 +221,7 @@ class DownloadEngine {
 
       final results = await Future.wait(futures);
       progressTimer.cancel();
+      dynamicSegmentTimer.cancel();
 
       if (_cancelledTasks[task.id] == true) {
         task.status = TaskStatus.cancelled;
@@ -170,7 +264,111 @@ class DownloadEngine {
 
     } finally {
       progressTimer.cancel();
+      dynamicSegmentTimer.cancel();
     }
+  }
+
+  /// 检查并分割慢速分段（动态分段）
+  void _checkAndSplitSlowSegments(Task task) {
+    // 只在下载进行中且启用动态分段时执行
+    if (!config.enableDynamicSegments) {
+      _logger.debug('NSFX-Engine', 'Dynamic segments disabled');
+      return;
+    }
+    if (task.status != TaskStatus.downloading) return;
+    
+    // 找出正在下载且剩余大小较大的分段
+    final downloadingSegments = task.segments
+        .where((s) => s.status == SegmentStatus.downloading)
+        .toList();
+    
+    if (downloadingSegments.isEmpty) {
+      _logger.debug('NSFX-Engine', 'No downloading segments');
+      return;
+    }
+    
+    // 计算平均剩余大小
+    final totalRemaining = downloadingSegments.fold<int>(
+      0, 
+      (sum, s) => sum + (s.size - s.downloadedBytes)
+    );
+    final avgRemaining = totalRemaining / downloadingSegments.length;
+    
+    _logger.debug('NSFX-Engine', 
+      'Dynamic segment check: ${downloadingSegments.length} downloading, avg remaining: ${(avgRemaining / 1024 / 1024).toStringAsFixed(2)} MB');
+    
+    // 找出剩余大小超过平均值 2 倍的分段
+    final slowSegments = downloadingSegments
+        .where((s) => (s.size - s.downloadedBytes) > avgRemaining * 2)
+        .where((s) => (s.size - s.downloadedBytes) > 10 * 1024 * 1024) // 剩余至少 10MB 才分割
+        .toList();
+    
+    if (slowSegments.isEmpty) {
+      _logger.debug('NSFX-Engine', 'No slow segments found');
+      return;
+    }
+    
+    _logger.info('NSFX-Engine', 'Found ${slowSegments.length} slow segments to split');
+    
+    // 限制总分段数不超过 256
+    if (task.segments.length >= 256) {
+      _logger.warning('NSFX-Engine', 'Max segments (256) reached');
+      return;
+    }
+    
+    int splitCount = 0;
+    for (final slowSeg in slowSegments) {
+      // 每次最多分割 5 个慢速分段
+      if (task.segments.length >= 256 || splitCount >= 5) break;
+      
+      final remaining = slowSeg.size - slowSeg.downloadedBytes;
+      if (remaining < 10 * 1024 * 1024) continue; // 剩余小于 10MB 不分割
+      
+      // 将慢速分段一分为二
+      final currentDownloaded = slowSeg.downloadedBytes;
+      final midPoint = slowSeg.startByte + currentDownloaded + (remaining ~/ 2);
+      
+      // 创建新分段（下半部分）
+      final newSegment = Segment(
+        index: task.segments.length,
+        startByte: midPoint,
+        endByte: slowSeg.endByte,
+      );
+      
+      // 修改原分段（上半部分）
+      final oldEndByte = slowSeg.endByte;
+      slowSeg.endByte = midPoint;
+      
+      // 添加新分段
+      task.segments.add(newSegment);
+      splitCount++;
+      
+      _logger.info('NSFX-Engine', 
+        'Split segment ${slowSeg.index}: ${slowSeg.startByte}-$oldEndByte => ${slowSeg.startByte}-${slowSeg.endByte} + ${newSegment.startByte}-${newSegment.endByte} (remaining: ${(remaining / 1024 / 1024).toStringAsFixed(2)} MB, total segments: ${task.segments.length})');
+      
+      // 启动新分段的下载
+      _startNewSegmentDownload(task, newSegment);
+    }
+    
+    if (splitCount > 0) {
+      _logger.info('NSFX-Engine', 'Split $splitCount segments, total segments now: ${task.segments.length}');
+    }
+  }
+
+  /// 启动新分段的下载
+  void _startNewSegmentDownload(Task task, Segment segment) async {
+    final tempDir = await _getTempDir(task);
+    final tempFile = '${tempDir.path}/${task.filename}.part${segment.index}';
+    final headers = _buildHeaders(task);
+    
+    segment.status = SegmentStatus.downloading;
+    
+    await _downloadSegmentInIsolate(
+      task: task,
+      segment: segment,
+      headers: headers,
+      tempFilePath: tempFile,
+    );
   }
 
   /// 在 Isolate 中下载单个分段
@@ -188,23 +386,38 @@ class DownloadEngine {
       }
       
       try {
-        final receivePort = ReceivePort();
+        // 检查是否有已下载的部分（用于断点续传）
+        int alreadyDownloaded = segment.downloadedBytes;
+        final actualStartByte = segment.startByte + alreadyDownloaded;
         
-        await Isolate.spawn(
+        final receivePort = ReceivePort();
+        final progressPort = _progressPorts[task.id];
+        
+        final isolate = await Isolate.spawn(
           _isolateSegmentDownload,
           _IsolateParams(
             sendPort: receivePort.sendPort,
+            progressPort: progressPort?.sendPort, // 传递进度端口
             url: task.url,
             tempFilePath: tempFilePath,
-            startByte: segment.startByte,
+            startByte: actualStartByte,  // 从已下载位置继续
             endByte: segment.endByte,
             headers: headers,
             connectionTimeout: config.connectionTimeout,
+            alreadyDownloaded: alreadyDownloaded,  // 传递已下载字节数
+            taskId: task.id,
+            segmentIndex: segment.index,
           ),
         );
         
+        // 跟踪 Isolate
+        _taskIsolates[task.id]?.add(isolate);
+        
         final result = await receivePort.first as _IsolateResult;
         receivePort.close();
+        
+        // 从跟踪列表中移除
+        _taskIsolates[task.id]?.remove(isolate);
         
         if (result.success) {
           segment.downloadedBytes = result.downloadedBytes;
@@ -253,18 +466,26 @@ class DownloadEngine {
         params.sendPort.send(_IsolateResult(
           success: false,
           error: 'HTTP ${response.statusCode}',
-          downloadedBytes: 0,
+          downloadedBytes: params.alreadyDownloaded,
         ));
         return;
       }
       
       final file = File(params.tempFilePath);
-      final sink = file.openWrite(mode: FileMode.writeOnly);
-      int downloadedBytes = 0;
+      // 如果有已下载的数据，使用 append 模式；否则使用 writeOnly 模式
+      final sink = file.openWrite(mode: params.alreadyDownloaded > 0 ? FileMode.append : FileMode.writeOnly);
+      int downloadedBytes = 0;  // 本次下载的字节数
       final expectedSize = params.endByte - params.startByte;
+      final remainingSize = expectedSize - params.alreadyDownloaded;  // 还需要下载的字节数
+      
+      // 进度上报：每下载 64KB 或每 100ms 通知一次主线程
+      int bufferedBytes = 0;
+      const int bufferThreshold = 64 * 1024; // 64KB
+      DateTime lastProgressTime = DateTime.now();
+      const progressInterval = Duration(milliseconds: 100);
       
       await for (final chunk in response) {
-        final remaining = expectedSize - downloadedBytes;
+        final remaining = remainingSize - downloadedBytes;
         if (remaining <= 0) break;
         
         final toWrite = chunk.length > remaining 
@@ -273,17 +494,41 @@ class DownloadEngine {
         
         sink.add(toWrite);
         downloadedBytes += toWrite.length;
+        bufferedBytes += toWrite.length;
+        
+        // 达到阈值或时间间隔，发送进度通知
+        final now = DateTime.now();
+        if (bufferedBytes >= bufferThreshold || now.difference(lastProgressTime) >= progressInterval) {
+          params.progressPort?.send(_ProgressMessage(
+            taskId: params.taskId,
+            segmentIndex: params.segmentIndex,
+            bytesDelta: bufferedBytes,
+          ));
+          bufferedBytes = 0;
+          lastProgressTime = now;
+        }
+      }
+      
+      // 发送剩余的 buffer
+      if (bufferedBytes > 0) {
+        params.progressPort?.send(_ProgressMessage(
+          taskId: params.taskId,
+          segmentIndex: params.segmentIndex,
+          bytesDelta: bufferedBytes,
+        ));
       }
       
       await sink.flush();
       await sink.close();
       client.close();
       
+      final totalDownloaded = params.alreadyDownloaded + downloadedBytes;
+      
       params.sendPort.send(_IsolateResult(
-        success: downloadedBytes >= expectedSize,
-        downloadedBytes: downloadedBytes,
-        error: downloadedBytes < expectedSize 
-            ? 'Incomplete: $downloadedBytes/$expectedSize' 
+        success: totalDownloaded >= expectedSize,
+        downloadedBytes: totalDownloaded,
+        error: totalDownloaded < expectedSize 
+            ? 'Incomplete: $totalDownloaded/$expectedSize' 
             : null,
       ));
       
@@ -291,43 +536,62 @@ class DownloadEngine {
       params.sendPort.send(_IsolateResult(
         success: false,
         error: e.toString(),
-        downloadedBytes: 0,
+        downloadedBytes: params.alreadyDownloaded,
       ));
     }
   }
 
-  /// 更新任务进度（从临时文件读取）
-  Future<void> _updateTaskProgress(Task task, Directory tempDir) async {
-    int totalDownloaded = 0;
+  /// 计算速度（基于内存计数器，使用 EMA 平滑）
+  void _calculateSpeed(Task task) {
+    final now = DateTime.now();
+    final currentDownloaded = task.downloadedSize; // 来自内存累加，非常快且准确
+    final lastDownloaded = _lastDownloaded[task.id];
+    final lastTime = _lastUpdateTime[task.id];
     
-    for (final segment in task.segments) {
-      if (segment.status == SegmentStatus.completed) {
-        totalDownloaded += segment.size;
-      } else {
-        final partFile = File('${tempDir.path}/${task.filename}.part${segment.index}');
-        if (await partFile.exists()) {
-          final size = await partFile.length();
-          segment.downloadedBytes = size;
-          totalDownloaded += size;
-        }
-      }
+    // 如果是第一次更新，初始化记录但不计算速度
+    if (lastDownloaded == null || lastTime == null) {
+      _lastDownloaded[task.id] = currentDownloaded;
+      _lastUpdateTime[task.id] = now;
+      task.speed = 0;
+      return;
     }
     
-    task.downloadedSize = totalDownloaded;
-    if (task.totalSize > 0) {
-      task.progress = (totalDownloaded / task.totalSize) * 100;
+    final durationInSeconds = now.difference(lastTime).inMicroseconds / 1000000.0;
+    
+    // 只有时间间隔大于 0.9 秒才更新速度
+    if (durationInSeconds >= 0.9) {
+      final bytesDiff = currentDownloaded - lastDownloaded;
       
-      // 计算速度
-      if (task.startTime != null) {
-        final elapsed = DateTime.now().difference(task.startTime!).inSeconds;
-        if (elapsed > 0) {
-          task.speed = totalDownloaded / elapsed;
-          if (task.speed > task.peakSpeed) task.peakSpeed = task.speed;
-          
-          final remaining = task.totalSize - totalDownloaded;
-          if (task.speed > 0) {
-            task.eta = (remaining / task.speed).round();
-          }
+      // 基于内存累加，理论上不会出现负数，但做个保护
+      if (bytesDiff >= 0) {
+        final instantSpeed = bytesDiff / durationInSeconds;
+        
+        // === 引入 EMA 平滑算法 ===
+        // alpha 越小越平滑，反应越慢；越大越灵敏，波动越大
+        // 通常 0.1 - 0.3，这里使用 0.2
+        const double alpha = 0.2;
+        
+        if (task.speed == 0) {
+          // 第一次有速度数据，直接使用
+          task.speed = instantSpeed;
+        } else {
+          // 使用 EMA 平滑
+          task.speed = (task.speed * (1 - alpha)) + (instantSpeed * alpha);
+        }
+        
+        // 更新峰值速度（使用瞬时速度，不使用平滑后的）
+        if (instantSpeed > task.peakSpeed) {
+          task.peakSpeed = instantSpeed;
+        }
+        
+        // 更新记录
+        _lastDownloaded[task.id] = currentDownloaded;
+        _lastUpdateTime[task.id] = now;
+        
+        // 计算 ETA
+        if (task.totalSize > 0 && task.speed > 0) {
+          final remaining = task.totalSize - task.downloadedSize;
+          task.eta = (remaining / task.speed).ceil();
         }
       }
     }
@@ -422,20 +686,63 @@ class DownloadEngine {
         final partFile = File('${tempDir.path}/${task.filename}.part${segment.index}');
         if (await partFile.exists()) {
           await sink.addStream(partFile.openRead());
-          await partFile.delete();
+          
+          // 删除临时文件，带重试机制
+          await _deleteFileWithRetry(partFile);
         }
       }
 
       await sink.flush();
       await sink.close();
 
+      // 删除临时目录，带重试机制
       if (await tempDir.exists()) {
-        await tempDir.delete(recursive: true);
+        await _deleteDirWithRetry(tempDir);
       }
 
     } catch (e) {
       await sink.close();
       rethrow;
+    }
+  }
+  
+  /// 带重试机制的文件删除
+  Future<void> _deleteFileWithRetry(File file, {int maxRetries = 3}) async {
+    for (int i = 0; i < maxRetries; i++) {
+      try {
+        if (await file.exists()) {
+          await file.delete();
+        }
+        return;
+      } catch (e) {
+        if (i == maxRetries - 1) {
+          // 最后一次重试失败，记录日志但不抛出异常
+          _logger.warning('NSFX-Engine', 'Failed to delete file after $maxRetries attempts: ${file.path}');
+          return;
+        }
+        // 等待一段时间后重试
+        await Future.delayed(Duration(milliseconds: 100 * (i + 1)));
+      }
+    }
+  }
+  
+  /// 带重试机制的目录删除
+  Future<void> _deleteDirWithRetry(Directory dir, {int maxRetries = 3}) async {
+    for (int i = 0; i < maxRetries; i++) {
+      try {
+        if (await dir.exists()) {
+          await dir.delete(recursive: true);
+        }
+        return;
+      } catch (e) {
+        if (i == maxRetries - 1) {
+          // 最后一次重试失败，记录日志但不抛出异常
+          _logger.warning('NSFX-Engine', 'Failed to delete directory after $maxRetries attempts: ${dir.path}');
+          return;
+        }
+        // 等待一段时间后重试
+        await Future.delayed(Duration(milliseconds: 100 * (i + 1)));
+      }
     }
   }
 
@@ -447,10 +754,28 @@ class DownloadEngine {
 
   void pauseDownload(String taskId) {
     _pausedTasks[taskId] = true;
+    
+    // 立即终止所有相关的 Isolate
+    final isolates = _taskIsolates[taskId];
+    if (isolates != null) {
+      for (final isolate in isolates) {
+        isolate.kill(priority: Isolate.immediate);
+      }
+      isolates.clear();
+    }
   }
 
   void cancelDownload(String taskId) {
     _cancelledTasks[taskId] = true;
+    
+    // 立即终止所有相关的 Isolate
+    final isolates = _taskIsolates[taskId];
+    if (isolates != null) {
+      for (final isolate in isolates) {
+        isolate.kill(priority: Isolate.immediate);
+      }
+      isolates.clear();
+    }
   }
 
   Map<String, String> _buildHeaders(Task task) {
@@ -483,21 +808,29 @@ class DownloadEngine {
 /// Isolate 参数
 class _IsolateParams {
   final SendPort sendPort;
+  final SendPort? progressPort; // 新增：用于实时汇报进度
   final String url;
   final String tempFilePath;
   final int startByte;
   final int endByte;
   final Map<String, String> headers;
   final int connectionTimeout;
+  final int alreadyDownloaded;
+  final String taskId; // 新增：任务ID
+  final int segmentIndex; // 新增：分段索引
 
   _IsolateParams({
     required this.sendPort,
+    this.progressPort,
     required this.url,
     required this.tempFilePath,
     required this.startByte,
     required this.endByte,
     required this.headers,
     required this.connectionTimeout,
+    this.alreadyDownloaded = 0,
+    required this.taskId,
+    required this.segmentIndex,
   });
 }
 
@@ -511,6 +844,19 @@ class _IsolateResult {
     required this.success,
     required this.downloadedBytes,
     this.error,
+  });
+}
+
+/// 进度消息（从 Isolate 发送到主线程）
+class _ProgressMessage {
+  final String taskId;
+  final int segmentIndex;
+  final int bytesDelta; // 增量字节数
+
+  _ProgressMessage({
+    required this.taskId,
+    required this.segmentIndex,
+    required this.bytesDelta,
   });
 }
 

@@ -151,6 +151,10 @@ class NsfxKernel implements KernelInterface {
     );
 
     _tasks[id] = task;
+    
+    // 立即保存任务列表
+    await _storage.saveTasks(_tasks);
+    
     _checkQueue();
 
     _logger.info('NSFX', 'Download added with ID: $id');
@@ -183,6 +187,10 @@ class NsfxKernel implements KernelInterface {
     task.status = TaskStatus.paused;
     _engine.pauseDownload(taskId);
     _progressController.add(_toDownloadTask(task));
+    
+    // 立即保存任务列表
+    await _storage.saveTasks(_tasks);
+    
     _checkQueue();
     return true;
   }
@@ -208,6 +216,9 @@ class NsfxKernel implements KernelInterface {
     task.status = TaskStatus.cancelled;
     _engine.cancelDownload(taskId);
     _tasks.remove(taskId);
+    
+    // 立即保存任务列表
+    await _storage.saveTasks(_tasks);
 
     // 清理文件
     try {

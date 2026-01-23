@@ -1,7 +1,7 @@
 class Segment {
   final int index;
   final int startByte;
-  final int endByte;
+  int endByte; // Made mutable for dynamic segment splitting
   int downloadedBytes;
   double speed;
   SegmentStatus status;
