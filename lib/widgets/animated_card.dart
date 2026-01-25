@@ -130,49 +130,46 @@ class _AnimatedCardState extends State<AnimatedCard>
               final hoverValue = Curves.easeOutCubic.transform(_hoverController.value);
               final tapValue = Curves.easeOutCubic.transform(_tapController.value);
               
-              // 计算缩放
-              final baseScale = widget.enableScaleAnimation ? 1.0 + (hoverValue * 0.015) : 1.0;
-              final scale = baseScale * (1.0 - (tapValue * 0.02));
+              // 计算缩放 - 禁用缩放动画
+              final scale = 1.0; // 始终保持 1.0，不缩放
               
               // 插值颜色
               final currentBgColor = Color.lerp(_bgColor, _hoverColor, hoverValue)!;
               final currentBorderColor = Color.lerp(_borderColor, _hoverBorderColor, hoverValue)!;
               
-              return Transform.scale(
-                scale: scale,
-                child: Container(
-                  margin: widget.margin,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(widget.borderRadius),
-                    border: Border.all(
-                      color: currentBorderColor,
-                      width: 1.0 + (hoverValue * 0.3),
-                    ),
-                    boxShadow: [
-                      // 基础阴影 - 更柔和
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08 + (hoverValue * 0.04)),
-                        blurRadius: 4 + (hoverValue * 4),
-                        offset: Offset(0, 2 + (hoverValue * 2)),
-                      ),
-                      // 悬停发光效果
-                      if (widget.enableGlowAnimation && hoverValue > 0.01)
-                        BoxShadow(
-                          color: AppTheme.accentPrimary.withValues(alpha: 0.15 * hoverValue),
-                          blurRadius: 12 * hoverValue,
-                          offset: Offset(0, 4 * hoverValue),
-                        ),
-                    ],
+              return Container(
+                margin: widget.margin,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(widget.borderRadius),
+                  border: Border.all(
+                    color: currentBorderColor,
+                    width: 1.0,
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(widget.borderRadius),
-                    child: Container(
-                      padding: widget.padding,
-                      decoration: BoxDecoration(
-                        color: currentBgColor,
-                      ),
-                      child: child,
+                  boxShadow: [
+                    // 基础阴影
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
                     ),
+                    // 发光效果 - 使用 shader 优化
+                    if (widget.enableGlowAnimation)
+                      BoxShadow(
+                        color: AppTheme.accentPrimary.withValues(alpha: 0.2),
+                        blurRadius: 16,
+                        spreadRadius: 0,
+                        offset: const Offset(0, 0),
+                      ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(widget.borderRadius),
+                  child: Container(
+                    padding: widget.padding,
+                    decoration: BoxDecoration(
+                      color: currentBgColor,
+                    ),
+                    child: child,
                   ),
                 ),
               );

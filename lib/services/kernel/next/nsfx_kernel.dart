@@ -296,6 +296,7 @@ class NsfxKernel implements KernelInterface {
       mode: _config.mode,
       maxConcurrentTasks: _config.maxConcurrentTasks,
       segmentSpeedLimit: _config.segmentSpeedLimit,
+      enableDynamicSegments: _config.enableDynamicSegments,
       proxy: ProxyConfig(
         enabled: _config.proxy.enabled,
         type: _config.proxy.type,
@@ -315,6 +316,7 @@ class NsfxKernel implements KernelInterface {
     _config.mode = config.mode;
     _config.maxConcurrentTasks = config.maxConcurrentTasks;
     _config.segmentSpeedLimit = config.segmentSpeedLimit;
+    _config.enableDynamicSegments = config.enableDynamicSegments;
 
     if (config.proxy != null) {
       _config.proxy.enabled = config.proxy!.enabled;
@@ -464,6 +466,7 @@ class NsfxKernel implements KernelInterface {
       averageSpeed: task.averageSpeed,
       startTime: task.startTime,
       endTime: task.endTime,
+      createdTime: task.createdTime, // 传递创建时间
       segments: task.segments.map((s) => SegmentInfo(
         index: s.index,
         startByte: s.startByte,

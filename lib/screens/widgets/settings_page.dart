@@ -18,6 +18,7 @@ import '../../services/auto_start_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/constants.dart';
 import 'appearance_settings_page.dart';
+import 'developer_settings_page.dart';
 import 'update_page.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -104,6 +105,9 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _useNewKernel = true;
   String _currentKernelName = 'NSFX (Next Speed Force X)';
   bool _switchingKernel = false;
+  
+  // 开发者模式服务引用
+  DeveloperModeService? _devModeService;
 
   @override
   void initState() {
@@ -116,7 +120,20 @@ class _SettingsPageState extends State<SettingsPage> {
       _loadBehaviorSettings();
       _loadKernelSettings();
       _loadOnlineStatsSettings();
+      
+      // 监听开发者模式变化，如果关闭时正在查看开发者标签，自动切换回高级标签
+      _devModeService = Provider.of<DeveloperModeService>(context, listen: false);
+      _devModeService?.addListener(_onDeveloperModeChanged);
     });
+  }
+  
+  void _onDeveloperModeChanged() {
+    // 如果开发者模式被关闭且当前在开发者标签页，切换回高级标签
+    if (_devModeService != null && !_devModeService!.developerMode && _currentTabIndex == 5) {
+      setState(() {
+        _currentTabIndex = 4; // 切换到高级标签
+      });
+    }
   }
 
   Future<void> _loadOnlineStatsSettings() async {
@@ -378,6 +395,8 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void dispose() {
     _statusTimer?.cancel();
+    // 移除开发者模式监听器
+    _devModeService?.removeListener(_onDeveloperModeChanged);
     super.dispose();
   }
   
@@ -674,75 +693,90 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return ScaffoldPage.scrollable(
-      header: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SettingsPageHeader(title: '设置', icon: FluentIcons.settings),
-          const SizedBox(height: 12),
-          // 顶部标签栏
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20),
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: AppTheme.bgLayer1.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-              border: Border.all(
-                color: AppTheme.borderSubtle.withValues(alpha: 0.5),
-                width: 1,
+    return Consumer<DeveloperModeService>(
+      builder: (context, devMode, child) {
+        return ScaffoldPage.scrollable(
+          header: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SettingsPageHeader(title: '设置', icon: FluentIcons.settings),
+              const SizedBox(height: 12),
+              // 顶部标签栏
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AppTheme.bgLayer1.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                  border: Border.all(
+                    color: AppTheme.borderSubtle.withValues(alpha: 0.5),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildTabButton(
+                      context,
+                      icon: FluentIcons.settings,
+                      title: '常规',
+                      index: 0,
+                    ),
+                    const SizedBox(width: 4),
+                    _buildTabButton(
+                      context,
+                      icon: FluentIcons.download,
+                      title: '下载',
+                      index: 1,
+                    ),
+                    const SizedBox(width: 4),
+                    _buildTabButton(
+                      context,
+                      icon: FluentIcons.color,
+                      title: '界面',
+                      index: 2,
+                    ),
+                    const SizedBox(width: 4),
+                    _buildTabButton(
+                      context,
+                      icon: FluentIcons.update_restore,
+                      title: '更新',
+                      index: 3,
+                    ),
+                    const SizedBox(width: 4),
+                    _buildTabButton(
+                      context,
+                      icon: FluentIcons.developer_tools,
+                      title: '高级',
+                      index: 4,
+                    ),
+                    // 开发者标签 - 仅在开发者模式启用时显示
+                    if (devMode.developerMode) ...[
+                      const SizedBox(width: 4),
+                      _buildTabButton(
+                        context,
+                        icon: FluentIcons.code,
+                        title: '开发者',
+                        index: 5,
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildTabButton(
-                  context,
-                  icon: FluentIcons.settings,
-                  title: '常规',
-                  index: 0,
-                ),
-                const SizedBox(width: 4),
-                _buildTabButton(
-                  context,
-                  icon: FluentIcons.download,
-                  title: '下载',
-                  index: 1,
-                ),
-                const SizedBox(width: 4),
-                _buildTabButton(
-                  context,
-                  icon: FluentIcons.color,
-                  title: '界面',
-                  index: 2,
-                ),
-                const SizedBox(width: 4),
-                _buildTabButton(
-                  context,
-                  icon: FluentIcons.update_restore,
-                  title: '更新',
-                  index: 3,
-                ),
-                const SizedBox(width: 4),
-                _buildTabButton(
-                  context,
-                  icon: FluentIcons.developer_tools,
-                  title: '高级',
-                  index: 4,
-                ),
-              ],
-            ),
+              const SizedBox(height: 20),
+            ],
           ),
-          const SizedBox(height: 20),
-        ],
-      ),
-      children: [
-        if (_currentTabIndex == 0) ..._buildGeneralTab(context),
-        if (_currentTabIndex == 1) ..._buildDownloadTab(context),
-        if (_currentTabIndex == 2) const AppearanceSettingsPage(),
-        if (_currentTabIndex == 3) const UpdatePage(),
-        if (_currentTabIndex == 4) ..._buildAdvancedTab(context),
-        const SizedBox(height: 40),
-      ],
+          children: [
+            if (_currentTabIndex == 0) ..._buildGeneralTab(context),
+            if (_currentTabIndex == 1) ..._buildDownloadTab(context),
+            if (_currentTabIndex == 2) const AppearanceSettingsPage(),
+            if (_currentTabIndex == 3) const UpdatePage(),
+            if (_currentTabIndex == 4) ..._buildAdvancedTab(context),
+            if (_currentTabIndex == 5 && devMode.developerMode) const DeveloperSettingsPage(),
+            const SizedBox(height: 40),
+          ],
+        );
+      },
     );
   }
 
@@ -1419,12 +1453,66 @@ class _SettingsPageState extends State<SettingsPage> {
       _buildKernelSection(context),
       const SizedBox(height: 24),
       
-      // 开发者模式
-      _buildDeveloperSection(context),
+      // 开发者模式开关
+      _buildDeveloperModeToggle(context),
       const SizedBox(height: 24),
       
       _buildDangerZone(context),
     ];
+  }
+  
+  Widget _buildDeveloperModeToggle(BuildContext context) {
+    return Consumer<DeveloperModeService>(
+      builder: (context, devMode, child) {
+        return _buildSection(
+          context,
+          title: '开发者选项',
+          icon: FluentIcons.developer_tools,
+          children: [
+            _buildSettingItem(
+              context,
+              title: '开发者模式',
+              subtitle: '启用后将显示"开发者"标签页，可配置调试和诊断功能',
+              trailing: ToggleSwitch(
+                checked: devMode.developerMode,
+                onChanged: (value) => devMode.setDeveloperMode(value),
+              ),
+            ),
+            if (devMode.developerMode) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentPrimary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  border: Border.all(
+                    color: AppTheme.accentPrimary.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      FluentIcons.info,
+                      size: 16,
+                      color: AppTheme.accentLight,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        '开发者模式已启用，请切换到"开发者"标签页进行详细配置',
+                        style: FluentTheme.of(context).typography.caption?.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
   }
 
   Widget _buildKernelSection(BuildContext context) {

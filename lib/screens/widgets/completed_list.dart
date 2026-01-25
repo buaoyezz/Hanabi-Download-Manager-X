@@ -42,7 +42,14 @@ enum FileCategory {
   const FileCategory(this.label, this.icon, this.extensions);
 
   static FileCategory fromFileName(String fileName) {
-    final ext = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
+    final dotIndex = fileName.lastIndexOf('.');
+    
+    // 如果没有扩展名或扩展名在开头，返回 other
+    if (dotIndex == -1 || dotIndex == 0 || dotIndex == fileName.length - 1) {
+      return FileCategory.other;
+    }
+    
+    final ext = fileName.toLowerCase().substring(dotIndex);
     
     for (final category in FileCategory.values) {
       if (category == FileCategory.all || category == FileCategory.other) continue;

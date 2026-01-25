@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:collection/collection.dart';
 import '../models/download_task.dart';
 import 'kernel_service.dart';
 import 'kernel/kernel_manager.dart';
@@ -145,6 +146,7 @@ class IntegratedDownloadService extends ChangeNotifier {
       'averageSpeed': task.averageSpeed,
       'startTime': task.startTime?.toIso8601String(),
       'endTime': task.endTime?.toIso8601String(),
+      'createdTime': task.createdTime.toIso8601String(), // 添加创建时间
       'segments': task.segments.map((s) => {
         'index': s.index,
         'startByte': s.startByte,
@@ -235,12 +237,16 @@ class IntegratedDownloadService extends ChangeNotifier {
     // 解析时间
     DateTime? startTime;
     DateTime? endTime;
+    DateTime? createdTime;
     try {
       if (kernelTask['startTime'] != null) {
         startTime = DateTime.parse(kernelTask['startTime']);
       }
       if (kernelTask['endTime'] != null) {
         endTime = DateTime.parse(kernelTask['endTime']);
+      }
+      if (kernelTask['createdTime'] != null) {
+        createdTime = DateTime.parse(kernelTask['createdTime']);
       }
     } catch (e) {
       _appLogger.error('App', 'Failed to parse time: $e');
@@ -275,6 +281,7 @@ class IntegratedDownloadService extends ChangeNotifier {
       downloadCore: downloadCore,
       startTime: startTime,
       endTime: endTime,
+      createdAt: createdTime, // 传递创建时间
     );
   }
 
@@ -503,7 +510,13 @@ class IntegratedDownloadService extends ChangeNotifier {
   }
 
   Future<void> removeTask(String id) async {
-    final task = _tasks.firstWhere((t) => t.id == id, orElse: () => _tasks.first);
+    final task = _tasks.firstWhereOrNull((t) => t.id == id);
+    
+    if (task == null) {
+      _appLogger.error('App', 'Task not found for removal: $id');
+      return;
+    }
+    
     _appLogger.info('App', 'Removing task: ${task.fileName} (ID: $id)');
     
     bool success;
@@ -518,7 +531,7 @@ class IntegratedDownloadService extends ChangeNotifier {
       _appLogger.info('App', 'Task removed successfully: ${task.fileName}');
       notifyListeners();
     } else {
-      _appLogger.error('App', 'Failed to remove task: ${task.fileName}');
+      _appLogger.error('App', 'Failed to remove task: ${task.fileName} (ID: $id)');
     }
   }
 
@@ -536,6 +549,7 @@ class IntegratedDownloadService extends ChangeNotifier {
         'mode': config.mode,
         'max_concurrent_tasks': config.maxConcurrentTasks,
         'segment_speed_limit': config.segmentSpeedLimit,
+        'enable_dynamic_segments': config.enableDynamicSegments,
         'proxy': config.proxy != null ? {
           'enabled': config.proxy!.enabled,
           'type': config.proxy!.type,

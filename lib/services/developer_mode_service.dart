@@ -52,6 +52,7 @@ class DeveloperModeService extends ChangeNotifier {
   }
 
   Future<void> setShowLogPage(bool value) async {
+    if (_showLogPage == value) return; // 避免不必要的更新
     _showLogPage = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('show_log_page', value);
@@ -59,6 +60,7 @@ class DeveloperModeService extends ChangeNotifier {
   }
 
   Future<void> setShowStatusPage(bool value) async {
+    if (_showStatusPage == value) return; // 避免不必要的更新
     _showStatusPage = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('show_status_page', value);
@@ -66,6 +68,7 @@ class DeveloperModeService extends ChangeNotifier {
   }
 
   Future<void> setShowWebCheckPage(bool value) async {
+    if (_showWebCheckPage == value) return; // 避免不必要的更新
     _showWebCheckPage = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('show_web_check_page', value);
@@ -73,6 +76,7 @@ class DeveloperModeService extends ChangeNotifier {
   }
 
   Future<void> setShowOnlineStatsPage(bool value) async {
+    if (_showOnlineStatsPage == value) return; // 避免不必要的更新
     _showOnlineStatsPage = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('show_online_stats_page', value);

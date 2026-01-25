@@ -27,6 +27,7 @@ class DownloadTask {
   double averageSpeed;
   DateTime? startTime;
   DateTime? endTime;
+  DateTime createdTime; // 添加创建时间字段
   List<SegmentInfo> segments;
 
   DownloadTask({
@@ -46,8 +47,10 @@ class DownloadTask {
     this.averageSpeed = 0,
     this.startTime,
     this.endTime,
+    DateTime? createdTime, // 添加可选参数
     List<SegmentInfo>? segments,
-  }) : segments = segments ?? [];
+  }) : createdTime = createdTime ?? DateTime.now(),
+       segments = segments ?? [];
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -66,6 +69,7 @@ class DownloadTask {
     'averageSpeed': averageSpeed,
     'startTime': startTime?.toIso8601String(),
     'endTime': endTime?.toIso8601String(),
+    'createdTime': createdTime.toIso8601String(), // 添加创建时间
     'segments': segments.map((s) => s.toJson()).toList(),
   };
 
@@ -86,6 +90,7 @@ class DownloadTask {
     averageSpeed: (json['averageSpeed'] as num?)?.toDouble() ?? (json['average_speed'] as num?)?.toDouble() ?? 0.0,
     startTime: json['startTime'] != null ? DateTime.tryParse(json['startTime'].toString()) : null,
     endTime: json['endTime'] != null ? DateTime.tryParse(json['endTime'].toString()) : null,
+    createdTime: json['createdTime'] != null ? DateTime.tryParse(json['createdTime'].toString()) : null, // 添加创建时间解析
     segments: (json['segments'] as List?)?.map((s) => SegmentInfo.fromJson(s as Map<String, dynamic>)).toList() ?? [],
   );
 

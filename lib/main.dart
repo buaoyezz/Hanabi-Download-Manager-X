@@ -22,8 +22,10 @@ import 'services/update_service.dart';
 import 'services/window_effect_service.dart';
 import 'services/online_stats_service.dart';
 import 'services/user_profile_service.dart';
+import 'services/notification_settings_service.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
+import 'widgets/animated_notifications.dart';
 
 final systemTrayService = SystemTrayService();
 final navigatorKey = GlobalKey<NavigatorState>();
@@ -90,6 +92,7 @@ void main(List<String> args) async {
   final windowEffectService = WindowEffectService();
   final onlineStatsService = OnlineStatsService();
   final userProfileService = UserProfileService();
+  final notificationSettings = NotificationSettingsService();
   
   appLogger.info('App', 'Application starting...');
   await clientConfig.initialize();
@@ -99,6 +102,7 @@ void main(List<String> args) async {
   await fontService.loadFont();
   await windowEffectService.initialize();
   await updateService.initialize();
+  await notificationSettings.init(); // 初始化通知设置
   
   // 初始化用户配置并启动心跳
   await userProfileService.initialize();
@@ -478,7 +482,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               data: MediaQuery.of(context).copyWith(
                 textScaler: TextScaler.linear(scaleFactor),
               ),
-              child: child!,
+              child: NotificationManager(
+                child: child!,
+              ),
             );
           },
           home: const HomeScreen(),

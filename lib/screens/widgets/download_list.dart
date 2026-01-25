@@ -21,6 +21,38 @@ class _DownloadListState extends State<DownloadList> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
   DownloadStatus? _filterStatus;
+  String _sortOrder = 'newest'; // 'newest' 或 'oldest'
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSortOrder();
+  }
+
+  Future<void> _loadSortOrder() async {
+    final prefs = await SharedPreferences.getInstance();
+    final sortOrder = prefs.getString('task_sort_order') ?? 'newest';
+    if (mounted) {
+      setState(() => _sortOrder = sortOrder);
+    }
+  }
+
+  Future<void> _saveSortOrder(String order) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('task_sort_order', order);
+    setState(() => _sortOrder = order);
+  }
+
+  void _applySorting(List<DownloadTask> tasks) {
+    tasks.sort((a, b) {
+      // 直接使用 createdAt 字段进行排序
+      if (_sortOrder == 'newest') {
+        return b.createdAt.compareTo(a.createdAt); // 最新的在最上面
+      } else {
+        return a.createdAt.compareTo(b.createdAt); // 最旧的在最上面
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -53,8 +85,27 @@ class _DownloadListState extends State<DownloadList> {
           if (_filterStatus != null) {
             activeTasks = activeTasks.where((t) => t.status == _filterStatus).toList();
           }
+          
+          // 应用排序 - 直接使用 createdAt 字段
+          activeTasks.sort((a, b) {
+            if (_sortOrder == 'newest') {
+              return b.createdAt.compareTo(a.createdAt); // 最新的在最上面
+            } else {
+              return a.createdAt.compareTo(b.createdAt); // 最旧的在最上面
+            }
+          });
+          
+          // 调试：输出排序后的任务顺序和创建时间
+          print('[SORT] Order: $_sortOrder, Tasks after sort:');
+          for (var i = 0; i < activeTasks.length && i < 5; i++) {
+            print('[SORT]   ${i + 1}. ${activeTasks[i].fileName} - ${activeTasks[i].createdAt}');
+          }
 
-          if (activeTasks.isEmpty && _searchQuery.isEmpty && _filterStatus == null) {
+          if (activeTasks.isEmpty && _searchQuery.isNotEmpty || _filterStatus != null) {
+            return _buildNoResultsState(context);
+          }
+          
+          if (activeTasks.isEmpty) {
             return _buildEmptyState(context);
           }
 
@@ -74,9 +125,7 @@ class _DownloadListState extends State<DownloadList> {
               _buildStatsBar(context, downloadingTasks.length, totalSpeed, totalSegments),
             // 任务列表
             Expanded(
-              child: activeTasks.isEmpty
-                  ? _buildNoResultsState(context)
-                  : ListView.builder(
+              child: ListView.builder(
                       padding: const EdgeInsets.all(20),
                       itemCount: activeTasks.length,
                       itemBuilder: (context, index) {
@@ -136,6 +185,25 @@ class _DownloadListState extends State<DownloadList> {
                 if (_filterStatus != null) {
                   return AppTheme.accentPrimary.withValues(alpha: 0.1);
                 }
+                if (states.isHovered) {
+                  return AppTheme.bgLayer2.withValues(alpha: 0.5);
+                }
+                return Colors.transparent;
+              }),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // 排序按钮
+          IconButton(
+            icon: Icon(
+              _sortOrder == 'newest' ? FluentIcons.sort_down : FluentIcons.sort_up,
+              size: 14,
+              color: AppTheme.textSecondary,
+            ),
+            onPressed: () => _showSortDialog(context),
+            style: ButtonStyle(
+              padding: WidgetStateProperty.all(const EdgeInsets.all(8)),
+              backgroundColor: WidgetStateProperty.resolveWith((states) {
                 if (states.isHovered) {
                   return AppTheme.bgLayer2.withValues(alpha: 0.5);
                 }
@@ -225,6 +293,97 @@ class _DownloadListState extends State<DownloadList> {
             child: const Text('关闭'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showSortDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => ContentDialog(
+        title: const Text('排序方式'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('选择任务排列顺序：'),
+            const SizedBox(height: 16),
+            _buildSortOption(context, 'newest', '最新在前', FluentIcons.sort_down, '新添加的任务显示在最上面'),
+            _buildSortOption(context, 'oldest', '最旧在前', FluentIcons.sort_up, '最早添加的任务显示在最上面'),
+          ],
+        ),
+        actions: [
+          Button(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSortOption(BuildContext context, String value, String label, IconData icon, String description) {
+    final isSelected = _sortOrder == value;
+    
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: GestureDetector(
+        onTap: () {
+          _saveSortOrder(value);
+          Navigator.pop(context);
+        },
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isSelected 
+                ? AppTheme.accentPrimary.withValues(alpha: 0.1)
+                : AppTheme.bgLayer2.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            border: Border.all(
+              color: isSelected
+                  ? AppTheme.accentPrimary.withValues(alpha: 0.5)
+                  : AppTheme.borderSubtle.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected ? AppTheme.accentLight : AppTheme.textSecondary,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: FluentTheme.of(context).typography.body?.copyWith(
+                        color: isSelected ? AppTheme.accentLight : AppTheme.textPrimary,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      description,
+                      style: FluentTheme.of(context).typography.caption?.copyWith(
+                        color: AppTheme.textTertiary,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isSelected)
+                const Icon(
+                  FluentIcons.check_mark,
+                  size: 16,
+                  color: AppTheme.accentLight,
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1100,16 +1259,12 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
           ],
         ),
         const SizedBox(height: 8),
-        // 现代风格的合并进度条
+        // 简约现代的进度条
         Container(
-          height: 20,
+          height: 18,
           decoration: BoxDecoration(
-            color: AppTheme.bgLayer2.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(5),
-            border: Border.all(
-              color: AppTheme.borderSubtle.withValues(alpha: 0.4),
-              width: 1,
-            ),
+            color: AppTheme.bgLayer1.withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(4),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(4),
@@ -1729,7 +1884,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
   }
 }
 
-/// 现代扁平风格分段进度条绘制器
+/// 现代简约风格分段进度条绘制器
 class _FlatSegmentProgressPainter extends CustomPainter {
   final List<SegmentInfo> segments;
   final int totalSize;
@@ -1745,19 +1900,6 @@ class _FlatSegmentProgressPainter extends CustomPainter {
     
     final width = size.width;
     final height = size.height;
-    final radius = 3.0; // 内部圆角
-    
-    // 背景色 - 稍微深一点
-    final bgPaint = Paint()
-      ..color = AppTheme.bgLayer1.withValues(alpha: 0.8)
-      ..style = PaintingStyle.fill;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(0, 0, width, height),
-        Radius.circular(radius),
-      ),
-      bgPaint,
-    );
     
     // 绘制每个分段
     for (int i = 0; i < segments.length; i++) {
@@ -1775,91 +1917,58 @@ class _FlatSegmentProgressPainter extends CustomPainter {
       }
       final progressWidth = (segmentWidth * progressRatio).clamp(0.0, segmentWidth);
       
-      // 选择颜色 - 使用更柔和的色调
+      // 选择颜色
       Color color;
-      double opacity = 1.0;
-      
       switch (segment.status) {
         case 'completed':
           color = AppTheme.statusSuccess;
-          opacity = 0.95;
           break;
         case 'downloading':
           color = AppTheme.accentPrimary;
-          opacity = 1.0;
           break;
         case 'failed':
           color = AppTheme.statusError;
-          opacity = 0.9;
           break;
         case 'paused':
           color = AppTheme.statusWarning;
-          opacity = 0.85;
           break;
         default:
-          color = AppTheme.textTertiary;
-          opacity = 0.2;
+          color = AppTheme.textTertiary.withValues(alpha: 0.15);
       }
       
-      // 绘制已下载部分 - 带圆角
+      // 绘制已下载部分 - 使用精确的像素对齐
       if (progressWidth > 0) {
         final progressPaint = Paint()
-          ..color = color.withValues(alpha: opacity)
-          ..style = PaintingStyle.fill;
+          ..color = color
+          ..style = PaintingStyle.fill
+          ..isAntiAlias = false; // 禁用抗锯齿，确保像素完美对齐
         
-        // 判断是否需要圆角
-        final isFirstSegment = i == 0;
-        final isLastSegment = i == segments.length - 1;
-        final isFullProgress = progressRatio >= 0.99;
-        
-        // 左侧圆角：第一个分段
-        final leftRadius = isFirstSegment ? radius : 0.0;
-        // 右侧圆角：最后一个分段且进度满
-        final rightRadius = (isLastSegment && isFullProgress) ? radius : 0.0;
-        
-        canvas.drawRRect(
-          RRect.fromRectAndCorners(
-            Rect.fromLTWH(startX, 0, progressWidth, height),
-            topLeft: Radius.circular(leftRadius),
-            bottomLeft: Radius.circular(leftRadius),
-            topRight: Radius.circular(rightRadius),
-            bottomRight: Radius.circular(rightRadius),
-          ),
+        canvas.drawRect(
+          Rect.fromLTWH(startX, 0, progressWidth, height),
           progressPaint,
         );
-        
-        // 下载中的分段：添加脉动效果（右边缘）
-        if (segment.status == 'downloading' && progressWidth < segmentWidth - 1) {
-          final pulseWidth = 3.0;
-          final pulsePaint = Paint()
-            ..color = Colors.white.withValues(alpha: 0.4)
-            ..style = PaintingStyle.fill;
-          
-          canvas.drawRRect(
-            RRect.fromRectAndRadius(
-              Rect.fromLTWH(
-                startX + progressWidth - pulseWidth / 2,
-                height * 0.2,
-                pulseWidth,
-                height * 0.6,
-              ),
-              const Radius.circular(1.5),
-            ),
-            pulsePaint,
-          );
-        }
       }
       
-      // 绘制分段间隙 - 更细更自然
+      // 只在非完成分段之间绘制分割线
       if (i < segments.length - 1) {
+        final nextSegment = segments[i + 1];
+        
+        // 两个分段都是完成状态时，不显示分割线
+        if (segment.status == 'completed' && nextSegment.status == 'completed') {
+          continue;
+        }
+        
+        // 其他情况显示分割线
         final gapX = startX + segmentWidth;
         final gapPaint = Paint()
-          ..color = AppTheme.bgLayer2.withValues(alpha: 0.8)
-          ..style = PaintingStyle.fill;
+          ..color = AppTheme.bgLayer2.withValues(alpha: 0.6)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.0
+          ..isAntiAlias = false; // 禁用抗锯齿
         
-        // 绘制 1px 宽的间隙
-        canvas.drawRect(
-          Rect.fromLTWH(gapX - 0.5, 0, 1, height),
+        canvas.drawLine(
+          Offset(gapX, 0),
+          Offset(gapX, height),
           gapPaint,
         );
       }

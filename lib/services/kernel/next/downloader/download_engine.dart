@@ -110,8 +110,26 @@ class DownloadEngine {
     // 找到对应的分段
     if (message.segmentIndex < task.segments.length) {
       final segment = task.segments[message.segmentIndex];
-      segment.downloadedBytes += message.bytesDelta;
-      task.downloadedSize += message.bytesDelta;
+      
+      // 关键修复：检查边界，防止超出分段大小
+      final segmentSize = segment.endByte - segment.startByte;
+      final newDownloaded = segment.downloadedBytes + message.bytesDelta;
+      
+      if (newDownloaded > segmentSize) {
+        // 只累加到分段边界为止
+        final actualDelta = segmentSize - segment.downloadedBytes;
+        if (actualDelta > 0) {
+          segment.downloadedBytes = segmentSize;
+          task.downloadedSize += actualDelta;
+          _logger.warning('NSFX-Engine', 
+            'Segment ${segment.index} reached boundary, clamped: ${segment.downloadedBytes}/$segmentSize');
+        }
+        // 超出部分直接丢弃，不累加
+      } else {
+        // 正常累加
+        segment.downloadedBytes = newDownloaded;
+        task.downloadedSize += message.bytesDelta;
+      }
       
       // 更新进度百分比
       if (task.totalSize > 0) {
@@ -156,14 +174,29 @@ class DownloadEngine {
     for (final segment in task.segments) {
       final partFile = File('${tempDir.path}/${task.filename}.part${segment.index}');
       if (await partFile.exists()) {
-        final downloadedBytes = await partFile.length();
-        segment.downloadedBytes = downloadedBytes;
-        restoredBytes += downloadedBytes;
-        if (downloadedBytes >= segment.size) {
+        final fileSize = await partFile.length();
+        final segmentSize = segment.endByte - segment.startByte;
+        
+        // 如果临时文件大小超过分段大小，截断它（可能是动态分段导致的）
+        if (fileSize > segmentSize) {
+          _logger.warning('NSFX-Engine', 'Segment ${segment.index} temp file too large: $fileSize > $segmentSize, truncating');
+          final raf = await partFile.open(mode: FileMode.writeOnlyAppend);
+          await raf.truncate(segmentSize);
+          await raf.close();
+          // 截断后，设置为分段大小并标记为完成
+          segment.downloadedBytes = segmentSize;
           segment.status = SegmentStatus.completed;
-          _logger.debug('NSFX-Engine', 'Segment ${segment.index} already completed (${downloadedBytes} bytes)');
-        } else if (downloadedBytes > 0) {
-          _logger.debug('NSFX-Engine', 'Segment ${segment.index} restored: ${downloadedBytes}/${segment.size} bytes');
+          restoredBytes += segmentSize;
+          _logger.info('NSFX-Engine', 'Segment ${segment.index} truncated and marked complete: $segmentSize bytes');
+        } else {
+          segment.downloadedBytes = fileSize;
+          restoredBytes += fileSize;
+          if (fileSize >= segmentSize) {
+            segment.status = SegmentStatus.completed;
+            _logger.debug('NSFX-Engine', 'Segment ${segment.index} already completed ($fileSize bytes)');
+          } else if (fileSize > 0) {
+            _logger.debug('NSFX-Engine', 'Segment ${segment.index} restored: $fileSize/$segmentSize bytes');
+          }
         }
       }
     }
@@ -269,7 +302,7 @@ class DownloadEngine {
   }
 
   /// 检查并分割慢速分段（动态分段）
-  void _checkAndSplitSlowSegments(Task task) {
+  void _checkAndSplitSlowSegments(Task task) async {
     // 只在下载进行中且启用动态分段时执行
     if (!config.enableDynamicSegments) {
       _logger.debug('NSFX-Engine', 'Dynamic segments disabled');
@@ -287,6 +320,12 @@ class DownloadEngine {
       return;
     }
     
+    // 至少需要 2 个分段才能比较
+    if (downloadingSegments.length < 2) {
+      _logger.debug('NSFX-Engine', 'Only 1 downloading segment, cannot compare');
+      return;
+    }
+    
     // 计算平均剩余大小
     final totalRemaining = downloadingSegments.fold<int>(
       0, 
@@ -294,17 +333,17 @@ class DownloadEngine {
     );
     final avgRemaining = totalRemaining / downloadingSegments.length;
     
-    _logger.debug('NSFX-Engine', 
+    _logger.info('NSFX-Engine', 
       'Dynamic segment check: ${downloadingSegments.length} downloading, avg remaining: ${(avgRemaining / 1024 / 1024).toStringAsFixed(2)} MB');
     
-    // 找出剩余大小超过平均值 2 倍的分段
+    // 找出剩余大小超过平均值 1.5 倍的分段（降低阈值）
     final slowSegments = downloadingSegments
-        .where((s) => (s.size - s.downloadedBytes) > avgRemaining * 2)
-        .where((s) => (s.size - s.downloadedBytes) > 10 * 1024 * 1024) // 剩余至少 10MB 才分割
+        .where((s) => (s.size - s.downloadedBytes) > avgRemaining * 1.5)
+        .where((s) => (s.size - s.downloadedBytes) > 5 * 1024 * 1024) // 剩余至少 5MB 才分割（降低阈值）
         .toList();
     
     if (slowSegments.isEmpty) {
-      _logger.debug('NSFX-Engine', 'No slow segments found');
+      _logger.info('NSFX-Engine', 'No slow segments found (threshold: ${(avgRemaining * 1.5 / 1024 / 1024).toStringAsFixed(2)} MB)');
       return;
     }
     
@@ -316,13 +355,15 @@ class DownloadEngine {
       return;
     }
     
+    final tempDir = await _getTempDir(task);
     int splitCount = 0;
+    
     for (final slowSeg in slowSegments) {
       // 每次最多分割 5 个慢速分段
       if (task.segments.length >= 256 || splitCount >= 5) break;
       
       final remaining = slowSeg.size - slowSeg.downloadedBytes;
-      if (remaining < 10 * 1024 * 1024) continue; // 剩余小于 10MB 不分割
+      if (remaining < 5 * 1024 * 1024) continue; // 剩余小于 5MB 不分割（降低阈值）
       
       // 将慢速分段一分为二
       final currentDownloaded = slowSeg.downloadedBytes;
@@ -337,7 +378,44 @@ class DownloadEngine {
       
       // 修改原分段（上半部分）
       final oldEndByte = slowSeg.endByte;
+      final oldDownloadedBytes = slowSeg.downloadedBytes;
       slowSeg.endByte = midPoint;
+      
+      // 关键修复1：调整 downloadedBytes 不超过新的分段大小
+      final newSegmentSize = slowSeg.endByte - slowSeg.startByte;
+      if (slowSeg.downloadedBytes > newSegmentSize) {
+        final excessBytes = slowSeg.downloadedBytes - newSegmentSize;
+        slowSeg.downloadedBytes = newSegmentSize;
+        task.downloadedSize -= excessBytes; // 从总进度中减去超出部分
+        _logger.warning('NSFX-Engine', 
+          'Segment ${slowSeg.index} downloadedBytes ($oldDownloadedBytes) exceeds new size ($newSegmentSize), adjusted and reduced total by ${(excessBytes / 1024 / 1024).toStringAsFixed(2)} MB');
+      }
+      
+      // 关键修复2：如果原分段的临时文件已经下载了超过新 endByte 的数据，需要截断
+      final partFile = File('${tempDir.path}/${task.filename}.part${slowSeg.index}');
+      if (await partFile.exists()) {
+        final fileSize = await partFile.length();
+        
+        if (fileSize > newSegmentSize) {
+          _logger.warning('NSFX-Engine', 
+            'Segment ${slowSeg.index} temp file ($fileSize bytes) exceeds new size ($newSegmentSize bytes) after split, truncating');
+          try {
+            final raf = await partFile.open(mode: FileMode.writeOnlyAppend);
+            await raf.truncate(newSegmentSize);
+            await raf.close();
+            // 标记为完成
+            slowSeg.status = SegmentStatus.completed;
+            _logger.info('NSFX-Engine', 'Segment ${slowSeg.index} truncated to $newSegmentSize bytes and marked complete');
+          } catch (e) {
+            _logger.error('NSFX-Engine', 'Failed to truncate segment ${slowSeg.index}: $e');
+            // 如果截断失败，恢复原状态
+            slowSeg.endByte = oldEndByte;
+            slowSeg.downloadedBytes = oldDownloadedBytes;
+            task.downloadedSize += (oldDownloadedBytes - slowSeg.downloadedBytes);
+            continue;
+          }
+        }
+      }
       
       // 添加新分段
       task.segments.add(newSegment);
@@ -346,8 +424,10 @@ class DownloadEngine {
       _logger.info('NSFX-Engine', 
         'Split segment ${slowSeg.index}: ${slowSeg.startByte}-$oldEndByte => ${slowSeg.startByte}-${slowSeg.endByte} + ${newSegment.startByte}-${newSegment.endByte} (remaining: ${(remaining / 1024 / 1024).toStringAsFixed(2)} MB, total segments: ${task.segments.length})');
       
-      // 启动新分段的下载
-      _startNewSegmentDownload(task, newSegment);
+      // 只有在原分段未完成时才启动新分段的下载
+      if (slowSeg.status != SegmentStatus.completed) {
+        _startNewSegmentDownload(task, newSegment);
+      }
     }
     
     if (splitCount > 0) {
@@ -456,6 +536,19 @@ class DownloadEngine {
         request.headers.set(key, value);
       });
       
+      final expectedSize = params.endByte - params.startByte;
+      final remainingSize = expectedSize - params.alreadyDownloaded;
+      
+      // [优化] 如果已经下载完成了，直接返回成功，不需要建立连接
+      if (remainingSize <= 0) {
+        client.close();
+        params.sendPort.send(_IsolateResult(
+          success: true,
+          downloadedBytes: params.alreadyDownloaded,
+        ));
+        return;
+      }
+      
       request.headers.set('Range', 'bytes=${params.startByte}-${params.endByte - 1}');
       
       final response = await request.close();
@@ -475,8 +568,6 @@ class DownloadEngine {
       // 如果有已下载的数据，使用 append 模式；否则使用 writeOnly 模式
       final sink = file.openWrite(mode: params.alreadyDownloaded > 0 ? FileMode.append : FileMode.writeOnly);
       int downloadedBytes = 0;  // 本次下载的字节数
-      final expectedSize = params.endByte - params.startByte;
-      final remainingSize = expectedSize - params.alreadyDownloaded;  // 还需要下载的字节数
       
       // 进度上报：每下载 64KB 或每 100ms 通知一次主线程
       int bufferedBytes = 0;
@@ -485,11 +576,12 @@ class DownloadEngine {
       const progressInterval = Duration(milliseconds: 100);
       
       await for (final chunk in response) {
-        final remaining = remainingSize - downloadedBytes;
-        if (remaining <= 0) break;
+        // [关键修复] 严格计算剩余量
+        final currentRemaining = remainingSize - downloadedBytes;
+        if (currentRemaining <= 0) break; // 已经够了，强制退出循环
         
-        final toWrite = chunk.length > remaining 
-            ? chunk.sublist(0, remaining) 
+        final toWrite = chunk.length > currentRemaining 
+            ? chunk.sublist(0, currentRemaining) 
             : chunk;
         
         sink.add(toWrite);
@@ -507,6 +599,9 @@ class DownloadEngine {
           bufferedBytes = 0;
           lastProgressTime = now;
         }
+        
+        // [关键修复] 再次检查：如果刚刚写入导致满了，立即 break，不再等待下一个 chunk
+        if (remainingSize - downloadedBytes <= 0) break;
       }
       
       // 发送剩余的 buffer
@@ -518,9 +613,12 @@ class DownloadEngine {
         ));
       }
       
+      // [关键修复] 改变关闭顺序：先关闭网络连接，再处理文件
+      // 这可以防止网络挂起导致文件流一直等待
+      client.close(force: true);
+      
       await sink.flush();
       await sink.close();
-      client.close();
       
       final totalDownloaded = params.alreadyDownloaded + downloadedBytes;
       
@@ -595,6 +693,40 @@ class DownloadEngine {
         }
       }
     }
+    
+    // ---------------------------------------------------------
+    // 强制校准进度：解决动态分段可能导致的进度漂移或双倍统计问题
+    // 计算所有分段实际已下载量的总和
+    final realTotalDownloaded = task.segments.fold<int>(
+      0, 
+      (sum, s) => sum + s.downloadedBytes
+    );
+    
+    // 如果累加器(task.downloadedSize)与实际总和(realTotalDownloaded)偏差超过 1MB，则强制同步
+    // 这种情况通常发生在动态分段触发后
+    if ((task.downloadedSize - realTotalDownloaded).abs() > 1024 * 1024) {
+      _logger.warning('NSFX-Engine', 
+        'Progress drift detected: ${task.downloadedSize} vs ${realTotalDownloaded}, calibrating');
+      task.downloadedSize = realTotalDownloaded;
+    }
+    
+    // 最后的防线：确保下载量绝不超过总量
+    if (task.totalSize > 0 && task.downloadedSize > task.totalSize) {
+      _logger.warning('NSFX-Engine', 
+        'Downloaded size (${task.downloadedSize}) exceeds total size (${task.totalSize}), clamping');
+      task.downloadedSize = task.totalSize;
+    }
+    
+    // 重新计算百分比，确保 UI 不会错误显示 100%
+    if (task.totalSize > 0) {
+      task.progress = (task.downloadedSize / task.totalSize) * 100;
+      
+      // 如果计算出 100% 但状态仍是 downloading，强制扣除一点点，避免用户误解
+      if (task.progress >= 100.0 && task.status == TaskStatus.downloading) {
+        task.progress = 99.9;
+      }
+    }
+    // ---------------------------------------------------------
   }
 
   Future<void> _singleThreadDownload(Task task, Map<String, String> headers) async {

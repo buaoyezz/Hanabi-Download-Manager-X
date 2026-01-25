@@ -9,10 +9,14 @@ import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 import 'package:win32/win32.dart';
 import 'package:ffi/ffi.dart';
+import 'dart:ui';
 import '../../widgets/settings_components.dart';
 import '../../services/font_service.dart';
 import '../../services/window_effect_service.dart';
 import '../../services/client_config_service.dart';
+import '../../services/notification_settings_service.dart';
+import '../../widgets/animated_notifications.dart';
+import '../../theme/app_theme.dart';
 
 class AppearanceSettingsPage extends StatefulWidget {
   const AppearanceSettingsPage({super.key});
@@ -31,6 +35,11 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
   bool _segmentsDefaultExpanded = false;
   int _segmentsMaxVisible = 5;
   String _segmentsDisplayMode = 'merged'; // 'merged' (合并) 或 'list' (列表)
+  
+  // 通知设置
+  bool _notificationEnabled = true;
+  String _notificationColorScheme = 'fluent2';
+  String _notificationPosition = 'topRight';
   
   // 屏幕尺寸
   double _screenWidth = 1920.0;
@@ -67,6 +76,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    final notificationSettings = NotificationSettingsService();
+    
     if (mounted) {
       final fontService = context.read<FontService>();
       setState(() {
@@ -74,6 +85,11 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         _segmentsDefaultExpanded = prefs.getBool('segments_default_expanded') ?? false;
         _segmentsMaxVisible = prefs.getInt('segments_max_visible') ?? 5;
         _segmentsDisplayMode = prefs.getString('segments_display_mode') ?? 'merged';
+        
+        // 加载通知设置
+        _notificationEnabled = notificationSettings.enabled;
+        _notificationColorScheme = notificationSettings.colorScheme.name;
+        _notificationPosition = notificationSettings.position.name;
       });
     }
   }
@@ -242,6 +258,293 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     await prefs.setString('segments_display_mode', value);
     setState(() => _segmentsDisplayMode = value);
   }
+  
+  // 通知设置保存方法
+  Future<void> _saveNotificationEnabled(bool value) async {
+    final notificationSettings = NotificationSettingsService();
+    await notificationSettings.setEnabled(value);
+    setState(() => _notificationEnabled = value);
+  }
+  
+  Future<void> _saveNotificationColorScheme(String value) async {
+    final notificationSettings = NotificationSettingsService();
+    final scheme = NotificationColorScheme.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => NotificationColorScheme.fluent2,
+    );
+    await notificationSettings.setColorScheme(scheme);
+    setState(() => _notificationColorScheme = value);
+  }
+  
+  Future<void> _saveNotificationPosition(String value) async {
+    final notificationSettings = NotificationSettingsService();
+    final position = NotificationPosition.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => NotificationPosition.topRight,
+    );
+    await notificationSettings.setPosition(position);
+    setState(() => _notificationPosition = value);
+  }
+  
+  String _getNotificationColorSchemeName(String scheme) {
+    switch (scheme) {
+      case 'defaultScheme':
+        return '跟随主题';
+      case 'light':
+        return '浅色系';
+      case 'dark':
+        return '深色系';
+      case 'fluent2':
+        return 'Fluent 2 色系（推荐）';
+      default:
+        return '未知';
+    }
+  }
+  
+  String _getNotificationPositionName(String position) {
+    switch (position) {
+      case 'topRight':
+        return '右上角（标题栏下方）';
+      case 'bottomRight':
+        return '右下角';
+      default:
+        return '未知';
+    }
+  }
+  
+  void _showTestNotification() {
+    final notificationManager = NotificationManager.of(context);
+    if (notificationManager != null) {
+      notificationManager.showSuccess(
+        '测试通知',
+        message: '这是一条测试通知消息',
+      );
+    }
+  }
+  
+  // 通知配色预览框
+  Widget _buildNotificationPreview(BuildContext context) {
+    final notificationSettings = NotificationSettingsService();
+    final isDark = FluentTheme.of(context).brightness == Brightness.dark;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            const Icon(
+              FluentIcons.preview,
+              size: 14,
+              color: AppTheme.textSecondary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '配色预览',
+              style: FluentTheme.of(context).typography.caption?.copyWith(
+                color: AppTheme.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppTheme.bgLayer1.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            border: Border.all(
+              color: AppTheme.borderSubtle.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Column(
+            children: [
+              _buildPreviewNotificationCard(
+                context,
+                title: '成功通知',
+                message: '操作已成功完成',
+                icon: FluentIcons.completed_solid,
+                color: notificationSettings.getSuccessColor(isDark),
+                isDark: isDark,
+              ),
+              const SizedBox(height: 10),
+              _buildPreviewNotificationCard(
+                context,
+                title: '警告通知',
+                message: '请注意此操作的影响',
+                icon: FluentIcons.warning,
+                color: notificationSettings.getWarningColor(isDark),
+                isDark: isDark,
+              ),
+              const SizedBox(height: 10),
+              _buildPreviewNotificationCard(
+                context,
+                title: '错误通知',
+                message: '操作失败，请重试',
+                icon: FluentIcons.status_error_full,
+                color: notificationSettings.getErrorColor(isDark),
+                isDark: isDark,
+              ),
+              const SizedBox(height: 10),
+              _buildPreviewNotificationCard(
+                context,
+                title: '信息通知',
+                message: '这是一条提示信息',
+                icon: FluentIcons.info,
+                color: notificationSettings.getInfoColor(isDark),
+                isDark: isDark,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+  
+  // 预览通知卡片（静态展示）
+  Widget _buildPreviewNotificationCard(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required IconData icon,
+    required Color color,
+    required bool isDark,
+  }) {
+    final notificationSettings = NotificationSettingsService();
+    final cardColor = notificationSettings.getCardColor(isDark);
+    final textPrimary = notificationSettings.getTextPrimaryColor(isDark);
+    final textSecondary = notificationSettings.getTextSecondaryColor(isDark);
+    
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(6),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+          BoxShadow(
+            color: color.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            decoration: BoxDecoration(
+              color: cardColor.withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: color.withValues(alpha: 0.15),
+                width: 0.5,
+              ),
+            ),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 10, 8, 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // 图标
+                      Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Icon(
+                          icon,
+                          size: 14,
+                          color: color,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // 内容
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              title,
+                              style: FluentTheme.of(context)
+                                  .typography.bodyStrong?.copyWith(
+                                color: textPrimary,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                height: 1.3,
+                                letterSpacing: -0.2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              message,
+                              style: FluentTheme.of(context)
+                                  .typography.body?.copyWith(
+                                color: textSecondary,
+                                fontSize: 11,
+                                height: 1.3,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      // 关闭按钮
+                      Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: AppTheme.bgLayer2.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Icon(
+                          FluentIcons.chrome_close,
+                          size: 10,
+                          color: AppTheme.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // 进度条
+                Container(
+                  height: 2,
+                  child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: 0.6, // 静态显示 60% 进度
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(6),
+                          bottomRight: Radius.circular(6),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
 
   Future<void> _importCustomFont() async {
     try {
@@ -706,6 +1009,72 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 },
               ),
             ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        
+        // 通知设置
+        _buildSection(
+          context,
+          title: '通知',
+          icon: FluentIcons.ringer,
+          children: [
+            _buildSettingItem(
+              context,
+              title: '启用通知',
+              subtitle: '显示下载完成、错误等通知',
+              trailing: ToggleSwitch(
+                checked: _notificationEnabled,
+                onChanged: (value) => _saveNotificationEnabled(value),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildSettingItem(
+              context,
+              title: '配色方案',
+              subtitle: _getNotificationColorSchemeName(_notificationColorScheme),
+              trailing: ComboBox<String>(
+                value: _notificationColorScheme,
+                items: const [
+                  ComboBoxItem(value: 'defaultScheme', child: Text('默认配色')),
+                  ComboBoxItem(value: 'light', child: Text('浅色系')),
+                  ComboBoxItem(value: 'dark', child: Text('深色系')),
+                  ComboBoxItem(value: 'fluent2', child: Text('Fluent 2 色系')),
+                ],
+                onChanged: (value) {
+                  if (value != null) _saveNotificationColorScheme(value);
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildSettingItem(
+              context,
+              title: '显示位置',
+              subtitle: _getNotificationPositionName(_notificationPosition),
+              trailing: ComboBox<String>(
+                value: _notificationPosition,
+                items: const [
+                  ComboBoxItem(value: 'topRight', child: Text('右上角')),
+                  ComboBoxItem(value: 'bottomRight', child: Text('右下角')),
+                ],
+                onChanged: (value) {
+                  if (value != null) _saveNotificationPosition(value);
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildSettingItem(
+              context,
+              title: '预览通知',
+              subtitle: '点击按钮预览当前配色效果',
+              trailing: Button(
+                onPressed: _showTestNotification,
+                child: const Text('预览'),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // 配色预览框
+            _buildNotificationPreview(context),
           ],
         ),
         const SizedBox(height: 24),

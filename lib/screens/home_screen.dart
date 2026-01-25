@@ -59,8 +59,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   double _lastSavedHeight = 0;
   
   List<NavigationItem> _getNavItems(BuildContext context) {
-    final devMode = context.watch<DeveloperModeService>();
-    final userProfile = context.watch<UserProfileService>();
+    // 使用 select 只监听影响导航列表的字段
+    final showLogPage = context.select<DeveloperModeService, bool>((s) => s.showLogPage);
+    final showStatusPage = context.select<DeveloperModeService, bool>((s) => s.showStatusPage);
+    final showWebCheckPage = context.select<DeveloperModeService, bool>((s) => s.showWebCheckPage);
+    final showOnlineStatsPage = context.select<DeveloperModeService, bool>((s) => s.showOnlineStatsPage);
+    final statsEnabled = context.select<UserProfileService, bool>((s) => s.statsEnabled);
     
     final items = <NavigationItem>[
       NavigationItem(
@@ -77,36 +81,36 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     
     final bottomItems = <NavigationItem>[];
     
-    if (devMode.showLogPage) {
+    if (showLogPage) {
       bottomItems.add(NavigationItem(
         icon: FluentIcons.text_document,
         title: '日志',
-        body: const LogPage(),
+        body: const LogPage(key: ValueKey('log_page')),
       ));
     }
     
-    if (devMode.showStatusPage) {
+    if (showStatusPage) {
       bottomItems.add(NavigationItem(
         icon: FluentIcons.health,
         title: '状态',
-        body: const StatusPage(),
+        body: const StatusPage(key: ValueKey('status_page')),
       ));
     }
     
-    if (devMode.showWebCheckPage) {
+    if (showWebCheckPage) {
       bottomItems.add(NavigationItem(
         icon: FluentIcons.globe,
         title: 'Web检测',
-        body: const WebCheckPage(),
+        body: const WebCheckPage(key: ValueKey('web_check_page')),
       ));
     }
     
     // 在线统计页面（独立开关）
-    if (devMode.showOnlineStatsPage && userProfile.statsEnabled) {
+    if (showOnlineStatsPage && statsEnabled) {
       bottomItems.add(NavigationItem(
         icon: FluentIcons.people,
         title: '在线统计',
-        body: const OnlineStatsPage(),
+        body: const OnlineStatsPage(key: ValueKey('online_stats_page')),
       ));
     }
     
@@ -114,12 +118,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       NavigationItem(
         icon: FluentIcons.settings,
         title: '设置',
-        body: const SettingsPage(),
+        body: const SettingsPage(key: ValueKey('settings_page')),
       ),
       NavigationItem(
         icon: FluentIcons.info,
         title: '关于',
-        body: const AboutPage(),
+        body: const AboutPage(key: ValueKey('about_page')),
       ),
     ]);
     
@@ -131,17 +135,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.initState();
     AppLoggerService().info('App', 'HomeScreen initialized');
     
-    // 侧边栏动画控制器
+    // 侧边栏动画控制器 - 快速响应的展开/收缩
     _sidebarController = AnimationController(
       duration: const Duration(milliseconds: 250),
       vsync: this,
     );
     
-    // 宽度动画
+    // 宽度动画 - 使用 easeInOutCubic 曲线实现丝滑的双向过渡
     _widthAnimation = Tween<double>(begin: 200, end: 52).animate(
       CurvedAnimation(
         parent: _sidebarController,
-        curve: Curves.easeOutCubic,
+        curve: Curves.easeInOutCubic,
+        reverseCurve: Curves.easeInOutCubic,
       ),
     );
     
@@ -177,48 +182,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
   
-  /// 智能更新当前索引，根据页面标题找到正确的索引
-  void _updateCurrentIndex(List<NavigationItem> navItems) {
-    // 尝试根据当前页面标题找到对应的索引
-    int newIndex = -1;
-    for (int i = 0; i < navItems.length; i++) {
-      if (navItems[i].title == _currentPageTitle) {
-        newIndex = i;
-        break;
-      }
-    }
-    
-    // 如果找到了对应的页面，更新索引
-    if (newIndex != -1) {
-      _currentIndex = newIndex;
-    } else {
-      // 如果当前页面不存在了（比如调试页面被关闭），回退到安全的页面
-      if (_currentIndex >= navItems.length) {
-        // 如果当前索引超出范围，尝试回退到设置页面或第一个页面
-        int settingsIndex = -1;
-        for (int i = 0; i < navItems.length; i++) {
-          if (navItems[i].title == '设置') {
-            settingsIndex = i;
-            break;
-          }
-        }
-        
-        if (settingsIndex != -1) {
-          _currentIndex = settingsIndex;
-          _currentPageTitle = '设置';
-        } else {
-          _currentIndex = 0;
-          _currentPageTitle = navItems.isNotEmpty ? navItems[0].title : '下载中';
-        }
-        
-        AppLoggerService().info('App', 'Page not found, fallback to: $_currentPageTitle');
-      } else {
-        // 更新当前页面标题为实际显示的页面
-        _currentPageTitle = navItems[_currentIndex].title;
-      }
-    }
-  }
-
   @override
   void dispose() {
     _sidebarController.dispose();
@@ -306,8 +269,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // 根据窗口效果调整背景透明度
     final sidebarOpacity = isTransparent ? 0.2 : 0.65;
     
-    // 智能索引管理：根据页面标题找到正确的索引
-    _updateCurrentIndex(navItems);
+    // 核心修复逻辑：确保 _currentIndex 与 _currentPageTitle 同步
+    // 这解决了列表项动态增减（如在线统计出现/消失）导致的索引错位
+    final correctIndex = navItems.indexWhere((item) => item.title == _currentPageTitle);
+    
+    if (correctIndex != -1) {
+      // 找到了当前标题对应的页面，更新索引
+      _currentIndex = correctIndex;
+    } else {
+      // 当前页面不在列表里了（可能是相关功能开关关闭了）
+      // 检查索引越界情况
+      if (_currentIndex >= navItems.length) {
+        _currentIndex = navItems.length > 0 ? navItems.length - 1 : 0;
+      }
+      // 更新标题为当前索引的新页面
+      if (navItems.isNotEmpty) {
+        _currentPageTitle = navItems[_currentIndex].title;
+      }
+    }
     
     return WindowBorder(
       color: Colors.transparent,
@@ -409,44 +388,54 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
               ),
-              // Logo + 标题（始终可见）
-              Container(
-                width: 18,
-                height: 18,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(4),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.accentPrimary.withValues(alpha: 0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: Image.asset(
-                    'assets/logo/logo.png',
-                    width: 18,
-                    height: 18,
-                    fit: BoxFit.cover,
+              // 中间：Logo + 标题 + 可拖动区域
+              Expanded(
+                child: MoveWindow(
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 8),
+                      // Logo
+                      Container(
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(4),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.accentPrimary.withValues(alpha: 0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: Image.asset(
+                            'assets/logo/logo.png',
+                            width: 18,
+                            height: 18,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // 标题
+                      Text(
+                        'Hanabi Download Manager X',
+                        style: FluentTheme.of(context).typography.caption?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          letterSpacing: 0.3,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                      // 剩余空间也可拖动
+                      const Expanded(child: SizedBox()),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              Text(
-                'Hanabi Download Manager X',
-                style: FluentTheme.of(context).typography.caption?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  letterSpacing: 0.3,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-              const SizedBox(width: 16),
-              // 中间：可拖动区域
-              Expanded(child: MoveWindow()),
               // 右侧：操作按钮
               _buildTitleBarActions(context),
             ],
@@ -502,7 +491,34 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         currentPageTitle == '关于';
     
     if (isKernelRunning || isDebugPage) {
-      return navItems[_currentIndex].body;
+      // 使用 AnimatedSwitcher 实现页面切换的淡入淡出效果
+      return AnimatedSwitcher(
+        duration: const Duration(milliseconds: 180),
+        switchInCurve: Curves.easeInOutCubic,
+        switchOutCurve: Curves.easeInOutCubic,
+        transitionBuilder: (child, animation) {
+          // 淡入淡出 + 轻微位移，更流畅
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.015, 0),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+              )),
+              child: child,
+            ),
+          );
+        },
+        child: KeyedSubtree(
+          // 核心修复点：使用标题作为 Key，而不是索引
+          // 这样即使列表发生变化导致索引改变，只要标题没变，就不会触发页面重绘或跳转
+          key: ValueKey(navItems[_currentIndex].title),
+          child: navItems[_currentIndex].body,
+        ),
+      );
     }
     
     // 否则显示加载动画
@@ -675,56 +691,63 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  /// Edge 风格侧边栏 - 只包含导航项
-  /// Edge 风格侧边栏 - 只包含导航项
+  /// Edge 风格侧边栏 - 只包含导航项（优化版，减少重建）
   Widget _buildEdgeSidebar(BuildContext context, List<NavigationItem> navItems, double opacity) {
     return AnimatedBuilder(
-      animation: _sidebarController,
+      animation: _widthAnimation,
       builder: (context, child) {
         final width = _widthAnimation.value;
         final isCompact = width < 100;
         
         return Stack(
           children: [
-            // 主侧边栏
-            BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-              child: Container(
-                width: width,
-                decoration: BoxDecoration(
-                  color: AppTheme.bgSolid.withValues(alpha: opacity),
-                  border: const Border(
-                    right: BorderSide(
-                      color: AppTheme.borderSubtle,
-                      width: 0.5,
-                    ),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 8),
-                    
-                    // 主导航项
-                    ...navItems.asMap().entries
-                        .where((entry) => !['日志', '状态', 'Web检测', '在线统计', '设置', '关于'].contains(entry.value.title))
-                        .map((entry) => _buildNavItemWidget(context, entry.key, entry.value, isCompact)),
-                    
-                    const Spacer(),
-                    
-                    // 分隔线
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 16, vertical: 8),
-                      child: Container(
-                        height: 1,
-                        color: AppTheme.borderSubtle.withValues(alpha: 0.3),
+            // 主侧边栏 - 使用 Transform 而不是改变 width，避免布局重建
+            ClipRect(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                widthFactor: 1.0,
+                child: SizedBox(
+                  width: width,
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: AppTheme.bgSolid.withValues(alpha: opacity),
+                        border: const Border(
+                          right: BorderSide(
+                            color: AppTheme.borderSubtle,
+                            width: 0.5,
+                          ),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 8),
+                          
+                          // 主导航项
+                          ...navItems.asMap().entries
+                              .where((entry) => !['日志', '状态', 'Web检测', '在线统计', '设置', '关于'].contains(entry.value.title))
+                              .map((entry) => _buildNavItemWidget(context, entry.key, entry.value, isCompact)),
+                          
+                          const Spacer(),
+                          
+                          // 分隔线
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 16, vertical: 8),
+                            child: Container(
+                              height: 1,
+                              color: AppTheme.borderSubtle.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          
+                          // 底部导航项
+                          ..._buildBottomNavItems(context, navItems, isCompact),
+                          
+                          const SizedBox(height: 8),
+                        ],
                       ),
                     ),
-                    
-                    // 底部导航项
-                    ..._buildBottomNavItems(context, navItems, isCompact),
-                    
-                    const SizedBox(height: 8),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -1028,22 +1051,44 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
   late AnimationController _hoverController;
   late AnimationController _selectController;
   
+  // 缓存动画值，避免每帧重新计算
+  late Animation<double> _pressAnimation;
+  late Animation<double> _hoverAnimation;
+  late Animation<double> _selectAnimation;
+  
   bool _isHovered = false;
 
   @override
   void initState() {
     super.initState();
+    // 按压动画 - 快速响应，使用 easeOut 让释放更自然
     _pressController = AnimationController(
-      duration: const Duration(milliseconds: 80),
+      duration: const Duration(milliseconds: 100),
       vsync: this,
     );
+    // Hover 动画 - 使用 easeOutQuart 实现优雅的减速效果
     _hoverController = AnimationController(
-      duration: const Duration(milliseconds: 150),
+      duration: const Duration(milliseconds: 180),
       vsync: this,
     );
+    // 选中动画 - 使用 easeInOutCubic 实现平滑的状态切换
     _selectController = AnimationController(
-      duration: const Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 180),
       vsync: this,
+    );
+    
+    // 创建缓存的动画对象
+    _pressAnimation = CurvedAnimation(
+      parent: _pressController,
+      curve: Curves.easeOut,
+    );
+    _hoverAnimation = CurvedAnimation(
+      parent: _hoverController,
+      curve: Curves.easeOutQuart,
+    );
+    _selectAnimation = CurvedAnimation(
+      parent: _selectController,
+      curve: Curves.easeInOutCubic,
     );
     
     if (widget.isSelected) {
@@ -1068,17 +1113,22 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
     _pressController.dispose();
     _hoverController.dispose();
     _selectController.dispose();
+    // CurvedAnimation 会自动被 controller dispose 时清理，不需要手动 dispose
     super.dispose();
   }
 
   void _onEnter(PointerEvent _) {
-    setState(() => _isHovered = true);
-    _hoverController.forward();
+    if (!_isHovered) {
+      setState(() => _isHovered = true);
+      _hoverController.forward();
+    }
   }
 
   void _onExit(PointerEvent _) {
-    setState(() => _isHovered = false);
-    _hoverController.reverse();
+    if (_isHovered) {
+      setState(() => _isHovered = false);
+      _hoverController.reverse();
+    }
   }
 
   void _onTapDown(TapDownDetails _) => _pressController.forward();
@@ -1101,16 +1151,19 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
           onTapUp: _onTapUp,
           onTapCancel: _onTapCancel,
           child: AnimatedBuilder(
-            animation: Listenable.merge([_pressController, _hoverController, _selectController]),
-            builder: (context, _) {
-              final pressValue = Curves.easeOutCubic.transform(_pressController.value);
-              final hoverValue = Curves.easeOutCubic.transform(_hoverController.value);
-              final selectValue = Curves.easeOutCubic.transform(_selectController.value);
+            animation: Listenable.merge([_pressAnimation, _hoverAnimation, _selectAnimation]),
+            builder: (context, child) {
+              // 直接使用缓存的动画值，不需要再次应用曲线
+              final pressValue = _pressAnimation.value;
+              final hoverValue = _hoverAnimation.value;
+              final selectValue = _selectAnimation.value;
               
-              final scale = 1.0 - (pressValue * 0.02);
+              // 轻微的缩放效果，避免过度动画
+              final scale = 1.0 - (pressValue * 0.015);
               
               return Transform.scale(
                 scale: scale,
+                alignment: Alignment.center,
                 child: widget.isCompact
                     ? _buildCompactContent(hoverValue, selectValue)
                     : _buildExpandedContent(hoverValue, selectValue),
@@ -1132,7 +1185,9 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
     )!;
     
     return Center(
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeInOutCubic,
         width: 40,
         height: 36,
         decoration: BoxDecoration(
@@ -1142,19 +1197,33 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            if (selectValue > 0.01)
-              Positioned(
-                left: 4,
-                child: Container(
-                  width: 3,
-                  height: (16 * selectValue).clamp(0.0, 16.0),
-                  decoration: BoxDecoration(
-                    color: AppTheme.accentPrimary,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+            // 选中指示条 - 使用 AnimatedContainer 实现高度动画
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeInOutCubic,
+              left: 4,
+              top: (36 - (16 * selectValue).clamp(0.0, 16.0)) / 2,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeInOutCubic,
+                width: 3,
+                height: (16 * selectValue).clamp(0.0, 16.0),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentPrimary.withValues(alpha: selectValue),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-            Icon(widget.icon, size: 16, color: iconColor),
+            ),
+            // 图标 - 使用 AnimatedSwitcher 实现颜色过渡
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 150),
+              child: Icon(
+                widget.icon,
+                key: ValueKey('${widget.icon}_$selectValue'),
+                size: 16,
+                color: iconColor,
+              ),
+            ),
           ],
         ),
       ),
@@ -1176,7 +1245,9 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
       (selectValue + hoverValue * (1 - selectValue)).clamp(0.0, 1.0),
     )!;
     
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeInOutCubic,
       height: 36,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
@@ -1185,27 +1256,33 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
       ),
       child: Row(
         children: [
-          if (selectValue > 0.01)
-            Container(
-              width: 3,
-              height: (16 * selectValue).clamp(0.0, 16.0),
-              margin: const EdgeInsets.only(right: 12),
-              decoration: BoxDecoration(
-                color: AppTheme.accentPrimary,
-                borderRadius: BorderRadius.circular(2),
-              ),
+          // 选中指示条 - 使用 AnimatedContainer 实现宽度和高度动画
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeInOutCubic,
+            width: selectValue > 0.01 ? 3 : 0,
+            height: (16 * selectValue).clamp(0.0, 16.0),
+            margin: EdgeInsets.only(right: selectValue > 0.01 ? 12 : 0),
+            decoration: BoxDecoration(
+              color: AppTheme.accentPrimary.withValues(alpha: selectValue),
+              borderRadius: BorderRadius.circular(2),
             ),
+          ),
           Icon(widget.icon, size: 16, color: iconColor),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              widget.title,
+            child: AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 150),
+              curve: Curves.easeInOutCubic,
               style: TextStyle(
                 color: textColor,
                 fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w400,
                 fontSize: 13,
               ),
-              overflow: TextOverflow.ellipsis,
+              child: Text(
+                widget.title,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ),
         ],

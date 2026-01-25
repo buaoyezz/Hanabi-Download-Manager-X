@@ -168,19 +168,20 @@ class UserProfileService extends ChangeNotifier {
       return;
     }
     
-    // 立即发送一次心跳
-    await _sendHeartbeat();
+    // 立即发送一次心跳（异步，不等待）
+    unawaited(_sendHeartbeat());
     
     // 启动定时器
     _heartbeatTimer?.cancel();
     _heartbeatTimer = Timer.periodic(heartbeatInterval, (_) {
-      _sendHeartbeat();
+      // 异步发送心跳，不阻塞主线程
+      unawaited(_sendHeartbeat());
     });
     
     _logger.info('UserProfile', 'Heartbeat started (interval: ${heartbeatInterval.inMinutes} minutes)');
   }
 
-  /// 发送心跳到统计服务器
+  /// 发送心跳到统计服务器（异步，不阻塞）
   Future<void> _sendHeartbeat() async {
     if (_deviceId == null) return;
     
@@ -201,7 +202,8 @@ class UserProfileService extends ChangeNotifier {
       // 同步更新 profile 中的版本号
       if (_profile != null && _profile!['version'] != version) {
         _profile!['version'] = version;
-        await _saveProfile();
+        // 异步保存，不等待
+        unawaited(_saveProfile());
         _logger.info('UserProfile', 'Version updated in profile: $version');
       }
       
@@ -221,7 +223,14 @@ class UserProfileService extends ChangeNotifier {
         Uri.parse('$statsServerUrl/api/heartbeat'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          // 超时时返回一个失败的响应，而不是抛出异常
+          _logger.warning('UserProfile', 'Heartbeat timeout after 10 seconds');
+          return http.Response('Timeout', 408);
+        },
+      );
       
       if (response.statusCode == 200) {
         _logger.info('UserProfile', 'Heartbeat sent successfully');
@@ -229,6 +238,7 @@ class UserProfileService extends ChangeNotifier {
         _logger.warning('UserProfile', 'Heartbeat failed: ${response.statusCode}');
       }
     } catch (e) {
+      // 捕获所有异常，避免影响主线程
       _logger.warning('UserProfile', 'Failed to send heartbeat: $e');
     }
   }
