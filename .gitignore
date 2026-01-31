@@ -52,6 +52,12 @@ x.zzbuaoye.top/dist/
 x.zzbuaoye.top/.env
 x.zzbuaoye.top/package-lock.json
 
+# Chrome extension (separate project)
+chrome_extension/
+
+# Legacy Python kernel (replaced by Dart implementation)
+python/
+
 # Python
 __pycache__/
 *.py[cod]
