@@ -9,6 +9,11 @@
 .history
 .svn/
 migrate_working_dir/
+*.tmp
+*.temp
+*.bak
+*.backup
+*~
 
 # IntelliJ related
 *.iml
@@ -18,6 +23,7 @@ migrate_working_dir/
 
 # VS Code
 .vscode/
+*.code-workspace
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -32,9 +38,19 @@ migrate_working_dir/
 .kiro/
 .shared/
 
+# Build outputs
+*.exe
+*.dll
+*.so
+*.dylib
+!assets/update/Update.exe
+
 # Web and deployment related
 web_stats/
-x.zzbuaoye.top/
+x.zzbuaoye.top/node_modules/
+x.zzbuaoye.top/dist/
+x.zzbuaoye.top/.env
+x.zzbuaoye.top/package-lock.json
 
 # Python
 __pycache__/
@@ -60,15 +76,21 @@ MANIFEST
 venv/
 ENV/
 env/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
 
 # Nuitka
 *.build/
 *.dist/
 *.onefile-build/
 
-# Test downloads
+# Test downloads and temporary files
 test_downloads/
 *.bin
+*.download
+*.part
+*.crdownload
 
 # Kernel executable (will be built)
 assets/kernel/soda_kernel.exe
@@ -84,6 +106,27 @@ $RECYCLE.BIN/
 *.msm
 *.msp
 *.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
 
 # Android related
 **/android/**/gradle-wrapper.jar
@@ -136,3 +179,62 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Logs and debug files
+*.log
+logs/
+*.stackdump
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+!web_stats/hanabi-stats-deploy.zip
+
+# Large media files (optional - uncomment if needed)
+# *.mp4
+# *.avi
+# *.mov
+# *.mp3
+# *.wav
+
+# IDE and editor files
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# Package manager lock files (keep for reproducibility)
+# Uncomment if you want to ignore them
+# pubspec.lock
+# package-lock.json
+# yarn.lock
+
+# Coverage and test reports
+coverage/
+*.coverage
+.nyc_output/
+test-results/
+
+# Documentation build
+docs/_build/
+site/
+
+# Deployment scripts (if sensitive)
+# deploy.sh
+# deploy.bat
