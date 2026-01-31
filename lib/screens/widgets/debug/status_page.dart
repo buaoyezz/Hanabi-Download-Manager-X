@@ -385,7 +385,7 @@ class _StatusPageState extends State<StatusPage> {
     final networkService = context.watch<NetworkStatusService>();
     final appLogger = context.watch<AppLoggerService>();
     
-    // 判断使用哪个内核
+    // 判断内核
     final useNewKernel = clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
     final kernelRunning = useNewKernel ? kernelManager.isRunning : kernelService.isRunning;
     final kernelName = useNewKernel ? kernelManager.kernelName : 'Soda Kernel (Legacy)';

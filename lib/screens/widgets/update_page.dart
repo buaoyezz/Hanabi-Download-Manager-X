@@ -27,16 +27,26 @@ class _UpdatePageState extends State<UpdatePage> {
   @override
   Widget build(BuildContext context) {
     // 返回Column而不是ScaffoldPage，因为这个页面会被嵌入到settings_page的ScaffoldPage.scrollable中
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildUpdateCheckSection(context),
-        const SizedBox(height: 24),
-        _buildCurrentVersionSection(context),
-        const SizedBox(height: 24),
-        _buildUpdateSettingsSection(context),
-      ],
+    return Consumer<UpdateService>(
+      builder: (context, updateService, child) {
+        // 判断是否有更新
+        final hasUpdate = updateService.hasUpdate();
+        
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildUpdateCheckSection(context),
+            const SizedBox(height: 24),
+            // 只有在没有更新时才显示当前版本信息
+            if (!hasUpdate) ...[
+              _buildCurrentVersionSection(context),
+              const SizedBox(height: 24),
+            ],
+            _buildUpdateSettingsSection(context),
+          ],
+        );
+      },
     );
   }
 
@@ -122,13 +132,16 @@ class _UpdatePageState extends State<UpdatePage> {
               const SizedBox(height: 12),
               Container(
                 width: double.infinity,
+                constraints: const BoxConstraints(maxHeight: 200),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: AppTheme.bgLayer1,
                   borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                   border: Border.all(color: AppTheme.borderSubtle),
                 ),
-                child: _buildMarkdownContent(context, updateService.getCurrentChangelog()),
+                child: SingleChildScrollView(
+                  child: _buildMarkdownContent(context, updateService.getCurrentChangelog()),
+                ),
               ),
             ],
           ),
@@ -172,19 +185,141 @@ class _UpdatePageState extends State<UpdatePage> {
                       ),
                     ],
                   ),
-                  if (updateService.isChecking)
-                    const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: ProgressRing(strokeWidth: 2),
-                    )
-                  else
-                    FilledButton(
-                      onPressed: () async {
-                        await updateService.checkForUpdates();
-                      },
-                      child: const Text('重新检查'),
-                    ),
+                  Row(
+                    children: [
+                      // 如果有更新，显示"开始更新"按钮
+                      if (!updateService.isChecking && updateService.hasUpdate()) ...[
+                        FilledButton(
+                          onPressed: () async {
+                            // 先弹出确认对话框
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => ContentDialog(
+                                title: const Text('确认更新'),
+                                content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '新版本已经准备好啦，为保障安装过程可以正常进行，本应用将会关闭！',
+                                      style: FluentTheme.of(context).typography.body,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.accentPrimary.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                                        border: Border.all(
+                                          color: AppTheme.accentPrimary.withValues(alpha: 0.3),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            FluentIcons.info,
+                                            size: 16,
+                                            color: AppTheme.accentPrimary,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                                '新版本：${updateService.availableUpdate?.version ?? updateService.latestRelease?.version ?? "未知"}\n旧版本：${updateService.currentVersion}\n变化：${updateService.currentVersion} → ${updateService.availableUpdate?.version ?? updateService.latestRelease?.version ?? "未知"}\n通道：${updateService.currentChannel.name} → ${updateService.availableUpdate?.versionInfo.channel?.name ?? updateService.latestRelease?.versionInfo.channel?.name ?? "未知"}\n全新的版本已经准备好啦，准备好更新了吗？',
+                                              style: FluentTheme.of(context).typography.caption?.copyWith(
+                                                color: AppTheme.textSecondary,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                actions: [
+                                  Button(
+                                    onPressed: () => Navigator.pop(context, false),
+                                    child: const Text('取消'),
+                                  ),
+                                  FilledButton(
+                                    onPressed: () => Navigator.pop(context, true),
+                                    child: const Text('确认更新'),
+                                  ),
+                                ],
+                              ),
+                            );
+
+                            if (confirmed != true) return;
+
+                            // 用户确认后开始更新
+                            final hasDotNet8 = updateService.isDotNet8Installed ?? false;
+                            if (hasDotNet8) {
+                              final success = await updateService.launchUpdateExe();
+                              if (!success && context.mounted) {
+                                await showDialog(
+                                  context: context,
+                                  builder: (context) => ContentDialog(
+                                    title: const Text('启动更新器失败'),
+                                    content: const Text('无法启动 Update.exe\n问题自查\n ·请检查 Update.exe 是否被删除或移动了\n ·.NET 8 是否安装正常\n ·本软件安装包是否完整\n若均无效可以选择手动下载并安装'),
+                                    actions: [
+                                      Button(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('关闭'),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () async {
+                                          Navigator.pop(context);
+                                          final release = updateService.availableUpdate ?? updateService.latestRelease!;
+                                          if (release.downloadUrl.isNotEmpty) {
+                                            final uri = Uri.parse(release.downloadUrl);
+                                            if (await canLaunchUrl(uri)) {
+                                              await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                            }
+                                          }
+                                        },
+                                        child: const Text('手动下载'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                            } else {
+                              // 没有 .NET 8，直接打开下载页面
+                              final release = updateService.availableUpdate ?? updateService.latestRelease!;
+                              if (release.downloadUrl.isNotEmpty) {
+                                final uri = Uri.parse(release.downloadUrl);
+                                if (await canLaunchUrl(uri)) {
+                                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                }
+                              }
+                            }
+                          },
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(FluentIcons.download, size: 14),
+                              SizedBox(width: 6),
+                              Text('开始更新'),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      // 检查中显示进度环，否则显示重新检查按钮
+                      if (updateService.isChecking)
+                        const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: ProgressRing(strokeWidth: 2),
+                        )
+                      else
+                        Button(
+                          onPressed: () async {
+                            await updateService.checkForUpdates();
+                          },
+                          child: const Text('重新检查'),
+                        ),
+                    ],
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -749,16 +884,13 @@ class _UpdatePageState extends State<UpdatePage> {
         const SizedBox(height: 12),
         Container(
           width: double.infinity,
-          constraints: const BoxConstraints(maxHeight: 300),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppTheme.bgLayer1,
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             border: Border.all(color: AppTheme.borderSubtle),
           ),
-          child: SingleChildScrollView(
-            child: _buildMarkdownContent(context, updateService.getLatestChangelog()),
-          ),
+          child: _buildMarkdownContent(context, updateService.getLatestChangelog()),
         ),
         const SizedBox(height: 16),
         // .NET 8 提示信息
@@ -814,69 +946,6 @@ class _UpdatePageState extends State<UpdatePage> {
           ),
           const SizedBox(height: 12),
         ],
-        // 更新按钮
-        SizedBox(
-          width: double.infinity,
-          child: hasDotNet8
-              ? FilledButton(
-                  onPressed: () async {
-                    final success = await updateService.launchUpdateExe();
-                    if (!success && context.mounted) {
-                      await showDialog(
-                        context: context,
-                        builder: (context) => ContentDialog(
-                          title: const Text('启动更新器失败'),
-                          content: const Text('无法启动 Update.exe，请尝试手动下载更新。'),
-                          actions: [
-                            Button(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('关闭'),
-                            ),
-                            FilledButton(
-                              onPressed: () async {
-                                Navigator.pop(context);
-                                if (release.downloadUrl.isNotEmpty) {
-                                  final uri = Uri.parse(release.downloadUrl);
-                                  if (await canLaunchUrl(uri)) {
-                                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                                  }
-                                }
-                              },
-                              child: const Text('手动下载'),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                  },
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(FluentIcons.update_restore, size: 16),
-                      const SizedBox(width: 8),
-                      const Text('使用更新器更新'),
-                    ],
-                  ),
-                )
-              : FilledButton(
-                  onPressed: release.downloadUrl.isNotEmpty
-                      ? () async {
-                          final uri = Uri.parse(release.downloadUrl);
-                          if (await canLaunchUrl(uri)) {
-                            await launchUrl(uri, mode: LaunchMode.externalApplication);
-                          }
-                        }
-                      : null,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(FluentIcons.download, size: 16),
-                      const SizedBox(width: 8),
-                      const Text('手动下载更新'),
-                    ],
-                  ),
-                ),
-        ),
       ],
     );
   }

@@ -704,19 +704,36 @@ class UpdateService extends ChangeNotifier {
       _logger?.info('Update', '启动 update.exe...');
       
       // 获取 update.exe 的路径
-      // 在 Flutter 应用中，assets 文件夹在编译后会被打包到可执行文件旁边
       final exePath = Platform.resolvedExecutable;
       final exeDir = path.dirname(exePath);
-      final updateExePath = path.join(exeDir, 'data', 'flutter_assets', 'assets', 'update', 'Update.exe');
       
-      _logger?.info('Update', 'Update.exe 路径: $updateExePath');
+      // 尝试多个可能的路径
+      final possiblePaths = [
+        // Release 模式路径
+        path.join(exeDir, 'data', 'flutter_assets', 'assets', 'update', 'Update.exe'),
+        // Debug 模式路径（从项目根目录，修复flutter run下无法启动）
+        path.join(Directory.current.path, 'assets', 'update', 'Update.exe'),
+        // 备用路径：直接在 exe 目录下
+        path.join(exeDir, 'Update.exe'),
+      ];
       
-      // 检查文件是否存在
-      final updateExeFile = File(updateExePath);
-      if (!await updateExeFile.exists()) {
-        _logger?.error('Update', 'Update.exe 不存在: $updateExePath');
+      String? updateExePath;
+      for (final testPath in possiblePaths) {
+        if (await File(testPath).exists()) {
+          updateExePath = testPath;
+          break;
+        }
+      }
+      
+      if (updateExePath == null) {
+        _logger?.error('Update', 'Update.exe 未找到，尝试的路径:');
+        for (final testPath in possiblePaths) {
+          _logger?.error('Update', '  - $testPath');
+        }
         return false;
       }
+      
+      _logger?.info('Update', 'Update.exe 路径: $updateExePath');
 
       // 启动 update.exe
       await Process.start(
@@ -726,6 +743,12 @@ class UpdateService extends ChangeNotifier {
       );
       
       _logger?.info('Update', 'Update.exe 已启动');
+      
+      // 延迟 500ms 后退出应用，确保更新器已启动
+      Future.delayed(const Duration(milliseconds: 500), () {
+        exit(0);
+      });
+      
       return true;
     } catch (e) {
       _logger?.error('Update', '启动 Update.exe 失败: $e');

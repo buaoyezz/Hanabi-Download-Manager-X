@@ -573,3 +573,4 @@ class ClientConfigService extends ChangeNotifier {
   String get uiConfigPath => _uiConfigPath;
   String get logConfigPath => _logConfigPath;
 }
+
