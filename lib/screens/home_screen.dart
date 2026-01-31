@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
+import '../main.dart' show isWindowMaximized, maximizeWindowProperly, restoreWindowProperly;
 import '../utils/constants.dart';
+import '../utils/fluent_icons.dart' as CustomIcons;
 import '../services/integrated_download_service.dart';
 import '../services/developer_mode_service.dart';
 import '../services/app_logger_service.dart';
@@ -214,10 +216,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       
       final currentWidth = appWindow.size.width;
       final currentHeight = appWindow.size.height;
-      final isMaximized = appWindow.isMaximized;
-      
-      // 如果窗口最大化，不保存大小
-      if (isMaximized) return;
+      final isMaximized = isWindowMaximized();
+
+      if (isMaximized) return; // 最大化时不保存窗口大小
       
       // 验证窗口大小是否合理（防止保存异常值）
       // 最小尺寸 600x400，最大尺寸 4096x2160
@@ -979,11 +980,50 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       height: 60,
       child: Row(
         children: [
-          MinimizeWindowButton(colors: buttonColors),
-          MaximizeWindowButton(colors: buttonColors),
+          _buildCustomMinimizeButton(buttonColors),
+          _buildCustomMaximizeButton(buttonColors),
           _buildCustomCloseButton(closeButtonColors),
         ],
       ),
+    );
+  }
+
+  Widget _buildCustomMinimizeButton(WindowButtonColors colors) {
+    return WindowButton(
+      colors: colors,
+      iconBuilder: (context) {
+        return Icon(
+          CustomIcons.FluentIcons.subtract_20,
+          color: colors.iconNormal,
+          size: 16,
+        );
+      },
+      onPressed: () {
+        appWindow.minimize();
+      },
+    );
+  }
+
+  Widget _buildCustomMaximizeButton(WindowButtonColors colors) {
+    return WindowButton(
+      colors: colors,
+      iconBuilder: (context) {
+        final isMaximized = isWindowMaximized();
+        return Icon(
+          isMaximized ? CustomIcons.FluentIcons.arrow_minimize_20 : CustomIcons.FluentIcons.maximize_20,
+          color: colors.iconNormal,
+          size: 16,
+        );
+      },
+      onPressed: () async {
+        final isMaximized = isWindowMaximized();
+        if (isMaximized) {
+          await restoreWindowProperly();
+        } else {
+          await maximizeWindowProperly();
+        }
+        setState(() {}); // 刷新图标
+      },
     );
   }
 
@@ -991,9 +1031,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return WindowButton(
       colors: colors,
       iconBuilder: (context) => Icon(
-        FluentIcons.chrome_close,
+        CustomIcons.FluentIcons.dismiss_20,
         color: colors.iconNormal,
-        size: 10,
+        size: 16,
       ),
       onPressed: () async {
         try {
@@ -1290,3 +1330,5 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
     );
   }
 }
+
+

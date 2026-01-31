@@ -4,6 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
 import 'dart:io';
+import 'dart:ffi' hide Size;
+import 'package:ffi/ffi.dart';
+import 'package:win32/win32.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:screen_retriever/screen_retriever.dart';
@@ -29,6 +32,130 @@ import 'widgets/animated_notifications.dart';
 
 final systemTrayService = SystemTrayService();
 final navigatorKey = GlobalKey<NavigatorState>();
+
+/// 获取当前应用的窗口句柄
+int _getAppWindowHandle() {
+  debugPrint('[Window] Attempting to get window handle...');
+  
+  // 方法1: 尝试通过窗口标题查找
+  final title = 'Hanabi Download ManagerX'.toNativeUtf16();
+  var hwnd = FindWindow(nullptr, title);
+  calloc.free(title);
+  
+  if (hwnd != 0) {
+    debugPrint('[Window] Found window by title: $hwnd');
+    return hwnd;
+  }
+  debugPrint('[Window] FindWindow by title failed');
+  
+  // 方法2: 使用前台窗口
+  hwnd = GetForegroundWindow();
+  if (hwnd != 0) {
+    debugPrint('[Window] Found foreground window: $hwnd');
+    return hwnd;
+  }
+  debugPrint('[Window] GetForegroundWindow failed');
+  
+  // 方法3: 使用活动窗口
+  hwnd = GetActiveWindow();
+  debugPrint('[Window] GetActiveWindow returned: $hwnd');
+  return hwnd;
+}
+
+/// 使用 Windows API 正确最大化窗口（不覆盖任务栏）
+Future<void> maximizeWindowProperly() async {
+  debugPrint('[Window] maximizeWindowProperly called');
+  if (Platform.isWindows) {
+    try {
+      // 使用 Future.microtask 避免在渲染帧期间调用
+      await Future.microtask(() {
+        final hwnd = _getAppWindowHandle();
+        if (hwnd != 0) {
+          // 检查并修复窗口样式
+          final style = GetWindowLongPtr(hwnd, GWL_STYLE);
+          debugPrint('[Window] Current window style: $style');
+          
+          // 确保窗口有 WS_MAXIMIZEBOX 和 WS_CAPTION 样式
+          const WS_MAXIMIZEBOX = 0x00010000;
+          const WS_CAPTION = 0x00C00000;
+          
+          if ((style & WS_MAXIMIZEBOX) == 0 || (style & WS_CAPTION) == 0) {
+            debugPrint('[Window] Adding WS_MAXIMIZEBOX and WS_CAPTION styles');
+            final newStyle = style | WS_MAXIMIZEBOX | WS_CAPTION;
+            SetWindowLongPtr(hwnd, GWL_STYLE, newStyle);
+          }
+          
+          debugPrint('[Window] Calling ShowWindow with SW_MAXIMIZE ($SW_MAXIMIZE) on handle $hwnd');
+          final result = ShowWindow(hwnd, SW_MAXIMIZE);
+          debugPrint('[Window] ShowWindow returned: $result');
+          
+          // 验证窗口状态
+          final placement = calloc<WINDOWPLACEMENT>();
+          placement.ref.length = sizeOf<WINDOWPLACEMENT>();
+          if (GetWindowPlacement(hwnd, placement) != 0) {
+            debugPrint('[Window] Window showCmd after maximize: ${placement.ref.showCmd}');
+            calloc.free(placement);
+          }
+        } else {
+          debugPrint('[Window] Failed to get window handle, using bitsdojo_window');
+          appWindow.maximize();
+        }
+      });
+    } catch (e) {
+      debugPrint('[Window] Error maximizing window: $e');
+      // 如果 Windows API 失败，回退到 bitsdojo_window
+      appWindow.maximize();
+    }
+  } else {
+    appWindow.maximize();
+  }
+}
+
+/// 恢复窗口到正常大小
+Future<void> restoreWindowProperly() async {
+  if (Platform.isWindows) {
+    try {
+      await Future.microtask(() {
+        final hwnd = _getAppWindowHandle();
+        if (hwnd != 0) {
+          ShowWindow(hwnd, SW_RESTORE);
+          debugPrint('Window restored with handle: $hwnd');
+        } else {
+          appWindow.restore();
+        }
+      });
+    } catch (e) {
+      debugPrint('Error restoring window: $e');
+      appWindow.restore();
+    }
+  } else {
+    appWindow.restore();
+  }
+}
+
+/// 检查窗口是否最大化
+bool isWindowMaximized() {
+  if (Platform.isWindows) {
+    try {
+      final hwnd = _getAppWindowHandle();
+      if (hwnd != 0) {
+        final placement = calloc<WINDOWPLACEMENT>();
+        placement.ref.length = sizeOf<WINDOWPLACEMENT>();
+        
+        if (GetWindowPlacement(hwnd, placement) != 0) {
+          final isMaximized = placement.ref.showCmd == SW_MAXIMIZE;
+          calloc.free(placement);
+          return isMaximized;
+        }
+        calloc.free(placement);
+      }
+    } catch (e) {
+      debugPrint('Error checking window state: $e');
+    }
+  }
+  // 回退到 bitsdojo_window
+  return appWindow.isMaximized;
+}
 
 Future<void> _loadCustomFonts(FontService fontService) async {
   try {
@@ -75,7 +202,7 @@ void main(List<String> args) async {
     dark: true,
   );
   
-  // 检查是否是开机自启动（通过命令行参数 --autostart）
+  // 检查是否是开机自启动（启动参数 --autostart）
   final bool isAutoStart = args.contains('--autostart');
   
   final kernelService = KernelService();
@@ -107,9 +234,6 @@ void main(List<String> args) async {
   // 初始化用户配置并启动心跳
   await userProfileService.initialize();
   appLogger.info('App', 'User profile initialized: ${userProfileService.deviceId}');
-  
-  // 注意：在线统计功能已移至网页端
-  // 访问 https://online.zzbuaoye.top 查看实时统计数据
   
   // 加载自定义字体（异步，不阻塞启动）
   _loadCustomFonts(fontService).catchError((e) {
@@ -224,8 +348,10 @@ void main(List<String> args) async {
     debugPrint('Window size requested: ${initialSize.width} x ${initialSize.height}');
 
     if (clientConfig.getWindowMaximized()) {
-      win.maximize();
-      debugPrint('Window maximized');
+      debugPrint("Window maximized");
+      maximizeWindowProperly();
+    } else {
+      restoreWindowProperly();
     }
     
     // 注意：bitsdojo_window 不支持 onWindowClose 事件
