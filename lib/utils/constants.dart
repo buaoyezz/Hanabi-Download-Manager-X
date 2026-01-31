@@ -1,7 +1,7 @@
 class AppConstants {
   // App Information
   static const String appName = 'Hanabi Download ManagerX';
-  static const String version = '1.2.8';
+  static const String version = '1.2.9';
   static const String channel = 'release';
   static const String developer = 'ZZBuAoYe';
 
