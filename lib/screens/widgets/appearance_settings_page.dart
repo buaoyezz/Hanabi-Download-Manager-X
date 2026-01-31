@@ -17,6 +17,7 @@ import '../../services/client_config_service.dart';
 import '../../services/notification_settings_service.dart';
 import '../../widgets/animated_notifications.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/fluent_icons.dart' as CustomIcons;
 
 class AppearanceSettingsPage extends StatefulWidget {
   const AppearanceSettingsPage({super.key});
@@ -332,8 +333,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
       children: [
         Row(
           children: [
-            const Icon(
-              FluentIcons.preview,
+            Icon(CustomIcons.FluentIcons.preview,
               size: 14,
               color: AppTheme.textSecondary,
             ),
@@ -364,7 +364,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 context,
                 title: '成功通知',
                 message: '操作已成功完成',
-                icon: FluentIcons.completed_solid,
+                icon: CustomIcons.FluentIcons.completed_solid,
                 color: notificationSettings.getSuccessColor(isDark),
                 isDark: isDark,
               ),
@@ -373,7 +373,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 context,
                 title: '警告通知',
                 message: '请注意此操作的影响',
-                icon: FluentIcons.warning,
+                icon: CustomIcons.FluentIcons.warning,
                 color: notificationSettings.getWarningColor(isDark),
                 isDark: isDark,
               ),
@@ -382,7 +382,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 context,
                 title: '错误通知',
                 message: '操作失败，请重试',
-                icon: FluentIcons.status_error_full,
+                icon: CustomIcons.FluentIcons.status_error_full,
                 color: notificationSettings.getErrorColor(isDark),
                 isDark: isDark,
               ),
@@ -391,7 +391,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 context,
                 title: '信息通知',
                 message: '这是一条提示信息',
-                icon: FluentIcons.info,
+                icon: CustomIcons.FluentIcons.info,
                 color: notificationSettings.getInfoColor(isDark),
                 isDark: isDark,
               ),
@@ -511,8 +511,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                           color: AppTheme.bgLayer2.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Icon(
-                          FluentIcons.chrome_close,
+                        child: Icon(CustomIcons.FluentIcons.chrome_close,
                           size: 10,
                           color: AppTheme.textTertiary,
                         ),
@@ -688,7 +687,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         _buildSection(
           context,
           title: '窗口大小',
-          icon: FluentIcons.full_screen,
+          icon: CustomIcons.FluentIcons.full_screen,
           children: [
             _buildWindowSizeSettings(context, clientConfig),
           ],
@@ -699,7 +698,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         _buildSection(
           context,
           title: 'UI 缩放',
-          icon: FluentIcons.font_size,
+          icon: CustomIcons.FluentIcons.font_size,
           children: [
             _buildSettingItem(
               context,
@@ -752,10 +751,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                         );
                       }
                     },
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(FluentIcons.refresh, size: 14),
+                        Icon(CustomIcons.FluentIcons.refresh, size: 14),
                         SizedBox(width: 6),
                         Text('重置为100%'),
                       ],
@@ -779,10 +778,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                         );
                       }
                     },
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(FluentIcons.full_screen, size: 14),
+                        Icon(CustomIcons.FluentIcons.full_screen, size: 14),
                         SizedBox(width: 6),
                         Text('4K推荐 (125%)'),
                       ],
@@ -804,7 +803,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
               child: Row(
                 children: [
                   Icon(
-                    FluentIcons.info,
+                    CustomIcons.FluentIcons.info,
                     size: 16,
                     color: FluentTheme.of(context).accentColor,
                   ),
@@ -828,7 +827,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         _buildSection(
           context,
           title: '字体',
-          icon: FluentIcons.font,
+          icon: CustomIcons.FluentIcons.font,
           children: [
             _buildSettingItem(
               context,
@@ -856,7 +855,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            const Icon(FluentIcons.chevron_down, size: 12),
+                            Icon(CustomIcons.FluentIcons.chevron_down, size: 12),
                           ],
                         ),
                       ),
@@ -871,7 +870,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(FluentIcons.add, size: 14),
+                        Icon(CustomIcons.FluentIcons.add, size: 14),
                         const SizedBox(width: 6),
                         const Text('导入字体'),
                       ],
@@ -889,7 +888,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(FluentIcons.delete, size: 14),
+                            Icon(CustomIcons.FluentIcons.delete, size: 14),
                             const SizedBox(width: 6),
                             const Text('删除当前字体'),
                           ],
@@ -913,7 +912,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
               child: Row(
                 children: [
                   Icon(
-                    FluentIcons.info,
+                    CustomIcons.FluentIcons.info,
                     size: 16,
                     color: FluentTheme.of(context).accentColor,
                   ),
@@ -937,7 +936,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         _buildSection(
           context,
           title: '窗口效果',
-          icon: FluentIcons.color,
+          icon: CustomIcons.FluentIcons.color,
           children: [
             _buildSettingItem(
               context,
@@ -979,7 +978,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         _buildSection(
           context,
           title: '侧边栏',
-          icon: FluentIcons.side_panel,
+          icon: CustomIcons.FluentIcons.side_panel,
           children: [
             _buildSettingItem(
               context,
@@ -1017,7 +1016,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         _buildSection(
           context,
           title: '通知',
-          icon: FluentIcons.ringer,
+          icon: CustomIcons.FluentIcons.ringer,
           children: [
             _buildSettingItem(
               context,
@@ -1083,7 +1082,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         _buildSection(
           context,
           title: '下载列表显示',
-          icon: FluentIcons.list,
+          icon: CustomIcons.FluentIcons.list,
           children: [
             _buildSettingItem(
               context,
@@ -1306,7 +1305,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(FluentIcons.save, size: 14),
+                            Icon(CustomIcons.FluentIcons.save, size: 14),
                             const SizedBox(width: 6),
                             Text('使用当前大小 (${currentWidth.toInt()}×${currentHeight.toInt()})'),
                           ],
@@ -1335,10 +1334,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                             );
                           }
                         },
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(FluentIcons.refresh, size: 14),
+                            Icon(CustomIcons.FluentIcons.refresh, size: 14),
                             SizedBox(width: 6),
                             Text('重置为默认'),
                           ],
@@ -1369,7 +1368,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(FluentIcons.full_screen, size: 14),
+                        Icon(CustomIcons.FluentIcons.full_screen, size: 14),
                         const SizedBox(width: 6),
                         Text('立即应用默认大小 (${safeDefaultWidth.toInt()}×${safeDefaultHeight.toInt()})'),
                       ],
@@ -1393,7 +1392,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
           child: Row(
             children: [
               Icon(
-                FluentIcons.info,
+                CustomIcons.FluentIcons.info,
                 size: 16,
                 color: FluentTheme.of(context).accentColor,
               ),
@@ -1527,13 +1526,13 @@ class _FontPickerDialogState extends State<_FontPickerDialog> {
           TextBox(
             controller: _searchController,
             placeholder: '搜索字体...',
-            prefix: const Padding(
+            prefix: Padding(
               padding: EdgeInsets.only(left: 10),
-              child: Icon(FluentIcons.search, size: 16),
+              child: Icon(CustomIcons.FluentIcons.searchIcon, size: 16),
             ),
             suffix: _searchController.text.isNotEmpty
                 ? IconButton(
-                    icon: const Icon(FluentIcons.clear, size: 14),
+                    icon: Icon(CustomIcons.FluentIcons.clear, size: 14),
                     onPressed: () {
                       _searchController.clear();
                       _filterFonts('');
@@ -1569,7 +1568,7 @@ class _FontPickerDialogState extends State<_FontPickerDialog> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(FluentIcons.search, size: 48, color: Colors.grey),
+                        Icon(CustomIcons.FluentIcons.searchIcon, size: 48, color: Colors.grey),
                         const SizedBox(height: 12),
                         Text(
                           '没有找到匹配的字体',
@@ -1612,7 +1611,7 @@ class _FontPickerDialogState extends State<_FontPickerDialog> {
                                   Padding(
                                     padding: const EdgeInsets.only(right: 10),
                                     child: Icon(
-                                      FluentIcons.check_mark,
+                                      CustomIcons.FluentIcons.check_mark,
                                       size: 14,
                                       color: FluentTheme.of(context).accentColor,
                                     ),

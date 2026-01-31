@@ -29,6 +29,7 @@ import 'services/notification_settings_service.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
 import 'widgets/animated_notifications.dart';
+import 'utils/fluent_icons.dart';
 
 final systemTrayService = SystemTrayService();
 final navigatorKey = GlobalKey<NavigatorState>();
@@ -230,6 +231,10 @@ void main(List<String> args) async {
   await windowEffectService.initialize();
   await updateService.initialize();
   await notificationSettings.init(); // 初始化通知设置
+  
+  // 初始化 FluentIcons（从 JSON 加载图标映射）
+  await FluentIcons.initialize();
+  appLogger.info('App', 'FluentIcons initialized');
   
   // 初始化用户配置并启动心跳
   await userProfileService.initialize();

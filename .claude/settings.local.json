@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -Command \"\\(Get-Content ''e:\\\\Hanabi-Download-Manager-X-main\\\\assets\\\\font\\\\FluentSystemIcons-Regular.html''\\).Count\")",
+      "Bash(flutter analyze lib/screens/widgets/debug/log_page.dart)",
+      "Bash(flutter analyze lib/screens/widgets/update_page.dart)",
+      "Bash(flutter analyze lib/screens/widgets/developer_settings_page.dart)"
+    ]
+  }
+}

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
 import '../services/app_logger_service.dart';
+import '../utils/fluent_icons.dart' as CustomIcons;
 
 /// 临时文件信息
 class TempFileInfo {
@@ -241,7 +242,7 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
               ),
               child: Row(
                 children: [
-                  Icon(FluentIcons.warning, size: 16, color: AppTheme.statusWarning),
+                  Icon(CustomIcons.FluentIcons.warning, size: 16, color: AppTheme.statusWarning),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -331,13 +332,13 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
         children: [
           Row(
             children: [
-              const Icon(FluentIcons.delete, size: 20),
+              Icon(CustomIcons.FluentIcons.delete, size: 20),
               const SizedBox(width: 12),
               const Text('清理临时文件'),
               const Spacer(),
               if (!_loading)
                 IconButton(
-                  icon: const Icon(FluentIcons.refresh, size: 16),
+                  icon: Icon(CustomIcons.FluentIcons.refresh, size: 16),
                   onPressed: _scanTempFiles,
                 ),
             ],
@@ -369,14 +370,14 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
                 _buildStatChip(
                   '文件数',
                   '${_tempFiles.length}',
-                  FluentIcons.document,
+                  CustomIcons.FluentIcons.document,
                   AppTheme.accentPrimary,
                 ),
                 const SizedBox(width: 12),
                 _buildStatChip(
                   '总大小',
                   _formatSize(totalSize),
-                  FluentIcons.hard_drive,
+                  CustomIcons.FluentIcons.hard_drive,
                   AppTheme.statusInfo,
                 ),
                 const SizedBox(width: 12),
@@ -384,7 +385,7 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
                   _buildStatChip(
                     '已选',
                     '$selectedCount (${_formatSize(selectedSize)})',
-                    FluentIcons.checkbox_composite,
+                    CustomIcons.FluentIcons.checkbox_composite,
                     AppTheme.statusWarning,
                   ),
               ],
@@ -401,7 +402,7 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
             ),
             child: Row(
               children: [
-                Icon(FluentIcons.info, size: 12, color: AppTheme.accentLight),
+                Icon(CustomIcons.FluentIcons.info, size: 12, color: AppTheme.accentLight),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -454,7 +455,7 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
               const SizedBox(width: 8),
               IconButton(
                 icon: Icon(
-                  _sortAscending ? FluentIcons.sort_up : FluentIcons.sort_down,
+                  _sortAscending ? CustomIcons.FluentIcons.sort_up : CustomIcons.FluentIcons.sort_down,
                   size: 16,
                 ),
                 onPressed: () {
@@ -476,7 +477,7 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              FluentIcons.completed,
+                              CustomIcons.FluentIcons.completed,
                               size: 48,
                               color: AppTheme.statusSuccess,
                             ),
@@ -588,7 +589,7 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
           ),
           const SizedBox(width: 12),
           Icon(
-            isInSubDir ? FluentIcons.folder_open : FluentIcons.document,
+            isInSubDir ? CustomIcons.FluentIcons.folder_open : CustomIcons.FluentIcons.document,
             size: 16,
             color: isInSubDir ? AppTheme.statusWarning : AppTheme.textSecondary,
           ),

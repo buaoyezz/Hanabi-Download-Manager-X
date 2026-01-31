@@ -4,6 +4,7 @@ import 'package:path/path.dart' as path;
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../services/quick_path_service.dart';
+import '../utils/fluent_icons.dart' as CustomIcons;
 
 class FolderPickerDialog extends StatefulWidget {
   final String initialPath;
@@ -409,8 +410,7 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
               color: AppTheme.accentPrimary.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
-            child: const Icon(
-              FluentIcons.folder_open,
+            child: Icon(CustomIcons.FluentIcons.folder_open,
               size: 16,
               color: AppTheme.accentLight,
             ),
@@ -438,7 +438,7 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
             child: Row(
               children: [
                 _NavButton(
-                  icon: FluentIcons.up,
+                  icon: CustomIcons.FluentIcons.up,
                   onPressed: _navigateToParent,
                   tooltip: '上级目录',
                 ),
@@ -457,13 +457,13 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
                 ),
                 const SizedBox(width: 8),
                 _NavButton(
-                  icon: FluentIcons.refresh,
+                  icon: CustomIcons.FluentIcons.refresh,
                   onPressed: () => _loadDirectory(_pathController.text),
                   tooltip: '刷新',
                 ),
                 const SizedBox(width: 4),
                 _NavButton(
-                  icon: FluentIcons.add,
+                  icon: CustomIcons.FluentIcons.add,
                   onPressed: _createNewFolder,
                   tooltip: '新建文件夹',
                 ),
@@ -511,8 +511,7 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
             ),
             child: Row(
               children: [
-                const Icon(
-                  FluentIcons.check_mark,
+                Icon(CustomIcons.FluentIcons.check_mark,
                   size: 14,
                   color: AppTheme.accentLight,
                 ),
@@ -539,10 +538,10 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context, _currentPath),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(FluentIcons.check_mark, size: 12),
+              Icon(CustomIcons.FluentIcons.check_mark, size: 12),
               SizedBox(width: 6),
               Text('选择'),
             ],
@@ -566,8 +565,7 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
                 color: AppTheme.statusError.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                FluentIcons.error,
+              child: Icon(CustomIcons.FluentIcons.error,
                 size: 24,
                 color: AppTheme.statusError,
               ),
@@ -590,7 +588,7 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            FluentIcons.folder,
+            CustomIcons.FluentIcons.folder,
             size: 32,
             color: AppTheme.textTertiary,
           ),
@@ -658,7 +656,7 @@ class _DriveButtonState extends State<_DriveButton> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                FluentIcons.hard_drive,
+                CustomIcons.FluentIcons.hard_drive,
                 size: 12,
                 color: _isHovered ? AppTheme.accentLight : AppTheme.textSecondary,
               ),
@@ -757,7 +755,7 @@ class _AddQuickPathButtonState extends State<_AddQuickPathButton> {
               ),
             ),
             child: Icon(
-              FluentIcons.add,
+              CustomIcons.FluentIcons.add,
               size: 12,
               color: _isHovered ? AppTheme.accentLight : AppTheme.textSecondary,
             ),
@@ -808,7 +806,7 @@ class _QuickPathButtonState extends State<_QuickPathButton> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                FluentIcons.pinned_solid,
+                CustomIcons.FluentIcons.pinned_solid,
                 size: 12,
                 color: _isHovered ? AppTheme.accentLight : AppTheme.textSecondary,
               ),
@@ -833,8 +831,7 @@ class _QuickPathButtonState extends State<_QuickPathButton> {
                       color: AppTheme.statusError.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(3),
                     ),
-                    child: const Icon(
-                      FluentIcons.chrome_close,
+                    child: Icon(CustomIcons.FluentIcons.chrome_close,
                       size: 10,
                       color: AppTheme.statusError,
                     ),
@@ -881,7 +878,7 @@ class _FolderItemState extends State<_FolderItem> {
           child: Row(
             children: [
               Icon(
-                FluentIcons.folder,
+                CustomIcons.FluentIcons.folder,
                 size: 16,
                 color: _isHovered ? AppTheme.statusWarning : AppTheme.textSecondary,
               ),
@@ -897,8 +894,7 @@ class _FolderItemState extends State<_FolderItem> {
                 ),
               ),
               if (_isHovered)
-                const Icon(
-                  FluentIcons.chevron_right,
+                Icon(CustomIcons.FluentIcons.chevron_right,
                   size: 12,
                   color: AppTheme.textTertiary,
                 ),

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../services/developer_mode_service.dart';
 import '../../services/notification_settings_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/fluent_icons.dart' as CustomIcons;
 import '../../widgets/settings_components.dart';
 import '../../widgets/animated_notifications.dart';
 import 'dart:ui';
@@ -49,7 +50,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
         _buildSection(
           context,
           title: '开发者模式',
-          icon: FluentIcons.developer_tools,
+          icon: CustomIcons.FluentIcons.developer_tools,
           children: [
             _buildSettingItem(
               context,
@@ -73,7 +74,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
               child: Row(
                 children: [
                   Icon(
-                    FluentIcons.warning,
+                    CustomIcons.FluentIcons.warning,
                     size: 16,
                     color: AppTheme.statusWarning,
                   ),
@@ -100,12 +101,12 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
           _buildSection(
             context,
             title: '调试页面',
-            icon: FluentIcons.page,
+            icon: CustomIcons.FluentIcons.page,
             subtitle: '选择要在侧边栏显示的调试页面',
             children: [
               _buildDebugPageCard(
                 context,
-                icon: FluentIcons.text_document,
+                icon: CustomIcons.FluentIcons.text_document,
                 title: '日志查看器',
                 description: '实时查看应用运行日志，包括调试、信息、警告和错误信息',
                 features: [
@@ -121,7 +122,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
               
               _buildDebugPageCard(
                 context,
-                icon: FluentIcons.health,
+                icon: CustomIcons.FluentIcons.health,
                 title: '系统状态监控',
                 description: '监控下载内核、浏览器扩展和系统资源的运行状态',
                 features: [
@@ -137,7 +138,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
               
               _buildDebugPageCard(
                 context,
-                icon: FluentIcons.people,
+                icon: CustomIcons.FluentIcons.people,
                 title: '在线统计',
                 description: '查看全球用户在线统计数据和设备分布情况',
                 features: [
@@ -153,7 +154,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
               
               _buildDebugPageCard(
                 context,
-                icon: FluentIcons.globe,
+                icon: CustomIcons.FluentIcons.globe,
                 title: 'Web 检测工具',
                 description: '检测网站可访问性和连接状态，诊断网络问题',
                 features: [
@@ -174,7 +175,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
           _buildSection(
             context,
             title: '通知系统测试',
-            icon: FluentIcons.ringer,
+            icon: CustomIcons.FluentIcons.ringer,
             subtitle: '测试各种通知类型和自定义通知',
             children: [
               _buildTestButtonsGrid(context),
@@ -187,7 +188,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
           _buildSection(
             context,
             title: '性能提示',
-            icon: FluentIcons.speed_high,
+            icon: CustomIcons.FluentIcons.speed_high,
             children: [
               Container(
                 padding: const EdgeInsets.all(16),
@@ -204,7 +205,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
                     Row(
                       children: [
                         Icon(
-                          FluentIcons.lightbulb,
+                          CustomIcons.FluentIcons.lightbulb,
                           size: 18,
                           color: AppTheme.accentLight,
                         ),
@@ -517,28 +518,28 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
                   _buildQuickTestButton(
                     context,
                     label: '成功',
-                    icon: FluentIcons.completed_solid,
+                    icon: CustomIcons.FluentIcons.completed_solid,
                     color: AppTheme.statusSuccess,
                     type: NotificationType.success,
                   ),
                   _buildQuickTestButton(
                     context,
                     label: '警告',
-                    icon: FluentIcons.warning,
+                    icon: CustomIcons.FluentIcons.warning,
                     color: AppTheme.statusWarning,
                     type: NotificationType.warning,
                   ),
                   _buildQuickTestButton(
                     context,
                     label: '错误',
-                    icon: FluentIcons.status_error_full,
+                    icon: CustomIcons.FluentIcons.status_error_full,
                     color: AppTheme.statusError,
                     type: NotificationType.error,
                   ),
                   _buildQuickTestButton(
                     context,
                     label: '信息',
-                    icon: FluentIcons.info,
+                    icon: CustomIcons.FluentIcons.info,
                     color: AppTheme.accentLight,
                     type: NotificationType.info,
                   ),
@@ -566,7 +567,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
             _buildPresetButton(
               context,
               label: '下载完成',
-              icon: FluentIcons.download,
+              icon: CustomIcons.FluentIcons.download,
               color: const Color(0xFF10B981),
               title: '下载完成',
               message: 'video.mp4 已成功下载',
@@ -574,7 +575,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
             _buildPresetButton(
               context,
               label: '新消息',
-              icon: FluentIcons.mail,
+              icon: CustomIcons.FluentIcons.mail,
               color: const Color(0xFF8B5CF6),
               title: '收到新消息',
               message: '您有 3 条未读消息',
@@ -582,7 +583,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
             _buildPresetButton(
               context,
               label: '更新',
-              icon: FluentIcons.system,
+              icon: CustomIcons.FluentIcons.system,
               color: const Color(0xFF3B82F6),
               title: '系统更新可用',
               message: '发现新版本 v2.1.0',
@@ -590,7 +591,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
             _buildPresetButton(
               context,
               label: '网络',
-              icon: FluentIcons.plug_disconnected,
+              icon: CustomIcons.FluentIcons.plug_disconnected,
               color: const Color(0xFFF59E0B),
               title: '网络不稳定',
               message: '检测到网络波动',
@@ -613,7 +614,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
           child: Row(
             children: [
               Icon(
-                FluentIcons.info,
+                CustomIcons.FluentIcons.info,
                 size: 12,
                 color: AppTheme.accentLight,
               ),

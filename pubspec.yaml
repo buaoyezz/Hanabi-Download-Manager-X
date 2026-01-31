@@ -41,6 +41,7 @@ flutter:
   assets:
     - assets/logo/logo.png
     - assets/logo/logo.ico
+    - assets/font/FluentSystemIcons-Regular.json
   
   fonts:
     - family: FluentSystemIcons

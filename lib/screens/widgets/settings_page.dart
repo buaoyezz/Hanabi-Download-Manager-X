@@ -16,6 +16,7 @@ import '../../widgets/settings_components.dart';
 import '../../widgets/temp_files_dialog.dart';
 import '../../services/auto_start_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/fluent_icons.dart' as CustomIcons;
 import '../../utils/constants.dart';
 import 'appearance_settings_page.dart';
 import 'developer_settings_page.dart';
@@ -699,7 +700,7 @@ class _SettingsPageState extends State<SettingsPage> {
           header: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SettingsPageHeader(title: '设置', icon: FluentIcons.settings),
+              SettingsPageHeader(title: '设置', icon: CustomIcons.FluentIcons.settings),
               const SizedBox(height: 12),
               // 顶部标签栏
               Container(
@@ -718,35 +719,35 @@ class _SettingsPageState extends State<SettingsPage> {
                   children: [
                     _buildTabButton(
                       context,
-                      icon: FluentIcons.settings,
+                      icon: CustomIcons.FluentIcons.settings,
                       title: '常规',
                       index: 0,
                     ),
                     const SizedBox(width: 4),
                     _buildTabButton(
                       context,
-                      icon: FluentIcons.download,
+                      icon: CustomIcons.FluentIcons.download,
                       title: '下载',
                       index: 1,
                     ),
                     const SizedBox(width: 4),
                     _buildTabButton(
                       context,
-                      icon: FluentIcons.color,
+                      icon: CustomIcons.FluentIcons.color,
                       title: '界面',
                       index: 2,
                     ),
                     const SizedBox(width: 4),
                     _buildTabButton(
                       context,
-                      icon: FluentIcons.update_restore,
+                      icon: CustomIcons.FluentIcons.update_restore,
                       title: '更新',
                       index: 3,
                     ),
                     const SizedBox(width: 4),
                     _buildTabButton(
                       context,
-                      icon: FluentIcons.developer_tools,
+                      icon: CustomIcons.FluentIcons.developer_tools,
                       title: '高级',
                       index: 4,
                     ),
@@ -755,7 +756,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       const SizedBox(width: 4),
                       _buildTabButton(
                         context,
-                        icon: FluentIcons.code,
+                        icon: CustomIcons.FluentIcons.code,
                         title: '开发者',
                         index: 5,
                       ),
@@ -844,7 +845,7 @@ class _SettingsPageState extends State<SettingsPage> {
         _buildSection(
           context,
           title: '系统设置',
-          icon: FluentIcons.power_button,
+          icon: CustomIcons.FluentIcons.power_button,
           children: [
             _buildSettingItem(
               context,
@@ -864,7 +865,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _buildSection(
         context,
         title: '行为设置',
-        icon: FluentIcons.processing,
+        icon: CustomIcons.FluentIcons.processing,
         children: [
           _buildSettingItem(
             context,
@@ -922,7 +923,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _buildSection(
         context,
         title: '下载路径',
-        icon: FluentIcons.folder_open,
+        icon: CustomIcons.FluentIcons.folder_open,
         children: [
           _buildSettingItem(
             context,
@@ -940,7 +941,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _buildSection(
         context,
         title: '下载配置',
-        icon: FluentIcons.settings,
+        icon: CustomIcons.FluentIcons.settings,
         children: [
           // 模式选择
           _buildSettingItem(
@@ -1159,7 +1160,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _buildSection(
         context,
         title: '代理设置',
-        icon: FluentIcons.network_tower,
+        icon: CustomIcons.FluentIcons.network_tower,
         children: [
           _buildSettingItem(
             context,
@@ -1323,7 +1324,7 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Row(
                 children: [
                   Icon(
-                    FluentIcons.info,
+                    CustomIcons.FluentIcons.info,
                     size: 16,
                     color: AppTheme.accentLight,
                   ),
@@ -1467,7 +1468,7 @@ class _SettingsPageState extends State<SettingsPage> {
         return _buildSection(
           context,
           title: '开发者选项',
-          icon: FluentIcons.developer_tools,
+          icon: CustomIcons.FluentIcons.developer_tools,
           children: [
             _buildSettingItem(
               context,
@@ -1492,7 +1493,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 child: Row(
                   children: [
                     Icon(
-                      FluentIcons.info,
+                      CustomIcons.FluentIcons.info,
                       size: 16,
                       color: AppTheme.accentLight,
                     ),
@@ -1519,7 +1520,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return _buildSection(
       context,
       title: '下载内核',
-      icon: FluentIcons.processing,
+      icon: CustomIcons.FluentIcons.processing,
       children: [
         _buildSettingItem(
           context,
@@ -1573,7 +1574,7 @@ class _SettingsPageState extends State<SettingsPage> {
           child: Row(
             children: [
               Icon(
-                FluentIcons.info,
+                CustomIcons.FluentIcons.info,
                 size: 16,
                 color: AppTheme.accentLight,
               ),
@@ -1613,7 +1614,7 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           Row(
             children: [
-              Icon(FluentIcons.status_circle_inner, size: 16),
+              Icon(CustomIcons.FluentIcons.status_circle_inner, size: 16),
               const SizedBox(width: 8),
               Text(
                 '系统状态',
@@ -1631,7 +1632,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   context,
                   title: kernelDisplayName,
                   isOnline: _kernelOnline,
-                  icon: FluentIcons.server,
+                  icon: CustomIcons.FluentIcons.server,
                 ),
               ),
               const SizedBox(width: 16),
@@ -1640,7 +1641,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   context,
                   title: 'Browser Extension',
                   isOnline: _browserConnected,
-                  icon: FluentIcons.edge_logo,
+                  icon: CustomIcons.FluentIcons.edge_logo,
                 ),
               ),
             ],
@@ -1710,7 +1711,7 @@ class _SettingsPageState extends State<SettingsPage> {
         return _buildSection(
           context,
           title: '开发者选项',
-          icon: FluentIcons.developer_tools,
+          icon: CustomIcons.FluentIcons.developer_tools,
           children: [
             _buildSettingItem(
               context,
@@ -1740,7 +1741,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     Row(
                       children: [
                         Icon(
-                          FluentIcons.info,
+                          CustomIcons.FluentIcons.info,
                           size: 16,
                           color: AppTheme.accentLight,
                         ),
@@ -1815,7 +1816,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 child: Row(
                   children: [
                     Icon(
-                      FluentIcons.warning,
+                      CustomIcons.FluentIcons.warning,
                       size: 16,
                       color: AppTheme.statusWarning,
                     ),

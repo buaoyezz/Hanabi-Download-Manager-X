@@ -8,6 +8,7 @@ import '../../models/download_task.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/file_icon_widget.dart';
 import '../../widgets/animated_card.dart';
+import '../../utils/fluent_icons.dart' as CustomIcons;
 
 // 自定义分类
 class CustomCategory {
@@ -27,19 +28,70 @@ class CustomCategory {
 
 // 文件类型枚举
 enum FileCategory {
-  all('所有下载', FluentIcons.folder, []),
-  video('视频', FluentIcons.video, ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.mpg', '.mpeg']),
-  audio('音频', FluentIcons.music_note, ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.wma', '.m4a', '.ape']),
-  archive('压缩包', FluentIcons.archive, ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz', '.iso']),
-  document('文档', FluentIcons.document, ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.md', '.rtf']),
-  program('程序', FluentIcons.app_icon_default, ['.exe', '.msi', '.apk', '.dmg', '.deb', '.rpm', '.appimage']),
-  other('杂项', FluentIcons.more, []);
+  all,
+  video,
+  audio,
+  archive,
+  document,
+  program,
+  other;
 
-  final String label;
-  final IconData icon;
-  final List<String> extensions;
+  String get label {
+    switch (this) {
+      case FileCategory.all:
+        return '所有下载';
+      case FileCategory.video:
+        return '视频';
+      case FileCategory.audio:
+        return '音频';
+      case FileCategory.archive:
+        return '压缩包';
+      case FileCategory.document:
+        return '文档';
+      case FileCategory.program:
+        return '程序';
+      case FileCategory.other:
+        return '杂项';
+    }
+  }
 
-  const FileCategory(this.label, this.icon, this.extensions);
+  IconData get icon {
+    switch (this) {
+      case FileCategory.all:
+        return CustomIcons.FluentIcons.folder;
+      case FileCategory.video:
+        return CustomIcons.FluentIcons.video;
+      case FileCategory.audio:
+        return CustomIcons.FluentIcons.music_note;
+      case FileCategory.archive:
+        return CustomIcons.FluentIcons.archive;
+      case FileCategory.document:
+        return CustomIcons.FluentIcons.document;
+      case FileCategory.program:
+        return CustomIcons.FluentIcons.app_icon_default;
+      case FileCategory.other:
+        return CustomIcons.FluentIcons.more;
+    }
+  }
+
+  List<String> get extensions {
+    switch (this) {
+      case FileCategory.all:
+        return [];
+      case FileCategory.video:
+        return ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.mpg', '.mpeg'];
+      case FileCategory.audio:
+        return ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.wma', '.m4a', '.ape'];
+      case FileCategory.archive:
+        return ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz', '.iso'];
+      case FileCategory.document:
+        return ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.md', '.rtf'];
+      case FileCategory.program:
+        return ['.exe', '.msi', '.apk', '.dmg', '.deb', '.rpm', '.appimage'];
+      case FileCategory.other:
+        return [];
+    }
+  }
 
   static FileCategory fromFileName(String fileName) {
     final dotIndex = fileName.lastIndexOf('.');
@@ -218,7 +270,7 @@ class _CompletedListState extends State<CompletedList> {
       ),
       child: Row(
         children: [
-          const Icon(FluentIcons.search, size: 14, color: AppTheme.accentLight),
+          Icon(CustomIcons.FluentIcons.searchIcon, size: 14, color: AppTheme.accentLight),
           const SizedBox(width: 8),
           Expanded(
             child: TextBox(
@@ -232,7 +284,7 @@ class _CompletedListState extends State<CompletedList> {
           ),
           if (_searchQuery.isNotEmpty)
             IconButton(
-              icon: const Icon(FluentIcons.clear, size: 12),
+              icon: Icon(CustomIcons.FluentIcons.clear, size: 12),
               onPressed: () {
                 _searchController.clear();
                 setState(() => _searchQuery = '');
@@ -242,7 +294,7 @@ class _CompletedListState extends State<CompletedList> {
               ),
             ),
           IconButton(
-            icon: const Icon(FluentIcons.chrome_close, size: 14),
+            icon: Icon(CustomIcons.FluentIcons.chrome_close, size: 14),
             onPressed: () {
               _searchController.clear();
               setState(() {
@@ -265,7 +317,7 @@ class _CompletedListState extends State<CompletedList> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            FluentIcons.search_issue,
+            CustomIcons.FluentIcons.search_issue,
             size: 64,
             color: AppTheme.textTertiary.withValues(alpha: 0.5),
           ),
@@ -342,7 +394,7 @@ class _CompletedListState extends State<CompletedList> {
                         return Padding(
                           padding: const EdgeInsets.only(right: 6),
                           child: _CustomTabButton(
-                            icon: FluentIcons.tag,
+                            icon: CustomIcons.FluentIcons.tag,
                             label: category.name,
                             count: count,
                             isSelected: isSelected,
@@ -359,7 +411,7 @@ class _CompletedListState extends State<CompletedList> {
               // 搜索按钮
               IconButton(
                 icon: Icon(
-                  _showSearch ? FluentIcons.search : FluentIcons.search,
+                  _showSearch ? CustomIcons.FluentIcons.searchIcon : CustomIcons.FluentIcons.searchIcon,
                   size: 14,
                   color: _showSearch ? AppTheme.accentLight : AppTheme.textSecondary,
                 ),
@@ -380,7 +432,7 @@ class _CompletedListState extends State<CompletedList> {
               const SizedBox(width: 4),
               // 新建自定义分类按钮
               IconButton(
-                icon: const Icon(FluentIcons.add, size: 14, color: AppTheme.textSecondary),
+                icon: Icon(CustomIcons.FluentIcons.add, size: 14, color: AppTheme.textSecondary),
                 onPressed: _showCreateCategoryDialog,
                 style: ButtonStyle(
                   padding: WidgetStateProperty.all(const EdgeInsets.all(8)),
@@ -576,7 +628,7 @@ class _CompletedListState extends State<CompletedList> {
               borderRadius: BorderRadius.circular(6),
             ),
             child: Icon(
-              FluentIcons.completed,
+              CustomIcons.FluentIcons.completed,
               size: 14,
               color: AppTheme.statusSuccess,
             ),
@@ -612,10 +664,10 @@ class _CompletedListState extends State<CompletedList> {
               final target = folder.replaceAll('/', '\\');
               await Process.run('explorer', [target]);
             },
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(FluentIcons.folder_open, size: 12),
+                Icon(CustomIcons.FluentIcons.folder_open, size: 12),
                 SizedBox(width: 6),
                 Text('打开文件夹', style: TextStyle(fontSize: 12)),
               ],
@@ -639,7 +691,7 @@ class _CompletedListState extends State<CompletedList> {
                 return Transform.scale(
                   scale: value,
                   child: Icon(
-                    FluentIcons.completed,
+                    CustomIcons.FluentIcons.completed,
                     size: 40,
                     color: AppTheme.statusSuccess.withValues(alpha: 0.6),
                   ),
@@ -761,8 +813,7 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
         children: [
           Row(
             children: [
-              const Icon(
-                FluentIcons.chart,
+              Icon(CustomIcons.FluentIcons.chart,
                 size: 14,
                 color: AppTheme.accentPrimary,
               ),
@@ -788,38 +839,38 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
     final stats = [
       // 第一行：重要统计
       _StatItem(
-        icon: FluentIcons.speed_high,
+        icon: CustomIcons.FluentIcons.speed_high,
         label: '峰值速度',
         value: widget.task.formattedPeakSpeed,
         color: AppTheme.statusSuccess,
       ),
       _StatItem(
-        icon: FluentIcons.timeline_progress,
+        icon: CustomIcons.FluentIcons.timeline_progress,
         label: '平均速度',
         value: widget.task.formattedAverageSpeed,
         color: AppTheme.accentPrimary,
       ),
       _StatItem(
-        icon: FluentIcons.clock,
+        icon: CustomIcons.FluentIcons.clock,
         label: '用时',
         value: widget.task.formattedDuration,
         color: AppTheme.statusWarning,
       ),
       // 第二行：详细信息
       _StatItem(
-        icon: FluentIcons.split,
+        icon: CustomIcons.FluentIcons.split,
         label: '分段数',
         value: '${widget.task.segmentCount ?? 0}',
         color: AppTheme.textSecondary,
       ),
       _StatItem(
-        icon: FluentIcons.processing,
+        icon: CustomIcons.FluentIcons.processing,
         label: '线程数',
         value: '${widget.task.threadCount ?? 0}',
         color: AppTheme.textSecondary,
       ),
       _StatItem(
-        icon: FluentIcons.server,
+        icon: CustomIcons.FluentIcons.server,
         label: '下载核心',
         value: widget.task.downloadCore ?? 'NSF-X',
         color: AppTheme.textSecondary,
@@ -859,7 +910,7 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
         Row(
           children: [
             Icon(
-              FluentIcons.check_mark,
+              CustomIcons.FluentIcons.check_mark,
               size: 10,
               color: AppTheme.statusSuccess,
             ),
@@ -897,27 +948,27 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
       mainAxisSize: MainAxisSize.min,
       children: [
         _ActionButton(
-          icon: FluentIcons.play,
+          icon: CustomIcons.FluentIcons.play,
           label: '运行',
           color: AppTheme.accentPrimary,
           onPressed: () => _runFile(widget.task.filePath),
         ),
         const SizedBox(width: 6),
         _ActionButton(
-          icon: FluentIcons.folder_open,
+          icon: CustomIcons.FluentIcons.folder_open,
           label: '位置',
           color: AppTheme.textSecondary,
           onPressed: () => _openFileLocation(widget.task.filePath),
         ),
         const SizedBox(width: 6),
         _IconActionButton(
-          icon: _isExpanded ? FluentIcons.chevron_up : FluentIcons.chevron_down,
+          icon: _isExpanded ? CustomIcons.FluentIcons.chevron_up : CustomIcons.FluentIcons.chevron_down,
           color: AppTheme.textSecondary,
           onPressed: () => setState(() => _isExpanded = !_isExpanded),
         ),
         const SizedBox(width: 6),
         _IconActionButton(
-          icon: FluentIcons.delete,
+          icon: CustomIcons.FluentIcons.delete,
           color: AppTheme.statusError,
           onPressed: () => _confirmDelete(service),
         ),
@@ -1513,7 +1564,7 @@ class _CustomTabButtonState extends State<_CustomTabButton> with SingleTickerPro
                           widget.onDelete();
                         },
                         child: Icon(
-                          FluentIcons.chrome_close,
+                          CustomIcons.FluentIcons.chrome_close,
                           size: 10,
                           color: AppTheme.statusError,
                         ),

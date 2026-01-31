@@ -2,6 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import '../services/integrated_download_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/fluent_icons.dart' as CustomIcons;
 
 // 弹窗下载对话框
 class PopupDownloadDialog extends StatefulWidget {
@@ -113,8 +114,7 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
               color: AppTheme.accentPrimary,
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
-            child: const Icon(
-              FluentIcons.download,
+            child: Icon(CustomIcons.FluentIcons.download,
               size: 16,
               color: Colors.white,
             ),
@@ -155,7 +155,7 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildInfoLabel('下载链接', FluentIcons.link),
+          _buildInfoLabel('下载链接', CustomIcons.FluentIcons.link),
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
@@ -172,7 +172,7 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
             ),
           ),
           const SizedBox(height: 16),
-          _buildInfoLabel('文件名', FluentIcons.document),
+          _buildInfoLabel('文件名', CustomIcons.FluentIcons.document),
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
@@ -220,8 +220,7 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
                     color: AppTheme.accentPrimary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: const Icon(
-                    FluentIcons.info,
+                  child: Icon(CustomIcons.FluentIcons.info,
                     size: 12,
                     color: AppTheme.accentLight,
                   ),
@@ -305,10 +304,10 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
                         Text('添加中...'),
                       ],
                     )
-                  : const Row(
+                  : Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(FluentIcons.download, size: 12),
+                        Icon(CustomIcons.FluentIcons.download, size: 12),
                         SizedBox(width: 6),
                         Text('开始下载'),
                       ],
@@ -407,7 +406,7 @@ class _CloseButtonState extends State<_CloseButton> {
             borderRadius: BorderRadius.circular(AppTheme.radiusSm),
           ),
           child: Icon(
-            FluentIcons.chrome_close,
+            CustomIcons.FluentIcons.chrome_close,
             size: 10,
             color: _isHovered ? AppTheme.statusError : AppTheme.textTertiary,
           ),

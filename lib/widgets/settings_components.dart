@@ -1,5 +1,6 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import '../theme/app_theme.dart';
+import '../utils/fluent_icons.dart' as CustomIcons;
 
 /// 设置页面区块卡片 - Fluent Design 风格
 class SettingsSection extends StatelessWidget {
@@ -223,7 +224,7 @@ class DangerZone extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Icon(
-                  FluentIcons.warning,
+                  CustomIcons.FluentIcons.warning,
                   size: 14,
                   color: AppTheme.statusError,
                 ),

@@ -70,12 +70,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     
     final items = <NavigationItem>[
       NavigationItem(
-        icon: FluentIcons.download,
+        icon: CustomIcons.FluentIcons.download,
         title: '下载中',
         body: const DownloadList(),
       ),
       NavigationItem(
-        icon: FluentIcons.completed,
+        icon: CustomIcons.FluentIcons.completed_solid,
         title: '已完成',
         body: const CompletedList(),
       ),
@@ -85,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     
     if (showLogPage) {
       bottomItems.add(NavigationItem(
-        icon: FluentIcons.text_document,
+        icon: CustomIcons.FluentIcons.document,
         title: '日志',
         body: const LogPage(key: ValueKey('log_page')),
       ));
@@ -93,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     
     if (showStatusPage) {
       bottomItems.add(NavigationItem(
-        icon: FluentIcons.health,
+        icon: CustomIcons.FluentIcons.health,
         title: '状态',
         body: const StatusPage(key: ValueKey('status_page')),
       ));
@@ -101,7 +101,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     
     if (showWebCheckPage) {
       bottomItems.add(NavigationItem(
-        icon: FluentIcons.globe,
+        icon: CustomIcons.FluentIcons.globe,
         title: 'Web检测',
         body: const WebCheckPage(key: ValueKey('web_check_page')),
       ));
@@ -110,7 +110,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // 在线统计页面（独立开关）
     if (showOnlineStatsPage && statsEnabled) {
       bottomItems.add(NavigationItem(
-        icon: FluentIcons.people,
+        icon: CustomIcons.FluentIcons.people,
         title: '在线统计',
         body: const OnlineStatsPage(key: ValueKey('online_stats_page')),
       ));
@@ -118,12 +118,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     
     bottomItems.addAll([
       NavigationItem(
-        icon: FluentIcons.settings,
+        icon: CustomIcons.FluentIcons.settings,
         title: '设置',
         body: const SettingsPage(key: ValueKey('settings_page')),
       ),
       NavigationItem(
-        icon: FluentIcons.info,
+        icon: CustomIcons.FluentIcons.info,
         title: '关于',
         body: const AboutPage(key: ValueKey('about_page')),
       ),
@@ -380,8 +380,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           ),
                         ),
                       ),
-                      child: const Icon(
-                        FluentIcons.global_nav_button,
+                      child: Icon(CustomIcons.FluentIcons.global_nav_button,
                         size: 14,
                         color: AppTheme.textSecondary,
                       ),
@@ -649,10 +648,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           });
                         }
                       },
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(FluentIcons.text_document, size: 14),
+                          Icon(CustomIcons.FluentIcons.text_document, size: 14),
                           SizedBox(width: 6),
                           Text('查看日志'),
                         ],
@@ -673,10 +672,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           await kernelService.startKernel();
                         }
                       },
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(FluentIcons.refresh, size: 14),
+                          Icon(CustomIcons.FluentIcons.refresh, size: 14),
                           SizedBox(width: 6),
                           Text('重试'),
                         ],
@@ -783,7 +782,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           padding: WidgetStateProperty.all(EdgeInsets.zero),
         ),
         onPressed: () => _showAddDownloadDialog(context),
-        child: const Icon(FluentIcons.add, size: 12),
+        child: Icon(CustomIcons.FluentIcons.add, size: 12),
       ),
     );
   }
@@ -812,10 +811,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ),
         onPressed: () => _showAddDownloadDialog(context),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(FluentIcons.add, size: 12),
+            Icon(CustomIcons.FluentIcons.add, size: 12),
             SizedBox(width: 6),
             Text('新建', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
           ],
@@ -864,7 +863,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     padding: WidgetStateProperty.all(EdgeInsets.zero),
                   ),
                   onPressed: () => systemTrayService.hideMainWindow(),
-                  child: const Icon(FluentIcons.chrome_minimize, size: 12),
+                  child: Icon(CustomIcons.FluentIcons.chrome_minimize, size: 12),
                 ),
               ),
             )
@@ -898,14 +897,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildStatItem(FluentIcons.download, downloading, AppTheme.accentPrimary),
+              _buildStatItem(CustomIcons.FluentIcons.download, downloading, AppTheme.accentPrimary),
               Container(
                 width: 1,
                 height: 12,
                 margin: const EdgeInsets.symmetric(horizontal: 8),
                 color: AppTheme.borderSubtle.withValues(alpha: 0.5),
               ),
-              _buildStatItem(FluentIcons.completed, completed, AppTheme.statusSuccess),
+              _buildStatItem(CustomIcons.FluentIcons.completed, completed, AppTheme.statusSuccess),
             ],
           ),
         );
@@ -1010,7 +1009,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       iconBuilder: (context) {
         final isMaximized = isWindowMaximized();
         return Icon(
-          isMaximized ? CustomIcons.FluentIcons.arrow_minimize_20 : CustomIcons.FluentIcons.maximize_20,
+          isMaximized ? CustomIcons.FluentIcons.minimize_20 : CustomIcons.FluentIcons.maximize_20,
           color: colors.iconNormal,
           size: 16,
         );

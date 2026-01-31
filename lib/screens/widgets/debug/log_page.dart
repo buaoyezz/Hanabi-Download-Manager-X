@@ -1,4 +1,4 @@
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:fluent_ui/fluent_ui.dart' hide FluentIcons;
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
@@ -7,6 +7,7 @@ import '../../../services/client_config_service.dart';
 import '../../../widgets/folder_picker_dialog.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/glass_card.dart';
+import '../../../utils/fluent_icons.dart';
 
 /// 自定义正则规则
 class CustomRegexRule {
@@ -470,7 +471,7 @@ class _LogPageState extends State<LogPage> {
                   color: AppTheme.accentPrimary.withValues(alpha: 0.3),
                 ),
               ),
-              child: const Icon(FluentIcons.text_document, size: 18, color: AppTheme.accentLight),
+              child: Icon(FluentIcons.text_document, size: 18, color: AppTheme.accentLight),
             ),
             const SizedBox(width: 14),
             const Text('日志'),
@@ -480,22 +481,22 @@ class _LogPageState extends State<LogPage> {
           mainAxisAlignment: MainAxisAlignment.end,
           primaryItems: [
             CommandBarButton(
-              icon: const Icon(FluentIcons.filter),
+              icon: Icon(FluentIcons.filter),
               label: Text(_filterLevel == null ? '级别' : _filterLevel!.name.toUpperCase()),
               onPressed: () => _showFilterMenu(context),
             ),
             CommandBarButton(
-              icon: const Icon(FluentIcons.source),
+              icon: Icon(FluentIcons.source),
               label: Text(_filterSource ?? '来源'),
               onPressed: () => _showSourceFilterMenu(context),
             ),
             CommandBarButton(
-              icon: const Icon(FluentIcons.clock),
+              icon: Icon(FluentIcons.clock),
               label: Text(_startTime != null || _endTime != null ? '时间 ✓' : '时间'),
               onPressed: () => _showTimeRangeDialog(context),
             ),
             CommandBarButton(
-              icon: const Icon(FluentIcons.code),
+              icon: Icon(FluentIcons.code),
               label: const Text('正则规则'),
               onPressed: () => _showRegexRulesDialog(context),
             ),
@@ -519,18 +520,18 @@ class _LogPageState extends State<LogPage> {
             ),
             const CommandBarSeparator(),
             CommandBarButton(
-              icon: const Icon(FluentIcons.save),
+              icon: Icon(FluentIcons.save),
               label: const Text('导出日志'),
               onPressed: () => _exportLogs(context),
             ),
             CommandBarButton(
-              icon: const Icon(FluentIcons.archive),
+              icon: Icon(FluentIcons.archive),
               label: const Text('归档日志'),
               onPressed: () => _showArchiveDialog(context),
             ),
             const CommandBarSeparator(),
             CommandBarButton(
-              icon: const Icon(FluentIcons.clear),
+              icon: Icon(FluentIcons.clear),
               label: const Text('清空日志'),
               onPressed: () => _showClearConfirmDialog(context),
             ),
@@ -609,7 +610,7 @@ class _LogPageState extends State<LogPage> {
                         prefix: Padding(
                           padding: const EdgeInsets.only(left: 10),
                           child: Icon(
-                            _useRegexSearch ? FluentIcons.code : FluentIcons.search,
+                            _useRegexSearch ? FluentIcons.code : FluentIcons.searchIcon,
                             size: 14,
                             color: _searchQuery.isNotEmpty 
                               ? AppTheme.accentLight 
@@ -618,7 +619,7 @@ class _LogPageState extends State<LogPage> {
                         ),
                         suffix: _searchQuery.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(FluentIcons.clear, size: 12),
+                              icon: Icon(FluentIcons.clear, size: 12),
                               onPressed: () {
                                 _searchController.clear();
                                 setState(() => _searchQuery = '');
@@ -1134,7 +1135,7 @@ class _LogPageState extends State<LogPage> {
     return MenuFlyout(
       items: [
         MenuFlyoutItem(
-          leading: const Icon(FluentIcons.copy),
+          leading: Icon(FluentIcons.copy),
           text: const Text('复制日志'),
           onPressed: () {
             final buffer = StringBuffer();
@@ -1164,7 +1165,7 @@ class _LogPageState extends State<LogPage> {
         ),
         const MenuFlyoutSeparator(),
         MenuFlyoutItem(
-          leading: const Icon(FluentIcons.filter),
+          leading: Icon(FluentIcons.filter),
           text: Text('筛选: ${item.primaryLog.levelString}'),
           onPressed: () {
             setState(() => _filterLevel = item.primaryLog.level);
@@ -1172,7 +1173,7 @@ class _LogPageState extends State<LogPage> {
           },
         ),
         MenuFlyoutItem(
-          leading: const Icon(FluentIcons.source),
+          leading: Icon(FluentIcons.source),
           text: Text('筛选: ${item.primaryLog.source}'),
           onPressed: () {
             setState(() => _filterSource = item.primaryLog.source);
@@ -1262,7 +1263,7 @@ class _LogPageState extends State<LogPage> {
               builder: (ctx) => MenuFlyout(
                 items: [
                   MenuFlyoutItem(
-                    leading: const Icon(FluentIcons.copy),
+                    leading: Icon(FluentIcons.copy),
                     text: const Text('复制此条'),
                     onPressed: () {
                       Clipboard.setData(ClipboardData(
@@ -1660,7 +1661,7 @@ class _LogPageState extends State<LogPage> {
                       const Spacer(),
                       Button(
                         onPressed: () => _showAddCustomRuleDialog(ctx, setDialogState),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(FluentIcons.add, size: 12),
@@ -1986,7 +1987,7 @@ class _LogPageState extends State<LogPage> {
                 Navigator.pop(ctx);
                 _exportLogs(context);
               },
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(FluentIcons.save, size: 16),
@@ -2001,7 +2002,7 @@ class _LogPageState extends State<LogPage> {
                 Navigator.pop(ctx);
                 _exportFilteredLogs(context);
               },
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(FluentIcons.filter, size: 16),
@@ -2019,7 +2020,7 @@ class _LogPageState extends State<LogPage> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(FluentIcons.single_bookmark, size: 16),
+                  Icon(FluentIcons.single_bookmark, size: 16),
                   const SizedBox(width: 8),
                   Text('导出书签日志 (${_bookmarkedIds.length})'),
                 ],

@@ -1,10 +1,11 @@
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:fluent_ui/fluent_ui.dart' hide FluentIcons;
 import 'package:flutter/material.dart' show Material;
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/update_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/fluent_icons.dart';
 
 class UpdatePage extends StatefulWidget {
   const UpdatePage({super.key});
@@ -293,12 +294,12 @@ class _UpdatePageState extends State<UpdatePage> {
                               }
                             }
                           },
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(FluentIcons.download, size: 14),
-                              SizedBox(width: 6),
-                              Text('开始更新'),
+                              const SizedBox(width: 6),
+                              const Text('开始更新'),
                             ],
                           ),
                         ),

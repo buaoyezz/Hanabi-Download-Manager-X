@@ -15,6 +15,14 @@
             width: 100px;
             display: inline-block;
             margin: 10px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        .preview:hover {
+            transform: scale(1.05);
+        }
+        .preview.copied {
+            background-color: #e8f5e8;
         }
         .preview .inner {
             display: inline-block;
@@ -47,6 +55,45 @@
             border-radius: 0 0 3px 3px;
             color: #666;
         }
+        .search-container {
+            margin: 20px 0;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 5px;
+            display: inline-block;
+            width: 100%;
+            max-width: 600px;
+        }
+        #searchInput {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            outline: none;
+            box-sizing: border-box;
+        }
+        #searchInput:focus {
+            border-color: #0078d4;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .copy-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+        }
+        .copy-notification.show {
+            opacity: 1;
+        }
     </style>
 
     <link rel="stylesheet" type="text/css" href="FluentSystemIcons-Regular.css" />
@@ -54,7 +101,12 @@
 <body>
 
     <h1>FluentSystemIcons-Regular</h1>
-
+    
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="搜索图标名称..." autocomplete="off">
+    </div>
+    
+    <div id="copyNotification" class="copy-notification">已复制到剪贴板!</div>
 
         <div class="preview">
             <span class="inner">
@@ -148,6 +200,105 @@
 
         <div class="preview">
             <span class="inner">
+                <i class="icon icon-ic_fluent_add_12_regular"></i>
+            </span>
+            <br>
+            <span class='label'>ic_fluent_add_12_regular</span>
+        </div>
+
+    </div>
+
+    <script>
+        // 等待 DOM 加载完成
+        document.addEventListener('DOMContentLoaded', function() {
+            // 搜索功能
+            const searchInput = document.getElementById('searchInput');
+            const previews = document.querySelectorAll('.preview');
+            
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase().trim();
+                
+                if (searchTerm === '') {
+                    // 显示所有图标
+                    previews.forEach(preview => {
+                        preview.classList.remove('hidden');
+                    });
+                } else {
+                    // 根据搜索词过滤图标
+                    previews.forEach(preview => {
+                        const label = preview.querySelector('.label').textContent.toLowerCase();
+                        if (label.includes(searchTerm)) {
+                            preview.classList.remove('hidden');
+                        } else {
+                            preview.classList.add('hidden');
+                        }
+                    });
+                }
+            });
+            
+            // 复制功能
+            const copyNotification = document.getElementById('copyNotification');
+            
+            function showCopyNotification() {
+                copyNotification.classList.add('show');
+                setTimeout(() => {
+                    copyNotification.classList.remove('show');
+                }, 2000);
+            }
+            
+            // 为每个预览元素添加点击事件
+            previews.forEach(preview => {
+                preview.addEventListener('click', function() {
+                    const iconName = this.querySelector('.label').textContent;
+                    
+                    // 复制到剪贴板
+                    if (navigator.clipboard) {
+                        navigator.clipboard.writeText(iconName).then(() => {
+                            // 添加视觉反馈
+                            this.classList.add('copied');
+                            showCopyNotification();
+                            
+                            // 移除视觉反馈
+                            setTimeout(() => {
+                                this.classList.remove('copied');
+                            }, 1000);
+                        }).catch(err => {
+                            console.error('复制失败:', err);
+                            fallbackCopyTextToClipboard(iconName);
+                        });
+                    } else {
+                        // 如果 clipboard API 不可用，使用备用方法
+                        fallbackCopyTextToClipboard(iconName);
+                    }
+                });
+            });
+            
+            // 备用复制方法（兼容性处理）
+            function fallbackCopyTextToClipboard(text) {
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.position = "fixed";  // 避免滚动到页面底部
+                textArea.style.opacity = "0";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        showCopyNotification();
+                    }
+                } catch (err) {
+                    console.error('备用复制方法也失败了:', err);
+                }
+                
+                document.body.removeChild(textArea);
+            }
+        });
+    </script>
+
+</body>
+</html>
                 <i class="icon icon-ic_fluent_accessibility_checkmark_28_regular"></i>
             </span>
             <br>
@@ -83881,6 +84032,61 @@
             <span class='label'>ic_fluent_zoom_out_32_regular</span>
         </div>
 
+<script>
+    // 搜索功能
+    const searchInput = document.getElementById('searchInput');
+    const previews = document.querySelectorAll('.preview');
+    const copyNotification = document.getElementById('copyNotification');
+
+    // 搜索过滤
+    searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase().trim();
+
+        previews.forEach(preview => {
+            const label = preview.querySelector('.label').textContent.toLowerCase();
+            if (searchTerm === '' || label.includes(searchTerm)) {
+                preview.classList.remove('hidden');
+            } else {
+                preview.classList.add('hidden');
+            }
+        });
+    });
+
+    // 点击复制图标名称
+    previews.forEach(preview => {
+        preview.addEventListener('click', function() {
+            const iconName = this.querySelector('.label').textContent;
+
+            // 复制到剪贴板
+            navigator.clipboard.writeText(iconName).then(() => {
+                // 显示复制成功提示
+                copyNotification.classList.add('show');
+                this.classList.add('copied');
+
+                setTimeout(() => {
+                    copyNotification.classList.remove('show');
+                    this.classList.remove('copied');
+                }, 1500);
+            }).catch(err => {
+                console.error('复制失败:', err);
+            });
+        });
+    });
+
+    // 按 Escape 清空搜索
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            searchInput.value = '';
+            searchInput.dispatchEvent(new Event('input'));
+        }
+        // 按 / 聚焦搜索框
+        if (e.key === '/' && document.activeElement !== searchInput) {
+            e.preventDefault();
+            searchInput.focus();
+        }
+    });
+</script>
 
 </body>
+</html>
 </html>

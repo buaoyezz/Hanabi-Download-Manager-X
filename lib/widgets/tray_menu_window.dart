@@ -4,6 +4,7 @@ import '../theme/app_theme.dart';
 import '../utils/constants.dart';
 import '../services/kernel_service.dart';
 import 'package:provider/provider.dart';
+import '../utils/fluent_icons.dart' as CustomIcons;
 
 /// Fluent Design 2 风格的托盘菜单窗口
 class TrayMenuWindow extends StatefulWidget {
@@ -68,7 +69,7 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
                 children: [
                   _buildMenuItem(
                     index: 0,
-                    icon: FluentIcons.chrome_restore,
+                    icon: CustomIcons.FluentIcons.chrome_restore,
                     title: '显示窗口',
                     subtitle: '打开主界面',
                     onTap: () {
@@ -78,7 +79,7 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
                   ),
                   _buildMenuItem(
                     index: 1,
-                    icon: FluentIcons.status_circle_checkmark,
+                    icon: CustomIcons.FluentIcons.status_circle_checkmark,
                     title: '下载内核',
                     subtitle: kernelService.isRunning ? '运行中' : '已停止',
                     trailing: Container(
@@ -102,7 +103,7 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
                   
                   _buildMenuItem(
                     index: 2,
-                    icon: FluentIcons.chrome_close,
+                    icon: CustomIcons.FluentIcons.chrome_close,
                     title: '退出应用',
                     subtitle: '关闭所有窗口',
                     iconColor: AppTheme.statusError,
@@ -142,8 +143,7 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
                 color: AppTheme.accentPrimary.withValues(alpha: 0.3),
               ),
             ),
-            child: const Icon(
-              FluentIcons.download,
+            child: Icon(CustomIcons.FluentIcons.download,
               size: 20,
               color: AppTheme.accentLight,
             ),
@@ -256,7 +256,7 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
                 trailing,
               ] else if (onTap != null)
                 Icon(
-                  FluentIcons.chevron_right,
+                  CustomIcons.FluentIcons.chevron_right,
                   size: 12,
                   color: isHovered ? AppTheme.textSecondary : AppTheme.textTertiary,
                 ),

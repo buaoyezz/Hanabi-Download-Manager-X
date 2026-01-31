@@ -8,6 +8,7 @@ import '../../models/download_task.dart' show DownloadTask, DownloadStatus, Segm
 import '../../theme/app_theme.dart';
 import '../../widgets/file_icon_widget.dart';
 import '../../widgets/animated_card.dart';
+import '../../utils/fluent_icons.dart' as CustomIcons;
 
 class DownloadList extends StatefulWidget {
   const DownloadList({super.key});
@@ -152,7 +153,7 @@ class _DownloadListState extends State<DownloadList> {
           // 搜索按钮
           IconButton(
             icon: Icon(
-              FluentIcons.search,
+              CustomIcons.FluentIcons.searchIcon,
               size: 14,
               color: _showSearch ? AppTheme.accentLight : AppTheme.textSecondary,
             ),
@@ -174,7 +175,7 @@ class _DownloadListState extends State<DownloadList> {
           // 筛选按钮
           IconButton(
             icon: Icon(
-              FluentIcons.filter,
+              CustomIcons.FluentIcons.filter,
               size: 14,
               color: _filterStatus != null ? AppTheme.accentLight : AppTheme.textSecondary,
             ),
@@ -196,7 +197,7 @@ class _DownloadListState extends State<DownloadList> {
           // 排序按钮
           IconButton(
             icon: Icon(
-              _sortOrder == 'newest' ? FluentIcons.sort_down : FluentIcons.sort_up,
+              _sortOrder == 'newest' ? CustomIcons.FluentIcons.sort_down : CustomIcons.FluentIcons.sort_up,
               size: 14,
               color: AppTheme.textSecondary,
             ),
@@ -237,8 +238,7 @@ class _DownloadListState extends State<DownloadList> {
                   const SizedBox(width: 6),
                   GestureDetector(
                     onTap: () => setState(() => _filterStatus = null),
-                    child: const Icon(
-                      FluentIcons.chrome_close,
+                    child: Icon(CustomIcons.FluentIcons.chrome_close,
                       size: 10,
                       color: AppTheme.accentLight,
                     ),
@@ -279,12 +279,12 @@ class _DownloadListState extends State<DownloadList> {
           children: [
             const Text('选择要显示的任务状态：'),
             const SizedBox(height: 16),
-            _buildFilterOption(context, null, '全部状态', FluentIcons.list),
-            _buildFilterOption(context, DownloadStatus.downloading, '下载中', FluentIcons.download),
-            _buildFilterOption(context, DownloadStatus.paused, '已暂停', FluentIcons.pause),
-            _buildFilterOption(context, DownloadStatus.pending, '等待中', FluentIcons.clock),
-            _buildFilterOption(context, DownloadStatus.failed, '失败', FluentIcons.error_badge),
-            _buildFilterOption(context, DownloadStatus.merging, '合并中', FluentIcons.processing),
+            _buildFilterOption(context, null, '全部状态', CustomIcons.FluentIcons.list),
+            _buildFilterOption(context, DownloadStatus.downloading, '下载中', CustomIcons.FluentIcons.download),
+            _buildFilterOption(context, DownloadStatus.paused, '已暂停', CustomIcons.FluentIcons.pause),
+            _buildFilterOption(context, DownloadStatus.pending, '等待中', CustomIcons.FluentIcons.clock),
+            _buildFilterOption(context, DownloadStatus.failed, '失败', CustomIcons.FluentIcons.error_badge),
+            _buildFilterOption(context, DownloadStatus.merging, '合并中', CustomIcons.FluentIcons.processing),
           ],
         ),
         actions: [
@@ -308,8 +308,8 @@ class _DownloadListState extends State<DownloadList> {
           children: [
             const Text('选择任务排列顺序：'),
             const SizedBox(height: 16),
-            _buildSortOption(context, 'newest', '最新在前', FluentIcons.sort_down, '新添加的任务显示在最上面'),
-            _buildSortOption(context, 'oldest', '最旧在前', FluentIcons.sort_up, '最早添加的任务显示在最上面'),
+            _buildSortOption(context, 'newest', '最新在前', CustomIcons.FluentIcons.sort_down, '新添加的任务显示在最上面'),
+            _buildSortOption(context, 'oldest', '最旧在前', CustomIcons.FluentIcons.sort_up, '最早添加的任务显示在最上面'),
           ],
         ),
         actions: [
@@ -376,8 +376,7 @@ class _DownloadListState extends State<DownloadList> {
                 ),
               ),
               if (isSelected)
-                const Icon(
-                  FluentIcons.check_mark,
+                Icon(CustomIcons.FluentIcons.check_mark,
                   size: 16,
                   color: AppTheme.accentLight,
                 ),
@@ -428,8 +427,7 @@ class _DownloadListState extends State<DownloadList> {
               ),
               const Spacer(),
               if (isSelected)
-                const Icon(
-                  FluentIcons.check_mark,
+                Icon(CustomIcons.FluentIcons.check_mark,
                   size: 14,
                   color: AppTheme.accentLight,
                 ),
@@ -459,7 +457,7 @@ class _DownloadListState extends State<DownloadList> {
       ),
       child: Row(
         children: [
-          const Icon(FluentIcons.search, size: 14, color: AppTheme.accentLight),
+          Icon(CustomIcons.FluentIcons.searchIcon, size: 14, color: AppTheme.accentLight),
           const SizedBox(width: 8),
           Expanded(
             child: TextBox(
@@ -473,7 +471,7 @@ class _DownloadListState extends State<DownloadList> {
           ),
           if (_searchQuery.isNotEmpty)
             IconButton(
-              icon: const Icon(FluentIcons.clear, size: 12),
+              icon: Icon(CustomIcons.FluentIcons.clear, size: 12),
               onPressed: () {
                 _searchController.clear();
                 setState(() => _searchQuery = '');
@@ -493,7 +491,7 @@ class _DownloadListState extends State<DownloadList> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            FluentIcons.search_issue,
+            CustomIcons.FluentIcons.search_issue,
             size: 64,
             color: AppTheme.textTertiary.withValues(alpha: 0.5),
           ),
@@ -533,7 +531,7 @@ class _DownloadListState extends State<DownloadList> {
           // 活跃任务数
           _buildStatItem(
             context,
-            icon: FluentIcons.download,
+            icon: CustomIcons.FluentIcons.download,
             label: '下载中',
             value: '$activeCount',
             color: AppTheme.accentPrimary,
@@ -542,7 +540,7 @@ class _DownloadListState extends State<DownloadList> {
           // 总速度
           _buildStatItem(
             context,
-            icon: FluentIcons.speed_high,
+            icon: CustomIcons.FluentIcons.speed_high,
             label: '总速度',
             value: _formatSpeed(totalSpeed),
             color: AppTheme.accentLight,
@@ -551,7 +549,7 @@ class _DownloadListState extends State<DownloadList> {
           // 活跃分段
           _buildStatItem(
             context,
-            icon: FluentIcons.split_object,
+            icon: CustomIcons.FluentIcons.split_object,
             label: '活跃分段',
             value: '$totalSegments',
             color: AppTheme.statusSuccess,
@@ -639,7 +637,7 @@ class _DownloadListState extends State<DownloadList> {
                       ],
                     ),
                     child: Icon(
-                      FluentIcons.download,
+                      CustomIcons.FluentIcons.download,
                       size: 40,
                       color: AppTheme.accentPrimary.withValues(alpha: 0.6),
                     ),
@@ -885,7 +883,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             content: const Text('链接已复制到剪贴板'),
             severity: InfoBarSeverity.success,
             action: IconButton(
-              icon: const Icon(FluentIcons.clear),
+              icon: Icon(CustomIcons.FluentIcons.clear),
               onPressed: close,
             ),
           ),
@@ -900,7 +898,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             content: Text('无法复制链接: $e'),
             severity: InfoBarSeverity.error,
             action: IconButton(
-              icon: const Icon(FluentIcons.clear),
+              icon: Icon(CustomIcons.FluentIcons.clear),
               onPressed: close,
             ),
           ),
@@ -943,14 +941,14 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
         if (!isMerging && (widget.task.status == DownloadStatus.pending ||
             widget.task.status == DownloadStatus.paused))
           _ActionButton(
-            icon: FluentIcons.play,
+            icon: CustomIcons.FluentIcons.play,
             color: AppTheme.statusSuccess,
             onPressed: () => service.startTask(widget.task.id),
             tooltip: '开始',
           ),
         if (!isMerging && widget.task.status == DownloadStatus.downloading)
           _ActionButton(
-            icon: FluentIcons.pause,
+            icon: CustomIcons.FluentIcons.pause,
             color: AppTheme.statusWarning,
             onPressed: () => service.pauseTask(widget.task.id),
             tooltip: '暂停',
@@ -963,7 +961,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
         // 重试失败分段按钮 - 显示在删除按钮左边
         if (!isMerging && (hasRetryableSegments || isFailed)) ...[
           _ActionButton(
-            icon: FluentIcons.refresh,
+            icon: CustomIcons.FluentIcons.refresh,
             color: AppTheme.accentLight,
             onPressed: () => service.retryFailedSegments(widget.task.id),
             tooltip: hasRetryableSegments ? '重试失败分段' : '重新下载',
@@ -972,7 +970,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
         ],
         if (!isMerging)
           _ActionButton(
-            icon: FluentIcons.delete,
+            icon: CustomIcons.FluentIcons.delete,
             color: AppTheme.statusError,
             onPressed: () => _confirmDelete(service),
             tooltip: '删除',
@@ -1180,7 +1178,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  FluentIcons.split_object,
+                  CustomIcons.FluentIcons.split_object,
                   size: 12,
                   color: AppTheme.textTertiary,
                 ),
@@ -1197,7 +1195,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                   turns: _isSegmentsExpanded ? 0.5 : 0,
                   duration: const Duration(milliseconds: 200),
                   child: Icon(
-                    FluentIcons.chevron_down,
+                    CustomIcons.FluentIcons.chevron_down,
                     size: 10,
                     color: AppTheme.textTertiary,
                   ),
@@ -1235,7 +1233,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
         Row(
           children: [
             Icon(
-              FluentIcons.split_object,
+              CustomIcons.FluentIcons.split_object,
               size: 12,
               color: AppTheme.textTertiary,
             ),
@@ -1310,7 +1308,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        FluentIcons.refresh,
+                        CustomIcons.FluentIcons.refresh,
                         size: 8,
                         color: AppTheme.accentLight,
                       ),
@@ -1501,7 +1499,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                 ),
               ),
               child: Icon(
-                FluentIcons.refresh,
+                CustomIcons.FluentIcons.refresh,
                 size: 8,
                 color: AppTheme.accentLight,
               ),
@@ -1529,7 +1527,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              _showAllSegments ? FluentIcons.chevron_up_small : FluentIcons.chevron_down_small,
+              _showAllSegments ? CustomIcons.FluentIcons.chevron_up_small : CustomIcons.FluentIcons.chevron_down_small,
               size: 12,
               color: AppTheme.accentLight,
             ),
@@ -1597,7 +1595,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  FluentIcons.speed_high,
+                  CustomIcons.FluentIcons.speed_high,
                   size: 14,
                   color: AppTheme.accentLight,
                 ),
@@ -1629,7 +1627,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    FluentIcons.split_object,
+                    CustomIcons.FluentIcons.split_object,
                     size: 11,
                     color: AppTheme.textSecondary,
                   ),
@@ -1654,7 +1652,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  FluentIcons.clock,
+                  CustomIcons.FluentIcons.clock,
                   size: 11,
                   color: AppTheme.textTertiary,
                 ),
@@ -1720,7 +1718,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
           Row(
             children: [
               Icon(
-                FluentIcons.error_badge,
+                CustomIcons.FluentIcons.error_badge,
                 size: 16,
                 color: AppTheme.statusError,
               ),
@@ -1767,7 +1765,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
               child: Row(
                 children: [
                   Icon(
-                    FluentIcons.info,
+                    CustomIcons.FluentIcons.info,
                     size: 12,
                     color: AppTheme.accentLight,
                   ),
@@ -1798,7 +1796,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            FluentIcons.refresh,
+                            CustomIcons.FluentIcons.refresh,
                             size: 10,
                             color: AppTheme.accentLight,
                           ),
