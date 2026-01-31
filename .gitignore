@@ -29,6 +29,12 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+.kiro/
+.shared/
+
+# Web and deployment related
+web_stats/
+x.zzbuaoye.top/
 
 # Python
 __pycache__/
