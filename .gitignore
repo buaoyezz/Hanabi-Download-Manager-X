@@ -52,12 +52,14 @@ x.zzbuaoye.top/node_modules/
 x.zzbuaoye.top/dist/
 x.zzbuaoye.top/.env
 x.zzbuaoye.top/package-lock.json
+x.zzbuaoye.top/ 
+# Full X.zzbuaoye.top not open sources
 
-# Chrome extension (separate project)
-chrome_extension/
+# Chrome extension (Open Sources)
+# chrome_extension/
 
-# Legacy Python kernel (replaced by Dart implementation)
-python/
+# Legacy Python kernel (replaced by Dart implementation but keep)
+# python/
 
 # Python
 __pycache__/

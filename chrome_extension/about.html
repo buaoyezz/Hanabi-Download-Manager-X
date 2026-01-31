@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HDMX - About Us</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            margin-bottom: 40px;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .logo-icon {
+            font-size: 2.5rem;
+            color: #4a6ee0;
+        }
+        
+        .logo-text {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+        
+        .language-switcher {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .lang-btn {
+            background: #fff;
+            border: 2px solid #4a6ee0;
+            color: #4a6ee0;
+            padding: 8px 16px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .lang-btn.active {
+            background: #4a6ee0;
+            color: white;
+        }
+        
+        .lang-btn:hover:not(.active) {
+            background: rgba(74, 110, 224, 0.1);
+        }
+        
+        .hero {
+            text-align: center;
+            padding: 50px 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 40px;
+        }
+        
+        .hero h1 {
+            font-size: 3rem;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        
+        .hero p {
+            font-size: 1.2rem;
+            color: #555;
+            max-width: 800px;
+            margin: 0 auto 30px;
+        }
+        
+        .hero-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border-radius: 30px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            font-size: 1rem;
+        }
+        
+        .btn-primary {
+            background: #4a6ee0;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #3a5ecf;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(74, 110, 224, 0.4);
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            border: 2px solid #4a6ee0;
+            color: #4a6ee0;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(74, 110, 224, 0.1);
+        }
+        
+        .content-section {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            margin-bottom: 40px;
+        }
+        
+        .section-title {
+            font-size: 2rem;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .section-title:after {
+            content: '';
+            display: block;
+            width: 80px;
+            height: 4px;
+            background: #4a6ee0;
+            margin: 10px auto;
+            border-radius: 2px;
+        }
+        
+        .qa-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .qa-item {
+            margin-bottom: 30px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 20px;
+        }
+        
+        .qa-item:last-child {
+            border-bottom: none;
+        }
+        
+        .question {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .question i {
+            color: #4a6ee0;
+            margin-top: 5px;
+        }
+        
+        .answer {
+            color: #555;
+            font-size: 1.1rem;
+            padding-left: 30px;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+        
+        .feature-card {
+            background: #f8f9ff;
+            border-radius: 10px;
+            padding: 25px;
+            text-align: center;
+            transition: transform 0.3s ease;
+            border: 1px solid #eaefff;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        .feature-icon {
+            font-size: 2.5rem;
+            color: #4a6ee0;
+            margin-bottom: 20px;
+        }
+        
+        .feature-title {
+            font-size: 1.3rem;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        
+        .feature-desc {
+            color: #666;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 30px 0;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .social-links {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .social-links a {
+            color: #4a6ee0;
+            font-size: 1.2rem;
+            transition: color 0.3s ease;
+        }
+        
+        .social-links a:hover {
+            color: #3a5ecf;
+        }
+        
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.2rem;
+            }
+            
+            .hero p {
+                font-size: 1rem;
+            }
+            
+            .hero-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn {
+                width: 200px;
+            }
+            
+            .content-section {
+                padding: 25px 20px;
+            }
+            
+            .section-title {
+                font-size: 1.7rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <!-- <i class="fas fa-cube logo-icon"></i> -->
+                <img src="logo2.png" alt="HDMX Logo" class="logo-icon" style="width: 40px; height: 40px;">
+                <div class="logo-text">HDMX</div>
+            </div>
+            <div class="language-switcher">
+                <button class="lang-btn active" id="en-btn">English</button>
+                <button class="lang-btn" id="zh-btn">中文</button>
+            </div>
+        </header>
+        
+        <section class="hero">
+            <h1 id="hero-title">Innovating the Future with HDMX</h1>
+            <p id="hero-desc">HDMX is a leading technology company specializing in innovative software solutions. Our flagship product, ManagerX, is revolutionizing how businesses manage their operations.</p>
+            <div class="hero-buttons">
+                <a href="https://github.com/buaoyezz/Hanabi-Download-Manager-X/blob/main/README.md" class="btn btn-primary" id="learn-more-btn" style="text-decoration: none;">Learn More</a>
+                <a href="https://github.com/buaoyezz/Hanabi-Download-Manager-X/issues" class="btn btn-secondary" id="contact-btn" style="text-decoration: none;">Contact Us</a>
+            </div>
+        </section>
+        
+        <section class="content-section">
+            <h2 class="section-title" id="qa-title">Frequently Asked Questions</h2>
+            <div class="qa-container">
+                <div class="qa-item">
+                    <div class="question"><i class="fas fa-question-circle"></i> <span id="q1">What's New in ManagerX?</span></div>
+                    <div class="answer" id="a1">ManagerX 3.0 introduces AI-powered analytics, enhanced collaboration tools, and a completely redesigned user interface for improved productivity.</div>
+                </div>
+                
+                <div class="qa-item">
+                    <div class="question"><i class="fas fa-question-circle"></i> <span id="q2">How does HDMX ensure data security?</span></div>
+                    <div class="answer" id="a2">We implement end-to-end encryption, multi-factor authentication, and regular security audits to protect your data with the highest industry standards.</div>
+                </div>
+                
+                <div class="qa-item">
+                    <div class="question"><i class="fas fa-question-circle"></i> <span id="q3">What industries does HDMX serve?</span></div>
+                    <div class="answer" id="a3">Our solutions are tailored for finance, healthcare, retail, manufacturing, and technology sectors, with customizable features for specific industry needs.</div>
+                </div>
+                
+                <div class="qa-item">
+                    <div class="question"><i class="fas fa-question-circle"></i> <span id="q4">Is there a free trial available?</span></div>
+                    <div class="answer" id="a4">Yes, we offer a 30-day free trial of ManagerX with full access to all features. No credit card required to get started.</div>
+                </div>
+            </div>
+        </section>
+        
+        <section class="content-section">
+            <h2 class="section-title" id="features-title">Why Choose HDMX</h2>
+            <div class="features">
+                <div class="feature-card">
+                    <i class="fas fa-rocket feature-icon"></i>
+                    <h3 class="feature-title" id="feature1-title">High Performance</h3>
+                    <p class="feature-desc" id="feature1-desc">Our solutions are optimized for speed and efficiency, handling complex operations with ease.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <i class="fas fa-shield-alt feature-icon"></i>
+                    <h3 class="feature-title" id="feature2-title">Enterprise Security</h3>
+                    <p class="feature-desc" id="feature2-desc">We prioritize your data security with industry-leading protection measures and protocols.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <i class="fas fa-headset feature-icon"></i>
+                    <h3 class="feature-title" id="feature3-title">24/7 Support</h3>
+                    <p class="feature-desc" id="feature3-desc">Our dedicated support team is available around the clock to assist with any issues or questions.</p>
+                </div>
+            </div>
+        </section>
+        
+        <footer>
+            <p id="footer-text">© 2023 HDMX Technologies. All rights reserved.</p>
+            <div class="social-links">
+                <!-- <a href="#"><i class="fab fa-twitter"></i></a>
+                <a href="#"><i class="fab fa-linkedin"></i></a> -->
+                <a href="https://github.com/buaoyezz/Hanabi-Download-Manager-X"><i class="fab fa-github"></i></a>
+                <!-- <a href="#"><i class="fab fa-youtube"></i></a> -->
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Language data
+        const languageData = {
+            en: {
+                heroTitle: "Hanabi Download Manager X",
+                heroDesc: "HDMX is an open-source downloader that supports multi-threaded and multi-segment download tasks, ensuring super-efficient download speeds. Built with Flutter technology stack, it also features a beautiful interface.",
+                learnMore: "Learn More",
+                contactUs: "Contact Me",
+                qaTitle: "Frequently Asked Questions",
+                q1: "What's new in Hanabi Download Manager X?",
+                a1: "Compared to version 1.0, we have completely reconstructed the software interface and download engine for a better experience.",
+                q2: "HDMX's security and privacy",
+                a2: "I don't plan to add an account system for now, so security is completely fine, and the source code is fully open source.",
+                q3: "Who does HDMX serve?",
+                a3: "Everyone. Our downloader is completely open to anyone.",
+                q4: "Is it free or paid?",
+                a4: "Yes, we provide completely free service and experience.",
+                featuresTitle: "Why Choose HDMX",
+                feature1Title: "High Performance",
+                feature1Desc: "Frontend and backend use Flutter for the frontend interface, with Python providing a powerful backend.",
+                feature2Title: "Integration",
+                feature2Desc: "We have comprehensive client and plugin connections.",
+                feature3Title: "Feedback",
+                feature3Desc: "If you encounter any issues during use, you can let me know through GitHub Issues.",
+                footerText: "© 2023 ZZBuAoYe. All rights reserved."
+            },
+            zh: {
+                heroTitle: "Hanabi Download Manager X",
+                heroDesc: "HDMX 是一款开源的下载器，他支持了多线程和多分段的下载任务，保证了超级高效的下载速度，同时基于flutter技术栈让其界面也十分的美丽",
+                learnMore: "了解更多",
+                contactUs: "联系我",
+                qaTitle: "常见问题解答",
+                q1: "Hanabi Download ManagerX有哪些新功能？",
+                a1: "对比1.0我们完全重构了软件的界面和下载引擎，更好的体验",
+                q2: "HDMX的安全隐私性",
+                a2: "我暂时不打算加入账户系统，所以安全性完全没问题，并且源码完全的开源",
+                q3: "HDMX的服务对象",
+                a3: "所有人，我们的下载器完全开放给任何人",
+                q4: "是否免费或收费？",
+                a4: "是的，我们提供了完全免费的服务和体验",
+                featuresTitle: "为什么选择HDMX",
+                feature1Title: "高性能",
+                feature1Desc: "前后端采用了Flutter保证前端界面，Python提供了强大的后端",
+                feature2Title: "集成度",
+                feature2Desc: "我们拥有完善的客户端和插件的链接",
+                feature3Title: "反馈",
+                feature3Desc: "若体验中存在问题，可以通过GitHub Issue的方式告诉我",
+                footerText: "© 2023 ZZBuAoYe 保留所有权利。"
+            }
+        };
+
+        // Language switching functionality
+        const enBtn = document.getElementById('en-btn');
+        const zhBtn = document.getElementById('zh-btn');
+        
+        function switchLanguage(lang) {
+            // Update button states
+            enBtn.classList.toggle('active', lang === 'en');
+            zhBtn.classList.toggle('active', lang === 'zh');
+            
+            // Update all text elements
+            document.getElementById('hero-title').textContent = languageData[lang].heroTitle;
+            document.getElementById('hero-desc').textContent = languageData[lang].heroDesc;
+            document.getElementById('learn-more-btn').textContent = languageData[lang].learnMore;
+            document.getElementById('contact-btn').textContent = languageData[lang].contactUs;
+            document.getElementById('qa-title').textContent = languageData[lang].qaTitle;
+            document.getElementById('q1').textContent = languageData[lang].q1;
+            document.getElementById('a1').textContent = languageData[lang].a1;
+            document.getElementById('q2').textContent = languageData[lang].q2;
+            document.getElementById('a2').textContent = languageData[lang].a2;
+            document.getElementById('q3').textContent = languageData[lang].q3;
+            document.getElementById('a3').textContent = languageData[lang].a3;
+            document.getElementById('q4').textContent = languageData[lang].q4;
+            document.getElementById('a4').textContent = languageData[lang].a4;
+            document.getElementById('features-title').textContent = languageData[lang].featuresTitle;
+            document.getElementById('feature1-title').textContent = languageData[lang].feature1Title;
+            document.getElementById('feature1-desc').textContent = languageData[lang].feature1Desc;
+            document.getElementById('feature2-title').textContent = languageData[lang].feature2Title;
+            document.getElementById('feature2-desc').textContent = languageData[lang].feature2Desc;
+            document.getElementById('feature3-title').textContent = languageData[lang].feature3Title;
+            document.getElementById('feature3-desc').textContent = languageData[lang].feature3Desc;
+            document.getElementById('footer-text').textContent = languageData[lang].footerText;
+        }
+
+        // Event listeners for language buttons
+        enBtn.addEventListener('click', () => switchLanguage('en'));
+        zhBtn.addEventListener('click', () => switchLanguage('zh'));
+
+        // Initialize with English
+        switchLanguage('en');
+    </script>
+</body>
+</html>
