@@ -37,6 +37,7 @@ migrate_working_dir/
 /build/
 .kiro/
 .shared/
+devtools_options.yaml
 
 # Build outputs
 *.exe
