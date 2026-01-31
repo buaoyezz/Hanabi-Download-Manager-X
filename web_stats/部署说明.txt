@@ -1,0 +1,45 @@
+========================================
+Hanabi 在线统计 - 宝塔面板部署
+========================================
+
+已为您准备好以下文件：
+
+1. hanabi-stats-deploy.zip - 部署包（包含所有文件）
+2. BAOTA_DEPLOYMENT.md - 详细部署指南
+3. deploy_local.bat - Windows 打包脚本
+
+========================================
+快速部署步骤
+========================================
+
+1. 上传 hanabi-stats-deploy.zip 到宝塔面板
+
+2. 解压文件到两个位置：
+   - server.js → /opt/hanabi-stats/
+   - 其他文件 → /var/www/hanabi-stats/
+
+3. 安装 Node.js（宝塔面板 → 软件商店）
+
+4. 安装 PM2：
+   npm install -g pm2
+
+5. 启动服务：
+   cd /opt/hanabi-stats
+   pm2 start server.js --name hanabi-stats
+   pm2 save
+
+6. 配置网站（宝塔面板 → 网站 → 添加站点）
+   - 域名: online.zzbuaoye.top
+   - 根目录: /var/www/hanabi-stats
+
+7. 配置反向代理（网站设置 → 反向代理）
+   - 位置: /api/
+   - 目标: http://127.0.0.1:3000
+
+8. 申请 SSL 证书（网站设置 → SSL → Let's Encrypt）
+
+========================================
+详细说明请查看 BAOTA_DEPLOYMENT.md
+========================================
+
+完成后访问: https://online.zzbuaoye.top

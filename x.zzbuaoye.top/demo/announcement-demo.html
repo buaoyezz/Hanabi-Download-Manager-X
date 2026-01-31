@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>公告系统演示</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .demo-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #e1e1e1;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .api-example {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+        }
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .feature-item {
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin: 2px;
+        }
+        .badge-info { background: #e3f2fd; color: #1976d2; }
+        .badge-warning { background: #fff3e0; color: #f57c00; }
+        .badge-success { background: #e8f5e8; color: #388e3c; }
+        .badge-error { background: #ffebee; color: #d32f2f; }
+        .priority-high { background: #ffcdd2; color: #c62828; }
+        .priority-medium { background: #fff9c4; color: #f57f17; }
+        .priority-low { background: #e8f5e8; color: #388e3c; }
+    </style>
+</head>
+<body>
+    <h1>🔔 公告系统演示</h1>
+    
+    <div class="demo-section">
+        <h2>📋 功能概览</h2>
+        <div class="feature-list">
+            <div class="feature-item">
+                <h3>🎯 智能显示</h3>
+                <p>只有在有活跃公告时才显示公告按钮，避免不必要的界面元素</p>
+            </div>
+            <div class="feature-item">
+                <h3>🌐 多语言支持</h3>
+                <p>支持中英文切换，可轻松扩展到其他语言</p>
+            </div>
+            <div class="feature-item">
+                <h3>📱 响应式设计</h3>
+                <p>适配各种屏幕尺寸，提供一致的用户体验</p>
+            </div>
+            <div class="feature-item">
+                <h3>⚡ 性能优化</h3>
+                <p>使用React Hooks和懒加载，确保最佳性能</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>🏷️ 公告类型示例</h2>
+        <div style="margin: 15px 0;">
+            <span class="badge badge-info">信息</span> 一般性通知和更新
+        </div>
+        <div style="margin: 15px 0;">
+            <span class="badge badge-warning">警告</span> 需要用户注意的重要信息
+        </div>
+        <div style="margin: 15px 0;">
+            <span class="badge badge-success">成功</span> 积极的更新和成功消息
+        </div>
+        <div style="margin: 15px 0;">
+            <span class="badge badge-error">错误</span> 紧急问题和错误通知
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>📊 优先级系统</h2>
+        <div style="margin: 15px 0;">
+            <span class="badge priority-high">高优先级</span> 紧急且重要的公告
+        </div>
+        <div style="margin: 15px 0;">
+            <span class="badge priority-medium">中优先级</span> 重要但不紧急的公告
+        </div>
+        <div style="margin: 15px 0;">
+            <span class="badge priority-low">低优先级</span> 一般性信息公告
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>🔌 API 接口示例</h2>
+        
+        <h3>获取公告列表</h3>
+        <div class="api-example">
+GET /api/announcements
+
+Response:
+{
+  "announcements": [
+    {
+      "id": "1",
+      "title": "Hanabi Download Manager X v2.0 发布",
+      "content": "全新版本现已发布！",
+      "type": "success",
+      "priority": "high",
+      "createdAt": "2024-12-13T10:00:00Z",
+      "isActive": true,
+      "expiresAt": "2026-01-13T10:00:00Z"
+    }
+  ],
+  "hasActive": true,
+  "total": 1
+}
+        </div>
+
+        <h3>检查活跃公告</h3>
+        <div class="api-example">
+GET /api/announcements/active
+
+Response:
+{
+  "hasActive": true
+}
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>🛠️ 技术实现</h2>
+        <ul>
+            <li><strong>React 19</strong> - 最新的React版本，提供更好的性能</li>
+            <li><strong>TypeScript</strong> - 类型安全，减少运行时错误</li>
+            <li><strong>Fluent UI</strong> - Microsoft的设计系统，现代化界面</li>
+            <li><strong>React Router</strong> - 客户端路由管理</li>
+            <li><strong>Framer Motion</strong> - 流畅的动画效果</li>
+            <li><strong>i18next</strong> - 国际化支持</li>
+        </ul>
+    </div>
+
+    <div class="demo-section">
+        <h2>📁 文件结构</h2>
+        <div class="api-example">
+src/
+├── types/announcement.ts          # 类型定义
+├── services/announcementService.ts # 业务逻辑
+├── hooks/useAnnouncements.ts      # React Hook
+├── pages/Announcements.tsx       # 公告页面
+├── api/announcements.ts          # API配置
+└── components/Header.tsx         # 更新的导航栏
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>🚀 使用方法</h2>
+        <ol>
+            <li>系统会自动检查是否有活跃公告</li>
+            <li>如果有公告，导航栏会显示公告按钮（带红点提示）</li>
+            <li>点击公告按钮进入公告页面</li>
+            <li>公告页面显示所有活跃公告，支持类型和优先级标识</li>
+            <li>过期的公告会自动隐藏</li>
+        </ol>
+    </div>
+
+    <div class="demo-section">
+        <h2>⚙️ 配置说明</h2>
+        <p>当前使用模拟数据进行演示。要连接真实API：</p>
+        <ol>
+            <li>更新 <code>announcementService.ts</code> 中的API地址</li>
+            <li>替换模拟数据逻辑为真实的fetch调用</li>
+            <li>确保后端API返回正确的数据格式</li>
+        </ol>
+    </div>
+
+    <footer style="margin-top: 50px; text-align: center; color: #666;">
+        <p>© 2024 Hanabi Download Manager X - 公告系统演示</p>
+    </footer>
+</body>
+</html>

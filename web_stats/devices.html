@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线设备列表 - Hanabi Download Manager</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* 设备列表特定样式 */
+        .devices-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-xxl);
+        }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-md) var(--spacing-lg);
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            color: var(--color-text-primary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all var(--transition-normal);
+        }
+
+        .back-button:hover {
+            background: var(--color-surface-hover);
+            border-color: var(--color-border-strong);
+            transform: translateX(-2px);
+        }
+
+        .back-button svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .devices-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-xxl);
+        }
+
+        .device-stat {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            text-align: center;
+        }
+
+        .device-stat-label {
+            font-size: 13px;
+            color: var(--color-text-tertiary);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .device-stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--color-primary-light);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .devices-list {
+            display: grid;
+            gap: var(--spacing-lg);
+        }
+
+        .device-card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            transition: all var(--transition-normal);
+        }
+
+        .device-card:hover {
+            border-color: var(--color-border-strong);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .device-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .device-info {
+            flex: 1;
+        }
+
+        .device-fingerprint {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin-bottom: var(--spacing-xs);
+            font-family: 'Courier New', monospace;
+        }
+
+        .device-summary {
+            font-size: 14px;
+            color: var(--color-text-secondary);
+        }
+
+        .device-status {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-xs);
+            padding: var(--spacing-xs) var(--spacing-md);
+            background: rgba(108, 203, 95, 0.15);
+            border-radius: var(--radius-round);
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--color-success);
+        }
+
+        .device-status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--color-success);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .device-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-md);
+            padding-top: var(--spacing-lg);
+            border-top: 1px solid var(--color-border);
+        }
+
+        .device-detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-xs);
+        }
+
+        .device-detail-label {
+            font-size: 12px;
+            color: var(--color-text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .device-detail-value {
+            font-size: 14px;
+            color: var(--color-text-primary);
+            font-weight: 500;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: var(--spacing-xxxl);
+            color: var(--color-text-tertiary);
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: var(--spacing-lg);
+            opacity: 0.5;
+        }
+
+        .refresh-button {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-md) var(--spacing-lg);
+            background: var(--color-primary);
+            border: none;
+            border-radius: var(--radius-md);
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-normal);
+        }
+
+        .refresh-button:hover {
+            background: var(--color-primary-dark);
+            transform: translateY(-1px);
+        }
+
+        .refresh-button svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .refresh-button.refreshing svg {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <img src="logo.png" alt="Hanabi Logo" class="logo-image">
+                    <div class="logo-text">
+                        <h1>Hanabi Download Manager</h1>
+                        <p>在线设备列表</p>
+                    </div>
+                </div>
+                <div class="status-badge" id="statusBadge">
+                    <span class="status-dot"></span>
+                    <span class="status-text">连接中...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Navigation -->
+            <div class="devices-header">
+                <a href="index.html" class="back-button">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    返回统计页面
+                </a>
+                <button class="refresh-button" id="refreshButton">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M1 4V10H7M23 20V14H17M20.49 9C19.9828 7.56678 19.1209 6.28536 17.9845 5.27542C16.8482 4.26548 15.4745 3.55976 13.9917 3.22426C12.5089 2.88875 10.9652 2.93434 9.50481 3.35677C8.04437 3.77921 6.71475 4.56471 5.64 5.64L1 10M23 14L18.36 18.36C17.2853 19.4353 15.9556 20.2208 14.4952 20.6432C13.0348 21.0657 11.4911 21.1112 10.0083 20.7757C8.52547 20.4402 7.1518 19.7345 6.01547 18.7246C4.87913 17.7146 4.01717 16.4332 3.51 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    刷新
+                </button>
+            </div>
+
+            <!-- Statistics -->
+            <div class="devices-stats">
+                <div class="device-stat">
+                    <div class="device-stat-label">在线设备</div>
+                    <div class="device-stat-value" id="activeDevices">0</div>
+                </div>
+                <div class="device-stat">
+                    <div class="device-stat-label">历史设备总数</div>
+                    <div class="device-stat-value" id="totalDevices">0</div>
+                </div>
+                <div class="device-stat">
+                    <div class="device-stat-label">活跃会话</div>
+                    <div class="device-stat-value" id="activeSessions">0</div>
+                </div>
+            </div>
+
+            <!-- Devices List -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-header-left">
+                        <div class="card-header-icon">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="3" y="3" width="7" height="7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <rect x="14" y="3" width="7" height="7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <rect x="14" y="14" width="7" height="7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <rect x="3" y="14" width="7" height="7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <h2>在线设备</h2>
+                    </div>
+                    <div class="card-header-right">
+                        <span class="data-points-count">最后更新: <span id="lastUpdate">-</span></span>
+                    </div>
+                </div>
+                <div class="devices-list" id="devicesList">
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M20 7H4C2.89543 7 2 7.89543 2 9V19C2 20.1046 2.89543 21 4 21H20C21.1046 21 22 20.1046 22 19V9C22 7.89543 21.1046 7 20 7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M16 21V5C16 4.46957 15.7893 3.96086 15.4142 3.58579C15.0391 3.21071 14.5304 3 14 3H10C9.46957 3 8.96086 3.21071 8.58579 3.58579C8.21071 3.96086 8 4.46957 8 5V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <p>正在加载设备列表...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2026 Hanabi Download Manager. Powered by ZZBuAoYe.</p>
+        </footer>
+    </div>
+
+    <script src="devices.js"></script>
+</body>
+</html>

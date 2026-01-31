@@ -1,0 +1,188 @@
+{
+  "header": {
+    "title": "Hanabi Download Manager X",
+    "features": "Features",
+    "download": "Download",
+    "getStarted": "Get Started",
+    "comparison": "Comparison",
+    "announcements": "Announcements"
+  },
+  "hero": {
+    "title": "Hanabi Download Manager X",
+    "subtitle": "| Experience the next generation of downloading.",
+    "subtitle2": "Fast, efficient, and beautifully designed with a fresh Fluent 2 aesthetic.",
+    "downloadNow": "Download Now",
+    "learnMore": "Learn More",
+    "badge": "2026 New Version",
+    "stats": {
+      "faster": "Faster Speed",
+      "free": "Completely Free",
+      "downloads": "Unlimited Downloads"
+    }
+  },
+  "features": {
+    "title": "Brand New Experience",
+    "description": "Powerful features,ultimate experience",
+    "design": {
+      "title": "Brand New Design",
+      "description": "Completely migrated from Python + Flet to Flutter + Python. <br />Flutter for a smooth cross-platform frontend, <br />Python for a powerful backend."
+    },
+    "core": {
+      "title": "Brand New Download Core",
+      "description": "NSF → NSFX [Soda Kernel]. <br />The new Soda Kernel brings more powerful download performance and stability."
+    },
+    "experience": {
+      "title": "Brand New Experience",
+      "description": "Complete refactoring solves many legacy issues, <br />bringing you an unprecedented smooth experience."
+    },
+    "improvements": {
+      "title": "Core Improvements",
+      "list": [
+        "Multi-threaded concurrent downloads",
+        "Resume support",
+        "Secure and reliable",
+        "Highly customizable",
+        "Completely free and open source",
+        "Lightning fast experience"
+      ]
+    }
+  },
+  "comparison": {
+    "title": "Version Comparison",
+    "description": "Comprehensive comparison to see our progress",
+    "columns": {
+      "item": "Comparison Item",
+      "hdmx": "HDMX",
+      "hdm": "HDM",
+      "x": "X Functionality",
+      "improvement": "Improvement"
+    },
+    "rows": {
+      "speed": "Client Running Speed",
+      "aesthetics": "Interface Aesthetics",
+      "architecture": "Internal Architecture",
+      "scheduling": "Scheduling Performance",
+      "core": "Download Core Used",
+      "release": "Release Time"
+    },
+    "values": {
+      "faster": "Faster",
+      "slower": "Slower",
+      "better": "Better",
+      "significant": "Significant Improvement",
+      "moderate": "Moderate Improvement",
+      "slight": "Slight Improvement",
+      "slightlyBetter": "Slightly Better",
+      "excellent": "Excellent",
+      "average": "Average",
+      "modular": "Modular",
+      "semiModular": "Semi-Modular"
+    },
+      "note": "HDMX 2026 has relatively complete functionality"
+  },
+  "download": {
+    "title": "Ready to Get Started?",
+    "description": "Join the community and experience the best download manager today. <br />Open source and free to use.",
+    "buttonWindows": "Download for Windows",
+    "buttonSource": "View Source Code",
+    "requirements": "Environment Requirements: Flutter SDK, Python 3.12.6",
+    "openSource": "Open Source & Free"
+  },
+  "footer": {
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "license": "GNU General Public License version 3",
+    "copyright": "Copyright © ZZBuAoYe 2026",
+    "rights": "All rights reserved.",
+    "design": "Designed with Fluent 2",
+    "quickLinks": "Quick Links",
+    "resources": "Resources",
+    "legal": "Legal",
+    "releases": "Releases",
+    "issues": "Issues"
+  },
+  "announcements": {
+    "title": "Announcements",
+    "backToHome": "Back to Home",
+    "loading": "Loading announcements...",
+    "noAnnouncements": "No Announcements",
+    "noAnnouncementsDesc": "There are currently no active announcements.",
+    "publishedAt": "Published",
+    "expiresAt": "Expires",
+    "priority": {
+      "low": "Low",
+      "medium": "Medium", 
+      "high": "High"
+    }
+  },
+  "admin": {
+    "login": {
+      "title": "Admin Login",
+      "subtitle": "Sign in to manage announcements",
+      "username": "Username",
+      "password": "Password",
+      "usernamePlaceholder": "Enter your username",
+      "passwordPlaceholder": "Enter your password",
+      "submit": "Sign In",
+      "loggingIn": "Signing in...",
+      "backToHome": "Back to Home",
+      "validation": {
+        "required": "Username and password are required"
+      },
+      "error": {
+        "failed": "Invalid username or password",
+        "network": "Network error, please try again"
+      }
+    },
+    "dashboard": {
+      "title": "Admin Dashboard",
+      "subtitle": "Manage announcements and notifications",
+      "welcome": "Welcome, {{name}}",
+      "loading": "Loading dashboard...",
+      "logout": "Logout",
+      "viewSite": "View Site",
+      "refresh": "Refresh",
+      "create": "Create Announcement",
+      "search": "Search announcements...",
+      "filterType": "Filter by type",
+      "filterPriority": "Filter by priority",
+      "allTypes": "All Types",
+      "allPriorities": "All Priorities",
+      "announcements": "Announcements",
+      "confirmDelete": "Are you sure you want to delete this announcement?",
+      "edit": "Edit",
+      "delete": "Delete",
+      "sendPush": "Send Push",
+      "active": "Active",
+      "inactive": "Inactive",
+      "stats": {
+        "total": "Total Announcements",
+        "active": "Active Announcements",
+        "views": "Total Views",
+        "subscribers": "Push Subscribers"
+      },
+      "table": {
+        "title": "Title",
+        "type": "Type",
+        "priority": "Priority",
+        "status": "Status",
+        "created": "Created",
+        "actions": "Actions"
+      },
+      "type": {
+        "info": "Info",
+        "warning": "Warning",
+        "success": "Success",
+        "error": "Error"
+      },
+      "priority": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      },
+      "error": {
+        "loadFailed": "Failed to load dashboard data"
+      }
+    }
+  }
+}

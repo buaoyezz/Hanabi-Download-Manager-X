@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API 测试 - Hanabi 在线统计</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0F0F0F;
+            color: #FFFFFF;
+            padding: 40px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            margin-bottom: 30px;
+            color: #60CDFF;
+        }
+        
+        .section {
+            background: #2B2B2B;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid #3A3A3A;
+        }
+        
+        h2 {
+            font-size: 18px;
+            margin-bottom: 16px;
+            color: #AAAAAA;
+        }
+        
+        .input-group {
+            margin-bottom: 16px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #AAAAAA;
+            font-size: 14px;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px;
+            background: #1A1A1A;
+            border: 1px solid #3A3A3A;
+            border-radius: 6px;
+            color: #FFFFFF;
+            font-size: 14px;
+        }
+        
+        button {
+            background: #0078D4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: #005A9E;
+        }
+        
+        button:disabled {
+            background: #3A3A3A;
+            cursor: not-allowed;
+        }
+        
+        .result {
+            background: #1A1A1A;
+            border-radius: 6px;
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid #3A3A3A;
+        }
+        
+        .result pre {
+            color: #60CDFF;
+            font-size: 13px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 12px;
+        }
+        
+        .status.success {
+            background: rgba(108, 203, 95, 0.15);
+            color: #6CCB5F;
+        }
+        
+        .status.error {
+            background: rgba(255, 107, 107, 0.15);
+            color: #FF6B6B;
+        }
+        
+        .status.pending {
+            background: rgba(255, 185, 0, 0.15);
+            color: #FFB900;
+        }
+        
+        .info {
+            background: rgba(96, 205, 255, 0.1);
+            border: 1px solid rgba(96, 205, 255, 0.3);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: #AAAAAA;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 API 测试工具</h1>
+        
+        <div class="section">
+            <h2>配置</h2>
+            <div class="input-group">
+                <label for="serverUrl">API 服务器地址</label>
+                <input type="text" id="serverUrl" value="http://127.0.0.1:9710" placeholder="http://127.0.0.1:9710">
+            </div>
+            <div class="info">
+                💡 提示：确保 API 服务器正在运行，并且已配置 CORS
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>测试 /stats/online</h2>
+            <button onclick="testOnlineStats()">测试获取在线统计</button>
+            <div id="onlineResult"></div>
+        </div>
+        
+        <div class="section">
+            <h2>测试 /stats/heartbeat</h2>
+            <button onclick="testHeartbeat()">测试发送心跳</button>
+            <div id="heartbeatResult"></div>
+        </div>
+        
+        <div class="section">
+            <h2>测试 /health</h2>
+            <button onclick="testHealth()">测试健康检查</button>
+            <div id="healthResult"></div>
+        </div>
+        
+        <div class="section">
+            <h2>完整测试</h2>
+            <button onclick="runAllTests()">运行所有测试</button>
+            <div id="allTestsResult"></div>
+        </div>
+    </div>
+    
+    <script>
+        function getServerUrl() {
+            return document.getElementById('serverUrl').value;
+        }
+        
+        function showResult(elementId, status, data) {
+            const element = document.getElementById(elementId);
+            const statusClass = status === 'success' ? 'success' : status === 'error' ? 'error' : 'pending';
+            const statusText = status === 'success' ? '✅ 成功' : status === 'error' ? '❌ 失败' : '⏳ 测试中...';
+            
+            element.innerHTML = `
+                <div class="result">
+                    <span class="status ${statusClass}">${statusText}</span>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                </div>
+            `;
+        }
+        
+        async function testOnlineStats() {
+            const serverUrl = getServerUrl();
+            showResult('onlineResult', 'pending', { message: '正在测试...' });
+            
+            try {
+                const response = await fetch(`${serverUrl}/stats/online`);
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    showResult('onlineResult', 'success', data);
+                } else {
+                    showResult('onlineResult', 'error', { 
+                        status: response.status,
+                        data 
+                    });
+                }
+            } catch (error) {
+                showResult('onlineResult', 'error', { 
+                    error: error.message,
+                    tip: '请检查服务器地址和 CORS 配置'
+                });
+            }
+        }
+        
+        async function testHeartbeat() {
+            const serverUrl = getServerUrl();
+            showResult('heartbeatResult', 'pending', { message: '正在测试...' });
+            
+            try {
+                const response = await fetch(`${serverUrl}/stats/heartbeat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        session_id: 'test_' + Date.now(),
+                        timestamp: new Date().toISOString()
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    showResult('heartbeatResult', 'success', data);
+                } else {
+                    showResult('heartbeatResult', 'error', { 
+                        status: response.status,
+                        data 
+                    });
+                }
+            } catch (error) {
+                showResult('heartbeatResult', 'error', { 
+                    error: error.message,
+                    tip: '请检查服务器地址和 CORS 配置'
+                });
+            }
+        }
+        
+        async function testHealth() {
+            const serverUrl = getServerUrl();
+            showResult('healthResult', 'pending', { message: '正在测试...' });
+            
+            try {
+                const response = await fetch(`${serverUrl}/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('healthResult', 'success', data);
+                } else {
+                    showResult('healthResult', 'error', { 
+                        status: response.status,
+                        data 
+                    });
+                }
+            } catch (error) {
+                showResult('healthResult', 'error', { 
+                    error: error.message,
+                    tip: '请检查服务器地址和 CORS 配置'
+                });
+            }
+        }
+        
+        async function runAllTests() {
+            showResult('allTestsResult', 'pending', { message: '正在运行所有测试...' });
+            
+            const results = {
+                health: null,
+                heartbeat: null,
+                online: null
+            };
+            
+            try {
+                // Test 1: Health
+                const healthResponse = await fetch(`${getServerUrl()}/health`);
+                results.health = {
+                    status: healthResponse.status,
+                    ok: healthResponse.ok,
+                    data: await healthResponse.json()
+                };
+                
+                // Test 2: Heartbeat
+                const heartbeatResponse = await fetch(`${getServerUrl()}/stats/heartbeat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: 'test_' + Date.now(),
+                        timestamp: new Date().toISOString()
+                    })
+                });
+                results.heartbeat = {
+                    status: heartbeatResponse.status,
+                    ok: heartbeatResponse.ok,
+                    data: await heartbeatResponse.json()
+                };
+                
+                // Test 3: Online Stats
+                const onlineResponse = await fetch(`${getServerUrl()}/stats/online`);
+                results.online = {
+                    status: onlineResponse.status,
+                    ok: onlineResponse.ok,
+                    data: await onlineResponse.json()
+                };
+                
+                const allPassed = results.health.ok && results.heartbeat.ok && results.online.ok;
+                showResult('allTestsResult', allPassed ? 'success' : 'error', results);
+                
+            } catch (error) {
+                showResult('allTestsResult', 'error', { 
+                    error: error.message,
+                    results,
+                    tip: '请检查服务器地址和 CORS 配置'
+                });
+            }
+        }
+        
+        // 页面加载时自动测试
+        window.addEventListener('load', () => {
+            console.log('API 测试工具已加载');
+            console.log('服务器地址:', getServerUrl());
+        });
+    </script>
+</body>
+</html>
