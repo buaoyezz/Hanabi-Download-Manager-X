@@ -12,10 +12,11 @@ import '../../../services/app_logger_service.dart';
 import '../../../services/auto_start_service.dart';
 import '../../../services/client_config_service.dart';
 import '../../../services/integrated_download_service.dart';
+import '../../../services/popup_window_service.dart';
 import '../../../models/download_task.dart';
 import '../../../theme/app_theme.dart';
-import '../../../widgets/settings_components.dart';
 import '../../../utils/constants.dart';
+import '../../../widgets/animated_notifications.dart';
 
 class StatusPage extends StatefulWidget {
   const StatusPage({super.key});
@@ -42,6 +43,10 @@ class _StatusPageState extends State<StatusPage> {
   bool? _autoStartPathCorrect;
   String? _registeredPath;
   bool _checkingAutoStart = false;
+
+  // 弹窗窗口测试
+  bool _testingPopupWindow = false;
+  Map<String, dynamic>? _popupWindowTestResult;
 
   @override
   void initState() {
@@ -107,25 +112,16 @@ class _StatusPageState extends State<StatusPage> {
       await downloadService.addTask(extensionUrl, 'chrome_extension.zip');
       
       if (mounted) {
-        displayInfoBar(
-          context,
-          builder: (context, close) => const InfoBar(
-            title: Text('下载已添加'),
-            content: Text('浏览器扩展插件已添加到下载列表'),
-            severity: InfoBarSeverity.success,
-          ),
-          duration: const Duration(seconds: 3),
+        NotificationManager.of(context)?.showSuccess(
+          '下载已添加',
+          message: '浏览器扩展插件已添加到下载列表',
         );
       }
     } catch (e) {
       if (mounted) {
-        displayInfoBar(
-          context,
-          builder: (context, close) => InfoBar(
-            title: const Text('下载失败'),
-            content: Text('无法添加下载任务: $e'),
-            severity: InfoBarSeverity.error,
-          ),
+        NotificationManager.of(context)?.showError(
+          '下载失败',
+          message: '无法添加下载任务: $e',
         );
       }
     }
@@ -144,62 +140,130 @@ class _StatusPageState extends State<StatusPage> {
       }
     } catch (e) {
       if (mounted) {
-        displayInfoBar(
-          context,
-          builder: (context, close) => InfoBar(
-            title: const Text('打开失败'),
-            content: Text('无法打开浏览器: $e'),
-            severity: InfoBarSeverity.error,
-          ),
+        NotificationManager.of(context)?.showError(
+          '打开失败',
+          message: '无法打开浏览器: $e',
         );
       }
     }
   }
-  
+
   Future<void> _fixAutoStart() async {
     if (!Platform.isWindows) return;
-    
+
     try {
       final autoStartService = AutoStartService();
       final success = await autoStartService.verifyAndFixAutoStart();
-      
+
       if (!mounted) return;
-      
+
       if (success) {
-        displayInfoBar(
-          context,
-          builder: (context, close) => const InfoBar(
-            title: Text('修复成功'),
-            content: Text('自启动注册已更新为当前版本'),
-            severity: InfoBarSeverity.success,
-          ),
-          duration: const Duration(seconds: 3),
+        NotificationManager.of(context)?.showSuccess(
+          '修复成功',
+          message: '自启动注册已更新为当前版本',
         );
-        
+
         // 重新检测状态
         await _checkAutoStartStatus();
       } else {
-        displayInfoBar(
-          context,
-          builder: (context, close) => const InfoBar(
-            title: Text('修复失败'),
-            content: Text('无法更新自启动注册，请检查权限'),
-            severity: InfoBarSeverity.error,
-          ),
-          duration: const Duration(seconds: 3),
+        NotificationManager.of(context)?.showError(
+          '修复失败',
+          message: '无法更新自启动注册，请检查权限',
         );
       }
     } catch (e) {
       if (!mounted) return;
-      displayInfoBar(
-        context,
-        builder: (context, close) => InfoBar(
-          title: const Text('修复失败'),
-          content: Text('发生错误: $e'),
-          severity: InfoBarSeverity.error,
-        ),
-        duration: const Duration(seconds: 3),
+      NotificationManager.of(context)?.showError(
+          '修复失败',
+          message: '发生错误: $e',
+        );
+    }
+  }
+
+  /// 测试弹窗窗口功能
+  Future<void> _testPopupWindow() async {
+    if (_testingPopupWindow) return;
+
+    final appLogger = context.read<AppLoggerService>();
+
+    setState(() {
+      _testingPopupWindow = true;
+      _popupWindowTestResult = {'status': '正在创建窗口...'};
+    });
+
+    final stopwatch = Stopwatch()..start();
+    appLogger.info('PopupTest', '开始测试弹窗窗口...');
+
+    try {
+      // 测试创建独立弹窗窗口
+      await PopupWindowService.showPopupDownloadWindow(
+        url: 'https://example.com/test-file.zip',
+        suggestedFilename: 'test-file.zip',
+        isFromBrowser: false,
       );
+
+      stopwatch.stop();
+      appLogger.info('PopupTest', '弹窗窗口创建成功，耗时: ${stopwatch.elapsedMilliseconds}ms');
+
+      if (!mounted) return;
+      setState(() {
+        _popupWindowTestResult = {
+          'success': true,
+          'time': stopwatch.elapsedMilliseconds,
+          'message': '窗口创建成功',
+        };
+      });
+
+      NotificationManager.of(context)?.showSuccess(
+          '测试成功',
+          message: '弹窗窗口创建成功，耗时 ${stopwatch.elapsedMilliseconds}ms',
+        );
+    } catch (e) {
+      stopwatch.stop();
+      appLogger.error('PopupTest', '弹窗窗口创建失败: $e');
+
+      if (!mounted) return;
+      setState(() {
+        _popupWindowTestResult = {
+          'success': false,
+          'time': stopwatch.elapsedMilliseconds,
+          'error': e.toString(),
+        };
+      });
+
+      NotificationManager.of(context)?.showError(
+          '测试失败',
+          message: '弹窗窗口创建失败: $e',
+        );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _testingPopupWindow = false;
+        });
+      }
+    }
+  }
+
+  /// 测试旧版 Dialog 弹窗
+  Future<void> _testDialogPopup() async {
+    final appLogger = context.read<AppLoggerService>();
+
+    final stopwatch = Stopwatch()..start();
+    appLogger.info('PopupTest', '开始测试 Dialog 弹窗...');
+
+    try {
+      await PopupWindowService.showPopupDownload(
+        context,
+        url: 'https://example.com/test-file.zip',
+        suggestedFilename: 'test-dialog-file.zip',
+        isFromBrowser: false,
+      );
+
+      stopwatch.stop();
+      appLogger.info('PopupTest', 'Dialog 弹窗关闭，总耗时: ${stopwatch.elapsedMilliseconds}ms');
+    } catch (e) {
+      stopwatch.stop();
+      appLogger.error('PopupTest', 'Dialog 弹窗失败: $e');
     }
   }
   
@@ -323,10 +387,11 @@ class _StatusPageState extends State<StatusPage> {
         _kernelVersion = AppConstants.kernelVersion;
       });
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _checkingKernel = false;
-      });
+      if (mounted) {
+        setState(() {
+          _checkingKernel = false;
+        });
+      }
     }
   }
 
@@ -657,13 +722,13 @@ class _StatusPageState extends State<StatusPage> {
                 _buildStatusItem(
                   context,
                   label: '错误数',
-                  value: '${appLogger.logs.where((log) => log.level == 'ERROR').length}',
+                  value: '${appLogger.logs.where((log) => log.level == LogLevel.error).length}',
                   isInfo: true,
                 ),
                 _buildStatusItem(
                   context,
                   label: '警告数',
-                  value: '${appLogger.logs.where((log) => log.level == 'WARNING').length}',
+                  value: '${appLogger.logs.where((log) => log.level == LogLevel.warning).length}',
                   isInfo: true,
                 ),
               ],
@@ -694,7 +759,7 @@ class _StatusPageState extends State<StatusPage> {
                     Expanded(
                       child: FilledButton(
                         onPressed: _downloadExtension,
-                        child: Row(
+                        child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(FluentIcons.download, size: 16),
@@ -708,7 +773,7 @@ class _StatusPageState extends State<StatusPage> {
                     Expanded(
                       child: Button(
                         onPressed: _openExtensionStore,
-                        child: Row(
+                        child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(FluentIcons.edge_logo, size: 16),
@@ -722,6 +787,11 @@ class _StatusPageState extends State<StatusPage> {
                 ),
               ],
             ),
+
+            const SizedBox(height: 24),
+
+            // 弹窗窗口测试
+            _buildPopupWindowTestSection(context),
           ],
         ),
       ),
@@ -825,7 +895,7 @@ class _StatusPageState extends State<StatusPage> {
                 children: [
                   Row(
                     children: [
-                      Icon(
+                      const Icon(
                         FluentIcons.warning,
                         size: 16,
                         color: AppTheme.statusWarning,
@@ -874,6 +944,117 @@ class _StatusPageState extends State<StatusPage> {
       title: '开机自启动',
       icon: FluentIcons.power_button,
       children: children,
+    );
+  }
+
+  /// 弹窗窗口测试部分
+  Widget _buildPopupWindowTestSection(BuildContext context) {
+    return _buildSection(
+      context,
+      title: '弹窗窗口测试',
+      icon: FluentIcons.open_pane,
+      children: [
+        _buildStatusItem(
+          context,
+          label: '说明',
+          value: '测试独立弹窗窗口功能（类似 IDM 风格）',
+          isInfo: true,
+        ),
+        if (_popupWindowTestResult != null) ...[
+          _buildStatusItem(
+            context,
+            label: '测试结果',
+            value: _popupWindowTestResult!['success'] == true
+                ? '成功 (${_popupWindowTestResult!['time']}ms)'
+                : '失败: ${_popupWindowTestResult!['error'] ?? '未知错误'}',
+            isOnline: _popupWindowTestResult!['success'] == true,
+          ),
+        ],
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton(
+                onPressed: _testingPopupWindow ? null : _testPopupWindow,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (_testingPopupWindow)
+                      const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: ProgressRing(strokeWidth: 2),
+                      )
+                    else
+                      const Icon(FluentIcons.open_pane, size: 16),
+                    const SizedBox(width: 8),
+                    Text(_testingPopupWindow ? '创建中...' : '测试独立弹窗'),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Button(
+                onPressed: _testDialogPopup,
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(FluentIcons.comment, size: 16),
+                    SizedBox(width: 8),
+                    Text('测试 Dialog 弹窗'),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppTheme.accentPrimary.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            border: Border.all(
+              color: AppTheme.accentPrimary.withValues(alpha: 0.2),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    FluentIcons.info,
+                    size: 14,
+                    color: AppTheme.accentLight,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '测试说明',
+                    style: FluentTheme.of(context).typography.body?.copyWith(
+                      color: AppTheme.accentLight,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '• 独立弹窗：使用 Tauri 创建独立窗口，不需要拉起主窗口\n'
+                '• Dialog 弹窗：传统方式，需要主窗口显示后才能弹出对话框\n'
+                '• 测试结果和耗时会记录到日志中',
+                style: FluentTheme.of(context).typography.caption?.copyWith(
+                  color: AppTheme.textSecondary,
+                  fontSize: 11,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

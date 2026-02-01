@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../services/integrated_download_service.dart';
 import '../../theme/app_theme.dart';
 
+import '../../widgets/animated_notifications.dart';
+
 class AddDownloadDialog extends StatefulWidget {
   const AddDownloadDialog({super.key});
 
@@ -702,18 +704,12 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
   }
 
   void _showSuccessMessage(String fileName) {
-    displayInfoBar(
-      context,
-      builder: (context, close) => InfoBar(
-        title: const Text('任务已添加'),
-        content: Text('正在下载: $fileName'),
-        severity: InfoBarSeverity.success,
-        action: IconButton(
-          icon: const Icon(FluentIcons.clear),
-          onPressed: close,
-        ),
-      ),
-      duration: const Duration(seconds: 3),
-    );
+    if (mounted) {
+      NotificationManager.of(context)?.showSuccess(
+        '任务已添加',
+        message: '正在下载: $fileName',
+      );
+    }
   }
+
 }

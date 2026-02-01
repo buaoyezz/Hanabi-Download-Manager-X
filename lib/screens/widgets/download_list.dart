@@ -1,14 +1,16 @@
-import 'dart:ui';
+﻿import 'dart:ui';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/integrated_download_service.dart';
+import '../../services/performance_monitor_service.dart';
 import '../../models/download_task.dart' show DownloadTask, DownloadStatus, SegmentInfo;
 import '../../theme/app_theme.dart';
 import '../../widgets/file_icon_widget.dart';
 import '../../widgets/animated_card.dart';
 import '../../utils/fluent_icons.dart' as CustomIcons;
+import '../../widgets/animated_notifications.dart';
 
 class DownloadList extends StatefulWidget {
   const DownloadList({super.key});
@@ -63,14 +65,28 @@ class _DownloadListState extends State<DownloadList> {
 
   @override
   Widget build(BuildContext context) {
+    // 追踪重建
+    PerformanceMonitorService().trackRebuild('DownloadList');
+
     return ColoredBox(
       color: Colors.transparent,
-      child: Consumer<IntegratedDownloadService>(
-        builder: (context, downloadService, child) {
-          // 调试：记录 UI 重建
-          print('[UI] DownloadList rebuilding, tasks: ${downloadService.tasks.length}');
-          
-          var activeTasks = downloadService.tasks
+      // 优化：使用 Selector 只监听任务列表的结构变化，而不是每次进度更新
+      child: Selector<IntegratedDownloadService, List<DownloadTask>>(
+        selector: (_, service) => service.tasks,
+        shouldRebuild: (previous, next) {
+          // 只在任务数量变化或任务ID变化时重建列表
+          if (previous.length != next.length) return true;
+          for (int i = 0; i < previous.length; i++) {
+            if (previous[i].id != next[i].id) return true;
+            // 状态变化也需要重建（如从下载中变为完成）
+            if (previous[i].status != next[i].status) return true;
+          }
+          return false;
+        },
+        builder: (context, tasks, child) {
+          final downloadService = context.read<IntegratedDownloadService>();
+
+          var activeTasks = tasks
               .where((t) => t.status != DownloadStatus.completed)
               .toList();
 
@@ -95,12 +111,6 @@ class _DownloadListState extends State<DownloadList> {
               return a.createdAt.compareTo(b.createdAt); // 最旧的在最上面
             }
           });
-          
-          // 调试：输出排序后的任务顺序和创建时间
-          print('[SORT] Order: $_sortOrder, Tasks after sort:');
-          for (var i = 0; i < activeTasks.length && i < 5; i++) {
-            print('[SORT]   ${i + 1}. ${activeTasks[i].fileName} - ${activeTasks[i].createdAt}');
-          }
 
           if (activeTasks.isEmpty && _searchQuery.isNotEmpty || _filterStatus != null) {
             return _buildNoResultsState(context);
@@ -129,11 +139,21 @@ class _DownloadListState extends State<DownloadList> {
               child: ListView.builder(
                       padding: const EdgeInsets.all(20),
                       itemCount: activeTasks.length,
+                      // 添加 addRepaintBoundaries 优化重绘
+                      addRepaintBoundaries: true,
+                      // 添加 addAutomaticKeepAlives 保持状态
+                      addAutomaticKeepAlives: false,
                       itemBuilder: (context, index) {
                         final task = activeTasks[index];
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
-                          child: _DownloadTaskCard(task: task),
+                          // 使用 RepaintBoundary 隔离每个卡片的重绘
+                          child: RepaintBoundary(
+                            child: _DownloadTaskCard(
+                              key: ValueKey(task.id),
+                              task: task,
+                            ),
+                          ),
                         );
                       },
                     ),
@@ -693,9 +713,9 @@ class _DownloadListState extends State<DownloadList> {
 }
 
 class _DownloadTaskCard extends StatefulWidget {
-  final DownloadTask task;
+  final String taskId; // 只传递任务ID，让卡片自己监听任务变化
 
-  const _DownloadTaskCard({super.key, required this.task});
+  const _DownloadTaskCard({super.key, required this.taskId});
 
   @override
   State<_DownloadTaskCard> createState() => _DownloadTaskCardState();
@@ -712,18 +732,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
     super.initState();
     _loadSegmentsExpandedSetting();
   }
-  
-  @override
-  void didUpdateWidget(_DownloadTaskCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // 当 task 更新时，强制重建
-    if (oldWidget.task.progress != widget.task.progress ||
-        oldWidget.task.status != widget.task.status) {
-      setState(() {
-        // 触发重建
-      });
-    }
-  }
+
+  // didUpdateWidget 不需要手动 setState，Flutter 会自动处理 widget 更新
   
   Future<void> _loadSegmentsExpandedSetting() async {
     final prefs = await SharedPreferences.getInstance();
@@ -741,6 +751,9 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
 
   @override
   Widget build(BuildContext context) {
+    // 追踪重建
+    PerformanceMonitorService().trackRebuild('DownloadTaskCard');
+
     final downloadService = context.read<IntegratedDownloadService>();
     final isActive = widget.task.status == DownloadStatus.downloading;
 
@@ -876,33 +889,11 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
       await Clipboard.setData(ClipboardData(text: widget.task.url));
       if (mounted) {
         // 显示复制成功的提示
-        displayInfoBar(
-          context,
-          builder: (context, close) => InfoBar(
-            title: const Text('复制成功'),
-            content: const Text('链接已复制到剪贴板'),
-            severity: InfoBarSeverity.success,
-            action: IconButton(
-              icon: Icon(CustomIcons.FluentIcons.clear),
-              onPressed: close,
-            ),
-          ),
-        );
+        NotificationManager.of(context)?.showSuccess('复制成功', message: '链接已复制到剪贴板');
       }
     } catch (e) {
       if (mounted) {
-        displayInfoBar(
-          context,
-          builder: (context, close) => InfoBar(
-            title: const Text('复制失败'),
-            content: Text('无法复制链接: $e'),
-            severity: InfoBarSeverity.error,
-            action: IconButton(
-              icon: Icon(CustomIcons.FluentIcons.clear),
-              onPressed: close,
-            ),
-          ),
-        );
+        NotificationManager.of(context)?.showError('复制失败', message: '无法复制链接: $e');
       }
     }
   }
@@ -2329,3 +2320,4 @@ class _HoverableUrlState extends State<_HoverableUrl> {
     );
   }
 }
+

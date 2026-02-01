@@ -4,7 +4,16 @@
       "Bash(powershell -Command \"\\(Get-Content ''e:\\\\Hanabi-Download-Manager-X-main\\\\assets\\\\font\\\\FluentSystemIcons-Regular.html''\\).Count\")",
       "Bash(flutter analyze lib/screens/widgets/debug/log_page.dart)",
       "Bash(flutter analyze lib/screens/widgets/update_page.dart)",
-      "Bash(flutter analyze lib/screens/widgets/developer_settings_page.dart)"
+      "Bash(flutter analyze lib/screens/widgets/developer_settings_page.dart)",
+      "Bash(flutter pub get)",
+      "Bash(flutter analyze --no-fatal-infos --no-fatal-warnings)",
+      "Bash(flutter analyze lib/screens/widgets/debug/status_page.dart --no-fatal-infos)",
+      "Bash(flutter analyze lib/screens/widgets/developer_settings_page.dart --no-fatal-infos)",
+      "Bash(flutter analyze lib/widgets/popup_download_window.dart lib/services/popup_window_service.dart --no-fatal-infos)",
+      "WebFetch(domain:www.kernelfactory.canonical.com)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:magazine.ediary.site)"
     ]
   }
 }

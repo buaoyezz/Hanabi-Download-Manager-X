@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'animated_notifications.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
@@ -300,18 +301,17 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
     logger.info('App', '删除完成: 成功 $successCount, 失败 $failedCount');
 
     if (mounted) {
-      displayInfoBar(
-        context,
-        builder: (context, close) => InfoBar(
-          title: const Text('删除完成'),
-          content: Text(
-            failedCount > 0
-                ? '成功删除 $successCount 个，失败 $failedCount 个'
-                : '成功删除 $successCount 个临时文件',
-          ),
-          severity: failedCount > 0 ? InfoBarSeverity.warning : InfoBarSeverity.success,
-        ),
-      );
+      if (failedCount > 0) {
+        NotificationManager.of(context)?.showWarning(
+          '删除完成',
+          message: '成功删除 $successCount 个，失败 $failedCount 个',
+        );
+      } else {
+        NotificationManager.of(context)?.showSuccess(
+          '删除完成',
+          message: '成功删除 $successCount 个临时文件',
+        );
+      }
       await _scanTempFiles();
     }
   }

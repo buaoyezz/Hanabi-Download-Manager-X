@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../services/notification_settings_service.dart';
 
 /// 现代毛玻璃卡片组件 - Fluent Design Mica 风格
 /// 支持多种样式变体和交互状态 - 优化版本
@@ -28,10 +29,13 @@ class GlassCard extends StatefulWidget {
   State<GlassCard> createState() => _GlassCardState();
 }
 
-class _GlassCardState extends State<GlassCard> 
+class _GlassCardState extends State<GlassCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _hoverController;
   bool _isHovered = false;
+
+  // 性能设置
+  final _performanceSettings = NotificationSettingsService();
 
   @override
   void initState() {
@@ -65,7 +69,9 @@ class _GlassCardState extends State<GlassCard>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+    final enableBlur = _performanceSettings.enableBlur;
+    final blurSigma = _performanceSettings.blurSigma;
+
     return RepaintBoundary(
       child: MouseRegion(
         onEnter: _onEnter,
@@ -76,25 +82,21 @@ class _GlassCardState extends State<GlassCard>
             animation: _hoverController,
             builder: (context, child) {
               final hoverValue = Curves.easeOutCubic.transform(_hoverController.value);
-              
+
               return Container(
                 margin: widget.margin,
                 decoration: _getDecoration(isDark, hoverValue),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(widget.borderRadius),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(
-                      sigmaX: 20 + (hoverValue * 5),
-                      sigmaY: 20 + (hoverValue * 5),
-                    ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: _getGradient(isDark, hoverValue),
-                      ),
-                      padding: widget.padding,
-                      child: child,
-                    ),
-                  ),
+                  child: enableBlur
+                      ? BackdropFilter(
+                          filter: ImageFilter.blur(
+                            sigmaX: blurSigma + (hoverValue * 2),
+                            sigmaY: blurSigma + (hoverValue * 2),
+                          ),
+                          child: _buildContent(isDark, hoverValue, child),
+                        )
+                      : _buildContent(isDark, hoverValue, child),
                 ),
               );
             },
@@ -102,6 +104,19 @@ class _GlassCardState extends State<GlassCard>
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildContent(bool isDark, double hoverValue, Widget? child) {
+    final enableBlur = _performanceSettings.enableBlur;
+    return Container(
+      decoration: BoxDecoration(
+        gradient: _getGradient(isDark, hoverValue),
+        // 无模糊时使用纯色背景
+        color: enableBlur ? null : (isDark ? AppTheme.surfaceCard : Colors.white),
+      ),
+      padding: widget.padding,
+      child: child,
     );
   }
 

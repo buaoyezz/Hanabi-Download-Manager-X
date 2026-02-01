@@ -15,6 +15,7 @@ import '../../services/font_service.dart';
 import '../../services/window_effect_service.dart';
 import '../../services/client_config_service.dart';
 import '../../services/notification_settings_service.dart';
+import '../../services/performance_monitor_service.dart';
 import '../../widgets/animated_notifications.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/fluent_icons.dart' as CustomIcons;
@@ -36,12 +37,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
   bool _segmentsDefaultExpanded = false;
   int _segmentsMaxVisible = 5;
   String _segmentsDisplayMode = 'merged'; // 'merged' (合并) 或 'list' (列表)
-  
+
   // 通知设置
   bool _notificationEnabled = true;
   String _notificationColorScheme = 'fluent2';
   String _notificationPosition = 'topRight';
-  
+  String _performanceMode = 'performance';  // 性能模式
+
   // 屏幕尺寸
   double _screenWidth = 1920.0;
   double _screenHeight = 1080.0;
@@ -78,7 +80,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     final notificationSettings = NotificationSettingsService();
-    
+
     if (mounted) {
       final fontService = context.read<FontService>();
       setState(() {
@@ -86,11 +88,12 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         _segmentsDefaultExpanded = prefs.getBool('segments_default_expanded') ?? false;
         _segmentsMaxVisible = prefs.getInt('segments_max_visible') ?? 5;
         _segmentsDisplayMode = prefs.getString('segments_display_mode') ?? 'merged';
-        
+
         // 加载通知设置
         _notificationEnabled = notificationSettings.enabled;
         _notificationColorScheme = notificationSettings.colorScheme.name;
         _notificationPosition = notificationSettings.position.name;
+        _performanceMode = notificationSettings.performanceMode.name;
       });
     }
   }
@@ -276,7 +279,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     await notificationSettings.setColorScheme(scheme);
     setState(() => _notificationColorScheme = value);
   }
-  
+
   Future<void> _saveNotificationPosition(String value) async {
     final notificationSettings = NotificationSettingsService();
     final position = NotificationPosition.values.firstWhere(
@@ -286,7 +289,17 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     await notificationSettings.setPosition(position);
     setState(() => _notificationPosition = value);
   }
-  
+
+  Future<void> _savePerformanceMode(String value) async {
+    final notificationSettings = NotificationSettingsService();
+    final mode = NotificationPerformanceMode.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => NotificationPerformanceMode.performance,
+    );
+    await notificationSettings.setPerformanceMode(mode);
+    setState(() => _performanceMode = value);
+  }
+
   String _getNotificationColorSchemeName(String scheme) {
     switch (scheme) {
       case 'defaultScheme':
@@ -312,7 +325,20 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         return '未知';
     }
   }
-  
+
+  String _getPerformanceModeName(String mode) {
+    switch (mode) {
+      case 'quality':
+        return '高质量（完整毛玻璃效果）';
+      case 'balanced':
+        return '平衡（轻度毛玻璃）';
+      case 'performance':
+        return '性能优先（无毛玻璃，推荐）';
+      default:
+        return '未知';
+    }
+  }
+
   void _showTestNotification() {
     final notificationManager = NotificationManager.of(context);
     if (notificationManager != null) {
@@ -673,6 +699,9 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 追踪重建
+    PerformanceMonitorService().trackRebuild('AppearanceSettingsPage');
+
     final windowEffect = context.watch<WindowEffectService>();
     final alpha = windowEffect.alpha;
     final clientConfig = context.watch<ClientConfigService>();
@@ -940,34 +969,103 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
           children: [
             _buildSettingItem(
               context,
-              title: '亚克力透明度',
-              subtitle: '调整窗口背景的透明度 (0-255，值越小越透明)',
-              trailing: SizedBox(
-                width: 250,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Slider(
-                        value: alpha.toDouble(),
-                        min: 0,
-                        max: 255,
-                        divisions: 255,
-                        label: alpha.toString(),
-                        onChanged: (v) async {
-                          await windowEffect.setAlpha(v.toInt());
-                        },
-                      ),
+              title: '启用窗口特效',
+              subtitle: windowEffect.effectEnabled
+                  ? '已启用亚克力/模糊效果（可能影响性能）'
+                  : '已禁用窗口特效（性能优先）',
+              trailing: ToggleSwitch(
+                checked: windowEffect.effectEnabled,
+                onChanged: (value) async {
+                  await windowEffect.setEffectEnabled(value);
+                  if (mounted) {
+                    NotificationManager.of(context)?.showSuccess(
+                      value ? '窗口特效已启用' : '窗口特效已禁用',
+                      message: value
+                          ? '亚克力效果已开启，可能会影响性能'
+                          : '已切换到纯色背景，性能更佳',
+                    );
+                  }
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            Opacity(
+              opacity: windowEffect.effectEnabled ? 1.0 : 0.5,
+              child: IgnorePointer(
+                ignoring: !windowEffect.effectEnabled,
+                child: _buildSettingItem(
+                  context,
+                  title: '亚克力透明度',
+                  subtitle: '调整窗口背景的透明度 (0-255，值越小越透明)',
+                  trailing: SizedBox(
+                    width: 250,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Slider(
+                            value: alpha.toDouble(),
+                            min: 0,
+                            max: 255,
+                            divisions: 255,
+                            label: alpha.toString(),
+                            onChanged: (v) async {
+                              await windowEffect.setAlpha(v.toInt());
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: 40,
+                          child: Text(
+                            '$alpha',
+                            style: FluentTheme.of(context).typography.bodyStrong,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    SizedBox(
-                      width: 40,
-                      child: Text(
-                        '$alpha',
-                        style: FluentTheme.of(context).typography.bodyStrong,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: windowEffect.effectEnabled
+                    ? Colors.orange.withValues(alpha: 0.1)
+                    : AppTheme.statusSuccess.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: windowEffect.effectEnabled
+                      ? Colors.orange.withValues(alpha: 0.3)
+                      : AppTheme.statusSuccess.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    windowEffect.effectEnabled
+                        ? CustomIcons.FluentIcons.warning
+                        : CustomIcons.FluentIcons.completed_solid,
+                    size: 16,
+                    color: windowEffect.effectEnabled
+                        ? Colors.orange
+                        : AppTheme.statusSuccess,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      windowEffect.effectEnabled
+                          ? '亚克力效果会消耗额外的GPU资源，如果感觉卡顿可以关闭此选项'
+                          : '窗口特效已关闭，应用将使用纯色背景以获得最佳性能',
+                      style: FluentTheme.of(context).typography.caption?.copyWith(
+                        color: windowEffect.effectEnabled
+                            ? Colors.orange
+                            : AppTheme.statusSuccess,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -1059,6 +1157,52 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 onChanged: (value) {
                   if (value != null) _saveNotificationPosition(value);
                 },
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildSettingItem(
+              context,
+              title: '渲染性能模式',
+              subtitle: _getPerformanceModeName(_performanceMode),
+              trailing: ComboBox<String>(
+                value: _performanceMode,
+                items: const [
+                  ComboBoxItem(value: 'performance', child: Text('性能优先')),
+                  ComboBoxItem(value: 'balanced', child: Text('平衡')),
+                  ComboBoxItem(value: 'quality', child: Text('高质量')),
+                ],
+                onChanged: (value) {
+                  if (value != null) _savePerformanceMode(value);
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: FluentTheme.of(context).accentColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: FluentTheme.of(context).accentColor.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    CustomIcons.FluentIcons.info,
+                    size: 16,
+                    color: FluentTheme.of(context).accentColor,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '毛玻璃效果会影响动画流畅度。如果感觉卡顿，建议选择"性能优先"模式',
+                      style: FluentTheme.of(context).typography.caption?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 12),

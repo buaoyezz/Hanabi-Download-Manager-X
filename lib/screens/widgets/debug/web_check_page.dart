@@ -5,6 +5,7 @@ import '../../../services/kernel/kernel_manager.dart';
 import '../../../services/client_config_service.dart';
 import '../../../theme/app_theme.dart';
 
+import '../../../widgets/animated_notifications.dart';
 class WebCheckPage extends StatefulWidget {
   const WebCheckPage({super.key});
 
@@ -123,14 +124,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
   }
 
   void _showError(String message) {
-    displayInfoBar(
-      context,
-      builder: (context, close) => InfoBar(
-        title: const Text('错误'),
-        content: Text(message),
-        severity: InfoBarSeverity.error,
-      ),
-    );
+    NotificationManager.of(context)?.showError(message);
   }
 
   @override

@@ -1,13 +1,13 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import '../../services/developer_mode_service.dart';
-import '../../services/notification_settings_service.dart';
+import '../../services/popup_window_service.dart';
+import '../../services/app_logger_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/fluent_icons.dart' as CustomIcons;
-import '../../widgets/settings_components.dart';
 import '../../widgets/animated_notifications.dart';
-import 'dart:ui';
 
+/// 开发者设置页面 - Fluent 2 简约设计
 class DeveloperSettingsPage extends StatefulWidget {
   const DeveloperSettingsPage({super.key});
 
@@ -15,693 +15,537 @@ class DeveloperSettingsPage extends StatefulWidget {
   State<DeveloperSettingsPage> createState() => _DeveloperSettingsPageState();
 }
 
-class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
+class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
+    with SingleTickerProviderStateMixin {
   late DeveloperModeService _devMode;
   final TextEditingController _customTitleController = TextEditingController();
   final TextEditingController _customMessageController = TextEditingController();
-  
+  late AnimationController _animController;
+
+  bool _testingPopupWindow = false;
+  Map<String, dynamic>? _popupWindowTestResult;
+
   @override
   void initState() {
     super.initState();
     _devMode = Provider.of<DeveloperModeService>(context, listen: false);
     _devMode.addListener(_onDevModeChanged);
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    )..forward();
   }
-  
+
   @override
   void dispose() {
     _customTitleController.dispose();
     _customMessageController.dispose();
     _devMode.removeListener(_onDevModeChanged);
+    _animController.dispose();
     super.dispose();
   }
-  
+
   void _onDevModeChanged() {
-    if (mounted) {
-      setState(() {});
-    }
+    if (mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 开发者模式总开关
-        _buildSection(
-          context,
-          title: '开发者模式',
-          icon: CustomIcons.FluentIcons.developer_tools,
-          children: [
-            _buildSettingItem(
-              context,
-              title: '启用开发者模式',
-              subtitle: '开启后可使用调试和诊断功能',
-              trailing: ToggleSwitch(
-                checked: _devMode.developerMode,
-                onChanged: (value) => _devMode.setDeveloperMode(value),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.statusWarning.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                border: Border.all(
-                  color: AppTheme.statusWarning.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    CustomIcons.FluentIcons.warning,
-                    size: 16,
-                    color: AppTheme.statusWarning,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      '开发者模式包含高级功能，可能影响应用稳定性。关闭后将自动隐藏所有调试页面。',
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: AppTheme.statusWarning,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        
-        // 只有开启开发者模式才显示下面的选项
-        if (_devMode.developerMode) ...[
-          const SizedBox(height: 24),
-          
-          // 调试页面设置
-          _buildSection(
-            context,
-            title: '调试页面',
-            icon: CustomIcons.FluentIcons.page,
-            subtitle: '选择要在侧边栏显示的调试页面',
-            children: [
-              _buildDebugPageCard(
-                context,
-                icon: CustomIcons.FluentIcons.text_document,
-                title: '日志查看器',
-                description: '实时查看应用运行日志，包括调试、信息、警告和错误信息',
-                features: [
-                  '实时日志流',
-                  '日志级别筛选',
-                  '搜索和过滤',
-                  '导出日志文件',
-                ],
-                isEnabled: _devMode.showLogPage,
-                onChanged: (value) => _devMode.setShowLogPage(value),
-              ),
-              const SizedBox(height: 12),
-              
-              _buildDebugPageCard(
-                context,
-                icon: CustomIcons.FluentIcons.health,
-                title: '系统状态监控',
-                description: '监控下载内核、浏览器扩展和系统资源的运行状态',
-                features: [
-                  '内核状态检测',
-                  '扩展连接状态',
-                  '系统资源监控',
-                  '性能指标统计',
-                ],
-                isEnabled: _devMode.showStatusPage,
-                onChanged: (value) => _devMode.setShowStatusPage(value),
-              ),
-              const SizedBox(height: 12),
-              
-              _buildDebugPageCard(
-                context,
-                icon: CustomIcons.FluentIcons.people,
-                title: '在线统计',
-                description: '查看全球用户在线统计数据和设备分布情况',
-                features: [
-                  '实时在线用户数',
-                  '设备类型分布',
-                  '版本使用统计',
-                  '地理位置分布',
-                ],
-                isEnabled: _devMode.showOnlineStatsPage,
-                onChanged: (value) => _devMode.setShowOnlineStatsPage(value),
-              ),
-              const SizedBox(height: 12),
-              
-              _buildDebugPageCard(
-                context,
-                icon: CustomIcons.FluentIcons.globe,
-                title: 'Web 检测工具',
-                description: '检测网站可访问性和连接状态，诊断网络问题',
-                features: [
-                  'HTTP 状态检测',
-                  '响应时间测试',
-                  'DNS 解析检查',
-                  'SSL 证书验证',
-                ],
-                isEnabled: _devMode.showWebCheckPage,
-                onChanged: (value) => _devMode.setShowWebCheckPage(value),
-              ),
-            ],
+    return AnimatedBuilder(
+      animation: _animController,
+      builder: (context, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(
+            parent: _animController,
+            curve: Curves.easeOut,
           ),
-          
-          const SizedBox(height: 24),
-          
-          // 通知系统测试
-          _buildSection(
-            context,
-            title: '通知系统测试',
-            icon: CustomIcons.FluentIcons.ringer,
-            subtitle: '测试各种通知类型和自定义通知',
-            children: [
-              _buildTestButtonsGrid(context),
-            ],
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.01),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(
+              parent: _animController,
+              curve: Curves.easeOutCubic,
+            )),
+            child: _buildContent(),
           ),
-          
-          const SizedBox(height: 24),
-          
-          // 性能提示
-          _buildSection(
-            context,
-            title: '性能提示',
-            icon: CustomIcons.FluentIcons.speed_high,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppTheme.accentPrimary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                  border: Border.all(
-                    color: AppTheme.accentPrimary.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          CustomIcons.FluentIcons.lightbulb,
-                          size: 18,
-                          color: AppTheme.accentLight,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '优化建议',
-                          style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                            color: AppTheme.accentLight,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    _buildTipItem(
-                      context,
-                      '调试页面会占用额外的系统资源和内存',
-                    ),
-                    const SizedBox(height: 8),
-                    _buildTipItem(
-                      context,
-                      '日志查看器会持续记录日志，建议仅在需要时启用',
-                    ),
-                    const SizedBox(height: 8),
-                    _buildTipItem(
-                      context,
-                      '在线统计页面会定期请求服务器数据',
-                    ),
-                    const SizedBox(height: 8),
-                    _buildTipItem(
-                      context,
-                      '不使用时建议关闭调试页面以获得最佳性能',
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ],
+        );
+      },
     );
   }
 
-  Widget _buildSection(
-    BuildContext context, {
-    required String title,
-    required IconData icon,
-    String? subtitle,
-    required List<Widget> children,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
+  Widget _buildContent() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(icon, size: 18, color: AppTheme.accentLight),
-              const SizedBox(width: 10),
-              Text(
-                title,
-                style: FluentTheme.of(context).typography.subtitle?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 4),
-            Padding(
-              padding: const EdgeInsets.only(left: 28),
-              child: Text(
-                subtitle,
-                style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-            ),
+          // 开发者模式开关
+          _buildMasterSwitch(),
+
+          // 开启后显示调试工具
+          if (_devMode.developerMode) ...[
+            const SizedBox(height: 32),
+            _buildSectionTitle('调试工具'),
+            const SizedBox(height: 12),
+            _buildDebugToolsGrid(),
+            const SizedBox(height: 32),
+            _buildSectionTitle('测试工具'),
+            const SizedBox(height: 12),
+            _buildTestToolsRow(),
           ],
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppTheme.surfaceCard.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-              border: Border.all(
-                color: AppTheme.borderSubtle.withValues(alpha: 0.5),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: children,
-            ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildSettingItem(
-    BuildContext context, {
-    required String title,
-    required String subtitle,
-    required Widget trailing,
-  }) {
-    return SettingsItem(
-      title: title,
-      subtitle: subtitle,
-      trailing: trailing,
+  /// 区块标题
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
+        color: AppTheme.textSecondary,
+        fontSize: 13,
+        letterSpacing: 0.5,
+      ),
     );
   }
 
-  Widget _buildDebugPageCard(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String description,
-    required List<String> features,
-    required bool isEnabled,
-    required ValueChanged<bool> onChanged,
-  }) {
+  /// 开发者模式主开关
+  Widget _buildMasterSwitch() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isEnabled
-            ? AppTheme.accentPrimary.withValues(alpha: 0.08)
-            : AppTheme.bgLayer2.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(
-          color: isEnabled
-              ? AppTheme.accentPrimary.withValues(alpha: 0.4)
-              : AppTheme.borderSubtle.withValues(alpha: 0.3),
-          width: 1.5,
-        ),
+        color: AppTheme.surfaceCard,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.borderSubtle),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: isEnabled
-                      ? AppTheme.accentPrimary.withValues(alpha: 0.2)
-                      : AppTheme.bgLayer3.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  icon,
-                  size: 20,
-                  color: isEnabled ? AppTheme.accentLight : AppTheme.textSecondary,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                        color: isEnabled ? AppTheme.accentLight : AppTheme.textPrimary,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      description,
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: AppTheme.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              ToggleSwitch(
-                checked: isEnabled,
-                onChanged: onChanged,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
+          // 图标
           Container(
-            padding: const EdgeInsets.all(10),
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: AppTheme.bgLayer1.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(6),
+              color: _devMode.developerMode
+                  ? AppTheme.accentPrimary.withValues(alpha: 0.1)
+                  : AppTheme.bgLayer2,
+              borderRadius: BorderRadius.circular(8),
             ),
+            child: Icon(
+              CustomIcons.FluentIcons.developer_tools,
+              size: 20,
+              color: _devMode.developerMode
+                  ? AppTheme.accentPrimary
+                  : AppTheme.textTertiary,
+            ),
+          ),
+          const SizedBox(width: 16),
+
+          // 文字
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '功能特性:',
-                  style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: AppTheme.textSecondary,
+                  '开发者模式',
+                  style: FluentTheme.of(context).typography.body?.copyWith(
                     fontWeight: FontWeight.w600,
-                    fontSize: 11,
+                    color: AppTheme.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 6),
-                ...features.map((feature) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 4,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: isEnabled
-                              ? AppTheme.accentLight
-                              : AppTheme.textTertiary,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        feature,
-                        style: FluentTheme.of(context).typography.caption?.copyWith(
-                          color: AppTheme.textTertiary,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
+                const SizedBox(height: 2),
+                Text(
+                  _devMode.developerMode ? '已启用调试功能' : '开启后可使用调试工具',
+                  style: FluentTheme.of(context).typography.caption?.copyWith(
+                    color: AppTheme.textSecondary,
                   ),
-                )),
+                ),
               ],
             ),
           ),
+
+          // 开关
+          ToggleSwitch(
+            checked: _devMode.developerMode,
+            onChanged: (value) => _devMode.setDeveloperMode(value),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildTipItem(BuildContext context, String text) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          margin: const EdgeInsets.only(top: 4),
-          width: 4,
-          height: 4,
-          decoration: BoxDecoration(
-            color: AppTheme.accentLight,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTestButtonsGrid(BuildContext context) {
+  /// 调试工具网格
+  Widget _buildDebugToolsGrid() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 自定义通知输入
-        Text(
-          '自定义通知',
-          style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-            color: AppTheme.textPrimary,
-            fontSize: 13,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppTheme.bgLayer2.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-            border: Border.all(
-              color: AppTheme.borderSubtle.withValues(alpha: 0.3),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextBox(
-                controller: _customTitleController,
-                placeholder: '通知标题',
-                style: FluentTheme.of(context).typography.body?.copyWith(
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextBox(
-                controller: _customMessageController,
-                placeholder: '通知内容（可选）',
-                maxLines: 2,
-                style: FluentTheme.of(context).typography.body?.copyWith(
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  _buildQuickTestButton(
-                    context,
-                    label: '成功',
-                    icon: CustomIcons.FluentIcons.completed_solid,
-                    color: AppTheme.statusSuccess,
-                    type: NotificationType.success,
-                  ),
-                  _buildQuickTestButton(
-                    context,
-                    label: '警告',
-                    icon: CustomIcons.FluentIcons.warning,
-                    color: AppTheme.statusWarning,
-                    type: NotificationType.warning,
-                  ),
-                  _buildQuickTestButton(
-                    context,
-                    label: '错误',
-                    icon: CustomIcons.FluentIcons.status_error_full,
-                    color: AppTheme.statusError,
-                    type: NotificationType.error,
-                  ),
-                  _buildQuickTestButton(
-                    context,
-                    label: '信息',
-                    icon: CustomIcons.FluentIcons.info,
-                    color: AppTheme.accentLight,
-                    type: NotificationType.info,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        
-        const SizedBox(height: 16),
-        
-        // 预设通知示例
-        Text(
-          '预设示例',
-          style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-            color: AppTheme.textPrimary,
-            fontSize: 13,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
+        Row(
           children: [
-            _buildPresetButton(
-              context,
-              label: '下载完成',
-              icon: CustomIcons.FluentIcons.download,
-              color: const Color(0xFF10B981),
-              title: '下载完成',
-              message: 'video.mp4 已成功下载',
+            Expanded(
+              child: _buildToolCard(
+                icon: CustomIcons.FluentIcons.text_document,
+                title: '日志查看器',
+                subtitle: '查看运行日志',
+                isEnabled: _devMode.showLogPage,
+                onChanged: (v) => _devMode.setShowLogPage(v),
+              ),
             ),
-            _buildPresetButton(
-              context,
-              label: '新消息',
-              icon: CustomIcons.FluentIcons.mail,
-              color: const Color(0xFF8B5CF6),
-              title: '收到新消息',
-              message: '您有 3 条未读消息',
-            ),
-            _buildPresetButton(
-              context,
-              label: '更新',
-              icon: CustomIcons.FluentIcons.system,
-              color: const Color(0xFF3B82F6),
-              title: '系统更新可用',
-              message: '发现新版本 v2.1.0',
-            ),
-            _buildPresetButton(
-              context,
-              label: '网络',
-              icon: CustomIcons.FluentIcons.plug_disconnected,
-              color: const Color(0xFFF59E0B),
-              title: '网络不稳定',
-              message: '检测到网络波动',
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildToolCard(
+                icon: CustomIcons.FluentIcons.health,
+                title: '系统状态',
+                subtitle: '内核与扩展',
+                isEnabled: _devMode.showStatusPage,
+                onChanged: (v) => _devMode.setShowStatusPage(v),
+              ),
             ),
           ],
         ),
-        
         const SizedBox(height: 12),
-        
-        // 提示信息
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: AppTheme.accentPrimary.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: AppTheme.accentPrimary.withValues(alpha: 0.15),
+        Row(
+          children: [
+            Expanded(
+              child: _buildToolCard(
+                icon: CustomIcons.FluentIcons.people,
+                title: '在线统计',
+                subtitle: '用户数据',
+                isEnabled: _devMode.showOnlineStatsPage,
+                onChanged: (v) => _devMode.setShowOnlineStatsPage(v),
+              ),
             ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                CustomIcons.FluentIcons.info,
-                size: 12,
-                color: AppTheme.accentLight,
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildToolCard(
+                icon: CustomIcons.FluentIcons.globe,
+                title: 'Web 检测',
+                subtitle: '网站诊断',
+                isEnabled: _devMode.showWebCheckPage,
+                onChanged: (v) => _devMode.setShowWebCheckPage(v),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '通知会在右上角显示，最多同时显示 4 条。鼠标悬停可暂停自动关闭。',
-                  style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: AppTheme.textSecondary,
-                    fontSize: 11,
-                  ),
-                ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildToolCard(
+                icon: CustomIcons.FluentIcons.speed_high,
+                title: '性能监控',
+                subtitle: '帧率与渲染',
+                isEnabled: _devMode.showPerformanceMonitorPage,
+                onChanged: (v) => _devMode.setShowPerformanceMonitorPage(v),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(child: SizedBox()), // 占位
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildQuickTestButton(
-    BuildContext context, {
-    required String label,
+  /// 工具卡片 - Fluent 2 简约风格
+  Widget _buildToolCard({
     required IconData icon,
-    required Color color,
-    required NotificationType type,
+    required String title,
+    required String subtitle,
+    required bool isEnabled,
+    required ValueChanged<bool> onChanged,
   }) {
-    return Button(
-      onPressed: () {
-        final title = _customTitleController.text.trim();
-        final message = _customMessageController.text.trim();
-        
-        if (title.isEmpty) {
-          // 如果没有输入标题，显示提示
-          final notificationManager = NotificationManager.of(context);
-          notificationManager?.showWarning(
-            '请输入标题',
-            message: '请在上方输入框中输入通知标题',
-          );
-          return;
-        }
-        
-        final notificationManager = NotificationManager.of(context);
-        notificationManager?.showNotification(
-          title: title,
-          message: message.isEmpty ? null : message,
-          type: type,
-        );
-      },
-      style: ButtonStyle(
-        padding: WidgetStateProperty.all(
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    return GestureDetector(
+      onTap: () => onChanged(!isEnabled),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isEnabled
+              ? AppTheme.accentPrimary.withValues(alpha: 0.08)
+              : AppTheme.surfaceCard,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isEnabled
+                ? AppTheme.accentPrimary.withValues(alpha: 0.3)
+                : AppTheme.borderSubtle,
+          ),
         ),
-        backgroundColor: WidgetStateProperty.resolveWith((states) {
-          if (states.isPressed) {
-            return color.withValues(alpha: 0.2);
+        child: Row(
+          children: [
+            // 图标
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: isEnabled
+                    ? AppTheme.accentPrimary.withValues(alpha: 0.15)
+                    : AppTheme.bgLayer2,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                icon,
+                size: 18,
+                color: isEnabled ? AppTheme.accentPrimary : AppTheme.textTertiary,
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // 文字
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: FluentTheme.of(context).typography.body?.copyWith(
+                      fontWeight: FontWeight.w500,
+                      color: isEnabled ? AppTheme.textPrimary : AppTheme.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: FluentTheme.of(context).typography.caption?.copyWith(
+                      color: AppTheme.textTertiary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // 状态点
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isEnabled ? AppTheme.statusSuccess : AppTheme.bgLayer3,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 测试工具行
+  Widget _buildTestToolsRow() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: _buildNotificationTestCard()),
+        const SizedBox(width: 12),
+        Expanded(child: _buildPopupTestCard()),
+      ],
+    );
+  }
+
+  /// 通知测试卡片
+  Widget _buildNotificationTestCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceCard,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.borderSubtle),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题行
+          Row(
+            children: [
+              Icon(
+                CustomIcons.FluentIcons.ringer,
+                size: 16,
+                color: AppTheme.textSecondary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '通知测试',
+                style: FluentTheme.of(context).typography.body?.copyWith(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // 输入框
+          TextBox(
+            controller: _customTitleController,
+            placeholder: '标题',
+            style: const TextStyle(fontSize: 13),
+          ),
+          const SizedBox(height: 8),
+          TextBox(
+            controller: _customMessageController,
+            placeholder: '内容（可选）',
+            style: const TextStyle(fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+
+          // 按钮组
+          Row(
+            children: [
+              _buildTypeButton('成功', AppTheme.statusSuccess, NotificationType.success),
+              const SizedBox(width: 6),
+              _buildTypeButton('警告', AppTheme.statusWarning, NotificationType.warning),
+              const SizedBox(width: 6),
+              _buildTypeButton('错误', AppTheme.statusError, NotificationType.error),
+              const SizedBox(width: 6),
+              _buildTypeButton('信息', AppTheme.accentPrimary, NotificationType.info),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTypeButton(String label, Color color, NotificationType type) {
+    return Expanded(
+      child: Button(
+        onPressed: () {
+          final title = _customTitleController.text.trim();
+          if (title.isEmpty) {
+            NotificationManager.of(context)?.showWarning('请输入标题');
+            return;
           }
-          if (states.isHovered) {
-            return color.withValues(alpha: 0.12);
-          }
-          return color.withValues(alpha: 0.08);
-        }),
-        shape: WidgetStateProperty.all(
-          RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(6),
-            side: BorderSide(
-              color: color.withValues(alpha: 0.25),
-              width: 1,
+          final message = _customMessageController.text.trim();
+          NotificationManager.of(context)?.showNotification(
+            title: title,
+            message: message.isEmpty ? null : message,
+            type: type,
+          );
+        },
+        style: ButtonStyle(
+          padding: WidgetStateProperty.all(
+            const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          ),
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.isHovered) return color.withValues(alpha: 0.12);
+            return Colors.transparent;
+          }),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+              side: BorderSide(color: color.withValues(alpha: 0.4)),
             ),
           ),
         ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 14,
+        child: Text(
+          label,
+          style: TextStyle(
             color: color,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
           ),
-          const SizedBox(width: 6),
+        ),
+      ),
+    );
+  }
+
+  /// 弹窗测试卡片
+  Widget _buildPopupTestCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceCard,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.borderSubtle),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题行
+          Row(
+            children: [
+              Icon(
+                CustomIcons.FluentIcons.side_panel,
+                size: 16,
+                color: AppTheme.textSecondary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '弹窗测试',
+                style: FluentTheme.of(context).typography.body?.copyWith(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // 测试结果
+          if (_popupWindowTestResult != null) ...[
+            _buildTestResult(),
+            const SizedBox(height: 12),
+          ],
+
+          // 按钮
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: _testingPopupWindow ? null : _testPopupWindow,
+                  style: ButtonStyle(
+                    padding: WidgetStateProperty.all(
+                      const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (_testingPopupWindow)
+                        const SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: ProgressRing(strokeWidth: 2),
+                        )
+                      else
+                        const Icon(FluentIcons.open_pane, size: 14),
+                      const SizedBox(width: 6),
+                      Text(
+                        _testingPopupWindow ? '测试中' : '独立弹窗',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Button(
+                  onPressed: _testDialogPopup,
+                  style: ButtonStyle(
+                    padding: WidgetStateProperty.all(
+                      const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(FluentIcons.comment, size: 14),
+                      SizedBox(width: 6),
+                      Text('Dialog', style: TextStyle(fontSize: 12)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // 说明
           Text(
-            label,
-            style: FluentTheme.of(context).typography.body?.copyWith(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+            '独立弹窗使用 Tauri，Dialog 需要主窗口',
+            style: FluentTheme.of(context).typography.caption?.copyWith(
+              color: AppTheme.textTertiary,
+              fontSize: 11,
             ),
           ),
         ],
@@ -709,66 +553,105 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
     );
   }
 
-  Widget _buildPresetButton(
-    BuildContext context, {
-    required String label,
-    required IconData icon,
-    required Color color,
-    required String title,
-    required String message,
-  }) {
-    return Button(
-      onPressed: () {
-        final notificationManager = NotificationManager.of(context);
-        notificationManager?.showCustom(
-          title: title,
-          message: message,
-          icon: icon,
-          color: color,
-        );
-      },
-      style: ButtonStyle(
-        padding: WidgetStateProperty.all(
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        ),
-        backgroundColor: WidgetStateProperty.resolveWith((states) {
-          if (states.isPressed) {
-            return color.withValues(alpha: 0.2);
-          }
-          if (states.isHovered) {
-            return color.withValues(alpha: 0.12);
-          }
-          return color.withValues(alpha: 0.08);
-        }),
-        shape: WidgetStateProperty.all(
-          RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(6),
-            side: BorderSide(
-              color: color.withValues(alpha: 0.25),
-              width: 1,
-            ),
-          ),
-        ),
+  Widget _buildTestResult() {
+    final success = _popupWindowTestResult!['success'] == true;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: success
+            ? AppTheme.statusSuccess.withValues(alpha: 0.08)
+            : AppTheme.statusError.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            icon,
+            success ? FluentIcons.completed : FluentIcons.error_badge,
             size: 14,
-            color: color,
+            color: success ? AppTheme.statusSuccess : AppTheme.statusError,
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
           Text(
-            label,
-            style: FluentTheme.of(context).typography.body?.copyWith(
-              color: color,
+            success ? '成功 · ${_popupWindowTestResult!['time']}ms' : '失败',
+            style: TextStyle(
+              color: success ? AppTheme.statusSuccess : AppTheme.statusError,
               fontSize: 12,
-              fontWeight: FontWeight.w600,
             ),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _testPopupWindow() async {
+    if (_testingPopupWindow) return;
+
+    final appLogger = context.read<AppLoggerService>();
+
+    setState(() {
+      _testingPopupWindow = true;
+      _popupWindowTestResult = null;
+    });
+
+    final stopwatch = Stopwatch()..start();
+    appLogger.info('PopupTest', '开始测试弹窗窗口...');
+
+    try {
+      await PopupWindowService.showPopupDownloadWindow(
+        url: 'https://example.com/test-file.zip',
+        suggestedFilename: 'test-file.zip',
+        isFromBrowser: false,
+      );
+
+      stopwatch.stop();
+      appLogger.info('PopupTest', '弹窗窗口创建成功，耗时: ${stopwatch.elapsedMilliseconds}ms');
+
+      if (!mounted) return;
+      setState(() {
+        _popupWindowTestResult = {
+          'success': true,
+          'time': stopwatch.elapsedMilliseconds,
+        };
+      });
+    } catch (e) {
+      stopwatch.stop();
+      appLogger.error('PopupTest', '弹窗窗口创建失败: $e');
+
+      if (!mounted) return;
+      setState(() {
+        _popupWindowTestResult = {
+          'success': false,
+          'error': e.toString(),
+        };
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _testingPopupWindow = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _testDialogPopup() async {
+    final appLogger = context.read<AppLoggerService>();
+
+    final stopwatch = Stopwatch()..start();
+    appLogger.info('PopupTest', '开始测试 Dialog 弹窗...');
+
+    try {
+      await PopupWindowService.showPopupDownload(
+        context,
+        url: 'https://example.com/test-file.zip',
+        suggestedFilename: 'test-dialog-file.zip',
+        isFromBrowser: false,
+      );
+
+      stopwatch.stop();
+      appLogger.info('PopupTest', 'Dialog 弹窗关闭，总耗时: ${stopwatch.elapsedMilliseconds}ms');
+    } catch (e) {
+      stopwatch.stop();
+      appLogger.error('PopupTest', 'Dialog 弹窗失败: $e');
+    }
   }
 }

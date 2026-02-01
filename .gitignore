@@ -15,6 +15,13 @@ migrate_working_dir/
 *.backup
 *~
 
+# IDE/Editor related
+.claude.json
+结果.txt
+# Fonts html
+.assets/font/*.css
+.assets/font/*.html
+
 # IntelliJ related
 *.iml
 *.ipr

@@ -14,9 +14,12 @@ import '../services/kernel/kernel_manager.dart';
 import '../services/window_effect_service.dart';
 import '../services/client_config_service.dart';
 import '../services/user_profile_service.dart';
+import '../services/update_service.dart';
+import '../services/performance_monitor_service.dart';
 import '../models/download_task.dart';
 import '../theme/app_theme.dart';
 import '../main.dart';
+import '../widgets/animated_notifications.dart';
 import 'widgets/download_list.dart';
 import 'widgets/add_download_dialog.dart';
 import 'widgets/completed_list.dart';
@@ -26,6 +29,7 @@ import 'widgets/debug/log_page.dart';
 import 'widgets/debug/status_page.dart';
 import 'widgets/debug/web_check_page.dart';
 import 'widgets/debug/online_stats_page.dart';
+import 'widgets/performance_monitor_page.dart';
 
 class NavigationItem {
   final IconData icon;
@@ -66,6 +70,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final showStatusPage = context.select<DeveloperModeService, bool>((s) => s.showStatusPage);
     final showWebCheckPage = context.select<DeveloperModeService, bool>((s) => s.showWebCheckPage);
     final showOnlineStatsPage = context.select<DeveloperModeService, bool>((s) => s.showOnlineStatsPage);
+    final showPerformanceMonitorPage = context.select<DeveloperModeService, bool>((s) => s.showPerformanceMonitorPage);
     final statsEnabled = context.select<UserProfileService, bool>((s) => s.statsEnabled);
     
     final items = <NavigationItem>[
@@ -115,6 +120,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         body: const OnlineStatsPage(key: ValueKey('online_stats_page')),
       ));
     }
+
+    // 性能监控页面
+    if (showPerformanceMonitorPage) {
+      bottomItems.add(NavigationItem(
+        icon: CustomIcons.FluentIcons.speed_high,
+        title: '性能监控',
+        body: const PerformanceMonitorPage(key: ValueKey('performance_monitor_page')),
+      ));
+    }
     
     bottomItems.addAll([
       NavigationItem(
@@ -156,7 +170,43 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadSidebarState();
       _startWindowSizeMonitoring();
+      _checkForUpdates();
     });
+  }
+  
+  /// 检查更新并显示通知
+  Future<void> _checkForUpdates() async {
+    try {
+      final updateService = Provider.of<UpdateService>(context, listen: false);
+      
+      // 检查是否应该自动检查更新
+      final shouldCheck = await updateService.shouldAutoCheck();
+      if (!shouldCheck) {
+        AppLoggerService().info('Update', '跳过自动更新检查');
+        return;
+      }
+      
+      // 执行更新检查
+      final hasUpdate = await updateService.checkForUpdates();
+      
+      // 如果有更新，显示通知
+      if (hasUpdate && mounted) {
+        final availableUpdate = updateService.availableUpdate;
+        if (availableUpdate != null) {
+          final currentVersion = updateService.currentVersion;
+          final newVersion = availableUpdate.version;
+          
+          NotificationManager.of(context)?.showInfo(
+            '检测到了船新的版本啦',
+            message: '本次更新为 $currentVersion -> $newVersion\n快去设置页面更新吧！',
+          );
+          
+          AppLoggerService().info('Update', '发现新版本: $newVersion，已显示通知');
+        }
+      }
+    } catch (e) {
+      AppLoggerService().error('Update', '检查更新失败: $e');
+    }
   }
   
   void _loadSidebarState() {
@@ -260,12 +310,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    // 追踪重建
+    PerformanceMonitorService().trackRebuild('HomeScreen');
+
     final navItems = _getNavItems(context);
-    final kernelService = context.watch<KernelService>();
-    final kernelManager = context.watch<KernelManager>();
-    final windowEffect = context.watch<WindowEffectService>();
-    final isTransparent = windowEffect.isTransparentBackground || 
-                          windowEffect.effectMode.startsWith('mica');
+    // 优化：使用 select 只监听需要的字段，避免不必要的重建
+    final kernelIsRunning = context.select<KernelService, bool>((s) => s.isRunning);
+    final kernelManagerIsRunning = context.select<KernelManager, bool>((s) => s.isRunning);
+    final isTransparent = context.select<WindowEffectService, bool>(
+      (s) => s.isTransparentBackground || s.effectMode.startsWith('mica')
+    );
     
     // 根据窗口效果调整背景透明度
     final sidebarOpacity = isTransparent ? 0.2 : 0.65;
@@ -310,29 +364,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(8),
                       ),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: AppTheme.bgBase.withValues(alpha: isTransparent ? 0.75 : 0.95),
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(8),
-                            ),
-                            border: Border(
-                              left: BorderSide(
-                                color: AppTheme.borderSubtle.withValues(alpha: 0.3),
-                                width: 1,
-                              ),
-                              top: BorderSide(
-                                color: AppTheme.borderSubtle.withValues(alpha: 0.3),
-                                width: 1,
-                              ),
-                            ),
-                          ),
-                          clipBehavior: Clip.antiAlias,
-                          child: _buildPageContent(kernelService, kernelManager, navItems),
-                        ),
-                      ),
+                      child: _buildContentArea(context, isTransparent, kernelIsRunning, kernelManagerIsRunning, navItems),
                     ),
                   ),
                 ],
@@ -344,105 +376,156 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  /// 统一的顶部标题栏 - 横跨整个窗口
-  Widget _buildUnifiedTitleBar(BuildContext context, double opacity) {
-    return ClipRRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-        child: Container(
-          height: 48,
-          decoration: BoxDecoration(
-            color: AppTheme.bgSolid.withValues(alpha: opacity),
+  /// 内容区域 - 根据窗口效果设置决定是否使用模糊
+  Widget _buildContentArea(BuildContext context, bool isTransparent, bool kernelIsRunning, bool kernelManagerIsRunning, List<NavigationItem> navItems) {
+    final effectEnabled = context.select<WindowEffectService, bool>((s) => s.effectEnabled);
+    final useBlur = effectEnabled && isTransparent;
+
+    final contentContainer = Container(
+      decoration: BoxDecoration(
+        color: AppTheme.bgBase.withValues(alpha: useBlur ? 0.75 : 0.95),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(8),
+        ),
+        border: Border(
+          left: BorderSide(
+            color: AppTheme.borderSubtle.withValues(alpha: 0.3),
+            width: 1,
           ),
-          child: Row(
-            children: [
-              // 左侧：汉堡菜单（固定52px，与收缩后的侧边栏对齐）
-              SizedBox(
-                width: 52,
-                child: Center(
-                  child: SizedBox(
-                    width: 28,
-                    height: 28,
-                    child: Button(
-                      onPressed: _toggleSidebar,
-                      style: ButtonStyle(
-                        padding: WidgetStateProperty.all(EdgeInsets.zero),
-                        backgroundColor: WidgetStateProperty.resolveWith((states) {
-                          if (states.isHovered) {
-                            return AppTheme.bgLayer2.withValues(alpha: 0.5);
-                          }
-                          return Colors.transparent;
-                        }),
-                        shape: WidgetStateProperty.all(
-                          RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(6),
-                            side: BorderSide.none,
-                          ),
-                        ),
-                      ),
-                      child: Icon(CustomIcons.FluentIcons.global_nav_button,
-                        size: 14,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              // 中间：Logo + 标题 + 可拖动区域
-              Expanded(
-                child: MoveWindow(
-                  child: Row(
-                    children: [
-                      const SizedBox(width: 8),
-                      // Logo
-                      Container(
-                        width: 18,
-                        height: 18,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(4),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.accentPrimary.withValues(alpha: 0.2),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: Image.asset(
-                            'assets/logo/logo.png',
-                            width: 18,
-                            height: 18,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // 标题
-                      Text(
-                        'Hanabi Download Manager X',
-                        style: FluentTheme.of(context).typography.caption?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                          letterSpacing: 0.3,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
-                      // 剩余空间也可拖动
-                      const Expanded(child: SizedBox()),
-                    ],
-                  ),
-                ),
-              ),
-              // 右侧：操作按钮
-              _buildTitleBarActions(context),
-            ],
+          top: BorderSide(
+            color: AppTheme.borderSubtle.withValues(alpha: 0.3),
+            width: 1,
           ),
         ),
       ),
+      clipBehavior: Clip.antiAlias,
+      child: _buildPageContent(kernelIsRunning, kernelManagerIsRunning, navItems),
     );
+
+    // 只有在启用窗口效果时才使用 BackdropFilter，并用 RepaintBoundary 隔离
+    if (useBlur) {
+      return RepaintBoundary(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+          child: contentContainer,
+        ),
+      );
+    }
+
+    return contentContainer;
+  }
+
+  /// 统一的顶部标题栏 - 横跨整个窗口
+  Widget _buildUnifiedTitleBar(BuildContext context, double opacity) {
+    final windowEffect = context.watch<WindowEffectService>();
+    final useBlur = windowEffect.effectEnabled;
+
+    final titleBarContent = Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: AppTheme.bgSolid.withValues(alpha: useBlur ? opacity : 1.0),
+      ),
+      child: Row(
+        children: [
+          // 左侧：汉堡菜单（固定52px，与收缩后的侧边栏对齐）
+          SizedBox(
+            width: 52,
+            child: Center(
+              child: SizedBox(
+                width: 28,
+                height: 28,
+                child: Button(
+                  onPressed: _toggleSidebar,
+                  style: ButtonStyle(
+                    padding: WidgetStateProperty.all(EdgeInsets.zero),
+                    backgroundColor: WidgetStateProperty.resolveWith((states) {
+                      if (states.isHovered) {
+                        return AppTheme.bgLayer2.withValues(alpha: 0.5);
+                      }
+                      return Colors.transparent;
+                    }),
+                    shape: WidgetStateProperty.all(
+                      RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        side: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  child: Icon(CustomIcons.FluentIcons.global_nav_button,
+                    size: 14,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // 中间：Logo + 标题 + 可拖动区域
+          Expanded(
+            child: MoveWindow(
+              child: Row(
+                children: [
+                  const SizedBox(width: 8),
+                  // Logo
+                  Container(
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(4),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.accentPrimary.withValues(alpha: 0.2),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: Image.asset(
+                        'assets/logo/logo.png',
+                        width: 18,
+                        height: 18,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // 标题
+                  Text(
+                    'Hanabi Download Manager X',
+                    style: FluentTheme.of(context).typography.caption?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      letterSpacing: 0.3,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                  // 剩余空间也可拖动
+                  const Expanded(child: SizedBox()),
+                ],
+              ),
+            ),
+          ),
+          // 右侧：操作按钮
+          _buildTitleBarActions(context),
+        ],
+      ),
+    );
+
+    // 只有在启用窗口效果时才使用 BackdropFilter，并用 RepaintBoundary 隔离
+    if (useBlur) {
+      return RepaintBoundary(
+        child: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: titleBarContent,
+          ),
+        ),
+      );
+    }
+
+    return titleBarContent;
   }
 
   /// 标题栏右侧操作按钮
@@ -477,16 +560,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildPageContent(KernelService kernelService, KernelManager kernelManager, List<NavigationItem> navItems) {
+  Widget _buildPageContent(bool kernelIsRunning, bool kernelManagerIsRunning, List<NavigationItem> navItems) {
     // 检查新内核或旧内核是否在运行
-    final isKernelRunning = kernelManager.isRunning || kernelService.isRunning;
-    
-    // 如果内核正在运行，或者当前页面是调试页面（日志、状态、Web检测、在线统计），直接显示页面
+    final isKernelRunning = kernelManagerIsRunning || kernelIsRunning;
+
+    // 如果内核正在运行，或者当前页面是调试页面（日志、状态、Web检测、在线统计、性能监控），直接显示页面
     final currentPageTitle = navItems[_currentIndex].title;
-    final isDebugPage = currentPageTitle == '日志' || 
-                        currentPageTitle == '状态' || 
+    final isDebugPage = currentPageTitle == '日志' ||
+                        currentPageTitle == '状态' ||
                         currentPageTitle == 'Web检测' ||
                         currentPageTitle == '在线统计' ||
+                        currentPageTitle == '性能监控' ||
                         currentPageTitle == '设置' ||
                         currentPageTitle == '关于';
     
@@ -693,61 +777,70 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   /// Edge 风格侧边栏 - 只包含导航项（优化版，减少重建）
   Widget _buildEdgeSidebar(BuildContext context, List<NavigationItem> navItems, double opacity) {
+    final effectEnabled = context.select<WindowEffectService, bool>((s) => s.effectEnabled);
+    final useBlur = effectEnabled;
+
     return AnimatedBuilder(
       animation: _widthAnimation,
       builder: (context, child) {
         final width = _widthAnimation.value;
         final isCompact = width < 100;
-        
+
+        final sidebarContent = Container(
+          decoration: BoxDecoration(
+            color: AppTheme.bgSolid.withValues(alpha: useBlur ? opacity : 1.0),
+            border: const Border(
+              right: BorderSide(
+                color: AppTheme.borderSubtle,
+                width: 0.5,
+              ),
+            ),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 8),
+
+              // 主导航项
+              ...navItems.asMap().entries
+                  .where((entry) => !['日志', '状态', 'Web检测', '在线统计', '性能监控', '设置', '关于'].contains(entry.value.title))
+                  .map((entry) => _buildNavItemWidget(context, entry.key, entry.value, isCompact)),
+
+              const Spacer(),
+
+              // 分隔线
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 16, vertical: 8),
+                child: Container(
+                  height: 1,
+                  color: AppTheme.borderSubtle.withValues(alpha: 0.3),
+                ),
+              ),
+
+              // 底部导航项
+              ..._buildBottomNavItems(context, navItems, isCompact),
+
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+
         return Stack(
           children: [
-            // 主侧边栏 - 使用 Transform 而不是改变 width，避免布局重建
+            // 主侧边栏 - 使用 RepaintBoundary 隔离模糊效果
             ClipRect(
               child: Align(
                 alignment: Alignment.centerLeft,
                 widthFactor: 1.0,
                 child: SizedBox(
                   width: width,
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: AppTheme.bgSolid.withValues(alpha: opacity),
-                        border: const Border(
-                          right: BorderSide(
-                            color: AppTheme.borderSubtle,
-                            width: 0.5,
+                  child: useBlur
+                      ? RepaintBoundary(
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                            child: sidebarContent,
                           ),
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          const SizedBox(height: 8),
-                          
-                          // 主导航项
-                          ...navItems.asMap().entries
-                              .where((entry) => !['日志', '状态', 'Web检测', '在线统计', '设置', '关于'].contains(entry.value.title))
-                              .map((entry) => _buildNavItemWidget(context, entry.key, entry.value, isCompact)),
-                          
-                          const Spacer(),
-                          
-                          // 分隔线
-                          Padding(
-                            padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 16, vertical: 8),
-                            child: Container(
-                              height: 1,
-                              color: AppTheme.borderSubtle.withValues(alpha: 0.3),
-                            ),
-                          ),
-                          
-                          // 底部导航项
-                          ..._buildBottomNavItems(context, navItems, isCompact),
-                          
-                          const SizedBox(height: 8),
-                        ],
-                      ),
-                    ),
-                  ),
+                        )
+                      : sidebarContent,
                 ),
               ),
             ),
@@ -759,7 +852,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 width: 8,
                 height: 8,
                 decoration: BoxDecoration(
-                  color: AppTheme.bgSolid.withValues(alpha: opacity),
+                  color: AppTheme.bgSolid.withValues(alpha: useBlur ? opacity : 1.0),
                   borderRadius: const BorderRadius.only(
                     bottomLeft: Radius.circular(8),
                   ),
@@ -790,7 +883,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   /// 构建底部导航项
   List<Widget> _buildBottomNavItems(BuildContext context, List<NavigationItem> navItems, bool isCompact) {
     final bottomItems = navItems.asMap().entries
-        .where((entry) => ['日志', '状态', 'Web检测', '在线统计', '设置', '关于'].contains(entry.value.title))
+        .where((entry) => ['日志', '状态', 'Web检测', '在线统计', '性能监控', '设置', '关于'].contains(entry.value.title))
         .toList();
     
     return bottomItems.map((entry) {

@@ -16,6 +16,13 @@ enum NotificationColorScheme {
   custom, // 自定义
 }
 
+/// 通知性能模式
+enum NotificationPerformanceMode {
+  quality,      // 高质量（完整模糊效果）
+  balanced,     // 平衡（降低模糊强度）
+  performance,  // 性能优先（无模糊效果）
+}
+
 /// Fluent 2 配色
 class Fluent2Colors {
   // 主色调
@@ -45,6 +52,7 @@ class NotificationSettingsService {
   static const String _keyEnabled = 'notification_enabled';
   static const String _keyColorScheme = 'notification_color_scheme';
   static const String _keyPosition = 'notification_position';
+  static const String _keyPerformanceMode = 'notification_performance_mode';
   static const String _keyCustomPrimary = 'notification_custom_primary';
   static const String _keyCustomSuccess = 'notification_custom_success';
   static const String _keyCustomWarning = 'notification_custom_warning';
@@ -52,11 +60,12 @@ class NotificationSettingsService {
   static const String _keyCustomInfo = 'notification_custom_info';
 
   SharedPreferences? _prefs;
-  
+
   // 默认值
   bool _enabled = true;
   NotificationColorScheme _colorScheme = NotificationColorScheme.fluent2;
   NotificationPosition _position = NotificationPosition.topRight;
+  NotificationPerformanceMode _performanceMode = NotificationPerformanceMode.performance;  // 默认性能优先
   
   // 自定义颜色
   Color _customPrimary = Fluent2Colors.primary;
@@ -69,11 +78,27 @@ class NotificationSettingsService {
   bool get enabled => _enabled;
   NotificationColorScheme get colorScheme => _colorScheme;
   NotificationPosition get position => _position;
+  NotificationPerformanceMode get performanceMode => _performanceMode;
   Color get customPrimary => _customPrimary;
   Color get customSuccess => _customSuccess;
   Color get customWarning => _customWarning;
   Color get customError => _customError;
   Color get customInfo => _customInfo;
+
+  /// 获取模糊强度（根据性能模式）
+  double get blurSigma {
+    switch (_performanceMode) {
+      case NotificationPerformanceMode.quality:
+        return 20.0;
+      case NotificationPerformanceMode.balanced:
+        return 8.0;
+      case NotificationPerformanceMode.performance:
+        return 0.0;
+    }
+  }
+
+  /// 是否启用模糊效果
+  bool get enableBlur => _performanceMode != NotificationPerformanceMode.performance;
 
   /// 初始化
   Future<void> init() async {
@@ -84,13 +109,16 @@ class NotificationSettingsService {
   /// 加载设置
   Future<void> _loadSettings() async {
     _enabled = _prefs?.getBool(_keyEnabled) ?? true;
-    
+
     final colorSchemeIndex = _prefs?.getInt(_keyColorScheme) ?? NotificationColorScheme.fluent2.index;
     _colorScheme = NotificationColorScheme.values[colorSchemeIndex];
-    
+
     final positionIndex = _prefs?.getInt(_keyPosition) ?? NotificationPosition.topRight.index;
     _position = NotificationPosition.values[positionIndex];
-    
+
+    final performanceModeIndex = _prefs?.getInt(_keyPerformanceMode) ?? NotificationPerformanceMode.balanced.index;
+    _performanceMode = NotificationPerformanceMode.values[performanceModeIndex];
+
     // 加载自定义颜色
     _customPrimary = Color(_prefs?.getInt(_keyCustomPrimary) ?? Fluent2Colors.primary.value);
     _customSuccess = Color(_prefs?.getInt(_keyCustomSuccess) ?? Fluent2Colors.success.value);
@@ -115,6 +143,12 @@ class NotificationSettingsService {
   Future<void> setPosition(NotificationPosition pos) async {
     _position = pos;
     await _prefs?.setInt(_keyPosition, pos.index);
+  }
+
+  /// 设置性能模式
+  Future<void> setPerformanceMode(NotificationPerformanceMode mode) async {
+    _performanceMode = mode;
+    await _prefs?.setInt(_keyPerformanceMode, mode.index);
   }
 
   /// 设置自定义颜色

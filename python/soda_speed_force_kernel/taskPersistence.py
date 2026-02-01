@@ -7,7 +7,7 @@ from .utils.logger import logger
 
 
 class TaskPersistence:
-    """任务持久化管理器"""
+    """任务持久化管理器 (Legacy - 仅用于 Soda Kernel)"""
     
     def __init__(self, storage_dir: Optional[str] = None):
         """
@@ -19,15 +19,15 @@ class TaskPersistence:
         if storage_dir:
             self.storage_dir = Path(storage_dir)
         else:
-            # 使用用户目录下的.hdmx文件夹
-            self.storage_dir = Path.home() / '.hdmx'
+            # Legacy Soda Kernel 使用 .hdmx/legacy 目录
+            self.storage_dir = Path.home() / '.hdmx' / 'legacy'
         
         self.storage_dir.mkdir(parents=True, exist_ok=True)
         self.tasks_file = self.storage_dir / 'tasks.json'
         self.segments_file = self.storage_dir / 'segments.json'
         self.config_file = self.storage_dir / 'config.json'
         
-        logger.info(f"任务持久化存储目录: {self.storage_dir}")
+        logger.info(f"[Legacy] 任务持久化存储目录: {self.storage_dir}")
     
     def save_config(self, config: Dict) -> bool:
         """

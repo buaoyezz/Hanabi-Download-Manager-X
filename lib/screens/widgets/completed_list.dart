@@ -4,11 +4,13 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import '../../services/integrated_download_service.dart';
 import '../../services/client_config_service.dart';
+import '../../services/performance_monitor_service.dart';
 import '../../models/download_task.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/file_icon_widget.dart';
 import '../../widgets/animated_card.dart';
 import '../../utils/fluent_icons.dart' as CustomIcons;
+import '../../widgets/animated_notifications.dart';
 
 // 自定义分类
 class CustomCategory {
@@ -155,6 +157,9 @@ class _CompletedListState extends State<CompletedList> {
 
   @override
   Widget build(BuildContext context) {
+    // 追踪重建
+    PerformanceMonitorService().trackRebuild('CompletedList');
+
     return ColoredBox(
       color: Colors.transparent,
       child: Consumer<IntegratedDownloadService>(
@@ -506,13 +511,9 @@ class _CompletedListState extends State<CompletedList> {
               final extensionsText = extensionsController.text.trim();
               
               if (name.isEmpty || extensionsText.isEmpty) {
-                displayInfoBar(
-                  context,
-                  builder: (context, close) => const InfoBar(
-                    title: Text('输入错误'),
-                    content: Text('请填写完整信息'),
-                    severity: InfoBarSeverity.warning,
-                  ),
+                NotificationManager.of(context)?.showWarning(
+                  '输入错误',
+                  message: '请填写完整信息',
                 );
                 return;
               }
@@ -524,13 +525,9 @@ class _CompletedListState extends State<CompletedList> {
                   .toList();
 
               if (extensions.isEmpty) {
-                displayInfoBar(
-                  context,
-                  builder: (context, close) => const InfoBar(
-                    title: Text('输入错误'),
-                    content: Text('请输入有效的扩展名'),
-                    severity: InfoBarSeverity.warning,
-                  ),
+                NotificationManager.of(context)?.showWarning(
+                  '输入错误',
+                  message: '请输入有效的扩展名',
                 );
                 return;
               }
@@ -538,20 +535,17 @@ class _CompletedListState extends State<CompletedList> {
               // 保存自定义分类到配置
               final configService = context.read<ClientConfigService>();
               await configService.addCustomCategory(name, extensions);
-              
+
               // 重新加载分类
               _loadCustomCategories();
-              
+
+              if (!context.mounted) return;
               Navigator.pop(context);
-              
-              displayInfoBar(
-                context,
-                builder: (context, close) => InfoBar(
-                  title: const Text('创建成功'),
-                  content: Text('已创建分类：$name'),
-                  severity: InfoBarSeverity.success,
-                ),
-              );
+
+              NotificationManager.of(context)?.showSuccess(
+                  '创建成功',
+                  message: '已创建分类：$name',
+                );
             },
             child: const Text('创建'),
           ),
@@ -582,7 +576,7 @@ class _CompletedListState extends State<CompletedList> {
               
               // 重新加载分类
               _loadCustomCategories();
-              
+
               // 如果当前选中的是被删除的分类，切换到"所有下载"
               final totalPredefinedTabs = FileCategory.values.length;
               if (_currentTabIndex >= totalPredefinedTabs) {
@@ -591,17 +585,14 @@ class _CompletedListState extends State<CompletedList> {
                   setState(() => _currentTabIndex = 0);
                 }
               }
-              
+
+              if (!context.mounted) return;
               Navigator.pop(context);
-              
-              displayInfoBar(
-                context,
-                builder: (context, close) => InfoBar(
-                  title: const Text('删除成功'),
-                  content: Text('已删除分类：${category.name}'),
-                  severity: InfoBarSeverity.success,
-                ),
-              );
+
+              NotificationManager.of(context)?.showSuccess(
+                  '删除成功',
+                  message: '已删除分类：${category.name}',
+                );
             },
             child: const Text('删除'),
           ),
@@ -1029,14 +1020,9 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
   }
 
   void _showMessage(String message) {
-    displayInfoBar(
-      context,
-      builder: (context, close) => InfoBar(
-        title: const Text('提示'),
-        content: Text(message),
-        severity: InfoBarSeverity.warning,
-        onClose: close,
-      ),
+    NotificationManager.of(context)?.showWarning(
+      '提示',
+      message: message,
     );
   }
 

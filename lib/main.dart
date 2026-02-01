@@ -26,6 +26,8 @@ import 'services/window_effect_service.dart';
 import 'services/online_stats_service.dart';
 import 'services/user_profile_service.dart';
 import 'services/notification_settings_service.dart';
+import 'services/pipe_listener_service.dart';
+import 'services/popup_progress_service.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
 import 'widgets/animated_notifications.dart';
@@ -180,7 +182,9 @@ Future<void> _loadCustomFonts(FontService fontService) async {
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
+  // 以下是主窗口的初始化代码
+
   // 捕获 Flutter 框架错误，防止 Windows 消息队列错误导致崩溃
   FlutterError.onError = (FlutterErrorDetails details) {
     // 忽略 Windows 消息队列相关的错误
@@ -387,6 +391,8 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   DownloadListenerService? _downloadListener;
+  PipeListenerService? _pipeListener;
+  PopupProgressService? _popupProgressService;
 
   @override
   void initState() {
@@ -396,6 +402,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       _initSystemTray();
       _initKernel();  // 异步启动，不阻塞 UI
       _initDownloadListener();
+      _initPipeListener();  // 初始化管道监听
+      _initPopupProgressService();  // 初始化弹窗进度推送服务
     });
   }
 
@@ -496,9 +504,41 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void _initDownloadListener() {
     _downloadListener = DownloadListenerService(context);
     _downloadListener!.startListening();
-    
+
     // 注意：在线统计功能已移至网页端
     // 访问 https://online.zzbuaoye.top 查看统计数据
+  }
+
+  /// 初始化管道监听服务，接收来自 Hanabi Popup 的下载请求
+  void _initPipeListener() {
+    if (!Platform.isWindows) return;
+
+    _pipeListener = PipeListenerService();
+    _pipeListener!.onDownloadRequest = (request) {
+      debugPrint('[Main] Received download request from popup: ${request.url}');
+
+      // 添加下载任务
+      final downloadService = context.read<IntegratedDownloadService>();
+      downloadService.addTask(
+        request.url,
+        request.filename,
+      );
+
+      // 显示通知
+      final appLogger = context.read<AppLoggerService>();
+      appLogger.info('PipeListener', 'Download added from popup: ${request.filename}');
+    };
+
+    _pipeListener!.start();
+    debugPrint('[Main] Pipe listener started');
+  }
+
+  /// 初始化弹窗进度推送服务
+  void _initPopupProgressService() {
+    final downloadService = context.read<IntegratedDownloadService>();
+    _popupProgressService = PopupProgressService(downloadService);
+    _popupProgressService!.start();
+    debugPrint('[Main] Popup progress service started');
   }
 
   Future<void> _cleanup() async {
@@ -539,7 +579,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
 
     _downloadListener?.stopListening();
-    
+
+    // 停止管道监听
+    _pipeListener?.stop();
+
+    // 停止弹窗进度推送服务
+    _popupProgressService?.stop();
+
     // 停止新内核
     try {
       final kernelManager = context.read<KernelManager>();

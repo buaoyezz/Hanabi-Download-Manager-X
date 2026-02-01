@@ -11,15 +11,17 @@ class DeveloperModeService extends ChangeNotifier {
   bool _showStatusPage = false;
   bool _showWebCheckPage = false;
   bool _showOnlineStatsPage = false;
+  bool _showPerformanceMonitorPage = false;
 
   bool get developerMode => _developerMode;
   bool get showLogPage => _showLogPage;
   bool get showStatusPage => _showStatusPage;
   bool get showWebCheckPage => _showWebCheckPage;
   bool get showOnlineStatsPage => _showOnlineStatsPage;
+  bool get showPerformanceMonitorPage => _showPerformanceMonitorPage;
 
   // 是否显示任何调试页面
-  bool get hasAnyDebugPage => _showLogPage || _showStatusPage || _showWebCheckPage || _showOnlineStatsPage;
+  bool get hasAnyDebugPage => _showLogPage || _showStatusPage || _showWebCheckPage || _showOnlineStatsPage || _showPerformanceMonitorPage;
 
   Future<void> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
@@ -28,6 +30,7 @@ class DeveloperModeService extends ChangeNotifier {
     _showStatusPage = prefs.getBool('show_status_page') ?? false;
     _showWebCheckPage = prefs.getBool('show_web_check_page') ?? false;
     _showOnlineStatsPage = prefs.getBool('show_online_stats_page') ?? false;
+    _showPerformanceMonitorPage = prefs.getBool('show_performance_monitor_page') ?? false;
     notifyListeners();
   }
 
@@ -42,10 +45,12 @@ class DeveloperModeService extends ChangeNotifier {
       _showStatusPage = false;
       _showWebCheckPage = false;
       _showOnlineStatsPage = false;
+      _showPerformanceMonitorPage = false;
       await prefs.setBool('show_log_page', false);
       await prefs.setBool('show_status_page', false);
       await prefs.setBool('show_web_check_page', false);
       await prefs.setBool('show_online_stats_page', false);
+      await prefs.setBool('show_performance_monitor_page', false);
     }
     
     notifyListeners();
@@ -80,6 +85,14 @@ class DeveloperModeService extends ChangeNotifier {
     _showOnlineStatsPage = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('show_online_stats_page', value);
+    notifyListeners();
+  }
+
+  Future<void> setShowPerformanceMonitorPage(bool value) async {
+    if (_showPerformanceMonitorPage == value) return; // 避免不必要的更新
+    _showPerformanceMonitorPage = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('show_performance_monitor_page', value);
     notifyListeners();
   }
 }

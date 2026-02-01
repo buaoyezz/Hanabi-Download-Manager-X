@@ -66,7 +66,7 @@ class IntegratedDownloadService extends ChangeNotifier {
 
     try {
       List<Map<String, dynamic>> kernelTasks;
-      
+
       if (_useNewKernel) {
         // 使用新内核
         final tasks = await _kernelManager.getTasks();
@@ -75,15 +75,26 @@ class IntegratedDownloadService extends ChangeNotifier {
         // 使用旧内核
         kernelTasks = await _kernelService.getTasks();
       }
-      
+
+      bool hasChanges = false;
+
       for (var kernelTask in kernelTasks) {
         final existingIndex = _tasks.indexWhere((t) => t.id == kernelTask['id']);
-        
+
         final newTask = _convertKernelTask(kernelTask);
-        
+
         if (existingIndex != -1) {
           final oldTask = _tasks[existingIndex];
-          
+
+          // 检查是否有实际变化
+          final hasTaskChanged = oldTask.status != newTask.status ||
+              (oldTask.progress - newTask.progress).abs() > 0.001 ||
+              oldTask.speed != newTask.speed;
+
+          if (hasTaskChanged) {
+            hasChanges = true;
+          }
+
           // Log status changes (only when status actually changes)
           if (oldTask.status != newTask.status) {
             _appLogger.debug('App', 'Kernel task status: ${kernelTask['id']} -> ${kernelTask['status']}');
@@ -109,20 +120,24 @@ class IntegratedDownloadService extends ChangeNotifier {
                 break;
             }
           }
-          
+
           // Log progress updates for downloading tasks
-          if (newTask.status == DownloadStatus.downloading && 
+          if (newTask.status == DownloadStatus.downloading &&
               oldTask.progress != newTask.progress) {
             _appLogger.debug('App', 'Download progress: ${newTask.fileName} - ${(newTask.progress * 100).toStringAsFixed(1)}% @ ${newTask.formattedSpeed}');
           }
           _tasks[existingIndex] = newTask;
         } else {
           _tasks.add(newTask);
+          hasChanges = true;
           _appLogger.info('App', 'New task added: ${newTask.fileName} (${newTask.status})');
         }
       }
-      
-      _throttledNotify();
+
+      // 只在有变化时才通知 UI
+      if (hasChanges) {
+        _throttledNotify();
+      }
     } catch (e) {
       _appLogger.error('App', 'Failed to update tasks: $e');
     }

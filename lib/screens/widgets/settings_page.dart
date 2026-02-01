@@ -11,6 +11,7 @@ import '../../services/kernel/kernel_manager.dart';
 import '../../services/developer_mode_service.dart';
 import '../../services/client_config_service.dart';
 import '../../services/user_profile_service.dart';
+import '../../services/performance_monitor_service.dart';
 import '../../widgets/folder_picker_dialog.dart';
 import '../../widgets/settings_components.dart';
 import '../../widgets/temp_files_dialog.dart';
@@ -21,6 +22,7 @@ import '../../utils/constants.dart';
 import 'appearance_settings_page.dart';
 import 'developer_settings_page.dart';
 import 'update_page.dart';
+import '../../widgets/animated_notifications.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -155,17 +157,9 @@ class _SettingsPageState extends State<SettingsPage> {
         _enableOnlineStats = value;
       });
       
-      displayInfoBar(
-        context,
-        builder: (context, close) => InfoBar(
-          title: Text(value ? '在线统计已启用' : '在线统计已禁用'),
-          content: Text(value 
+      NotificationManager.of(context)?.showSuccess(value ? '在线统计已启用' : '在线统计已禁用', message: value 
               ? '您的设备将参与在线用户统计，帮助我们了解软件使用情况' 
-              : '您的设备将不再发送统计信息'),
-          severity: InfoBarSeverity.success,
-        ),
-        duration: const Duration(seconds: 3),
-      );
+              : '您的设备将不再发送统计信息');
     }
   }
 
@@ -205,26 +199,11 @@ class _SettingsPageState extends State<SettingsPage> {
               _currentKernelName = kernelManager.kernelName;
             });
             
-            displayInfoBar(
-              context,
-              builder: (context, close) => InfoBar(
-                title: const Text('内核已切换'),
-                content: Text('当前使用: ${kernelManager.kernelName}'),
-                severity: InfoBarSeverity.success,
-              ),
-              duration: const Duration(seconds: 2),
-            );
+            NotificationManager.of(context)?.showSuccess('内核已切换', message: '当前使用: ${kernelManager.kernelName}');
           }
         } else {
           if (mounted) {
-            displayInfoBar(
-              context,
-              builder: (context, close) => const InfoBar(
-                title: Text('切换失败'),
-                content: Text('无法启动新内核，请稍后重试'),
-                severity: InfoBarSeverity.error,
-              ),
-            );
+            NotificationManager.of(context)?.showError('切换失败', message: '无法启动新内核，请稍后重试');
           }
         }
       } else {
@@ -241,26 +220,11 @@ class _SettingsPageState extends State<SettingsPage> {
               _currentKernelName = 'Soda Speed Force (Legacy)';
             });
             
-            displayInfoBar(
-              context,
-              builder: (context, close) => const InfoBar(
-                title: Text('内核已切换'),
-                content: Text('当前使用: Soda Speed Force (Legacy)'),
-                severity: InfoBarSeverity.success,
-              ),
-              duration: const Duration(seconds: 2),
-            );
+            NotificationManager.of(context)?.showSuccess('内核已切换', message: '当前使用: Soda Speed Force (Legacy)');
           }
         } else {
           if (mounted) {
-            displayInfoBar(
-              context,
-              builder: (context, close) => const InfoBar(
-                title: Text('切换失败'),
-                content: Text('无法启动旧内核，请稍后重试'),
-                severity: InfoBarSeverity.error,
-              ),
-            );
+            NotificationManager.of(context)?.showError('切换失败', message: '无法启动旧内核，请稍后重试');
           }
         }
       }
@@ -308,15 +272,7 @@ class _SettingsPageState extends State<SettingsPage> {
       // 路径不正确，自动修复
       final fixed = await _autoStartService.verifyAndFixAutoStart();
       if (fixed && mounted) {
-        displayInfoBar(
-          context,
-          builder: (context, close) => const InfoBar(
-            title: Text('自启动已修复'),
-            content: Text('检测到旧版本的自启动注册，已自动更新为当前版本'),
-            severity: InfoBarSeverity.success,
-          ),
-          duration: const Duration(seconds: 4),
-        );
+        NotificationManager.of(context)?.showSuccess('自启动已修复', message: '检测到旧版本的自启动注册，已自动更新为当前版本');
       }
     }
   }
@@ -336,14 +292,7 @@ class _SettingsPageState extends State<SettingsPage> {
         _openOnStartup = value;
       });
     } else if (mounted) {
-      displayInfoBar(
-        context,
-        builder: (context, close) => InfoBar(
-          title: const Text('设置失败'),
-          content: Text(value ? '无法开启开机自启' : '无法关闭开机自启'),
-          severity: InfoBarSeverity.error,
-        ),
-      );
+      NotificationManager.of(context)?.showError('设置失败', message: value ? '无法开启开机自启' : '无法关闭开机自启');
     }
   }
   
@@ -357,26 +306,11 @@ class _SettingsPageState extends State<SettingsPage> {
           _closeButtonBehavior = behavior;
         });
         
-        displayInfoBar(
-          context,
-          builder: (context, close) => InfoBar(
-            title: const Text('设置已保存'),
-            content: Text('关闭按钮行为已设为${_getCloseButtonBehaviorDescription(behavior)}'),
-            severity: InfoBarSeverity.success,
-          ),
-          duration: const Duration(seconds: 2),
-        );
+        NotificationManager.of(context)?.showSuccess('设置已保存', message: '关闭按钮行为已设为${_getCloseButtonBehaviorDescription(behavior)}');
       }
     } catch (e) {
       if (mounted) {
-        displayInfoBar(
-          context,
-          builder: (context, close) => InfoBar(
-            title: const Text('设置失败'),
-            content: Text('无法保存设置: $e'),
-            severity: InfoBarSeverity.error,
-          ),
-        );
+        NotificationManager.of(context)?.showError('设置失败', message: '无法保存设置: $e');
       }
     }
   }
@@ -565,25 +499,11 @@ class _SettingsPageState extends State<SettingsPage> {
         });
 
         if (mounted) {
-          displayInfoBar(
-            context,
-            builder: (context, close) => InfoBar(
-              title: const Text('设置成功'),
-              content: Text('下载路径已更改为: $result'),
-              severity: InfoBarSeverity.success,
-            ),
-          );
+          NotificationManager.of(context)?.showSuccess('设置成功', message: '下载路径已更改为: $result');
         }
       } else {
         if (mounted) {
-          displayInfoBar(
-            context,
-            builder: (context, close) => const InfoBar(
-              title: Text('设置失败'),
-              content: Text('无法更改下载路径，请检查路径是否有效'),
-              severity: InfoBarSeverity.error,
-            ),
-          );
+          NotificationManager.of(context)?.showError('设置失败', message: '无法更改下载路径，请检查路径是否有效');
         }
       }
     }
@@ -680,20 +600,15 @@ class _SettingsPageState extends State<SettingsPage> {
     await _updateConfig(proxyConfig: proxyConfig);
     
     if (mounted) {
-      displayInfoBar(
-        context,
-        builder: (context, close) => InfoBar(
-          title: const Text('代理设置已保存'),
-          content: Text(_useProxy ? '已启用代理: $_proxyHost:$_proxyPort' : '已禁用代理'),
-          severity: InfoBarSeverity.success,
-        ),
-        duration: const Duration(seconds: 2),
-      );
+      NotificationManager.of(context)?.showSuccess('代理设置已保存', message: _useProxy ? '已启用代理: $_proxyHost:$_proxyPort' : '已禁用代理');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // 追踪重建
+    PerformanceMonitorService().trackRebuild('SettingsPage');
+
     return Consumer<DeveloperModeService>(
       builder: (context, devMode, child) {
         return ScaffoldPage.scrollable(
@@ -1366,26 +1281,12 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _testProxyConnection() async {
     // 对于非系统代理，检查主机地址是否为空
     if (_proxyType != 'system' && _proxyHost.isEmpty) {
-      displayInfoBar(
-        context,
-        builder: (context, close) => const InfoBar(
-          title: Text('配置错误'),
-          content: Text('请先输入代理服务器地址'),
-          severity: InfoBarSeverity.error,
-        ),
-      );
+      NotificationManager.of(context)?.showError('配置错误', message: '请先输入代理服务器地址');
       return;
     }
 
     // 显示测试中的提示
-    displayInfoBar(
-      context,
-      builder: (context, close) => const InfoBar(
-        title: Text('正在测试...'),
-        content: Text('正在测试代理连接，请稍候'),
-        severity: InfoBarSeverity.info,
-      ),
-    );
+    NotificationManager.of(context)?.showInfo('正在测试...', message: '正在测试代理连接，请稍候');
 
     try {
       final service = context.read<IntegratedDownloadService>();
@@ -1409,27 +1310,15 @@ class _SettingsPageState extends State<SettingsPage> {
       );
 
       if (mounted) {
-        displayInfoBar(
-          context,
-          builder: (context, close) => InfoBar(
-            title: Text(result ? '连接成功' : '连接失败'),
-            content: Text(result 
-                ? '代理服务器连接正常，可以正常使用' 
-                : '无法连接到代理服务器，请检查配置'),
-            severity: result ? InfoBarSeverity.success : InfoBarSeverity.error,
-          ),
-        );
+        if (result) {
+          NotificationManager.of(context)?.showSuccess('连接成功', message: '代理服务器连接正常，可以正常使用');
+        } else {
+          NotificationManager.of(context)?.showError('连接失败', message: '无法连接到代理服务器，请检查配置');
+        }
       }
     } catch (e) {
       if (mounted) {
-        displayInfoBar(
-          context,
-          builder: (context, close) => InfoBar(
-            title: const Text('测试失败'),
-            content: Text('代理连接测试失败: $e'),
-            severity: InfoBarSeverity.error,
-          ),
-        );
+        NotificationManager.of(context)?.showError('测试失败', message: '代理连接测试失败: $e');
       }
     }
   }
@@ -1892,14 +1781,7 @@ class _SettingsPageState extends State<SettingsPage> {
               
               // 显示加载提示
               if (mounted) {
-                displayInfoBar(
-                  context,
-                  builder: (context, close) => const InfoBar(
-                    title: Text('正在清除...'),
-                    content: Text('请稍候'),
-                    severity: InfoBarSeverity.info,
-                  ),
-                );
+                NotificationManager.of(context)?.showInfo('正在清除...', message: '请稍候');
               }
               
               // 调用清除API
@@ -1908,23 +1790,9 @@ class _SettingsPageState extends State<SettingsPage> {
               
               if (mounted) {
                 if (success) {
-                  displayInfoBar(
-                    context,
-                    builder: (context, close) => const InfoBar(
-                      title: Text('已清除'),
-                      content: Text('所有下载任务和历史记录已清除'),
-                      severity: InfoBarSeverity.success,
-                    ),
-                  );
+                  NotificationManager.of(context)?.showSuccess('已清除', message: '所有下载任务和历史记录已清除');
                 } else {
-                  displayInfoBar(
-                    context,
-                    builder: (context, close) => const InfoBar(
-                      title: Text('清除失败'),
-                      content: Text('无法清除数据，请确保下载核心正在运行'),
-                      severity: InfoBarSeverity.error,
-                    ),
-                  );
+                  NotificationManager.of(context)?.showError('清除失败', message: '无法清除数据，请确保下载核心正在运行');
                 }
               }
             },

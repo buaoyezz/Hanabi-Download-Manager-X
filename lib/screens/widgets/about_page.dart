@@ -3,7 +3,9 @@ import 'dart:ui';
 import 'package:fluent_ui/fluent_ui.dart';
 import '../../utils/constants.dart';
 import '../../theme/app_theme.dart';
+import '../../services/performance_monitor_service.dart';
 
+import '../../widgets/animated_notifications.dart';
 class AboutPage extends StatefulWidget {
   const AboutPage({super.key});
 
@@ -230,20 +232,16 @@ class _AboutPageState extends State<AboutPage> with SingleTickerProviderStateMix
       await Process.start('cmd', ['/c', 'start', '', url], runInShell: true);
     } catch (e) {
       if (context.mounted) {
-        displayInfoBar(
-          context,
-          builder: (context, close) => InfoBar(
-            title: const Text('错误'),
-            content: Text('打开链接失败: $e'),
-            severity: InfoBarSeverity.error,
-          ),
-        );
+        NotificationManager.of(context)?.showError('错误', message: '打开链接失败: $e');
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // 追踪重建
+    PerformanceMonitorService().trackRebuild('AboutPage');
+
     return ScaffoldPage.scrollable(
       header: _buildHeader(context),
       children: [

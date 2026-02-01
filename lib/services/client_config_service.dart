@@ -15,8 +15,15 @@ import '../utils/constants.dart';
 ///   ├── data/
 ///   │   ├── bookmarks.json    (书签数据)
 ///   │   └── history.json      (历史记录)
-///   └── cache/
-///       └── temp/             (临时文件)
+///   ├── cache/
+///   │   └── temp/             (临时文件)
+///   ├── kernel/               (NSFX 内核数据 - 纯 Dart)
+///   │   ├── tasks.json
+///   │   └── config.json
+///   └── legacy/               (Soda 内核数据 - Python，已弃用)
+///       ├── tasks.json
+///       ├── segments.json
+///       └── config.json
 class ClientConfigService extends ChangeNotifier {
   static final ClientConfigService _instance = ClientConfigService._internal();
   factory ClientConfigService() => _instance;

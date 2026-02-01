@@ -60,14 +60,14 @@ class DownloadListenerService {
     }
   }
 
-  // 为新下载显示弹窗
+  // 为新下载显示弹窗（使用独立窗口，不需要拉起主窗口）
   Future<void> _showPopupForDownload(Map<String, dynamic> downloadData) async {
-    if (!context.mounted || _isShowingPopup) return;
+    if (_isShowingPopup) return;
 
     _isShowingPopup = true;
     try {
-      await PopupWindowService.showPopupDownload(
-        context,
+      // 使用新的独立窗口方式
+      await PopupWindowService.showPopupDownloadWindow(
         url: downloadData['url'] ?? '',
         suggestedFilename: downloadData['filename'],
         referer: downloadData['referer'],
@@ -78,7 +78,10 @@ class DownloadListenerService {
     } catch (e) {
       _logger.error('Failed to show popup: $e');
     } finally {
-      _isShowingPopup = false;
+      // 延迟重置标志，给窗口一些时间显示
+      Future.delayed(const Duration(milliseconds: 500), () {
+        _isShowingPopup = false;
+      });
     }
   }
 }

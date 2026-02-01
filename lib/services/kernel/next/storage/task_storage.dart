@@ -7,6 +7,7 @@ import '../config/download_config.dart';
 
 class TaskStorage {
   late final Directory _storageDir;
+  late final Directory _oldStorageDir;
   bool _initialized = false;
 
   Future<void> init() async {
@@ -15,13 +16,83 @@ class TaskStorage {
     final home = Platform.environment['USERPROFILE'] ?? 
                  Platform.environment['HOME'] ?? 
                  Directory.current.path;
-    _storageDir = Directory(path.join(home, '.nsfx_kernel'));
     
+    // 新的存储目录：.hdmx/kernel
+    _storageDir = Directory(path.join(home, '.hdmx', 'kernel'));
+    
+    // 旧的存储目录：.nsfx_kernel
+    _oldStorageDir = Directory(path.join(home, '.nsfx_kernel'));
+    
+    // 检测并迁移老配置
+    await _migrateOldConfigIfNeeded();
+    
+    // 确保新目录存在
     if (!await _storageDir.exists()) {
       await _storageDir.create(recursive: true);
     }
     
     _initialized = true;
+  }
+
+  /// 检测并迁移老配置
+  Future<void> _migrateOldConfigIfNeeded() async {
+    // 如果老目录不存在，无需迁移
+    if (!await _oldStorageDir.exists()) {
+      return;
+    }
+
+    print('[TaskStorage] 检测到旧配置目录: ${_oldStorageDir.path}');
+
+    try {
+      // 确保新目录存在
+      if (!await _storageDir.exists()) {
+        await _storageDir.create(recursive: true);
+      }
+
+      // 迁移文件列表
+      final filesToMigrate = ['tasks.json', 'config.json'];
+      int migratedCount = 0;
+
+      for (final fileName in filesToMigrate) {
+        final oldFile = File(path.join(_oldStorageDir.path, fileName));
+        final newFile = File(path.join(_storageDir.path, fileName));
+
+        // 如果老文件存在且新文件不存在，则迁移
+        if (await oldFile.exists() && !await newFile.exists()) {
+          await oldFile.copy(newFile.path);
+          migratedCount++;
+          print('[TaskStorage] 已迁移: $fileName');
+        }
+      }
+
+      if (migratedCount > 0) {
+        print('[TaskStorage] 成功迁移 $migratedCount 个配置文件');
+        
+        // 迁移完成后删除老目录
+        try {
+          await _oldStorageDir.delete(recursive: true);
+          print('[TaskStorage] 已删除旧配置目录: ${_oldStorageDir.path}');
+        } catch (e) {
+          print('[TaskStorage] 删除旧配置目录失败: $e');
+        }
+      } else {
+        print('[TaskStorage] 无需迁移配置文件');
+        
+        // 如果老目录为空，也尝试删除
+        final oldFiles = await _oldStorageDir.list().toList();
+        if (oldFiles.isEmpty) {
+          try {
+            await _oldStorageDir.delete(recursive: true);
+            print('[TaskStorage] 已删除空的旧配置目录');
+          } catch (e) {
+            print('[TaskStorage] 删除空目录失败: $e');
+          }
+        }
+      }
+    } catch (e) {
+      print('[TaskStorage] 配置迁移过程出错: $e');
+      // 迁移失败不影响继续使用新目录
+    }
   }
 
   File get _tasksFile => File(path.join(_storageDir.path, 'tasks.json'));

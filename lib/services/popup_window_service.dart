@@ -11,8 +11,92 @@ import '../main.dart';
 class PopupWindowService {
   static const platform = MethodChannel('com.hanabi.download/window');
   static final _logger = LoggerService();
-  
-  // 显示弹窗下载对话框
+
+  /// 获取 hanabi-popup.exe 的路径
+  static String? _getPopupExePath() {
+    // 尝试多个可能的位置
+    final possiblePaths = [
+      // 与主程序同目录
+      '${Directory.current.path}\\hanabi-popup.exe',
+      // 开发时的位置
+      '${Directory.current.path}\\hanabi-popup\\src-tauri\\target\\release\\hanabi-popup.exe',
+      // 安装目录
+      '${Platform.resolvedExecutable.replaceAll(RegExp(r'[^\\]+$'), '')}hanabi-popup.exe',
+    ];
+
+    for (final path in possiblePaths) {
+      if (File(path).existsSync()) {
+        return path;
+      }
+    }
+    return null;
+  }
+
+  // 使用独立的 Tauri 弹窗显示下载对话框
+  static Future<void> showPopupDownloadWindow({
+    required String url,
+    String? suggestedFilename,
+    String? referer,
+    String? userAgent,
+    Map<String, dynamic>? headers,
+    bool isFromBrowser = false,
+  }) async {
+    _logger.info('Popup window request: url=$url, filename=$suggestedFilename');
+
+    try {
+      final popupExePath = _getPopupExePath();
+
+      if (popupExePath != null) {
+        // 使用新的 Tauri 弹窗
+        _logger.info('Launching Tauri popup: $popupExePath');
+
+        final args = <String>[];
+        if (url.isNotEmpty) {
+          args.addAll(['--url', url]);
+        }
+        if (suggestedFilename != null && suggestedFilename.isNotEmpty) {
+          args.addAll(['--filename', suggestedFilename]);
+        }
+
+        await Process.start(popupExePath, args, mode: ProcessStartMode.detached);
+        _logger.info('Tauri popup launched successfully');
+        return;
+      }
+
+      // 如果找不到 Tauri 弹窗，回退到 Dialog 方式
+      _logger.info('Tauri popup not found, falling back to dialog mode');
+      final ctx = navigatorKey.currentContext;
+      if (ctx != null) {
+        await showPopupDownload(
+          ctx,
+          url: url,
+          suggestedFilename: suggestedFilename,
+          referer: referer,
+          userAgent: userAgent,
+          headers: headers,
+          isFromBrowser: isFromBrowser,
+        );
+      }
+    } catch (e) {
+      _logger.error('Failed to launch popup: $e');
+      // 回退到旧的 Dialog 方式
+      _logger.info('Falling back to dialog mode');
+      final ctx = navigatorKey.currentContext;
+      if (ctx != null) {
+        await showPopupDownload(
+          ctx,
+          url: url,
+          suggestedFilename: suggestedFilename,
+          referer: referer,
+          userAgent: userAgent,
+          headers: headers,
+          isFromBrowser: isFromBrowser,
+        );
+      }
+    }
+  }
+
+  // 显示弹窗下载对话框（旧方式，需要拉起主窗口）
   static Future<void> showPopupDownload(
     BuildContext context, {
     required String url,
@@ -25,13 +109,9 @@ class PopupWindowService {
     _logger.info('Popup request: url=$url, filename=$suggestedFilename');
     await showAndBringToFront();
     await flashWindow();
-    
+
     final ctx = navigatorKey.currentContext ?? context;
-    if (ctx == null) {
-      _logger.error('No context available for dialog');
-      return;
-    }
-    
+
     _logger.debug('Opening popup dialog');
     await fluent.showDialog(
       context: ctx,
@@ -56,20 +136,20 @@ class PopupWindowService {
     );
     _logger.debug('Popup dialog closed');
   }
-  
+
   // 显示窗口并带到最前面
   static Future<void> showAndBringToFront() async {
     if (!Platform.isWindows) return;
-    
+
     try {
       _logger.debug('Restore window');
       appWindow.restore();
       _logger.debug('Show window');
       appWindow.show();
-      
+
       _logger.debug('Delay before bringToFront');
       await Future.delayed(const Duration(milliseconds: 50));
-      
+
       _logger.debug('Invoke bringToFront');
       await platform.invokeMethod('bringToFront');
       _logger.debug('bringToFront done');
@@ -77,11 +157,11 @@ class PopupWindowService {
       _logger.error('Show/bringToFront failed: $e');
     }
   }
-  
+
   // 将窗口带到最前面（临时置顶）
   static Future<void> bringWindowToFront() async {
     if (!Platform.isWindows) return;
-    
+
     try {
       _logger.debug('Invoke bringToFront');
       await platform.invokeMethod('bringToFront');
@@ -90,11 +170,11 @@ class PopupWindowService {
       _logger.error('bringToFront failed: $e');
     }
   }
-  
+
   // 设置窗口永久置顶
   static Future<void> setAlwaysOnTop(bool alwaysOnTop) async {
     if (!Platform.isWindows) return;
-    
+
     try {
       _logger.debug('Invoke setAlwaysOnTop=$alwaysOnTop');
       await platform.invokeMethod('setAlwaysOnTop', {'alwaysOnTop': alwaysOnTop});
@@ -103,11 +183,11 @@ class PopupWindowService {
       _logger.error('setAlwaysOnTop failed: $e');
     }
   }
-  
+
   // 闪烁窗口以引起注意
   static Future<void> flashWindow() async {
     if (!Platform.isWindows) return;
-    
+
     try {
       _logger.debug('Invoke flashWindow');
       await platform.invokeMethod('flashWindow');

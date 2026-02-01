@@ -1,0 +1,189 @@
+/* ============================================
+   Hanabi Download Manager - Global Styles
+   Fluent 2 Design System Foundation
+   ============================================ */
+
+/* Import Segoe UI Variable for Windows 11 */
+@font-face {
+  font-family: 'Segoe UI Variable Text';
+  src: local('Segoe UI Variable Text'),
+       local('Segoe UI Variable'),
+       local('Segoe UI');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Segoe UI Variable Display';
+  src: local('Segoe UI Variable Display'),
+       local('Segoe UI Variable'),
+       local('Segoe UI');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Base Reset */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Root Element */
+html {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  /* Prevent text size adjustment on orientation change */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  /* Fluent 2 Typography */
+  font-family: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.4286;
+  font-weight: 400;
+  /* Fluent 2 Dark Theme Base */
+  color: #ffffff;
+  /* 使用半透明背景作为 Mica 效果的回退方案 */
+  background: rgba(32, 32, 32, 0.85);
+  /* Font Rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "kern" 1, "liga" 1;
+  /* Prevent Selection */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Focus Management */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 1px;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.7);
+  border-radius: 4px;
+}
+
+/* Selection Styling */
+::selection {
+  background: #60cdff;
+  color: #000000;
+}
+
+::-moz-selection {
+  background: #60cdff;
+  color: #000000;
+}
+
+/* Scrollbar - Fluent 2 Style */
+::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border: 4px solid transparent;
+  border-radius: 9999px;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.14);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: rgba(255, 255, 255, 0.20);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Text Selection Utility */
+.selectable {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
+/* Smooth Transitions for Theme Changes */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition: background-color 200ms ease,
+              border-color 200ms ease,
+              color 200ms ease !important;
+}
+
+/* Utility: Hide visually but keep accessible */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Utility: Truncate text */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Utility: Tabular numbers for consistent width */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: more) {
+  :root {
+    --stroke-color-control-default: rgba(255, 255, 255, 0.6);
+    --stroke-color-control-strong: rgba(255, 255, 255, 0.9);
+  }
+}
