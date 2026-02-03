@@ -2,15 +2,15 @@
 chcp 65001 >nul
 setlocal enabledelayedexpansion
 
-echo ╔════════════════════════════════════════════╗
-echo ║     Hanabi Download Manager Build Script   ║ 
-echo ╚════════════════════════════════════════════╝
+echo ========================================
+echo   Hanabi Download Manager Build Script
+echo ========================================
 echo.
 
 set "OUTPUT_DIR=build\windows\x64\runner\Release"
 set "ASSETS_DIR=%OUTPUT_DIR%\data\zzbuaoye_assets"
 
-:: 检查是否跳过某些步骤
+:: Check skip options
 set SKIP_PYTHON=0
 set SKIP_POPUP=0
 set SKIP_FLUTTER=0
@@ -22,103 +22,94 @@ if "%1"=="--flutter-only" (
     set SKIP_POPUP=1
 )
 
-:: ========== Python 编译 ==========
+:: ========== Python Build ==========
 if %SKIP_PYTHON%==0 (
-    echo [1/4] 编译 Python 下载核心...
+    echo [1/4] Building Python core...
     cd python
     python -m nuitka --standalone --onefile --windows-console-mode=disable --enable-plugin=anti-bloat --nofollow-import-to=unittest --nofollow-import-to=pytest --nofollow-import-to=test --include-package=aiohttp --include-package=aiofiles --include-package-data=soda_speed_force_kernel --output-dir=../build/python --output-filename=soda_bridge_server.exe soda_bridge_server.py
     if errorlevel 1 (
-        echo [错误] Python 编译失败！
+        echo [ERROR] Python build failed!
         cd ..
         pause
         exit /b 1
     )
     cd ..
-    echo [完成] Python 编译成功
+    echo [OK] Python build done
 ) else (
-    echo [跳过] Python 编译
+    echo [SKIP] Python build
 )
 echo.
 
-:: ========== Tauri 弹窗编译 ==========
+:: ========== Tauri Popup Build ==========
 if %SKIP_POPUP%==0 (
-    echo [2/4] 编译 Hanabi Popup 弹窗...
+    echo [2/4] Building Hanabi Popup...
     cd hanabi-popup
     call npm run tauri:build
     if errorlevel 1 (
-        echo [错误] Popup 编译失败！
+        echo [ERROR] Popup build failed!
         cd ..
         pause
         exit /b 1
     )
     cd ..
-    echo [完成] Popup 编译成功
+    echo [OK] Popup build done
 ) else (
-    echo [跳过] Popup 编译
+    echo [SKIP] Popup build
 )
 echo.
 
-:: ========== Flutter 编译 ==========
+:: ========== Flutter Build ==========
 if %SKIP_FLUTTER%==0 (
-    echo [3/4] 编译 Flutter 主程序...
+    echo [3/4] Building Flutter app...
     flutter build windows --release
     if errorlevel 1 (
-        echo [错误] Flutter 编译失败！
+        echo [ERROR] Flutter build failed!
         pause
         exit /b 1
     )
-    echo [完成] Flutter 编译成功
+    echo [OK] Flutter build done
 ) else (
-    echo [跳过] Flutter 编译
+    echo [SKIP] Flutter build
 )
 echo.
 
-:: ========== 复制文件到指定位置 ==========
-echo [4/4] 复制资源文件...
+:: ========== Copy Files ==========
+echo [4/4] Copying assets...
 
-:: 创建 zzbuaoye_assets 目录
+:: Create zzbuaoye_assets folder
 if not exist "%ASSETS_DIR%" mkdir "%ASSETS_DIR%"
 
-:: 复制 soda_bridge_server.exe
+:: Copy soda_bridge_server.exe
 if exist "build\python\soda_bridge_server.exe" (
     copy /Y "build\python\soda_bridge_server.exe" "%OUTPUT_DIR%\" >nul
-    echo   √ soda_bridge_server.exe
+    echo   + soda_bridge_server.exe
 ) else (
-    echo   × soda_bridge_server.exe 未找到
+    echo   - soda_bridge_server.exe not found
 )
 
-:: 复制 hanabi-popup.exe 到 zzbuaoye_assets
+:: Copy hanabi-popup.exe to zzbuaoye_assets
 if exist "hanabi-popup\src-tauri\target\release\hanabi-popup.exe" (
     copy /Y "hanabi-popup\src-tauri\target\release\hanabi-popup.exe" "%ASSETS_DIR%\" >nul
-    echo   √ hanabi-popup.exe -^> data\zzbuaoye_assets\
+    echo   + hanabi-popup.exe -^> data\zzbuaoye_assets\
 ) else (
-    echo   × hanabi-popup.exe 未找到
+    echo   - hanabi-popup.exe not found
 )
 
-:: 复制 Update.exe 到 zzbuaoye_assets
+:: Copy Update.exe to zzbuaoye_assets
 if exist "assets\update\Update.exe" (
     copy /Y "assets\update\Update.exe" "%ASSETS_DIR%\" >nul
-    echo   √ Update.exe -^> data\zzbuaoye_assets\
+    echo   + Update.exe -^> data\zzbuaoye_assets\
 ) else (
-    echo   × Update.exe 未找到 (assets\update\Update.exe)
+    echo   - Update.exe not found
 )
 
 echo.
-echo ╔════════════════════════════════════════════╗
-echo ║              编译完成！                     ║
-echo ╚════════════════════════════════════════════╝
+echo ========================================
+echo   Build Complete!
+echo ========================================
 echo.
-echo 输出目录: %OUTPUT_DIR%
-echo 资源目录: %ASSETS_DIR%
-echo.
-echo 目录结构:
-echo   Release\
-echo   ├── hanabi_download_manager.exe
-echo   ├── soda_bridge_server.exe
-echo   └── data\
-echo       └── zzbuaoye_assets\
-echo           ├── hanabi-popup.exe
-echo           └── Update.exe
+echo Output: %OUTPUT_DIR%
+echo Assets: %ASSETS_DIR%
 echo.
 
 pause
