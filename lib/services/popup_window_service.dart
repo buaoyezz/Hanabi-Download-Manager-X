@@ -14,14 +14,16 @@ class PopupWindowService {
 
   /// 获取 hanabi-popup.exe 的路径
   static String? _getPopupExePath() {
+    final exeDir = Platform.resolvedExecutable.replaceAll(RegExp(r'[^\\]+$'), '');
     // 尝试多个可能的位置
     final possiblePaths = [
-      // 与主程序同目录
-      '${Directory.current.path}\\hanabi-popup.exe',
+      // Release 模式：data/zzbuaoye_assets 目录
+      '${exeDir}data\\zzbuaoye_assets\\hanabi-popup.exe',
       // 开发时的位置
       '${Directory.current.path}\\hanabi-popup\\src-tauri\\target\\release\\hanabi-popup.exe',
-      // 安装目录
-      '${Platform.resolvedExecutable.replaceAll(RegExp(r'[^\\]+$'), '')}hanabi-popup.exe',
+      // 备用：与主程序同目录
+      '${Directory.current.path}\\hanabi-popup.exe',
+      '${exeDir}hanabi-popup.exe',
     ];
 
     for (final path in possiblePaths) {

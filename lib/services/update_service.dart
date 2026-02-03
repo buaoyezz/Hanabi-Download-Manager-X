@@ -709,12 +709,14 @@ class UpdateService extends ChangeNotifier {
       
       // 尝试多个可能的路径
       final possiblePaths = [
-        // Release 模式路径
-        path.join(exeDir, 'data', 'flutter_assets', 'assets', 'update', 'Update.exe'),
+        // Release 模式路径：data/zzbuaoye_assets 目录
+        path.join(exeDir, 'data', 'zzbuaoye_assets', 'Update.exe'),
         // Debug 模式路径（从项目根目录，修复flutter run下无法启动）
         path.join(Directory.current.path, 'assets', 'update', 'Update.exe'),
         // 备用路径：直接在 exe 目录下
         path.join(exeDir, 'Update.exe'),
+        // 旧路径兼容
+        path.join(exeDir, 'data', 'flutter_assets', 'assets', 'update', 'Update.exe'),
       ];
       
       String? updateExePath;
