@@ -28,15 +28,15 @@ if %SKIP_PYTHON%==0 (
     cd python
     python -m nuitka --standalone --onefile --windows-console-mode=disable --enable-plugin=anti-bloat --nofollow-import-to=unittest --nofollow-import-to=pytest --nofollow-import-to=test --include-package=aiohttp --include-package=aiofiles --include-package-data=soda_speed_force_kernel --output-dir=../build/python --output-filename=soda_bridge_server.exe soda_bridge_server.py
     if errorlevel 1 (
-        echo [ERROR] Python build failed!
+        echo [91m[ERROR] Python build failed![0m
         cd ..
         pause
         exit /b 1
     )
     cd ..
-    echo [OK] Python build done
+    echo [93m[OK] Python build done[0m
 ) else (
-    echo [SKIP] Python build
+    echo [90m[SKIP] Python build[0m
 )
 echo.
 
@@ -46,15 +46,15 @@ if %SKIP_POPUP%==0 (
     cd hanabi-popup
     call npm run tauri:build
     if errorlevel 1 (
-        echo [ERROR] Popup build failed!
+        echo [91m[ERROR] Popup build failed![0m
         cd ..
         pause
         exit /b 1
     )
     cd ..
-    echo [OK] Popup build done
+    echo [93m[OK] Popup build done[0m
 ) else (
-    echo [SKIP] Popup build
+    echo [90m[SKIP] Popup build[0m
 )
 echo.
 
@@ -63,13 +63,13 @@ if %SKIP_FLUTTER%==0 (
     echo [3/4] Building Flutter app...
     flutter build windows --release
     if errorlevel 1 (
-        echo [ERROR] Flutter build failed!
+        echo [91m[ERROR] Flutter build failed![0m
         pause
         exit /b 1
     )
-    echo [OK] Flutter build done
+    echo [93m[OK] Flutter build done[0m
 ) else (
-    echo [SKIP] Flutter build
+    echo [90m[SKIP] Flutter build[0m
 )
 echo.
 
@@ -82,31 +82,31 @@ if not exist "%ASSETS_DIR%" mkdir "%ASSETS_DIR%"
 :: Copy soda_bridge_server.exe
 if exist "build\python\soda_bridge_server.exe" (
     copy /Y "build\python\soda_bridge_server.exe" "%OUTPUT_DIR%\" >nul
-    echo   + soda_bridge_server.exe
+    echo   [92m+[0m soda_bridge_server.exe
 ) else (
-    echo   - soda_bridge_server.exe not found
+    echo   [91m-[0m soda_bridge_server.exe not found
 )
 
 :: Copy hanabi-popup.exe to zzbuaoye_assets
 if exist "hanabi-popup\src-tauri\target\release\hanabi-popup.exe" (
     copy /Y "hanabi-popup\src-tauri\target\release\hanabi-popup.exe" "%ASSETS_DIR%\" >nul
-    echo   + hanabi-popup.exe -^> data\zzbuaoye_assets\
+    echo   [92m+[0m hanabi-popup.exe -^> data\zzbuaoye_assets\
 ) else (
-    echo   - hanabi-popup.exe not found
+    echo   [91m-[0m hanabi-popup.exe not found
 )
 
 :: Copy Update.exe to zzbuaoye_assets
 if exist "assets\update\Update.exe" (
     copy /Y "assets\update\Update.exe" "%ASSETS_DIR%\" >nul
-    echo   + Update.exe -^> data\zzbuaoye_assets\
+    echo   [92m+[0m Update.exe -^> data\zzbuaoye_assets\
 ) else (
-    echo   - Update.exe not found
+    echo   [91m-[0m Update.exe not found
 )
 
 echo.
-echo ========================================
-echo   Build Complete!
-echo ========================================
+echo [93m========================================[0m
+echo [93m  Build Complete![0m
+echo [93m========================================[0m
 echo.
 echo Output: %OUTPUT_DIR%
 echo Assets: %ASSETS_DIR%
