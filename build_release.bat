@@ -3,7 +3,7 @@ chcp 65001 >nul
 setlocal enabledelayedexpansion
 
 echo ╔════════════════════════════════════════════╗
-echo ║     Hanabi Download Manager 统一编译脚本    ║
+echo ║     Hanabi Download Manager Build Script   ║ 
 echo ╚════════════════════════════════════════════╝
 echo.
 
