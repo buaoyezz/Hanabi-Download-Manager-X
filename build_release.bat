@@ -17,12 +17,19 @@ set "ASSETS_DIR=%OUTPUT_DIR%\data\zzbuaoye_assets"
 set SKIP_PYTHON=0
 set SKIP_POPUP=0
 set SKIP_FLUTTER=0
+set COPY_ONLY=0
 
 if "%1"=="--skip-python" set SKIP_PYTHON=1
 if "%1"=="--skip-popup" set SKIP_POPUP=1
 if "%1"=="--flutter-only" (
     set SKIP_PYTHON=1
     set SKIP_POPUP=1
+)
+if "%1"=="--copy-only" (
+    set SKIP_PYTHON=1
+    set SKIP_POPUP=1
+    set SKIP_FLUTTER=1
+    set COPY_ONLY=1
 )
 
 :: ========== Python Build ==========
