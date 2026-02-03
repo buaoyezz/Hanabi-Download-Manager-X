@@ -18,6 +18,7 @@ migrate_working_dir/
 # IDE/Editor related
 .claude.json
 .claude/
+CLAUDE.md
 结果.txt
 update*.md
 # Fonts html

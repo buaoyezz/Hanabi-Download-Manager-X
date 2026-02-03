@@ -1030,26 +1030,97 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
     showDialog(
       context: context,
       builder: (context) => ContentDialog(
-        title: const Text('确认删除'),
-        content: Text('确定要从列表中删除 "${widget.task.fileName}" 吗？\n文件不会被删除。'),
+        title: Row(
+          children: [
+            Icon(CustomIcons.FluentIcons.delete, size: 18, color: AppTheme.statusError),
+            const SizedBox(width: 8),
+            const Text('确认删除'),
+          ],
+        ),
+        content: Text('确定要删除 "${widget.task.fileName}" 吗？'),
         actions: [
           Button(
             onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(CustomIcons.FluentIcons.chrome_close, size: 12),
+                const SizedBox(width: 6),
+                const Text('取消'),
+              ],
+            ),
+          ),
+          Button(
+            onPressed: () {
+              service.removeTask(widget.task.id);
+              Navigator.pop(context);
+              NotificationManager.of(this.context)?.showSuccess(
+                '删除成功',
+                message: '已从列表中移除任务',
+              );
+            },
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(CustomIcons.FluentIcons.list, size: 12),
+                const SizedBox(width: 6),
+                const Text('移除记录'),
+              ],
+            ),
           ),
           FilledButton(
             style: ButtonStyle(
               backgroundColor: WidgetStateProperty.all(AppTheme.statusError),
             ),
-            onPressed: () {
-              service.removeTask(widget.task.id);
+            onPressed: () async {
               Navigator.pop(context);
+              await _deleteWithFile(service);
             },
-            child: const Text('删除'),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(CustomIcons.FluentIcons.delete, size: 12, color: Colors.white),
+                const SizedBox(width: 6),
+                const Text('删除文件'),
+              ],
+            ),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _deleteWithFile(IntegratedDownloadService service) async {
+    final filePath = widget.task.filePath;
+    if (filePath != null) {
+      try {
+        final file = File(filePath);
+        if (await file.exists()) {
+          await file.delete();
+          if (mounted) {
+            NotificationManager.of(context)?.showSuccess(
+              '删除成功',
+              message: '已删除文件：${widget.task.fileName}',
+            );
+          }
+        } else {
+          if (mounted) {
+            NotificationManager.of(context)?.showWarning(
+              '文件不存在',
+              message: '文件可能已被移动或删除',
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          NotificationManager.of(context)?.showError(
+            '删除失败',
+            message: '无法删除文件：$e',
+          );
+        }
+      }
+    }
+    service.removeTask(widget.task.id);
   }
 }
 
