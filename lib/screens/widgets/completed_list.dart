@@ -1064,7 +1064,7 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
               children: [
                 Icon(CustomIcons.FluentIcons.list, size: 12),
                 const SizedBox(width: 6),
-                const Text('移除记录'),
+                const Text('移除'),
               ],
             ),
           ),
