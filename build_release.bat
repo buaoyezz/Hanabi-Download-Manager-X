@@ -80,7 +80,10 @@ echo.
 echo %ESC%[97m[4/4] Copying assets...%ESC%[0m
 
 :: Create zzbuaoye_assets folder
-if not exist "%ASSETS_DIR%" mkdir "%ASSETS_DIR%"
+if not exist "%ASSETS_DIR%" (
+    mkdir "%ASSETS_DIR%"
+    echo   %ESC%[92m+%ESC%[0m Created %ASSETS_DIR%
+)
 
 :: Copy soda_bridge_server.exe
 if exist "build\python\soda_bridge_server.exe" (
