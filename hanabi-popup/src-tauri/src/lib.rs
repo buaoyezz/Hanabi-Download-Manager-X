@@ -135,34 +135,52 @@ fn resize_window(window: tauri::Window, width: f64, height: f64) {
 fn open_main_app() -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        // 尝试多个可能的路径
-        let possible_paths = vec![
-            // 与 popup 同目录
-            std::env::current_exe()
-                .ok()
-                .and_then(|p| p.parent().map(|p| p.join("hanabi_download_manager.exe"))),
-            // 常见安装路径
-            Some(std::path::PathBuf::from(r"C:\Program Files\Hanabi Download ManagerX\hanabi_download_manager.exe")),
-        ];
+        use std::path::PathBuf;
 
-        for path_opt in possible_paths {
-            if let Some(path) = path_opt {
-                if path.exists() {
-                    std::process::Command::new(&path)
-                        .spawn()
-                        .map_err(|e| format!("Failed to open main app: {}", e))?;
-                    return Ok(());
+        // 尝试多个可能的路径
+        let mut possible_paths: Vec<PathBuf> = vec![];
+
+        // 与 popup 同目录
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(parent) = exe_path.parent() {
+                possible_paths.push(parent.join("hanabi_download_manager.exe"));
+                possible_paths.push(parent.join("hanabi_download_managerx.exe"));
+                // 上级目录
+                if let Some(grandparent) = parent.parent() {
+                    possible_paths.push(grandparent.join("hanabi_download_manager.exe"));
+                    possible_paths.push(grandparent.join("hanabi_download_managerx.exe"));
                 }
             }
         }
 
-        // 如果找不到，尝试通过协议启动
-        std::process::Command::new("cmd")
-            .args(["/C", "start", "hanabi://"])
-            .spawn()
-            .map_err(|e| format!("Failed to open main app: {}", e))?;
+        // 常见安装路径
+        possible_paths.push(PathBuf::from(r"C:\Program Files\Hanabi Download ManagerX\hanabi_download_manager.exe"));
+        possible_paths.push(PathBuf::from(r"C:\Program Files\Hanabi Download ManagerX\hanabi_download_managerx.exe"));
+        possible_paths.push(PathBuf::from(r"C:\Program Files (x86)\Hanabi Download ManagerX\hanabi_download_manager.exe"));
+
+        // 用户目录下的安装路径
+        if let Some(local_app_data) = dirs::data_local_dir() {
+            possible_paths.push(local_app_data.join("Hanabi Download ManagerX").join("hanabi_download_manager.exe"));
+            possible_paths.push(local_app_data.join("Hanabi Download ManagerX").join("hanabi_download_managerx.exe"));
+        }
+
+        for path in possible_paths {
+            if path.exists() {
+                std::process::Command::new(&path)
+                    .spawn()
+                    .map_err(|e| format!("Failed to open main app: {}", e))?;
+                return Ok(());
+            }
+        }
+
+        // 如果找不到，返回错误提示用户
+        return Err("找不到主程序，请确保 Hanabi Download ManagerX 已正确安装".to_string());
     }
-    Ok(())
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Err("此功能仅支持 Windows".to_string())
+    }
 }
 
 // Parse filename from URL

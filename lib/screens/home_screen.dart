@@ -1061,92 +1061,113 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     final closeButtonColors = WindowButtonColors(
       iconNormal: AppTheme.textSecondary,
-      iconMouseDown: AppTheme.textPrimary,
-      iconMouseOver: AppTheme.textPrimary,
+      iconMouseDown: Colors.white,
+      iconMouseOver: Colors.white,
       normal: Colors.transparent,
-      mouseOver: AppTheme.statusError,
-      mouseDown: const Color(0xFFC50F1F),
+      mouseOver: const Color(0xFFc42b1c),
+      mouseDown: const Color(0xFFb52a1c),
     );
 
-    return SizedBox(
-      height: 60,
-      child: Row(
-        children: [
-          _buildCustomMinimizeButton(buttonColors),
-          _buildCustomMaximizeButton(buttonColors),
-          _buildCustomCloseButton(closeButtonColors),
-        ],
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: SizedBox(
+        height: 40,
+        child: Row(
+          children: [
+            _buildCustomMinimizeButton(buttonColors),
+            _buildCustomMaximizeButton(buttonColors),
+            _buildCustomCloseButton(closeButtonColors),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildCustomMinimizeButton(WindowButtonColors colors) {
-    return WindowButton(
+    return _buildWindowButton(
       colors: colors,
-      iconBuilder: (context) {
-        return Icon(
-          CustomIcons.FluentIcons.subtract_20,
-          color: colors.iconNormal,
-          size: 16,
-        );
-      },
-      onPressed: () {
-        appWindow.minimize();
-      },
+      icon: CustomIcons.FluentIcons.subtract_20,
+      onPressed: () => appWindow.minimize(),
     );
   }
 
   Widget _buildCustomMaximizeButton(WindowButtonColors colors) {
-    return WindowButton(
+    final isMaximized = isWindowMaximized();
+    return _buildWindowButton(
       colors: colors,
-      iconBuilder: (context) {
-        final isMaximized = isWindowMaximized();
-        return Icon(
-          isMaximized ? CustomIcons.FluentIcons.minimize_20 : CustomIcons.FluentIcons.maximize_20,
-          color: colors.iconNormal,
-          size: 16,
-        );
-      },
+      icon: isMaximized ? CustomIcons.FluentIcons.minimize_20 : CustomIcons.FluentIcons.maximize_20,
       onPressed: () async {
-        final isMaximized = isWindowMaximized();
         if (isMaximized) {
           await restoreWindowProperly();
         } else {
           await maximizeWindowProperly();
         }
-        setState(() {}); // 刷新图标
+        setState(() {});
       },
     );
   }
 
   Widget _buildCustomCloseButton(WindowButtonColors colors) {
-    return WindowButton(
+    return _buildWindowButton(
       colors: colors,
-      iconBuilder: (context) => Icon(
-        CustomIcons.FluentIcons.dismiss_20,
-        color: colors.iconNormal,
-        size: 16,
-      ),
+      icon: CustomIcons.FluentIcons.dismiss_20,
       onPressed: () async {
         try {
           final config = Provider.of<ClientConfigService>(context, listen: false);
           final closeButtonBehavior = config.getCloseButtonBehavior();
-          
+
           AppLoggerService().info('App', 'Close button pressed, behavior: $closeButtonBehavior');
-          
+
           if (closeButtonBehavior == 'minimize_to_tray') {
-            // 最小化到托盘
             systemTrayService.hideMainWindow();
           } else {
-            // 退出应用
             await systemTrayService.exitApp();
           }
         } catch (e) {
           AppLoggerService().error('App', 'Error handling close button: $e');
-          // 如果出错，默认退出应用
           await systemTrayService.exitApp();
         }
       },
+    );
+  }
+
+  Widget _buildWindowButton({
+    required WindowButtonColors colors,
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return SizedBox(
+      width: 36,
+      height: 28,
+      child: HoverButton(
+        onPressed: onPressed,
+        builder: (context, states) {
+          Color bgColor = colors.normal ?? Colors.transparent;
+          Color iconColor = colors.iconNormal ?? AppTheme.textSecondary;
+
+          if (states.isPressing) {
+            bgColor = colors.mouseDown ?? AppTheme.bgLayer3;
+            iconColor = colors.iconMouseDown ?? AppTheme.textPrimary;
+          } else if (states.isHovering) {
+            bgColor = colors.mouseOver ?? AppTheme.bgLayer2;
+            iconColor = colors.iconMouseOver ?? AppTheme.textPrimary;
+          }
+
+          return Container(
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Center(
+              child: Icon(
+                icon,
+                color: iconColor,
+                size: 16,
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
