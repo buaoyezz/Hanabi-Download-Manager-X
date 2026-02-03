@@ -1081,7 +1081,7 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
               children: [
                 Icon(CustomIcons.FluentIcons.delete, size: 12, color: Colors.white),
                 const SizedBox(width: 6),
-                const Text('删除文件'),
+                const Text('删除'),
               ],
             ),
           ),
