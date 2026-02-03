@@ -713,9 +713,9 @@ class _DownloadListState extends State<DownloadList> {
 }
 
 class _DownloadTaskCard extends StatefulWidget {
-  final String taskId; // 只传递任务ID，让卡片自己监听任务变化
+  final DownloadTask task;
 
-  const _DownloadTaskCard({super.key, required this.taskId});
+  const _DownloadTaskCard({super.key, required this.task});
 
   @override
   State<_DownloadTaskCard> createState() => _DownloadTaskCardState();
