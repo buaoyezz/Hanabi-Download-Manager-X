@@ -48,7 +48,7 @@ echo.
 if %SKIP_POPUP%==0 (
     echo [2/4] Building Hanabi Popup...
     cd hanabi-popup
-    call npm run tauri:build
+    call npm run tauri build
     if errorlevel 1 (
         echo [91m[ERROR] Popup build failed![0m
         cd ..
