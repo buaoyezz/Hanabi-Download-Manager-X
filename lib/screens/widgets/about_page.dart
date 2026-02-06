@@ -4,6 +4,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import '../../utils/constants.dart';
 import '../../theme/app_theme.dart';
 import '../../services/performance_monitor_service.dart';
+import '../../widgets/smooth_scroll_wrapper.dart';
 
 import '../../widgets/animated_notifications.dart';
 class AboutPage extends StatefulWidget {
@@ -242,19 +243,26 @@ class _AboutPageState extends State<AboutPage> with SingleTickerProviderStateMix
     // 追踪重建
     PerformanceMonitorService().trackRebuild('AboutPage');
 
-    return ScaffoldPage.scrollable(
+    return ScaffoldPage(
       header: _buildHeader(context),
-      children: [
-        const SizedBox(height: 8),
-        _buildAppInfoSection(context),
-        const SizedBox(height: 20),
-        _buildDetailsSection(context),
-        const SizedBox(height: 20),
-        _buildLinksSection(context),
-        const SizedBox(height: 20),
-        _buildCopyrightSection(context),
-        const SizedBox(height: 40),
-      ],
+      content: SmoothSingleChildScrollView(
+        config: SmoothScrollConfig.fast,
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            _buildAppInfoSection(context),
+            const SizedBox(height: 20),
+            _buildDetailsSection(context),
+            const SizedBox(height: 20),
+            _buildLinksSection(context),
+            const SizedBox(height: 20),
+            _buildCopyrightSection(context),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
     );
   }
 

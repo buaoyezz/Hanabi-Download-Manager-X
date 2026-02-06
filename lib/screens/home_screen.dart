@@ -101,6 +101,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         icon: CustomIcons.FluentIcons.health,
         title: '状态',
         body: const StatusPage(key: ValueKey('status_page')),
+        
       ));
     }
     
@@ -324,6 +325,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // 根据窗口效果调整背景透明度
     final sidebarOpacity = isTransparent ? 0.2 : 0.65;
     
+    // 计算统一的 shell 背景色（标题栏+侧边栏共用）
+    final isMica = context.select<WindowEffectService, bool>((s) => s.isMicaEffect);
+    final effectEnabled = context.select<WindowEffectService, bool>((s) => s.effectEnabled);
+    final shellBgAlpha = isMica ? 0.4 : (effectEnabled ? sidebarOpacity : 1.0);
+    
     // 核心修复逻辑：确保 _currentIndex 与 _currentPageTitle 同步
     // 这解决了列表项动态增减（如在线统计出现/消失）导致的索引错位
     final correctIndex = navItems.indexWhere((item) => item.title == _currentPageTitle);
@@ -343,71 +349,73 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       }
     }
     
+    Widget shellContent = Container(
+      // 统一的 shell 背景色（标题栏 + 侧边栏一体）
+      color: AppTheme.bgSolid.withValues(alpha: shellBgAlpha),
+      child: Column(
+        children: [
+          // 顶部标题栏（横跨整个窗口）
+          _buildUnifiedTitleBar(context, sidebarOpacity),
+          // 下方：侧边栏 + 内容区
+          Expanded(
+            child: Row(
+              children: [
+                // 左侧：侧边栏（无独立背景，继承 shell 背景）
+                _buildEdgeSidebar(context, navItems, sidebarOpacity),
+                // 右侧：内容区（左上角圆角，覆盖在 shell 背景上）
+                Expanded(
+                  child: _buildContentArea(context, isTransparent, kernelIsRunning, kernelManagerIsRunning, navItems),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // 统一的模糊效果，覆盖标题栏+侧边栏区域，消除割裂感
+    if (effectEnabled && isTransparent) {
+      shellContent = BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+        child: shellContent,
+      );
+    }
+
     return WindowBorder(
       color: Colors.transparent,
       width: 0,
-      child: Container(
-        color: Colors.transparent,
-        child: Column(
-          children: [
-            // 顶部标题栏（横跨整个窗口）
-            _buildUnifiedTitleBar(context, sidebarOpacity),
-            // 下方：侧边栏 + 内容区
-            Expanded(
-              child: Row(
-                children: [
-                  // 左侧：侧边栏（不含标题）
-                  _buildEdgeSidebar(context, navItems, sidebarOpacity),
-                  // 右侧：内容区（带圆角）
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(8),
-                      ),
-                      child: _buildContentArea(context, isTransparent, kernelIsRunning, kernelManagerIsRunning, navItems),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+      child: shellContent,
     );
   }
 
   /// 内容区域 - 根据窗口效果设置决定是否使用模糊
   Widget _buildContentArea(BuildContext context, bool isTransparent, bool kernelIsRunning, bool kernelManagerIsRunning, List<NavigationItem> navItems) {
     final effectEnabled = context.select<WindowEffectService, bool>((s) => s.effectEnabled);
+    final isMica = context.select<WindowEffectService, bool>((s) => s.isMicaEffect);
     final useBlur = effectEnabled && isTransparent;
+
+    // Mica 效果需要更透明的背景
+    final bgAlpha = isMica ? 0.5 : (useBlur ? 0.75 : 0.95);
 
     final contentContainer = Container(
       decoration: BoxDecoration(
-        color: AppTheme.bgBase.withValues(alpha: useBlur ? 0.75 : 0.95),
+        color: AppTheme.bgBase.withValues(alpha: bgAlpha),
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(8),
-        ),
-        border: Border(
-          left: BorderSide(
-            color: AppTheme.borderSubtle.withValues(alpha: 0.3),
-            width: 1,
-          ),
-          top: BorderSide(
-            color: AppTheme.borderSubtle.withValues(alpha: 0.3),
-            width: 1,
-          ),
         ),
       ),
       clipBehavior: Clip.antiAlias,
       child: _buildPageContent(kernelIsRunning, kernelManagerIsRunning, navItems),
     );
 
-    // 只有在启用窗口效果时才使用 BackdropFilter，并用 RepaintBoundary 隔离
+    // 优化：降低模糊强度从15到8，减少GPU负担
     if (useBlur) {
       return RepaintBoundary(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-          child: contentContainer,
+        child: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+            child: contentContainer,
+          ),
         ),
       );
     }
@@ -417,17 +425,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   /// 统一的顶部标题栏 - 横跨整个窗口
   Widget _buildUnifiedTitleBar(BuildContext context, double opacity) {
-    final windowEffect = context.watch<WindowEffectService>();
-    final useBlur = windowEffect.effectEnabled;
-
     final titleBarContent = Container(
       height: 48,
-      decoration: BoxDecoration(
-        color: AppTheme.bgSolid.withValues(alpha: useBlur ? opacity : 1.0),
-      ),
+      // 不设独立背景色，由外层 shell 背景提供
       child: Row(
         children: [
-          // 左侧：汉堡菜单（固定52px，与收缩后的侧边栏对齐）
+          // 左侧：汉堡菜单
           SizedBox(
             width: 52,
             child: Center(
@@ -465,7 +468,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               child: Row(
                 children: [
                   const SizedBox(width: 8),
-                  // Logo
                   Container(
                     width: 18,
                     height: 18,
@@ -490,7 +492,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // 标题
                   Text(
                     'Hanabi Download Manager X',
                     style: FluentTheme.of(context).typography.caption?.copyWith(
@@ -501,7 +502,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                   ),
-                  // 剩余空间也可拖动
                   const Expanded(child: SizedBox()),
                 ],
               ),
@@ -513,18 +513,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
     );
 
-    // 只有在启用窗口效果时才使用 BackdropFilter，并用 RepaintBoundary 隔离
-    if (useBlur) {
-      return RepaintBoundary(
-        child: ClipRRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: titleBarContent,
-          ),
-        ),
-      );
-    }
-
+    // 优化：降低模糊强度从10到6，减少GPU负担
+    // 不再单独模糊标题栏，由外层 shell 统一处理
     return titleBarContent;
   }
 
@@ -777,9 +767,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   /// Edge 风格侧边栏 - 只包含导航项（优化版，减少重建）
   Widget _buildEdgeSidebar(BuildContext context, List<NavigationItem> navItems, double opacity) {
-    final effectEnabled = context.select<WindowEffectService, bool>((s) => s.effectEnabled);
-    final useBlur = effectEnabled;
-
     return AnimatedBuilder(
       animation: _widthAnimation,
       builder: (context, child) {
@@ -787,15 +774,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         final isCompact = width < 100;
 
         final sidebarContent = Container(
-          decoration: BoxDecoration(
-            color: AppTheme.bgSolid.withValues(alpha: useBlur ? opacity : 1.0),
-            border: const Border(
-              right: BorderSide(
-                color: AppTheme.borderSubtle,
-                width: 0.5,
-              ),
-            ),
-          ),
+          // 不设独立背景色，与标题栏一体
           child: Column(
             children: [
               const SizedBox(height: 8),
@@ -824,38 +803,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         );
 
-        return Stack(
+    return Stack(
           children: [
-            // 主侧边栏 - 使用 RepaintBoundary 隔离模糊效果
             ClipRect(
               child: Align(
                 alignment: Alignment.centerLeft,
                 widthFactor: 1.0,
                 child: SizedBox(
                   width: width,
-                  child: useBlur
-                      ? RepaintBoundary(
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                            child: sidebarContent,
-                          ),
-                        )
-                      : sidebarContent,
-                ),
-              ),
-            ),
-            // 右上角圆角装饰 - 填补三角形缝隙
-            Positioned(
-              top: 0,
-              right: 0,
-              child: Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: AppTheme.bgSolid.withValues(alpha: useBlur ? opacity : 1.0),
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(8),
-                  ),
+                  // 不再单独模糊侧边栏，由外层 shell 统一处理
+                  child: sidebarContent,
                 ),
               ),
             ),
@@ -918,8 +875,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   /// 托盘按钮（带动画效果）
   Widget _buildAnimatedTrayButton(BuildContext context) {
-    final config = context.watch<ClientConfigService>();
-    final closeButtonBehavior = config.getCloseButtonBehavior();
+    // 优化：使用 select 只监听 closeButtonBehavior，避免整个配置变化时重建
+    final closeButtonBehavior = context.select<ClientConfigService, String>((c) => c.getCloseButtonBehavior());
     final shouldShowTrayButton = closeButtonBehavior != 'minimize_to_tray';
     
     return AnimatedSwitcher(
@@ -1179,7 +1136,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 }
 
-/// Fluent Design 导航项组件 - 简洁版本
+/// Fluent Design 导航项组件 - 简洁版本（性能优化）
 class _NavItem extends StatefulWidget {
   final IconData icon;
   final String title;
@@ -1199,54 +1156,20 @@ class _NavItem extends StatefulWidget {
   State<_NavItem> createState() => _NavItemState();
 }
 
-class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
-  late AnimationController _pressController;
-  late AnimationController _hoverController;
-  late AnimationController _selectController;
-  
-  // 缓存动画值，避免每帧重新计算
-  late Animation<double> _pressAnimation;
-  late Animation<double> _hoverAnimation;
-  late Animation<double> _selectAnimation;
-  
+class _NavItemState extends State<_NavItem> with SingleTickerProviderStateMixin {
+  // 优化：合并为单个动画控制器，减少资源占用
+  late AnimationController _controller;
   bool _isHovered = false;
+  bool _isPressed = false;
 
   @override
   void initState() {
     super.initState();
-    // 按压动画 - 快速响应，使用 easeOut 让释放更自然
-    _pressController = AnimationController(
-      duration: const Duration(milliseconds: 100),
-      vsync: this,
-    );
-    // Hover 动画 - 使用 easeOutQuart 实现优雅的减速效果
-    _hoverController = AnimationController(
+    _controller = AnimationController(
       duration: const Duration(milliseconds: 180),
       vsync: this,
+      value: widget.isSelected ? 1.0 : 0.0,
     );
-    // 选中动画 - 使用 easeInOutCubic 实现平滑的状态切换
-    _selectController = AnimationController(
-      duration: const Duration(milliseconds: 180),
-      vsync: this,
-    );
-    
-    // 创建缓存的动画对象
-    _pressAnimation = CurvedAnimation(
-      parent: _pressController,
-      curve: Curves.easeOut,
-    );
-    _hoverAnimation = CurvedAnimation(
-      parent: _hoverController,
-      curve: Curves.easeOutQuart,
-    );
-    _selectAnimation = CurvedAnimation(
-      parent: _selectController,
-      curve: Curves.easeInOutCubic,
-    );
-    
-    if (widget.isSelected) {
-      _selectController.value = 1.0;
-    }
   }
 
   @override
@@ -1254,44 +1177,43 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.isSelected != widget.isSelected) {
       if (widget.isSelected) {
-        _selectController.forward();
+        _controller.forward();
       } else {
-        _selectController.reverse();
+        _controller.reverse();
       }
     }
   }
 
   @override
   void dispose() {
-    _pressController.dispose();
-    _hoverController.dispose();
-    _selectController.dispose();
-    // CurvedAnimation 会自动被 controller dispose 时清理，不需要手动 dispose
+    _controller.dispose();
     super.dispose();
   }
 
   void _onEnter(PointerEvent _) {
     if (!_isHovered) {
       setState(() => _isHovered = true);
-      _hoverController.forward();
     }
   }
 
   void _onExit(PointerEvent _) {
     if (_isHovered) {
       setState(() => _isHovered = false);
-      _hoverController.reverse();
     }
   }
 
-  void _onTapDown(TapDownDetails _) => _pressController.forward();
-  
+  void _onTapDown(TapDownDetails _) {
+    setState(() => _isPressed = true);
+  }
+
   void _onTapUp(TapUpDetails _) {
-    _pressController.reverse();
+    setState(() => _isPressed = false);
     widget.onTap();
   }
-  
-  void _onTapCancel() => _pressController.reverse();
+
+  void _onTapCancel() {
+    setState(() => _isPressed = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1304,16 +1226,15 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
           onTapUp: _onTapUp,
           onTapCancel: _onTapCancel,
           child: AnimatedBuilder(
-            animation: Listenable.merge([_pressAnimation, _hoverAnimation, _selectAnimation]),
+            animation: _controller,
             builder: (context, child) {
-              // 直接使用缓存的动画值，不需要再次应用曲线
-              final pressValue = _pressAnimation.value;
-              final hoverValue = _hoverAnimation.value;
-              final selectValue = _selectAnimation.value;
-              
-              // 轻微的缩放效果，避免过度动画
-              final scale = 1.0 - (pressValue * 0.015);
-              
+              final selectValue = _controller.value;
+              final hoverValue = _isHovered ? 1.0 : 0.0;
+              final pressValue = _isPressed ? 1.0 : 0.0;
+
+              // 轻微的缩放效果
+              final scale = 1.0 - (pressValue * 0.02);
+
               return Transform.scale(
                 scale: scale,
                 alignment: Alignment.center,
@@ -1330,17 +1251,17 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
 
   Widget _buildCompactContent(double hoverValue, double selectValue) {
     final bgAlpha = (selectValue * 0.8 + hoverValue * 0.4 * (1 - selectValue)).clamp(0.0, 0.8);
-    
+
     final iconColor = Color.lerp(
       Color.lerp(AppTheme.textSecondary, AppTheme.textPrimary, hoverValue),
       AppTheme.accentLight,
       selectValue,
     )!;
-    
+
     return Center(
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeInOutCubic,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOutCubic,
         width: 40,
         height: 36,
         decoration: BoxDecoration(
@@ -1350,15 +1271,15 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // 选中指示条 - 使用 AnimatedContainer 实现高度动画
+            // 选中指示条
             AnimatedPositioned(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeInOutCubic,
+              duration: const Duration(milliseconds: 150),
+              curve: Curves.easeOutCubic,
               left: 4,
               top: (36 - (16 * selectValue).clamp(0.0, 16.0)) / 2,
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeInOutCubic,
+                duration: const Duration(milliseconds: 150),
+                curve: Curves.easeOutCubic,
                 width: 3,
                 height: (16 * selectValue).clamp(0.0, 16.0),
                 decoration: BoxDecoration(
@@ -1367,15 +1288,11 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
                 ),
               ),
             ),
-            // 图标 - 使用 AnimatedSwitcher 实现颜色过渡
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 150),
-              child: Icon(
-                widget.icon,
-                key: ValueKey('${widget.icon}_$selectValue'),
-                size: 16,
-                color: iconColor,
-              ),
+            // 图标
+            Icon(
+              widget.icon,
+              size: 16,
+              color: iconColor,
             ),
           ],
         ),
@@ -1385,22 +1302,22 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
 
   Widget _buildExpandedContent(double hoverValue, double selectValue) {
     final bgAlpha = (selectValue * 0.8 + hoverValue * 0.4 * (1 - selectValue)).clamp(0.0, 0.8);
-    
+
     final iconColor = Color.lerp(
       Color.lerp(AppTheme.textSecondary, AppTheme.textPrimary, hoverValue),
       AppTheme.accentLight,
       selectValue,
     )!;
-    
+
     final textColor = Color.lerp(
       AppTheme.textSecondary,
       AppTheme.textPrimary,
       (selectValue + hoverValue * (1 - selectValue)).clamp(0.0, 1.0),
     )!;
-    
+
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeInOutCubic,
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOutCubic,
       height: 36,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
@@ -1409,10 +1326,10 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
       ),
       child: Row(
         children: [
-          // 选中指示条 - 使用 AnimatedContainer 实现宽度和高度动画
+          // 选中指示条
           AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeInOutCubic,
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOutCubic,
             width: selectValue > 0.01 ? 3 : 0,
             height: (16 * selectValue).clamp(0.0, 16.0),
             margin: EdgeInsets.only(right: selectValue > 0.01 ? 12 : 0),
@@ -1424,17 +1341,13 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
           Icon(widget.icon, size: 16, color: iconColor),
           const SizedBox(width: 12),
           Expanded(
-            child: AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 150),
-              curve: Curves.easeInOutCubic,
+            child: Text(
+              widget.title,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: textColor,
                 fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w400,
                 fontSize: 13,
-              ),
-              child: Text(
-                widget.title,
-                overflow: TextOverflow.ellipsis,
               ),
             ),
           ),

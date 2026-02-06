@@ -15,6 +15,7 @@ import '../../services/performance_monitor_service.dart';
 import '../../widgets/folder_picker_dialog.dart';
 import '../../widgets/settings_components.dart';
 import '../../widgets/temp_files_dialog.dart';
+import '../../widgets/smooth_scroll_wrapper.dart';
 import '../../services/auto_start_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/fluent_icons.dart' as CustomIcons;
@@ -344,23 +345,27 @@ class _SettingsPageState extends State<SettingsPage> {
   
   Future<void> _checkStatus() async {
     if (!mounted) return;
-    
+
     final kernelManager = KernelManager();
     final legacyKernelService = context.read<KernelService>();
-    
+
     // 检查新内核或旧内核的运行状态
-    final kernelOnline = _useNewKernel 
-        ? kernelManager.isRunning 
+    final newKernelOnline = _useNewKernel
+        ? kernelManager.isRunning
         : legacyKernelService.isRunning;
-    
+
     // 浏览器连接状态（暂时与内核状态一致）
-    final browserConnected = kernelOnline;
-    
-    if (mounted) {
+    final newBrowserConnected = newKernelOnline;
+    final newKernelName = kernelManager.kernelName;
+
+    // 优化：只在状态真正变化时才 setState，避免不必要的重建
+    if (mounted && (newKernelOnline != _kernelOnline ||
+        newBrowserConnected != _browserConnected ||
+        newKernelName != _currentKernelName)) {
       setState(() {
-        _kernelOnline = kernelOnline;
-        _browserConnected = browserConnected;
-        _currentKernelName = kernelManager.kernelName;
+        _kernelOnline = newKernelOnline;
+        _browserConnected = newBrowserConnected;
+        _currentKernelName = newKernelName;
       });
     }
   }
@@ -611,7 +616,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
     return Consumer<DeveloperModeService>(
       builder: (context, devMode, child) {
-        return ScaffoldPage.scrollable(
+        return ScaffoldPage(
           header: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -682,15 +687,22 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 20),
             ],
           ),
-          children: [
-            if (_currentTabIndex == 0) ..._buildGeneralTab(context),
-            if (_currentTabIndex == 1) ..._buildDownloadTab(context),
-            if (_currentTabIndex == 2) const AppearanceSettingsPage(),
-            if (_currentTabIndex == 3) const UpdatePage(),
-            if (_currentTabIndex == 4) ..._buildAdvancedTab(context),
-            if (_currentTabIndex == 5 && devMode.developerMode) const DeveloperSettingsPage(),
-            const SizedBox(height: 40),
-          ],
+          content: SmoothSingleChildScrollView(
+            config: SmoothScrollConfig.fast,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_currentTabIndex == 0) ..._buildGeneralTab(context),
+                if (_currentTabIndex == 1) ..._buildDownloadTab(context),
+                if (_currentTabIndex == 2) const AppearanceSettingsPage(),
+                if (_currentTabIndex == 3) const UpdatePage(),
+                if (_currentTabIndex == 4) ..._buildAdvancedTab(context),
+                if (_currentTabIndex == 5 && devMode.developerMode) const DeveloperSettingsPage(),
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
         );
       },
     );

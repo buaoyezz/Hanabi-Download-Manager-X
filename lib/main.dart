@@ -200,12 +200,10 @@ void main(List<String> args) async {
     FlutterError.presentError(details);
   };
   
-  // 初始化 Acrylic/Mica 效果
+  // 初始化 Acrylic/Mica 效果 - 只初始化，不设置效果
+  // 效果由 WindowEffectService 通过自定义 C++ 代码控制
   await Window.initialize();
-  await Window.setEffect(
-    effect: WindowEffect.mica,
-    dark: true,
-  );
+  // 注意：不再调用 Window.setEffect()，由 flutter_window.cpp 处理
   
   // 检查是否是开机自启动（启动参数 --autostart）
   final bool isAutoStart = args.contains('--autostart');

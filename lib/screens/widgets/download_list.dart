@@ -9,6 +9,7 @@ import '../../models/download_task.dart' show DownloadTask, DownloadStatus, Segm
 import '../../theme/app_theme.dart';
 import '../../widgets/file_icon_widget.dart';
 import '../../widgets/animated_card.dart';
+import '../../widgets/smooth_scroll_wrapper.dart';
 import '../../utils/fluent_icons.dart' as CustomIcons;
 import '../../widgets/animated_notifications.dart';
 
@@ -70,16 +71,26 @@ class _DownloadListState extends State<DownloadList> {
 
     return ColoredBox(
       color: Colors.transparent,
-      // 优化：使用 Selector 只监听任务列表的结构变化，而不是每次进度更新
+      // 优化：使用 Selector 监听任务列表变化
       child: Selector<IntegratedDownloadService, List<DownloadTask>>(
         selector: (_, service) => service.tasks,
         shouldRebuild: (previous, next) {
-          // 只在任务数量变化或任务ID变化时重建列表
+          // 任务数量变化
           if (previous.length != next.length) return true;
+
           for (int i = 0; i < previous.length; i++) {
+            // 任务 ID 变化
             if (previous[i].id != next[i].id) return true;
-            // 状态变化也需要重建（如从下载中变为完成）
+            // 状态变化（如从下载中变为完成）
             if (previous[i].status != next[i].status) return true;
+            // 进度变化（修复：下载中任务的进度更新）
+            if (previous[i].status == DownloadStatus.downloading ||
+                next[i].status == DownloadStatus.downloading) {
+              // 进度变化超过 0.1% 才重建，避免过于频繁
+              if ((previous[i].progress - next[i].progress).abs() > 0.001) return true;
+              // 速度变化也需要更新
+              if (previous[i].speed != next[i].speed) return true;
+            }
           }
           return false;
         },
@@ -136,13 +147,17 @@ class _DownloadListState extends State<DownloadList> {
               _buildStatsBar(context, downloadingTasks.length, totalSpeed, totalSegments),
             // 任务列表
             Expanded(
-              child: ListView.builder(
+              child: SmoothListView.builder(
                       padding: const EdgeInsets.all(20),
                       itemCount: activeTasks.length,
+                      // 性能优化：增加缓存区域，预加载更多项目减少滚动时的创建销毁
+                      cacheExtent: 500,
                       // 添加 addRepaintBoundaries 优化重绘
                       addRepaintBoundaries: true,
                       // 添加 addAutomaticKeepAlives 保持状态
                       addAutomaticKeepAlives: false,
+                      // 平滑滚动配置 - 使用快速响应模式
+                      config: SmoothScrollConfig.fast,
                       itemBuilder: (context, index) {
                         final task = activeTasks[index];
                         return Padding(
@@ -726,14 +741,12 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
   bool _showAllSegments = false;
   int _maxVisibleSegments = 5;
   String _segmentsDisplayMode = 'merged'; // 'merged' (合并) 或 'list' (列表)
-  
+
   @override
   void initState() {
     super.initState();
     _loadSegmentsExpandedSetting();
   }
-
-  // didUpdateWidget 不需要手动 setState，Flutter 会自动处理 widget 更新
   
   Future<void> _loadSegmentsExpandedSetting() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1051,20 +1064,11 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppTheme.accentPrimary.withValues(alpha: 0.15),
-                    AppTheme.accentLight.withValues(alpha: 0.15),
-                  ],
-                ),
+                color: AppTheme.accentPrimary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(AppTheme.radiusRound),
-                border: Border.all(
-                  color: AppTheme.accentPrimary.withValues(alpha: 0.3),
-                  width: 1,
-                ),
               ),
               child: Text(
-                isUnknownSize 
+                isUnknownSize
                     ? '计算中'
                     : '${(progress * 100).toStringAsFixed(1)}%',
                 style: FluentTheme.of(context).typography.caption?.copyWith(
@@ -1079,8 +1083,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
         ),
         
         const SizedBox(height: 10),
-        
-        // 进度条
+
+        // 进度条 - 优化：移除boxShadow提升性能
         Stack(
           children: [
             // 背景轨道
@@ -1089,10 +1093,6 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
               decoration: BoxDecoration(
                 color: AppTheme.bgLayer2.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(AppTheme.radiusRound),
-                border: Border.all(
-                  color: AppTheme.borderSubtle.withValues(alpha: 0.3),
-                  width: 0.5,
-                ),
               ),
             ),
             // 进度填充
@@ -1103,20 +1103,13 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                 child: Container(
                   height: 8,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
+                    gradient: const LinearGradient(
                       colors: [
                         AppTheme.accentPrimary,
                         AppTheme.accentLight,
                       ],
                     ),
                     borderRadius: BorderRadius.circular(AppTheme.radiusRound),
-                    boxShadow: widget.task.status == DownloadStatus.downloading ? [
-                      BoxShadow(
-                        color: AppTheme.accentPrimary.withValues(alpha: 0.4),
-                        blurRadius: 8,
-                        spreadRadius: 0,
-                      ),
-                    ] : null,
                   ),
                 ),
               )
@@ -1558,16 +1551,12 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
     final segmentCount = widget.task.segments?.length ?? 0;
     final activeSegments = widget.task.segments?.where((s) => s.isDownloading).length ?? 0;
     final speed = widget.task.speed ?? 0;
-    
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.bgLayer2.withValues(alpha: 0.6),
+        color: AppTheme.bgLayer2.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(
-          color: AppTheme.borderSubtle.withValues(alpha: 0.5),
-          width: 1,
-        ),
       ),
       child: Row(
         children: [
@@ -1575,12 +1564,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
-              color: AppTheme.accentPrimary.withValues(alpha: 0.15),
+              color: AppTheme.accentPrimary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-              border: Border.all(
-                color: AppTheme.accentPrimary.withValues(alpha: 0.3),
-                width: 1,
-              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -1603,9 +1588,9 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
               ],
             ),
           ),
-          
+
           const SizedBox(width: 12),
-          
+
           // 分段信息
           if (segmentCount > 1) ...[
             Container(
@@ -2247,17 +2232,16 @@ class _ActionButtonState extends State<_ActionButton> {
         onExit: (_) => setState(() => _isHovered = false),
         child: GestureDetector(
           onTap: widget.onPressed,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
+          child: Container(
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: _isHovered 
+              color: _isHovered
                   ? widget.color.withValues(alpha: 0.15)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
               border: Border.all(
-                color: _isHovered 
+                color: _isHovered
                     ? widget.color.withValues(alpha: 0.3)
                     : Colors.transparent,
               ),
@@ -2301,18 +2285,15 @@ class _HoverableUrlState extends State<_HoverableUrl> {
         onTap: widget.onTap,
         child: Tooltip(
           message: '点击复制链接',
-          child: AnimatedDefaultTextStyle(
-            duration: const Duration(milliseconds: 200),
+          child: Text(
+            widget.url,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: FluentTheme.of(context).typography.caption?.copyWith(
               color: AppTheme.textTertiary,
               fontSize: 11,
               decoration: _isHovered ? TextDecoration.underline : TextDecoration.none,
               decorationColor: AppTheme.textTertiary.withValues(alpha: 0.7),
-            ) ?? const TextStyle(),
-            child: Text(
-              widget.url,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
         ),

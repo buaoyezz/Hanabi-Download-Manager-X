@@ -9,6 +9,7 @@ import '../../models/download_task.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/file_icon_widget.dart';
 import '../../widgets/animated_card.dart';
+import '../../widgets/smooth_scroll_wrapper.dart';
 import '../../utils/fluent_icons.dart' as CustomIcons;
 import '../../widgets/animated_notifications.dart';
 
@@ -240,14 +241,25 @@ class _CompletedListState extends State<CompletedList> {
               Expanded(
                 child: currentTasks.isEmpty
                     ? _buildNoResultsState(context)
-                    : ListView.builder(
+                    : SmoothListView.builder(
                         padding: const EdgeInsets.all(20),
                         itemCount: currentTasks.length,
+                        // 性能优化：增加缓存区域
+                        cacheExtent: 500,
+                        addRepaintBoundaries: true,
+                        addAutomaticKeepAlives: false,
+                        // 平滑滚动配置 - 使用快速响应模式
+                        config: SmoothScrollConfig.fast,
                         itemBuilder: (context, index) {
                           final task = currentTasks[index];
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 12),
-                            child: _CompletedTaskCard(task: task),
+                            child: RepaintBoundary(
+                              child: _CompletedTaskCard(
+                                key: ValueKey(task.id),
+                                task: task,
+                              ),
+                            ),
                           );
                         },
                       ),
@@ -739,7 +751,7 @@ class _CompletedListState extends State<CompletedList> {
 class _CompletedTaskCard extends StatefulWidget {
   final DownloadTask task;
 
-  const _CompletedTaskCard({required this.task});
+  const _CompletedTaskCard({super.key, required this.task});
 
   @override
   State<_CompletedTaskCard> createState() => _CompletedTaskCardState();
@@ -1152,16 +1164,15 @@ class _ActionButtonState extends State<_ActionButton> {
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
         onTap: widget.onPressed,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+        child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: _isHovered 
+            color: _isHovered
                 ? widget.color.withValues(alpha: 0.15)
                 : AppTheme.bgLayer2,
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             border: Border.all(
-              color: _isHovered 
+              color: _isHovered
                   ? widget.color.withValues(alpha: 0.3)
                   : AppTheme.borderSubtle,
             ),
@@ -1284,17 +1295,16 @@ class _IconActionButtonState extends State<_IconActionButton> {
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
         onTap: widget.onPressed,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+        child: Container(
           width: 28,
           height: 28,
           decoration: BoxDecoration(
-            color: _isHovered 
+            color: _isHovered
                 ? widget.color.withValues(alpha: 0.15)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             border: Border.all(
-              color: _isHovered 
+              color: _isHovered
                   ? widget.color.withValues(alpha: 0.3)
                   : Colors.transparent,
             ),
@@ -1334,25 +1344,15 @@ class _TabButton extends StatefulWidget {
 class _TabButtonState extends State<_TabButton> with SingleTickerProviderStateMixin {
   bool _isHovered = false;
   late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-    
-    _scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
-    );
-    
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
-    );
-    
+
     if (widget.isSelected) {
       _controller.value = 1.0;
     }
@@ -1384,83 +1384,63 @@ class _TabButtonState extends State<_TabButton> with SingleTickerProviderStateMi
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
         onTap: widget.onTap,
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, child) {
-            return Transform.scale(
-              scale: widget.isSelected ? _scaleAnimation.value : 1.0,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: widget.isSelected
+                ? AppTheme.accentPrimary.withValues(alpha: 0.15)
+                : (_isHovered ? AppTheme.bgLayer2 : Colors.transparent),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            border: Border.all(
+              color: widget.isSelected
+                  ? AppTheme.accentPrimary.withValues(alpha: 0.4)
+                  : (_isHovered ? AppTheme.borderSubtle : Colors.transparent),
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                widget.icon,
+                size: 12,
+                color: widget.isSelected
+                    ? AppTheme.accentPrimary
+                    : AppTheme.textSecondary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                widget.label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w500,
                   color: widget.isSelected
-                      ? AppTheme.accentPrimary.withValues(alpha: 0.15)
-                      : (_isHovered ? AppTheme.bgLayer2 : Colors.transparent),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                  border: Border.all(
-                    color: widget.isSelected
-                        ? AppTheme.accentPrimary.withValues(alpha: 0.4)
-                        : (_isHovered ? AppTheme.borderSubtle : Colors.transparent),
-                    width: 1.5,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOutCubic,
-                      child: Icon(
-                        widget.icon,
-                        size: 12,
-                        color: widget.isSelected
-                            ? AppTheme.accentPrimary
-                            : AppTheme.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    AnimatedDefaultTextStyle(
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOutCubic,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w500,
-                        color: widget.isSelected
-                            ? AppTheme.accentPrimary
-                            : AppTheme.textSecondary,
-                      ),
-                      child: Text(widget.label),
-                    ),
-                    const SizedBox(width: 4),
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOutCubic,
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: widget.isSelected
-                            ? AppTheme.accentPrimary.withValues(alpha: 0.2)
-                            : AppTheme.bgLayer2,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusRound),
-                      ),
-                      child: AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeOutCubic,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: widget.isSelected
-                              ? AppTheme.accentPrimary
-                              : AppTheme.textTertiary,
-                        ),
-                        child: Text('${widget.count}'),
-                      ),
-                    ),
-                  ],
+                      ? AppTheme.accentPrimary
+                      : AppTheme.textSecondary,
                 ),
               ),
-            );
-          },
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: widget.isSelected
+                      ? AppTheme.accentPrimary.withValues(alpha: 0.2)
+                      : AppTheme.bgLayer2,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusRound),
+                ),
+                child: Text(
+                  '${widget.count}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: widget.isSelected
+                        ? AppTheme.accentPrimary
+                        : AppTheme.textTertiary,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1492,25 +1472,15 @@ class _CustomTabButton extends StatefulWidget {
 class _CustomTabButtonState extends State<_CustomTabButton> with SingleTickerProviderStateMixin {
   bool _isHovered = false;
   late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 200),
       vsync: this,
     );
-    
-    _scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
-    );
-    
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
-    );
-    
+
     if (widget.isSelected) {
       _controller.value = 1.0;
     }
@@ -1542,96 +1512,76 @@ class _CustomTabButtonState extends State<_CustomTabButton> with SingleTickerPro
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
         onTap: widget.onTap,
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, child) {
-            return Transform.scale(
-              scale: widget.isSelected ? _scaleAnimation.value : 1.0,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: widget.isSelected
+                ? AppTheme.accentPrimary.withValues(alpha: 0.15)
+                : (_isHovered ? AppTheme.bgLayer2 : Colors.transparent),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            border: Border.all(
+              color: widget.isSelected
+                  ? AppTheme.accentPrimary.withValues(alpha: 0.4)
+                  : (_isHovered ? AppTheme.borderSubtle : Colors.transparent),
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                widget.icon,
+                size: 12,
+                color: widget.isSelected
+                    ? AppTheme.accentPrimary
+                    : AppTheme.textSecondary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                widget.label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w500,
                   color: widget.isSelected
-                      ? AppTheme.accentPrimary.withValues(alpha: 0.15)
-                      : (_isHovered ? AppTheme.bgLayer2 : Colors.transparent),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                  border: Border.all(
-                    color: widget.isSelected
-                        ? AppTheme.accentPrimary.withValues(alpha: 0.4)
-                        : (_isHovered ? AppTheme.borderSubtle : Colors.transparent),
-                    width: 1.5,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOutCubic,
-                      child: Icon(
-                        widget.icon,
-                        size: 12,
-                        color: widget.isSelected
-                            ? AppTheme.accentPrimary
-                            : AppTheme.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    AnimatedDefaultTextStyle(
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOutCubic,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w500,
-                        color: widget.isSelected
-                            ? AppTheme.accentPrimary
-                            : AppTheme.textSecondary,
-                      ),
-                      child: Text(widget.label),
-                    ),
-                    const SizedBox(width: 4),
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOutCubic,
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: widget.isSelected
-                            ? AppTheme.accentPrimary.withValues(alpha: 0.2)
-                            : AppTheme.bgLayer2,
-                        borderRadius: BorderRadius.circular(AppTheme.radiusRound),
-                      ),
-                      child: AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeOutCubic,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: widget.isSelected
-                              ? AppTheme.accentPrimary
-                              : AppTheme.textTertiary,
-                        ),
-                        child: Text('${widget.count}'),
-                      ),
-                    ),
-                    if (_isHovered) ...[
-                      const SizedBox(width: 6),
-                      GestureDetector(
-                        onTap: () {
-                          widget.onDelete();
-                        },
-                        child: Icon(
-                          CustomIcons.FluentIcons.chrome_close,
-                          size: 10,
-                          color: AppTheme.statusError,
-                        ),
-                      ),
-                    ],
-                  ],
+                      ? AppTheme.accentPrimary
+                      : AppTheme.textSecondary,
                 ),
               ),
-            );
-          },
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: widget.isSelected
+                      ? AppTheme.accentPrimary.withValues(alpha: 0.2)
+                      : AppTheme.bgLayer2,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusRound),
+                ),
+                child: Text(
+                  '${widget.count}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: widget.isSelected
+                        ? AppTheme.accentPrimary
+                        : AppTheme.textTertiary,
+                  ),
+                ),
+              ),
+              if (_isHovered) ...[
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: () {
+                    widget.onDelete();
+                  },
+                  child: Icon(
+                    CustomIcons.FluentIcons.chrome_close,
+                    size: 10,
+                    color: AppTheme.statusError,
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
