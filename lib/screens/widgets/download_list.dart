@@ -30,7 +30,10 @@ class _DownloadListState extends State<DownloadList> {
   @override
   void initState() {
     super.initState();
-    _loadSortOrder();
+    // 延迟加载排序设置，避免在 initState 中触发 setState
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadSortOrder();
+    });
   }
 
   Future<void> _loadSortOrder() async {

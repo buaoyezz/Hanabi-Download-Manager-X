@@ -6,6 +6,7 @@ import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:path/path.dart' as path;
 import 'logger_service.dart';
 import 'kernel_service.dart';
+import 'client_config_service.dart';
 import '../main.dart';
 import '../widgets/tray_menu_window.dart';
 
@@ -31,7 +32,7 @@ class SystemTrayService {
       await _systemTray.initSystemTray(
         title: "Hanabi Download ManagerX",
         iconPath: iconPath,
-        toolTip: "Hanabi Download ManagerX - Running in background",
+        toolTip: "Hanabi Download ManagerX",
       );
 
       // 注册托盘事件处理器
@@ -64,10 +65,24 @@ class SystemTrayService {
       // 根据参数决定是否显示窗口
       if (showWindow) {
         showMainWindow();
+      } else {
+        updateToolTip(false);
       }
     } catch (e) {
       _logger.error('System tray init failed: $e');
     }
+  }
+
+  void updateToolTip(bool isVisible) {
+    final config = ClientConfigService();
+    final showStatus = config.getShowTrayRunningStatus();
+    
+    String tooltip = "Hanabi Download ManagerX";
+    if (showStatus && !isVisible) {
+      tooltip += " - 正在后台运行";
+    }
+    
+    _systemTray.setToolTip(tooltip);
   }
 
   Future<String> _getIconPath() async {
@@ -94,11 +109,13 @@ class SystemTrayService {
     _logger.info('Show main window');
     appWindow.restore();
     appWindow.show();
+    updateToolTip(true);
   }
 
   void hideMainWindow() {
     _logger.info('Hide main window to tray');
     appWindow.hide();
+    updateToolTip(false);
   }
 
   Future<void> exitApp() async {

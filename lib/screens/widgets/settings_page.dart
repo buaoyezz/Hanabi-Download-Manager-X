@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:bitsdojo_window/bitsdojo_window.dart'; // Import appWindow
 
 import 'package:provider/provider.dart';
+import '../../main.dart'; // Import systemTrayService
 import '../../services/integrated_download_service.dart';
 import '../../services/kernel_service.dart';
 import '../../services/kernel/kernel_manager.dart';
@@ -32,13 +34,39 @@ class SettingsPage extends StatefulWidget {
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
-class GetUserName extends StatelessWidget {
+class GetUserName extends StatefulWidget {
   const GetUserName({super.key});
+
+  @override
+  State<GetUserName> createState() => _GetUserNameState();
+}
+
+class _GetUserNameState extends State<GetUserName> {
+  late final Future<String> _userNameFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _userNameFuture = _getUserName();
+  }
+
+  Future<String> _getUserName() async {
+    try {
+      final userName = Platform.environment['USERNAME'] ?? Platform.environment['USER'];
+      if (userName != null && userName.isNotEmpty) {
+        return userName;
+      }
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('user_name') ?? '用户';
+    } catch (e) {
+      return '用户';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<String>(
-      future: _getUserName(),
+      future: _userNameFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Text('获取中...');
@@ -52,22 +80,6 @@ class GetUserName extends StatelessWidget {
       },
     );
   }
-  
-  Future<String> _getUserName() async {
-    try {
-      // 首先尝试从系统环境变量获取用户名
-      final userName = Platform.environment['USERNAME'] ?? Platform.environment['USER'];
-      if (userName != null && userName.isNotEmpty) {
-        return userName;
-    }
-      
-      // 如果环境变量获取失败，尝试从SharedPreferences获取
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getString('user_name') ?? '用户';
-    } catch (e) {
-      return '用户';
-  }
-}
 }
 
 class _SettingsPageState extends State<SettingsPage> {
@@ -99,6 +111,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _enableOnlineStats = true; // 在线统计开关
   String _downloadPath = '';
   String _closeButtonBehavior = 'minimize_to_tray';
+  bool _showTrayRunningStatus = false;
   
   // Status monitoring
   bool _kernelOnline = false;
@@ -256,10 +269,12 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       final config = Provider.of<ClientConfigService>(context, listen: false);
       final closeButtonBehavior = config.getCloseButtonBehavior();
+      final showTrayRunningStatus = config.getShowTrayRunningStatus();
       
       if (mounted) {
         setState(() {
           _closeButtonBehavior = closeButtonBehavior;
+          _showTrayRunningStatus = showTrayRunningStatus;
         });
       }
     } catch (e) {
@@ -292,11 +307,42 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() {
         _openOnStartup = value;
       });
+      NotificationManager.of(context)?.showSuccess(
+        value ? '开机自启已开启' : '开机自启已关闭',
+        message: value ? '软件将随系统启动自动运行' : '软件将不会自动运行',
+      );
     } else if (mounted) {
       NotificationManager.of(context)?.showError('设置失败', message: value ? '无法开启开机自启' : '无法关闭开机自启');
     }
   }
   
+  Future<void> _saveShowTrayRunningStatus(bool value) async {
+    try {
+      final config = Provider.of<ClientConfigService>(context, listen: false);
+      await config.setShowTrayRunningStatus(value);
+      
+      if (mounted) {
+        setState(() {
+          _showTrayRunningStatus = value;
+        });
+        
+        // 立即更新托盘状态
+        systemTrayService.updateToolTip(!appWindow.isVisible);
+        
+        NotificationManager.of(context)?.showSuccess(
+          value ? '已开启后台运行提示' : '已关闭后台运行提示',
+          message: value 
+              ? '当窗口隐藏时，托盘图标将显示"正在后台运行"'
+              : '托盘图标将始终只显示应用名称',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        NotificationManager.of(context)?.showError('设置失败', message: '无法保存设置: $e');
+      }
+    }
+  }
+
   Future<void> _saveCloseButtonBehavior(String behavior) async {
     try {
       final config = Provider.of<ClientConfigService>(context, listen: false);
@@ -338,7 +384,9 @@ class _SettingsPageState extends State<SettingsPage> {
   
   void _startStatusMonitoring() {
     _checkStatus();
-    _statusTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+    // 优化：状态检查间隔从 5 秒提升到 10 秒，减少不必要的轮询
+    // 内核状态变化不频繁，10 秒足够
+    _statusTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       _checkStatus();
     });
   }
@@ -614,9 +662,10 @@ class _SettingsPageState extends State<SettingsPage> {
     // 追踪重建
     PerformanceMonitorService().trackRebuild('SettingsPage');
 
-    return Consumer<DeveloperModeService>(
-      builder: (context, devMode, child) {
-        return ScaffoldPage(
+    // 优化：使用 Selector 只监听 developerMode 布尔值，而非整个 DeveloperModeService
+    final isDeveloperMode = context.select<DeveloperModeService, bool>((s) => s.developerMode);
+    
+    return ScaffoldPage(
           header: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -672,7 +721,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       index: 4,
                     ),
                     // 开发者标签 - 仅在开发者模式启用时显示
-                    if (devMode.developerMode) ...[
+                    if (isDeveloperMode) ...[
                       const SizedBox(width: 4),
                       _buildTabButton(
                         context,
@@ -698,14 +747,12 @@ class _SettingsPageState extends State<SettingsPage> {
                 if (_currentTabIndex == 2) const AppearanceSettingsPage(),
                 if (_currentTabIndex == 3) const UpdatePage(),
                 if (_currentTabIndex == 4) ..._buildAdvancedTab(context),
-                if (_currentTabIndex == 5 && devMode.developerMode) const DeveloperSettingsPage(),
+                if (_currentTabIndex == 5 && isDeveloperMode) const DeveloperSettingsPage(),
                 const SizedBox(height: 40),
               ],
             ),
           ),
         );
-      },
-    );
   }
 
   Widget _buildTabButton(
@@ -800,7 +847,15 @@ class _SettingsPageState extends State<SettingsPage> {
             subtitle: '添加任务后立即开始下载',
             trailing: ToggleSwitch(
               checked: _autoStart,
-              onChanged: (value) => setState(() => _autoStart = value),
+              onChanged: (value) {
+                setState(() => _autoStart = value);
+                if (mounted) {
+                  NotificationManager.of(context)?.showSuccess(
+                    value ? '自动开始下载已开启' : '自动开始下载已关闭',
+                    message: value ? '添加任务后将自动开始' : '添加任务后需手动开始',
+                  );
+                }
+              },
             ),
           ),
           const SizedBox(height: 12),
@@ -810,7 +865,15 @@ class _SettingsPageState extends State<SettingsPage> {
             subtitle: '下载完成后显示系统通知',
             trailing: ToggleSwitch(
               checked: _notifyOnComplete,
-              onChanged: (value) => setState(() => _notifyOnComplete = value),
+              onChanged: (value) {
+                setState(() => _notifyOnComplete = value);
+                if (mounted) {
+                  NotificationManager.of(context)?.showSuccess(
+                    value ? '完成通知已开启' : '完成通知已关闭',
+                    message: value ? '下载完成后将收到通知' : '下载完成后不再通知',
+                  );
+                }
+              },
             ),
           ),
           const SizedBox(height: 12),
@@ -821,6 +884,16 @@ class _SettingsPageState extends State<SettingsPage> {
             trailing: ToggleSwitch(
               checked: _enableOnlineStats,
               onChanged: _toggleOnlineStats,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildSettingItem(
+            context,
+            title: '托盘提示',
+            subtitle: '在系统托盘提示中显示后台运行状态',
+            trailing: ToggleSwitch(
+              checked: _showTrayRunningStatus,
+              onChanged: _saveShowTrayRunningStatus,
             ),
           ),
           const SizedBox(height: 12),
@@ -990,6 +1063,12 @@ class _SettingsPageState extends State<SettingsPage> {
               checked: _enableDynamicSegments,
               onChanged: (value) {
                 _updateConfig(enableDynamicSegments: value);
+                if (mounted) {
+                  NotificationManager.of(context)?.showSuccess(
+                    value ? '动态分段已开启' : '动态分段已关闭',
+                    message: value ? '将根据网络状况自动调整分段' : '将使用固定分段数',
+                  );
+                }
               },
             ),
           ),
@@ -1377,7 +1456,15 @@ class _SettingsPageState extends State<SettingsPage> {
               subtitle: '启用后将显示"开发者"标签页，可配置调试和诊断功能',
               trailing: ToggleSwitch(
                 checked: devMode.developerMode,
-                onChanged: (value) => devMode.setDeveloperMode(value),
+                onChanged: (value) {
+                  devMode.setDeveloperMode(value);
+                  if (context.mounted) {
+                    NotificationManager.of(context)?.showSuccess(
+                      value ? '开发者模式已开启' : '开发者模式已关闭',
+                      message: value ? '已启用高级调试功能' : '已禁用高级调试功能',
+                    );
+                  }
+                },
               ),
             ),
             if (devMode.developerMode) ...[
@@ -1620,7 +1707,15 @@ class _SettingsPageState extends State<SettingsPage> {
               subtitle: '启用调试和诊断功能',
               trailing: ToggleSwitch(
                 checked: devMode.developerMode,
-                onChanged: (value) => devMode.setDeveloperMode(value),
+                onChanged: (value) {
+                  devMode.setDeveloperMode(value);
+                  if (context.mounted) {
+                    NotificationManager.of(context)?.showSuccess(
+                      value ? '开发者模式已开启' : '开发者模式已关闭',
+                      message: value ? '已启用高级调试功能' : '已禁用高级调试功能',
+                    );
+                  }
+                },
               ),
             ),
             

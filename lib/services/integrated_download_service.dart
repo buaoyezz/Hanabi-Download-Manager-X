@@ -17,10 +17,12 @@ class IntegratedDownloadService extends ChangeNotifier {
   Timer? _pollTimer;
 
   // 节流控制，避免 Windows 消息队列溢出
+  // override notifyListeners() 从根源拦截所有通知，强制走节流
   DateTime _lastNotify = DateTime.fromMillisecondsSinceEpoch(0);
-  static const _minNotifyInterval = Duration(milliseconds: 200); // 缩短到200ms
+  static const _minNotifyInterval = Duration(milliseconds: 500);
   bool _pendingNotify = false;
   Timer? _notifyTimer;
+  bool _immediate = false; // 标记本次通知是否需要立即发送
 
   // 智能轮询：根据是否有活跃下载调整间隔
   bool _hasActiveDownloads = false;
@@ -94,17 +96,17 @@ class IntegratedDownloadService extends ChangeNotifier {
       final isSizeChanged = oldTask.fileSize != newTask.fileSize && newTask.fileSize != null && newTask.fileSize! > 0;
 
       if (isStatusChanged || isSizeChanged) {
-        // 关键变化立即通知
+        // 关键变化走即时通知
         _appLogger.debug('App', 'Critical change detected: status=$isStatusChanged, size=$isSizeChanged');
-        notifyListeners();
+        notifyNow();
       } else {
-        // 普通进度更新使用节流
-        _throttledNotify();
+        // 普通进度更新走节流
+        notifyListeners();
       }
     } else {
       // 新任务
       _tasks.add(newTask);
-      notifyListeners();
+      notifyNow();
     }
 
     // 更新活跃下载状态
@@ -127,27 +129,47 @@ class IntegratedDownloadService extends ChangeNotifier {
     });
   }
   
-  // 节流的 notifyListeners，避免 Windows 消息队列溢出
-  void _throttledNotify() {
+  /// 从根源 override notifyListeners，所有通知强制走节流
+  /// 外部调用 notifyListeners() 默认走节流模式
+  /// 需要立即通知时，先设 _immediate = true 再调用
+  @override
+  void notifyListeners() {
+    if (_immediate) {
+      _immediate = false;
+      _notifyTimer?.cancel();
+      _pendingNotify = false;
+      _lastNotify = DateTime.now();
+      _appLogger.debug('App', 'Notifying UI listeners (immediate)');
+      super.notifyListeners();
+      return;
+    }
+
+    // 节流模式
     final now = DateTime.now();
     if (now.difference(_lastNotify) >= _minNotifyInterval) {
       _lastNotify = now;
-      _appLogger.debug('App', 'Notifying UI listeners (immediate)');
-      notifyListeners();
+      _appLogger.debug('App', 'Notifying UI listeners (throttled-pass)');
+      super.notifyListeners();
       return;
     }
-    
-    // 如果距离上次通知太近，延迟通知
+
+    // 距离上次通知太近，延迟合并
     if (_pendingNotify) return;
     _pendingNotify = true;
-    
+
     _notifyTimer?.cancel();
     _notifyTimer = Timer(_minNotifyInterval, () {
       _pendingNotify = false;
       _lastNotify = DateTime.now();
-      _appLogger.debug('App', 'Notifying UI listeners (throttled)');
-      notifyListeners();
+      _appLogger.debug('App', 'Notifying UI listeners (throttled-deferred)');
+      super.notifyListeners();
     });
+  }
+
+  /// 立即通知 UI（用于任务增删等结构性变化）
+  void notifyNow() {
+    _immediate = true;
+    notifyListeners();
   }
 
   Future<void> _updateTasks() async {
@@ -166,6 +188,7 @@ class IntegratedDownloadService extends ChangeNotifier {
       }
 
       bool hasChanges = false;
+      bool hasCriticalChange = false;
 
       for (var kernelTask in kernelTasks) {
         final existingIndex = _tasks.indexWhere((t) => t.id == kernelTask['id']);
@@ -188,8 +211,9 @@ class IntegratedDownloadService extends ChangeNotifier {
             hasChanges = true;
           }
 
-          // 关键变化需要立即通知
+          // 标记关键变化
           if (isCriticalChange) {
+            hasCriticalChange = true;
             _appLogger.debug('App', 'Critical change in polling: status=$isStatusChanged, size=$isSizeChanged');
           }
 
@@ -232,9 +256,13 @@ class IntegratedDownloadService extends ChangeNotifier {
         }
       }
 
-      // 只在有变化时才通知 UI（直接通知，不节流，确保及时更新）
+      // 只在有变化时才通知 UI
       if (hasChanges) {
-        notifyListeners();
+        if (hasCriticalChange) {
+          notifyNow();
+        } else {
+          notifyListeners();
+        }
       }
 
       // 更新活跃下载状态，用于智能轮询
@@ -463,8 +491,7 @@ class IntegratedDownloadService extends ChangeNotifier {
       _hasActiveDownloads = true;
       // 立即更新任务列表
       await _updateTasks();
-      // 强制通知 UI
-      notifyListeners();
+      // _updateTasks 内部已经会通知 UI，不需要再次通知
     } else {
       _appLogger.error('App', 'Failed to add task: $fileName');
     }
@@ -554,7 +581,7 @@ class IntegratedDownloadService extends ChangeNotifier {
     
     _tasks.add(testTask);
     _appLogger.info('App', 'Test task added: ${testTask.fileName} (${testTask.status})');
-    _throttledNotify();
+    notifyNow();
   }
   
   // 生成测试分段
@@ -661,7 +688,7 @@ class IntegratedDownloadService extends ChangeNotifier {
     if (success) {
       _tasks.removeWhere((task) => task.id == id);
       _appLogger.info('App', 'Task removed successfully: ${task.fileName}');
-      notifyListeners();
+      notifyNow();
     } else {
       _appLogger.error('App', 'Failed to remove task: ${task.fileName} (ID: $id)');
     }

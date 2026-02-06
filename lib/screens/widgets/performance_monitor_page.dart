@@ -7,6 +7,7 @@ import '../../services/performance_monitor_service.dart';
 import '../../services/notification_settings_service.dart';
 import '../../services/window_effect_service.dart';
 import '../../widgets/settings_components.dart';
+import '../../widgets/animated_notifications.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/fluent_icons.dart' as CustomIcons;
 
@@ -582,15 +583,11 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
   }
 
   void _showInfoBar(BuildContext context, String title, String message, {bool isError = false}) {
-    displayInfoBar(
-      context,
-      builder: (context, close) => InfoBar(
-        title: Text(title),
-        content: Text(message),
-        severity: isError ? InfoBarSeverity.error : InfoBarSeverity.success,
-      ),
-      duration: const Duration(seconds: 3),
-    );
+    if (isError) {
+      NotificationManager.of(context)?.showError(title, message: message);
+    } else {
+      NotificationManager.of(context)?.showSuccess(title, message: message);
+    }
   }
 
   Color _getFpsColor(double fps) {

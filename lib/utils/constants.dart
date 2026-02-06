@@ -27,11 +27,4 @@ class AppConstants {
   static const String officialUrl = 'https://x.zzbuaoye.top';
   static const String githubUrl = 'https://github.com/buaoyezz/Hanabi-Download-Manager-X';
   static const String contactEmail = 'zzbuaoye@gmail.com';
-  
-  // AI Configuration
-  // static const String aiApiUrl = 'https://api.siliconflow.cn/v1/chat/completions';
-  // static const String aiApiKey = '';
-  // static const String aiModel = '';
-  // static const String aiEnableThinking = "False";
-
 }

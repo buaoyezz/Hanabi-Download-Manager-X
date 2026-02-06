@@ -117,8 +117,20 @@ class _AnimatedCardState extends State<AnimatedCard>
               final hoverValue = Curves.easeOutCubic.transform(_hoverController.value);
               final currentBgColor = Color.lerp(_bgColor, _hoverColor, hoverValue)!;
               final currentBorderColor = Color.lerp(_borderColor, _hoverBorderColor, hoverValue)!;
+              final scale = widget.enableScaleAnimation ? (1.0 + 0.006 * hoverValue) : 1.0;
+              
+              // 优化：移除 hover 时的 BoxShadow 动态计算
+              // BoxShadow 在每帧都会触发 saveLayer，是 GPU 卡顿的主要原因
+              // 改为只在非 hover 时显示静态阴影，hover 时通过边框颜色变化提供反馈
+              final currentShadows = widget.enableGlowAnimation && hoverValue <= 0.01
+                  ? [BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    )]
+                  : const <BoxShadow>[];
 
-              return Container(
+              final card = Container(
                 margin: widget.margin,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(widget.borderRadius),
@@ -126,24 +138,25 @@ class _AnimatedCardState extends State<AnimatedCard>
                     color: currentBorderColor,
                     width: 1.0,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                  boxShadow: currentShadows,
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(widget.borderRadius),
-                  child: Container(
-                    padding: widget.padding,
-                    decoration: BoxDecoration(
-                      color: currentBgColor,
-                    ),
-                    child: child,
+                child: Container(
+                  padding: widget.padding ?? EdgeInsets.zero,
+                  decoration: BoxDecoration(
+                    color: currentBgColor,
+                    borderRadius: BorderRadius.circular(widget.borderRadius),
                   ),
+                  child: child,
                 ),
+              );
+
+              if (!widget.enableScaleAnimation || hoverValue <= 0.01) {
+                return card;
+              }
+
+              return Transform.scale(
+                scale: scale,
+                child: card,
               );
             },
             child: widget.child,
@@ -260,15 +273,8 @@ class _AnimatedProgressBarState extends State<AnimatedProgressBar>
                             progressColor.withValues(alpha: 0.85),
                           ],
                         ),
-                        boxShadow: widget.showGlow && progress > 0.01
-                            ? [
-                                BoxShadow(
-                                  color: progressColor.withValues(alpha: 0.35),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 0),
-                                ),
-                              ]
-                            : null,
+                        // 优化：移除进度条的 BoxShadow glow 效果
+                        // 下载时进度条每帧都在更新，BoxShadow 会导致每帧都触发 saveLayer
                       ),
                     ),
                   ),

@@ -233,15 +233,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     
     // 显示提示字体已应用
     if (mounted) {
-      displayInfoBar(
-        context,
-        builder: (context, close) => const InfoBar(
-          title: Text('字体已更改'),
-          content: Text('新字体已应用到整个应用'),
-          severity: InfoBarSeverity.success,
-        ),
-        duration: const Duration(seconds: 3),
-      );
+      NotificationManager.of(context)?.showSuccess('字体已更改', message: '新字体已应用到整个应用');
     }
   }
 
@@ -462,7 +454,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(6),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
           child: Container(
             decoration: BoxDecoration(
               color: cardColor.withValues(alpha: 0.92),
@@ -584,15 +576,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         
         if (mounted) {
           // 显示加载提示
-          displayInfoBar(
-            context,
-            builder: (context, close) => const InfoBar(
-              title: Text('正在导入字体...'),
-              content: Text('请稍候'),
-              severity: InfoBarSeverity.info,
-            ),
-            duration: const Duration(seconds: 2),
-          );
+          NotificationManager.of(context)?.showInfo('正在导入字体...', message: '请稍候');
         }
 
         final fontService = context.read<FontService>();
@@ -603,46 +587,17 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             // 重新加载字体列表
             await _loadAvailableFonts();
             
-            displayInfoBar(
-              context,
-              builder: (context, close) => const InfoBar(
-                title: Text('导入成功'),
-                content: Text('字体已成功导入'),
-                severity: InfoBarSeverity.success,
-              ),
-              duration: const Duration(seconds: 3),
-            );
+            NotificationManager.of(context)?.showSuccess('导入成功', message: '字体已成功导入');
           } else {
-            displayInfoBar(
-              context,
-              builder: (context, close) => const InfoBar(
-                title: Text('导入失败'),
-                content: Text('无法导入字体文件，请检查文件格式'),
-                severity: InfoBarSeverity.error,
-              ),
-              duration: const Duration(seconds: 3),
-            );
+            NotificationManager.of(context)?.showError('导入失败', message: '无法导入字体文件，请检查文件格式');
           }
         }
       }
     } catch (e) {
       debugPrint('Error importing font: $e');
       if (mounted) {
-        displayInfoBar(
-          context,
-          builder: (context, close) => InfoBar(
-            title: const Text('导入失败'),
-            content: Text('发生错误: $e'),
-            severity: InfoBarSeverity.error,
-            action: Button(
-              child: const Text('复制错误'),
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: e.toString()));
-              },
-            ),
-          ),
-          duration: const Duration(seconds: 3),
-        );
+        NotificationManager.of(context)?.showError('导入失败', message: '发生错误: $e');
+        Clipboard.setData(ClipboardData(text: e.toString()));
       }
     }
   }
@@ -673,25 +628,9 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
       if (mounted) {
         if (success) {
           await _loadAvailableFonts();
-          displayInfoBar(
-            context,
-            builder: (context, close) => const InfoBar(
-              title: Text('删除成功'),
-              content: Text('字体已删除'),
-              severity: InfoBarSeverity.success,
-            ),
-            duration: const Duration(seconds: 2),
-          );
+          NotificationManager.of(context)?.showSuccess('删除成功', message: '字体已删除');
         } else {
-          displayInfoBar(
-            context,
-            builder: (context, close) => const InfoBar(
-              title: Text('删除失败'),
-              content: Text('无法删除字体'),
-              severity: InfoBarSeverity.error,
-            ),
-            duration: const Duration(seconds: 2),
-          );
+          NotificationManager.of(context)?.showError('删除失败', message: '无法删除字体');
         }
       }
     }
@@ -769,15 +708,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                     onPressed: () async {
                       await clientConfig.setWindowScaleFactor(1.0);
                       if (mounted) {
-                        displayInfoBar(
-                          context,
-                          builder: (context, close) => const InfoBar(
-                            title: Text('已重置'),
-                            content: Text('UI缩放已重置为100%'),
-                            severity: InfoBarSeverity.info,
-                          ),
-                          duration: const Duration(seconds: 2),
-                        );
+                        NotificationManager.of(context)?.showInfo('已重置', message: 'UI缩放已重置为100%');
                       }
                     },
                     child: Row(
@@ -796,15 +727,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                     onPressed: () async {
                       await clientConfig.setWindowScaleFactor(1.25);
                       if (mounted) {
-                        displayInfoBar(
-                          context,
-                          builder: (context, close) => const InfoBar(
-                            title: Text('已应用'),
-                            content: Text('UI缩放已设为125% (推荐4K屏幕)'),
-                            severity: InfoBarSeverity.success,
-                          ),
-                          duration: const Duration(seconds: 2),
-                        );
+                        NotificationManager.of(context)?.showSuccess('已应用', message: 'UI缩放已设为125% (推荐4K屏幕)');
                       }
                     },
                     child: Row(
@@ -1158,15 +1081,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                   if (value != null) {
                     await clientConfig.setSidebarDefaultExpanded(value);
                     if (mounted) {
-                      displayInfoBar(
-                        context,
-                        builder: (context, close) => InfoBar(
-                          title: const Text('设置已保存'),
-                          content: Text('侧边栏默认状态已设为${value ? "展开" : "收缩"}'),
-                          severity: InfoBarSeverity.success,
-                        ),
-                        duration: const Duration(seconds: 2),
-                      );
+                      NotificationManager.of(context)?.showSuccess('设置已保存', message: '侧边栏默认状态已设为${value ? "展开" : "收缩"}');
                     }
                   }
                 },
@@ -1501,15 +1416,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                           await config.setWindowHeight(safeHeight);
                           
                           if (mounted) {
-                            displayInfoBar(
-                              context,
-                              builder: (context, close) => InfoBar(
-                                title: const Text('已保存'),
-                                content: Text('当前窗口大小已设为默认大小 (${safeWidth.toInt()}×${safeHeight.toInt()})'),
-                                severity: InfoBarSeverity.success,
-                              ),
-                              duration: const Duration(seconds: 2),
-                            );
+                            NotificationManager.of(context)?.showSuccess('已保存', message: '当前窗口大小已设为默认大小 (${safeWidth.toInt()}×${safeHeight.toInt()})');
                           }
                         },
                         child: Row(
@@ -1533,15 +1440,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                           await config.setWindowHeight(586.0);
                           
                           if (mounted) {
-                            displayInfoBar(
-                              context,
-                              builder: (context, close) => const InfoBar(
-                                title: Text('已重置'),
-                                content: Text('默认窗口大小已重置为 889×586'),
-                                severity: InfoBarSeverity.info,
-                              ),
-                              duration: const Duration(seconds: 2),
-                            );
+                            NotificationManager.of(context)?.showInfo('已重置', message: '默认窗口大小已重置为 889×586');
                           }
                         },
                         child: Row(
@@ -1565,15 +1464,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                       final targetWidth = safeDefaultWidth.clamp(600.0, maxWidth);
                       final targetHeight = safeDefaultHeight.clamp(400.0, maxHeight);
                       appWindow.size = Size(targetWidth, targetHeight);
-                      displayInfoBar(
-                        context,
-                        builder: (context, close) => InfoBar(
-                          title: const Text('已应用'),
-                          content: Text('窗口大小已调整为 ${targetWidth.toInt()}×${targetHeight.toInt()}'),
-                          severity: InfoBarSeverity.success,
-                        ),
-                        duration: const Duration(seconds: 2),
-                      );
+                      NotificationManager.of(context)?.showSuccess('已应用', message: '窗口大小已调整为 ${targetWidth.toInt()}×${targetHeight.toInt()}');
                     },
                     child: Row(
                       mainAxisSize: MainAxisSize.min,

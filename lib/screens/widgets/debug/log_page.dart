@@ -6,7 +6,6 @@ import '../../../services/app_logger_service.dart';
 import '../../../services/client_config_service.dart';
 import '../../../widgets/folder_picker_dialog.dart';
 import '../../../theme/app_theme.dart';
-import '../../../widgets/glass_card.dart';
 import '../../../utils/fluent_icons.dart';
 
 /// 自定义正则规则
@@ -86,6 +85,7 @@ class LogPage extends StatefulWidget {
 class _LogPageState extends State<LogPage> {
   LogLevel? _filterLevel;
   String? _filterSource;
+  Set<String> _filterTags = {};
   String _searchQuery = '';
   bool _autoScroll = true;
   bool _useRegexSearch = false;
@@ -94,11 +94,19 @@ class _LogPageState extends State<LogPage> {
   final TextEditingController _searchController = TextEditingController();
   
   // 内置正则表达式（用于去重）
-  final RegExp _logPrefixRegex = RegExp(r'^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2},\d{3}\s-\s.*?\s-\s[A-Z]+\s-\s');
+  final RegExp _logPrefixRegex = RegExp(r'^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}[.,]\d{3}\s-\s.*?\s-\s[A-Z]+\s-\s');
   final RegExp _portRegex = RegExp(r'(port\s*[:=]?\s*)\d+', caseSensitive: false);
   final RegExp _threadRegex = RegExp(r'(线程|Thread\s*)\d+', caseSensitive: false);
-  final RegExp _segmentRegex = RegExp(r'(分段|Segment)\s*\d+', caseSensitive: false);
-  final RegExp _taskIdRegex = RegExp(r'\b[a-f0-9]{16}\b');
+  final RegExp _segmentRegex = RegExp(r'(分段|[Ss]egment)\s*#?\d+', caseSensitive: false);
+  final RegExp _taskIdRegex = RegExp(r'\b[a-f0-9]{16,32}\b');
+  final RegExp _progressRegex = RegExp(r'\b\d+(\.\d+)?%');
+  final RegExp _speedRegex = RegExp(r'\b\d+(\.\d+)?\s*(KB|MB|GB|B)/s\b', caseSensitive: false);
+  final RegExp _sizeRegex = RegExp(r'\b\d+(\.\d+)?\s*(KB|MB|GB|TB|B)\b', caseSensitive: false);
+  final RegExp _timestampRegex = RegExp(r'\b\d{2}:\d{2}:\d{2}([.,]\d{3})?\b');
+  final RegExp _pidRegex = RegExp(r'(PID|pid)[:=\s]*\d+');
+  final RegExp _attemptRegex = RegExp(r'(attempt|尝试)\s*\d+(/\d+)?', caseSensitive: false);
+  final RegExp _durationRegex = RegExp(r'\b\d+(\.\d+)?\s*(ms|s|秒|毫秒)\b', caseSensitive: false);
+  final RegExp _windowSizeRegex = RegExp(r'\b\d+x\d+\b');
   
   // 内置高亮规则（始终启用）
   static final List<_BuiltinHighlightRule> _builtinRules = [
@@ -123,17 +131,17 @@ class _LogPageState extends State<LogPage> {
       color: const Color(0xFF89D185),
       type: _HighlightType.path,
     ),
-    // IP 地址
+    // IP 地址（含端口）
     _BuiltinHighlightRule(
       name: 'IP地址',
-      pattern: r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?::\d+)?\b',
+      pattern: r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?::\d{1,5})?\b',
       color: const Color(0xFFDCDCAA),
       type: _HighlightType.ip,
     ),
-    // 数字（带单位）
+    // 数值（带单位：大小、速度、时间、百分比）
     _BuiltinHighlightRule(
       name: '数值',
-      pattern: r'\b\d+(?:\.\d+)?\s*(?:KB|MB|GB|TB|B|ms|s|%)\b',
+      pattern: r'\b\d+(?:\.\d+)?\s*(?:KB/s|MB/s|GB/s|KB|MB|GB|TB|B|ms|s|秒|毫秒|%)\b',
       color: const Color(0xFFB5CEA8),
       type: _HighlightType.number,
     ),
@@ -147,21 +155,21 @@ class _LogPageState extends State<LogPage> {
     // 错误关键词
     _BuiltinHighlightRule(
       name: '错误',
-      pattern: r'\b(?:error|failed|failure|exception|错误|失败)\b',
+      pattern: r'\b(?:error|failed|failure|exception|critical|fatal|crash|panic|错误|失败|异常|崩溃)\b',
       color: const Color(0xFFFF6B6B),
       type: _HighlightType.error,
     ),
     // 成功关键词
     _BuiltinHighlightRule(
       name: '成功',
-      pattern: r'\b(?:success|completed|done|成功|完成)\b',
+      pattern: r'\b(?:success(?:ful(?:ly)?)?|completed|done|passed|healthy|ok|成功|完成|通过|健康)\b',
       color: const Color(0xFF6CCB5F),
       type: _HighlightType.success,
     ),
     // 警告关键词
     _BuiltinHighlightRule(
       name: '警告',
-      pattern: r'\b(?:warning|warn|注意|警告)\b',
+      pattern: r'\b(?:warning|warn|timeout|retry|retrying|注意|警告|超时|重试)\b',
       color: const Color(0xFFFFB900),
       type: _HighlightType.warning,
     ),
@@ -172,10 +180,10 @@ class _LogPageState extends State<LogPage> {
       color: const Color(0xFF569CD6),
       type: _HighlightType.httpMethod,
     ),
-    // HTTP 状态码
+    // HTTP 状态码（仅在上下文中匹配，避免误匹配普通数字）
     _BuiltinHighlightRule(
       name: 'HTTP状态码',
-      pattern: r'\b[1-5]\d{2}\b',
+      pattern: r'(?:status|HTTP|响应)\s*[:=]?\s*[1-5]\d{2}\b',
       color: const Color(0xFFD7BA7D),
       type: _HighlightType.httpStatus,
     ),
@@ -185,6 +193,27 @@ class _LogPageState extends State<LogPage> {
       pattern: r'\b\d{2}:\d{2}:\d{2}(?:[.,]\d{3})?\b',
       color: const Color(0xFF9CDCFE),
       type: _HighlightType.time,
+    ),
+    // 步骤指示器 [1/4] [2/4] 等
+    _BuiltinHighlightRule(
+      name: '步骤',
+      pattern: r'\[\d+/\d+\]',
+      color: const Color(0xFFD4A0FF),
+      type: _HighlightType.step,
+    ),
+    // 进程 PID
+    _BuiltinHighlightRule(
+      name: 'PID',
+      pattern: r'\bPID[:=\s]*\d+\b',
+      color: const Color(0xFF9CDCFE),
+      type: _HighlightType.pid,
+    ),
+    // 键值对 key=value / key: value（限制 key 长度避免回溯）
+    _BuiltinHighlightRule(
+      name: '键值对',
+      pattern: r'\b\w{1,30}\s*=\s*(?:"[^"]{0,100}"|\S{1,100})',
+      color: const Color(0xFFCE9178),
+      type: _HighlightType.keyValue,
     ),
   ];
   
@@ -201,11 +230,18 @@ class _LogPageState extends State<LogPage> {
     _HighlightType.httpMethod: true,
     _HighlightType.httpStatus: false, // 默认关闭
     _HighlightType.time: false, // 默认关闭
+    _HighlightType.step: true,
+    _HighlightType.pid: false, // 默认关闭
+    _HighlightType.keyValue: false, // 默认关闭，避免太多高亮
   };
   
   // 状态管理
   final Set<String> _expandedGroupIds = {};
   final Set<String> _bookmarkedIds = {};
+  
+  // 去重归一化缓存（message hashCode -> normalized string）
+  final Map<int, String> _dedupCache = {};
+  int _dedupCacheVersion = -1;
   
   // 自定义正则规则（从配置加载）
   List<CustomRegexRule> _customRules = [];
@@ -223,6 +259,7 @@ class _LogPageState extends State<LogPage> {
   Future<void> _loadConfig() async {
     final config = context.read<ClientConfigService>();
     final rules = config.getLogRegexRules();
+    final builtinStates = config.getLogBuiltinRuleStates();
     
     setState(() {
       _customRules = rules.map((r) => CustomRegexRule(
@@ -234,6 +271,19 @@ class _LogPageState extends State<LogPage> {
       
       _showStats = config.getLogShowStats();
       _autoScroll = config.getLogAutoScroll();
+      
+      // 恢复内置规则启用状态
+      for (final entry in builtinStates.entries) {
+        try {
+          final type = _HighlightType.values.firstWhere(
+            (t) => t.name == entry.key,
+            orElse: () => _HighlightType.custom,
+          );
+          if (type != _HighlightType.custom) {
+            _builtinRuleEnabled[type] = entry.value;
+          }
+        } catch (_) {}
+      }
     });
   }
 
@@ -247,6 +297,15 @@ class _LogPageState extends State<LogPage> {
     }).toList();
     
     await config.saveLogRegexRules(rules);
+  }
+
+  Future<void> _saveBuiltinRuleStates() async {
+    final config = context.read<ClientConfigService>();
+    final states = <String, bool>{};
+    for (final entry in _builtinRuleEnabled.entries) {
+      states[entry.key.name] = entry.value;
+    }
+    await config.saveLogBuiltinRuleStates(states);
   }
 
   @override
@@ -291,6 +350,16 @@ class _LogPageState extends State<LogPage> {
     return message.replaceFirst(_logPrefixRegex, '').trim();
   }
 
+  String _cachedNormalizeForDedup(LogEntry entry, int logVersion) {
+    // 版本变化时清空缓存
+    if (_dedupCacheVersion != logVersion) {
+      _dedupCache.clear();
+      _dedupCacheVersion = logVersion;
+    }
+    final key = entry.message.hashCode ^ entry.source.hashCode;
+    return _dedupCache.putIfAbsent(key, () => _normalizeForDedup(entry.message));
+  }
+
   String _normalizeForDedup(String message) {
     String msg = _stripLogPrefix(message);
     // 替换端口号
@@ -301,10 +370,26 @@ class _LogPageState extends State<LogPage> {
     msg = msg.replaceAll(_segmentRegex, r'\1<N>');
     // 替换任务ID
     msg = msg.replaceAll(_taskIdRegex, '<TASK_ID>');
+    // 替换进度百分比
+    msg = msg.replaceAll(_progressRegex, '<PROGRESS>');
+    // 替换下载速度（必须在文件大小之前，否则 KB/s 会被匹配为 KB）
+    msg = msg.replaceAll(_speedRegex, '<SPEED>');
+    // 替换耗时（必须在文件大小之前，否则 s 会被匹配）
+    msg = msg.replaceAll(_durationRegex, '<DURATION>');
+    // 替换文件大小
+    msg = msg.replaceAll(_sizeRegex, '<SIZE>');
+    // 替换时间戳
+    msg = msg.replaceAll(_timestampRegex, '<TIME>');
+    // 替换 PID
+    msg = msg.replaceAll(_pidRegex, 'PID:<N>');
+    // 替换尝试次数
+    msg = msg.replaceAll(_attemptRegex, r'\1 <N>');
+    // 替换窗口尺寸
+    msg = msg.replaceAll(_windowSizeRegex, '<WxH>');
     return msg;
   }
 
-  List<LogDisplayItem> _groupLogs(List<LogEntry> logs) {
+  List<LogDisplayItem> _groupLogs(List<LogEntry> logs, int logVersion) {
     if (logs.isEmpty) return [];
     
     final List<LogDisplayItem> grouped = [];
@@ -326,9 +411,9 @@ class _LogPageState extends State<LogPage> {
             final original = logs[i + k];
             final candidate = logs[checkIndex + k];
             
-            // 使用标准化后的消息进行比较
-            final originalMsg = _normalizeForDedup(original.message);
-            final candidateMsg = _normalizeForDedup(candidate.message);
+            // 使用缓存的标准化消息进行比较
+            final originalMsg = _cachedNormalizeForDedup(original, logVersion);
+            final candidateMsg = _cachedNormalizeForDedup(candidate, logVersion);
             
             if (originalMsg != candidateMsg ||
                 original.level != candidate.level ||
@@ -487,7 +572,9 @@ class _LogPageState extends State<LogPage> {
             ),
             CommandBarButton(
               icon: Icon(FluentIcons.source),
-              label: Text(_filterSource ?? '来源'),
+              label: Text(_filterTags.isNotEmpty 
+                ? _filterTags.length == 1 ? _filterTags.first : '${_filterTags.length} 个标签'
+                : _filterSource ?? '来源'),
               onPressed: () => _showSourceFilterMenu(context),
             ),
             CommandBarButton(
@@ -556,15 +643,22 @@ class _LogPageState extends State<LogPage> {
           }
 
           // 应用来源过滤
-          if (_filterSource != null) {
+          if (_filterTags.isNotEmpty) {
+            // 精确匹配选中的 tag
+            logs = logs.where((log) => _filterTags.contains(log.source)).toList();
+          } else if (_filterSource != null) {
+            // 分类标签定义（与对话框保持一致）
+            const appTagNames = {'App', 'Update', 'PopupTest'};
+            const systemTagNames = {'Console', 'Zone'};
             if (_filterSource == 'Kernel') {
-              // Kernel 类别包含所有下载核心相关的来源（Kernel, NSFX, NSFX-HTTP 等）
-              logs = logs.where((log) => log.source != 'App').toList();
+              logs = logs.where((log) => 
+                !appTagNames.contains(log.source) && !systemTagNames.contains(log.source)
+              ).toList();
             } else if (_filterSource == 'App') {
-              // App 只匹配精确的 App 来源
-              logs = logs.where((log) => log.source == 'App').toList();
+              logs = logs.where((log) => appTagNames.contains(log.source)).toList();
+            } else if (_filterSource == 'System') {
+              logs = logs.where((log) => systemTagNames.contains(log.source)).toList();
             } else {
-              // 其他情况精确匹配
               logs = logs.where((log) => log.source == _filterSource).toList();
             }
           }
@@ -590,7 +684,7 @@ class _LogPageState extends State<LogPage> {
             }
           }
 
-          final groupedLogs = _groupLogs(logs);
+          final groupedLogs = _groupLogs(logs, logger.version);
           final stats = _calculateStats(logs, groupedLogs);
 
           // 自动滚动
@@ -708,6 +802,7 @@ class _LogPageState extends State<LogPage> {
   /// 构建统一的信息栏（统计 + 筛选标签整合）
   Widget _buildInfoBar(LogStats stats) {
     final hasActiveFilters = _filterLevel != null || _filterSource != null || 
+                             _filterTags.isNotEmpty ||
                              _startTime != null || _endTime != null;
     
     return Padding(
@@ -782,6 +877,12 @@ class _LogPageState extends State<LogPage> {
                               AppTheme.accentLight,
                               () => setState(() => _filterSource = null),
                             ),
+                          if (_filterTags.isNotEmpty)
+                            _buildFilterTag(
+                              _filterTags.join(', '),
+                              AppTheme.accentLight,
+                              () => setState(() => _filterTags = {}),
+                            ),
                           if (_startTime != null || _endTime != null)
                             _buildFilterTag(
                               _formatTimeRange(),
@@ -796,6 +897,7 @@ class _LogPageState extends State<LogPage> {
                       onTap: () => setState(() {
                         _filterLevel = null;
                         _filterSource = null;
+                        _filterTags = {};
                         _startTime = null;
                         _endTime = null;
                       }),
@@ -925,11 +1027,6 @@ class _LogPageState extends State<LogPage> {
         ],
       ),
     );
-  }
-
-  // 保留旧方法以兼容，但不再使用
-  Widget _buildQuickFilters() {
-    return const SizedBox.shrink();
   }
 
   Widget _buildLogEntry(BuildContext context, LogDisplayItem item) {
@@ -1350,6 +1447,11 @@ class _LogPageState extends State<LogPage> {
       );
     }
 
+    // 限制匹配数量，防止极端情况下的性能问题
+    if (matches.length > 50) {
+      matches.removeRange(50, matches.length);
+    }
+
     // 按位置排序，搜索匹配优先
     matches.sort((a, b) {
       if (a.start != b.start) return a.start.compareTo(b.start);
@@ -1414,6 +1516,20 @@ class _LogPageState extends State<LogPage> {
         highlightStyle = TextStyle(
           color: match.color,
           fontStyle: FontStyle.italic,
+        );
+      } else if (match.type == _HighlightType.step) {
+        // 步骤指示器：加粗 + 背景
+        highlightStyle = TextStyle(
+          color: match.color,
+          backgroundColor: match.color.withValues(alpha: 0.12),
+          fontWeight: FontWeight.w700,
+          fontFamily: 'Courier New',
+        );
+      } else if (match.type == _HighlightType.keyValue) {
+        // 键值对：等宽字体
+        highlightStyle = TextStyle(
+          color: match.color,
+          fontFamily: 'Courier New',
         );
       } else {
         // 默认：仅颜色
@@ -1494,30 +1610,380 @@ class _LogPageState extends State<LogPage> {
   }
 
   void _showSourceFilterMenu(BuildContext context) {
+    final logger = context.read<AppLoggerService>();
+    // 从日志中动态收集所有 source 标签及其计数
+    final sourceCounts = <String, int>{};
+    for (final log in logger.logs) {
+      sourceCounts[log.source] = (sourceCounts[log.source] ?? 0) + 1;
+    }
+    
+    // 分类标签
+    // App 类：应用程序逻辑
+    const appTagNames = {'App', 'Update', 'PopupTest'};
+    // 系统类：Flutter 框架 / Zone / Console 等
+    const systemTagNames = {'Console', 'Zone'};
+    // 其余归为 Kernel 类（下载核心）
+    final kernelTags = sourceCounts.keys
+        .where((s) => !appTagNames.contains(s) && !systemTagNames.contains(s))
+        .toList()..sort();
+    final appTags = sourceCounts.keys
+        .where((s) => appTagNames.contains(s))
+        .toList()..sort();
+    final systemTags = sourceCounts.keys
+        .where((s) => systemTagNames.contains(s))
+        .toList()..sort();
+    
+    var tempFilterSource = _filterSource;
+    var tempFilterTags = Set<String>.from(_filterTags);
+    var kernelExpanded = false;
+    var appExpanded = false;
+    var systemExpanded = false;
+    
     showDialog(
       context: context,
-      builder: (ctx) => ContentDialog(
-        title: const Text('筛选日志来源'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final item in [(null, '全部'), ('Kernel', 'Kernel (下载核心)'), ('App', 'App (应用程序)')])
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: RadioButton(
-                  checked: _filterSource == item.$1,
-                  onChanged: (_) {
-                    setState(() => _filterSource = item.$1);
-                    Navigator.pop(ctx);
-                  },
-                  content: Text(item.$2),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final isAll = tempFilterSource == null && tempFilterTags.isEmpty;
+          final isKernelAll = tempFilterSource == 'Kernel' && tempFilterTags.isEmpty;
+          final isAppAll = tempFilterSource == 'App' && tempFilterTags.isEmpty;
+          final isSystemAll = tempFilterSource == 'System' && tempFilterTags.isEmpty;
+          
+          // 计算分类下选中的 tag 数
+          final kernelSelectedCount = tempFilterTags.where((t) => kernelTags.contains(t)).length;
+          final appSelectedCount = tempFilterTags.where((t) => appTags.contains(t)).length;
+          final systemSelectedCount = tempFilterTags.where((t) => systemTags.contains(t)).length;
+          
+          Widget buildTagRow(String tag, int count) {
+            final selected = tempFilterTags.contains(tag);
+            return GestureDetector(
+              onTap: () {
+                setDialogState(() {
+                  tempFilterSource = null;
+                  if (selected) {
+                    tempFilterTags.remove(tag);
+                  } else {
+                    tempFilterTags.add(tag);
+                  }
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                margin: const EdgeInsets.only(bottom: 2),
+                decoration: BoxDecoration(
+                  color: selected 
+                    ? AppTheme.accentPrimary.withValues(alpha: 0.15)
+                    : Colors.transparent,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                ),
+                child: Row(
+                  children: [
+                    Checkbox(
+                      checked: selected,
+                      onChanged: (checked) {
+                        setDialogState(() {
+                          tempFilterSource = null;
+                          if (checked == true) {
+                            tempFilterTags.add(tag);
+                          } else {
+                            tempFilterTags.remove(tag);
+                          }
+                        });
+                      },
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(tag, style: TextStyle(
+                        fontSize: 13,
+                        color: selected ? AppTheme.accentLight : AppTheme.textPrimary,
+                      )),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppTheme.bgLayer2.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '$count',
+                        style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-          ],
-        ),
-        actions: [
-          Button(onPressed: () => Navigator.pop(ctx), child: const Text('关闭')),
-        ],
+            );
+          }
+          
+          Widget buildCategoryHeader({
+            required String title,
+            required String subtitle,
+            required int tagCount,
+            required int selectedCount,
+            required bool expanded,
+            required bool isAllSelected,
+            required VoidCallback onToggleExpand,
+            required VoidCallback onSelectAll,
+          }) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: onToggleExpand,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isAllSelected
+                        ? AppTheme.accentPrimary.withValues(alpha: 0.1)
+                        : Colors.transparent,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          expanded ? FluentIcons.chevron_down : FluentIcons.chevron_right,
+                          size: 12,
+                          color: AppTheme.textTertiary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(title, style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                    color: isAllSelected ? AppTheme.accentLight : AppTheme.textPrimary,
+                                  )),
+                                  const SizedBox(width: 6),
+                                  if (selectedCount > 0 && !isAllSelected)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.accentPrimary.withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        '$selectedCount/$tagCount',
+                                        style: TextStyle(fontSize: 10, color: AppTheme.accentLight),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              Text(subtitle, style: TextStyle(
+                                fontSize: 11,
+                                color: AppTheme.textTertiary,
+                              )),
+                            ],
+                          ),
+                        ),
+                        // 全选按钮
+                        GestureDetector(
+                          onTap: onSelectAll,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isAllSelected
+                                ? AppTheme.accentPrimary.withValues(alpha: 0.2)
+                                : AppTheme.bgLayer2.withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                              border: isAllSelected
+                                ? Border.all(color: AppTheme.accentPrimary.withValues(alpha: 0.3))
+                                : null,
+                            ),
+                            child: Text(
+                              '全部',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isAllSelected ? AppTheme.accentLight : AppTheme.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }
+          
+          return ContentDialog(
+            title: const Text('筛选日志来源'),
+            content: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 420, maxWidth: 340),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 全部
+                    GestureDetector(
+                      onTap: () {
+                        setDialogState(() {
+                          tempFilterSource = null;
+                          tempFilterTags.clear();
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isAll
+                            ? AppTheme.accentPrimary.withValues(alpha: 0.15)
+                            : Colors.transparent,
+                          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                        ),
+                        child: Row(
+                          children: [
+                            RadioButton(
+                              checked: isAll,
+                              onChanged: (_) {
+                                setDialogState(() {
+                                  tempFilterSource = null;
+                                  tempFilterTags.clear();
+                                });
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            Text('全部', style: TextStyle(
+                              fontSize: 13,
+                              color: isAll ? AppTheme.accentLight : AppTheme.textPrimary,
+                            )),
+                            const Spacer(),
+                            Text('${sourceCounts.values.fold(0, (a, b) => a + b)} 条',
+                              style: TextStyle(fontSize: 11, color: AppTheme.textTertiary)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 6),
+                    Divider(style: DividerThemeData(
+                      decoration: BoxDecoration(color: AppTheme.borderSubtle.withValues(alpha: 0.3)),
+                    )),
+                    const SizedBox(height: 6),
+                    
+                    // Kernel 分类
+                    buildCategoryHeader(
+                      title: 'Kernel',
+                      subtitle: '下载核心 · ${kernelTags.length} 个标签',
+                      tagCount: kernelTags.length,
+                      selectedCount: kernelSelectedCount,
+                      expanded: kernelExpanded,
+                      isAllSelected: isKernelAll,
+                      onToggleExpand: () => setDialogState(() => kernelExpanded = !kernelExpanded),
+                      onSelectAll: () {
+                        setDialogState(() {
+                          tempFilterSource = 'Kernel';
+                          tempFilterTags.clear();
+                        });
+                      },
+                    ),
+                    // 展开的 tag 列表
+                    if (kernelExpanded && kernelTags.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 20, top: 4),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (final tag in kernelTags)
+                              buildTagRow(tag, sourceCounts[tag] ?? 0),
+                          ],
+                        ),
+                      ),
+                    
+                    const SizedBox(height: 6),
+                    Divider(style: DividerThemeData(
+                      decoration: BoxDecoration(color: AppTheme.borderSubtle.withValues(alpha: 0.3)),
+                    )),
+                    const SizedBox(height: 6),
+                    
+                    // App 分类
+                    buildCategoryHeader(
+                      title: 'App',
+                      subtitle: '应用程序 · ${appTags.length} 个标签',
+                      tagCount: appTags.length,
+                      selectedCount: appSelectedCount,
+                      expanded: appExpanded,
+                      isAllSelected: isAppAll,
+                      onToggleExpand: () => setDialogState(() => appExpanded = !appExpanded),
+                      onSelectAll: () {
+                        setDialogState(() {
+                          tempFilterSource = 'App';
+                          tempFilterTags.clear();
+                        });
+                      },
+                    ),
+                    if (appExpanded && appTags.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 20, top: 4),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (final tag in appTags)
+                              buildTagRow(tag, sourceCounts[tag] ?? 0),
+                          ],
+                        ),
+                      ),
+                    
+                    // System 分类（仅在有系统标签时显示）
+                    if (systemTags.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Divider(style: DividerThemeData(
+                        decoration: BoxDecoration(color: AppTheme.borderSubtle.withValues(alpha: 0.3)),
+                      )),
+                      const SizedBox(height: 6),
+                      
+                      buildCategoryHeader(
+                        title: 'System',
+                        subtitle: '系统 / 框架 · ${systemTags.length} 个标签',
+                        tagCount: systemTags.length,
+                        selectedCount: systemSelectedCount,
+                        expanded: systemExpanded,
+                        isAllSelected: isSystemAll,
+                        onToggleExpand: () => setDialogState(() => systemExpanded = !systemExpanded),
+                        onSelectAll: () {
+                          setDialogState(() {
+                            tempFilterSource = 'System';
+                            tempFilterTags.clear();
+                          });
+                        },
+                      ),
+                      if (systemExpanded)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 20, top: 4),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (final tag in systemTags)
+                                buildTagRow(tag, sourceCounts[tag] ?? 0),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              Button(
+                onPressed: () {
+                  setState(() {
+                    _filterSource = tempFilterSource;
+                    _filterTags = tempFilterTags;
+                  });
+                  Navigator.pop(ctx);
+                },
+                child: const Text('确定'),
+              ),
+              Button(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('取消'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1778,6 +2244,9 @@ class _LogPageState extends State<LogPage> {
                             _buildLegendItem('成功', const Color(0xFF6CCB5F)),
                             _buildLegendItem('警告', const Color(0xFFFFB900)),
                             _buildLegendItem('HTTP', const Color(0xFF569CD6)),
+                            _buildLegendItem('步骤', const Color(0xFFD4A0FF)),
+                            _buildLegendItem('PID', const Color(0xFF9CDCFE)),
+                            _buildLegendItem('键值', const Color(0xFFCE9178)),
                           ],
                         ),
                       ],
@@ -1805,6 +2274,7 @@ class _LogPageState extends State<LogPage> {
           _builtinRuleEnabled[type] = !enabled;
         });
         setState(() {});
+        _saveBuiltinRuleStates();
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
@@ -2179,6 +2649,9 @@ enum _HighlightType {
   httpMethod,
   httpStatus,
   time,
+  step,
+  pid,
+  keyValue,
   custom,
 }
 

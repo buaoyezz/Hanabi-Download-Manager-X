@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../theme/app_theme.dart';
 import '../../../services/user_profile_service.dart';
 import '../../../services/online_stats_service.dart';
+import '../../../widgets/animated_notifications.dart';
 
 class OnlineStatsPage extends StatefulWidget {
   const OnlineStatsPage({super.key});
@@ -365,36 +366,12 @@ class _OnlineStatsPageState extends State<OnlineStatsPage> {
       
       if (mounted) {
         if (result['success'] == true) {
-          await displayInfoBar(
-            context,
-            builder: (context, close) => InfoBar(
-              title: const Text('发送成功'),
-              content: const Text('您的信号已成功发送到服务器'),
-              severity: InfoBarSeverity.success,
-              isLong: false,
-            ),
-          );
+          NotificationManager.of(context)?.showSuccess('发送成功', message: '您的信号已成功发送到服务器');
         } else if (result['message'] == 'cooldown') {
           final remainingMinutes = result['remaining_minutes'] ?? 5;
-          await displayInfoBar(
-            context,
-            builder: (context, close) => InfoBar(
-              title: const Text('服务器已标记在线'),
-              content: Text('您的在线状态已被服务器记录，请在 $remainingMinutes 分钟后再试'),
-              severity: InfoBarSeverity.info,
-              isLong: true,
-            ),
-          );
+          NotificationManager.of(context)?.showInfo('服务器已标记在线', message: '您的在线状态已被服务器记录，请在 $remainingMinutes 分钟后再试');
         } else {
-          await displayInfoBar(
-            context,
-            builder: (context, close) => InfoBar(
-              title: const Text('发送失败'),
-              content: Text(result['message'] ?? '无法连接到统计服务器，请检查网络连接'),
-              severity: InfoBarSeverity.error,
-              isLong: false,
-            ),
-          );
+          NotificationManager.of(context)?.showError('发送失败', message: result['message'] ?? '无法连接到统计服务器，请检查网络连接');
         }
       }
     } finally {

@@ -27,6 +27,7 @@ class _FileIconWidgetState extends State<FileIconWidget> {
   Uint8List? _iconData;
   bool _loading = true;
   bool _hasError = false;
+  bool _isHovered = false;
 
   @override
   void initState() {
@@ -91,23 +92,30 @@ class _FileIconWidgetState extends State<FileIconWidget> {
 
   @override
   Widget build(BuildContext context) {
-    // 如果正在加载或出错，显示默认图标
-    if (_loading || _hasError || _iconData == null) {
-      return _buildFallbackIcon();
-    }
+    final hasIcon = !_loading && !_hasError && _iconData != null;
+    final content = hasIcon
+        ? _buildSystemIcon(const ValueKey('system'))
+        : _buildFallbackIcon(const ValueKey('fallback'));
 
-    // 显示系统图标
-    // 注意：从 FileIconService 返回的是原始 RGBA 数据，不是 PNG
-    // 我们需要使用 RawImage 或者先解码
-    return Image.memory(
-      _iconData!,
-      width: widget.size,
-      height: widget.size,
-      fit: BoxFit.contain,
-      errorBuilder: (context, error, stackTrace) {
-        debugPrint('图标显示错误: $error');
-        return _buildFallbackIcon();
-      },
+    return MouseRegion(
+      onEnter: (_) => _setHovered(true),
+      onExit: (_) => _setHovered(false),
+      child: _buildIconSurface(
+        isHovered: _isHovered,
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 160),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) {
+            final scale = Tween<double>(begin: 0.98, end: 1.0).animate(animation);
+            return FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(scale: scale, child: child),
+            );
+          },
+          child: content,
+        ),
+      ),
     );
   }
   
@@ -117,15 +125,80 @@ class _FileIconWidgetState extends State<FileIconWidget> {
     }
   }
 
+  void _setHovered(bool value) {
+    if (_isHovered == value) {
+      return;
+    }
+    setState(() {
+      _isHovered = value;
+    });
+  }
+
   /// 构建后备图标（使用 Fluent Icons）
-  Widget _buildFallbackIcon() {
+  Widget _buildFallbackIcon(Key key) {
     final icon = _getFallbackIcon(widget.fileName);
-    final color = _getFallbackColor(widget.fileName);
-    
-    return Icon(
-      icon,
-      size: widget.size,
-      color: color,
+    final color = _toneDownColor(_getFallbackColor(widget.fileName));
+    final iconSize = widget.size * 0.62;
+
+    return Center(
+      key: key,
+      child: Icon(
+        icon,
+        size: iconSize,
+        color: color,
+      ),
+    );
+  }
+
+  Widget _buildSystemIcon(Key key) {
+    final iconSize = widget.size * 0.78;
+    final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+    return Center(
+      key: key,
+      child: SizedBox(
+        width: iconSize,
+        height: iconSize,
+        child: Image.memory(
+          _iconData!,
+          width: iconSize,
+          height: iconSize,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.medium,
+          cacheWidth: (iconSize * devicePixelRatio).round(),
+          cacheHeight: (iconSize * devicePixelRatio).round(),
+          errorBuilder: (context, error, stackTrace) {
+            debugPrint('图标显示错误: $error');
+            return _buildFallbackIcon(const ValueKey('fallback-error'));
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIconSurface({required Widget child, bool isHovered = false}) {
+    final radius = BorderRadius.circular(AppTheme.radiusMd);
+    final background = isHovered ? AppTheme.surfaceCardHover : AppTheme.surfaceCard;
+    final borderColor = isHovered ? AppTheme.borderStrong : AppTheme.borderSubtle;
+    final shadow = isHovered ? AppTheme.shadowMd : AppTheme.shadowSm;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 140),
+      curve: Curves.easeOutCubic,
+      width: widget.size,
+      height: widget.size,
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: radius,
+        border: Border.all(color: borderColor, width: 1),
+        boxShadow: shadow,
+      ),
+      child: ClipRRect(
+        borderRadius: radius,
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: EdgeInsets.all(widget.size * 0.10),
+          child: child,
+        ),
+      ),
     );
   }
 
@@ -243,5 +316,9 @@ class _FileIconWidgetState extends State<FileIconWidget> {
     
     // 默认 - 灰色
     return AppTheme.textSecondary;
+  }
+
+  Color _toneDownColor(Color color) {
+    return Color.lerp(color, AppTheme.textSecondary, 0.35) ?? color;
   }
 }

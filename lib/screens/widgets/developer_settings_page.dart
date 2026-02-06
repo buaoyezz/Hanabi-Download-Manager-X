@@ -168,7 +168,15 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
           // 开关
           ToggleSwitch(
             checked: _devMode.developerMode,
-            onChanged: (value) => _devMode.setDeveloperMode(value),
+            onChanged: (value) {
+              _devMode.setDeveloperMode(value);
+              if (mounted) {
+                NotificationManager.of(context)?.showSuccess(
+                  value ? '开发者模式已开启' : '开发者模式已关闭',
+                  message: value ? '已启用高级调试功能' : '已禁用高级调试功能',
+                );
+              }
+            },
           ),
         ],
       ),
@@ -187,7 +195,15 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
                 title: '日志查看器',
                 subtitle: '查看运行日志',
                 isEnabled: _devMode.showLogPage,
-                onChanged: (v) => _devMode.setShowLogPage(v),
+                onChanged: (v) {
+                  _devMode.setShowLogPage(v);
+                  if (mounted) {
+                    NotificationManager.of(context)?.showSuccess(
+                      v ? '日志查看器已显示' : '日志查看器已隐藏',
+                      message: v ? '已在导航栏添加日志页面' : '已从导航栏移除日志页面',
+                    );
+                  }
+                },
               ),
             ),
             const SizedBox(width: 12),
@@ -197,7 +213,15 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
                 title: '系统状态',
                 subtitle: '内核与扩展',
                 isEnabled: _devMode.showStatusPage,
-                onChanged: (v) => _devMode.setShowStatusPage(v),
+                onChanged: (v) {
+                  _devMode.setShowStatusPage(v);
+                  if (mounted) {
+                    NotificationManager.of(context)?.showSuccess(
+                      v ? '系统状态已显示' : '系统状态已隐藏',
+                      message: v ? '已在导航栏添加状态页面' : '已从导航栏移除状态页面',
+                    );
+                  }
+                },
               ),
             ),
           ],
@@ -211,7 +235,15 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
                 title: '在线统计',
                 subtitle: '用户数据',
                 isEnabled: _devMode.showOnlineStatsPage,
-                onChanged: (v) => _devMode.setShowOnlineStatsPage(v),
+                onChanged: (v) {
+                  _devMode.setShowOnlineStatsPage(v);
+                  if (mounted) {
+                    NotificationManager.of(context)?.showSuccess(
+                      v ? '在线统计已显示' : '在线统计已隐藏',
+                      message: v ? '已在导航栏添加在线统计页面' : '已从导航栏移除在线统计页面',
+                    );
+                  }
+                },
               ),
             ),
             const SizedBox(width: 12),
@@ -221,7 +253,15 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
                 title: 'Web 检测',
                 subtitle: '网站诊断',
                 isEnabled: _devMode.showWebCheckPage,
-                onChanged: (v) => _devMode.setShowWebCheckPage(v),
+                onChanged: (v) {
+                  _devMode.setShowWebCheckPage(v);
+                  if (mounted) {
+                    NotificationManager.of(context)?.showSuccess(
+                      v ? 'Web 检测已显示' : 'Web 检测已隐藏',
+                      message: v ? '已在导航栏添加 Web 检测页面' : '已从导航栏移除 Web 检测页面',
+                    );
+                  }
+                },
               ),
             ),
           ],
@@ -235,7 +275,15 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
                 title: '性能监控',
                 subtitle: '帧率与渲染',
                 isEnabled: _devMode.showPerformanceMonitorPage,
-                onChanged: (v) => _devMode.setShowPerformanceMonitorPage(v),
+                onChanged: (v) {
+                  _devMode.setShowPerformanceMonitorPage(v);
+                  if (mounted) {
+                    NotificationManager.of(context)?.showSuccess(
+                      v ? '性能监控已显示' : '性能监控已隐藏',
+                      message: v ? '已在导航栏添加性能监控页面' : '已从导航栏移除性能监控页面',
+                    );
+                  }
+                },
               ),
             ),
             const SizedBox(width: 12),

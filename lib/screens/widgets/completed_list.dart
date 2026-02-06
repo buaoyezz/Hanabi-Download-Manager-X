@@ -146,14 +146,16 @@ class _CompletedListState extends State<CompletedList> {
   void _loadCustomCategories() {
     final configService = context.read<ClientConfigService>();
     final categoriesData = configService.getCustomCategories();
-    setState(() {
-      _customCategories = categoriesData.map((data) {
-        return CustomCategory(
-          name: data['name'] as String,
-          extensions: (data['extensions'] as List).cast<String>(),
-        );
-      }).toList();
-    });
+    _customCategories = categoriesData.map((data) {
+      return CustomCategory(
+        name: data['name'] as String,
+        extensions: (data['extensions'] as List).cast<String>(),
+      );
+    }).toList();
+    // 只在 widget 已经构建过后才 setState
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
@@ -163,11 +165,20 @@ class _CompletedListState extends State<CompletedList> {
 
     return ColoredBox(
       color: Colors.transparent,
-      child: Consumer<IntegratedDownloadService>(
-        builder: (context, downloadService, child) {
-          final completedTasks = downloadService.tasks
-              .where((t) => t.status == DownloadStatus.completed)
-              .toList();
+      // 优化：使用 Selector 只监听已完成任务，避免下载中任务进度更新触发重建
+      child: Selector<IntegratedDownloadService, List<DownloadTask>>(
+        selector: (_, service) => service.tasks
+            .where((t) => t.status == DownloadStatus.completed)
+            .toList(),
+        shouldRebuild: (previous, next) {
+          if (previous.length != next.length) return true;
+          for (int i = 0; i < previous.length; i++) {
+            if (previous[i].id != next[i].id) return true;
+          }
+          return false;
+        },
+        builder: (context, completedTasks, child) {
+          final downloadService = context.read<IntegratedDownloadService>();
 
           // 按完成时间排序，最新的在前面
           completedTasks.sort((a, b) {

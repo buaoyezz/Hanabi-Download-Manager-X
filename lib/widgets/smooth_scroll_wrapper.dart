@@ -1,5 +1,7 @@
+import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 /// 平滑滚动配置
 class SmoothScrollConfig {
@@ -27,10 +29,10 @@ class SmoothScrollConfig {
 
   /// 快速响应配置 - 适中的速度和流畅度
   static const SmoothScrollConfig fast = SmoothScrollConfig(
-    scrollSpeed: 1.2,
-    animationDuration: Duration(milliseconds: 280),
+    scrollSpeed: 1.35,
+    animationDuration: Duration(milliseconds: 180),
     animationCurve: Curves.easeOutCubic,
-    wheelSensitivity: 1.3,
+    wheelSensitivity: 1.15,
   );
 
   /// 超级流畅配置 - 更慢更丝滑
@@ -64,8 +66,8 @@ class SmoothScrollWrapper extends StatefulWidget {
 class _SmoothScrollWrapperState extends State<SmoothScrollWrapper>
     with SingleTickerProviderStateMixin {
   late ScrollController _scrollController;
-  late AnimationController _animationController;
-  Animation<double>? _animation;
+  late Ticker _ticker;
+  Duration _lastTick = Duration.zero;
 
   double _targetOffset = 0;
   bool _isAnimating = false;
@@ -82,20 +84,12 @@ class _SmoothScrollWrapperState extends State<SmoothScrollWrapper>
       _ownsController = true;
     }
 
-    _animationController = AnimationController(
-      vsync: this,
-      duration: widget.config.animationDuration,
-    );
-
-    _animationController.addListener(_onAnimationTick);
-    _animationController.addStatusListener(_onAnimationStatus);
+    _ticker = createTicker(_onTick);
   }
 
   @override
   void dispose() {
-    _animationController.removeListener(_onAnimationTick);
-    _animationController.removeStatusListener(_onAnimationStatus);
-    _animationController.dispose();
+    _ticker.dispose();
 
     if (_ownsController) {
       _scrollController.dispose();
@@ -104,21 +98,41 @@ class _SmoothScrollWrapperState extends State<SmoothScrollWrapper>
     super.dispose();
   }
 
-  void _onAnimationTick() {
-    if (_animation != null && _scrollController.hasClients) {
-      final newOffset = _animation!.value.clamp(
-        _scrollController.position.minScrollExtent,
-        _scrollController.position.maxScrollExtent,
-      );
-      _scrollController.jumpTo(newOffset);
+  void _onTick(Duration elapsed) {
+    if (!_scrollController.hasClients) {
+      _stopSmoothScroll();
+      return;
     }
-  }
 
-  void _onAnimationStatus(AnimationStatus status) {
-    if (status == AnimationStatus.completed ||
-        status == AnimationStatus.dismissed) {
-      _isAnimating = false;
+    final dtMicros = (elapsed - _lastTick).inMicroseconds;
+    if (dtMicros <= 0) {
+      return;
     }
+    _lastTick = elapsed;
+
+    final minExtent = _scrollController.position.minScrollExtent;
+    final maxExtent = _scrollController.position.maxScrollExtent;
+    final currentOffset = _scrollController.offset;
+    final diff = _targetOffset - currentOffset;
+
+    if (diff.abs() < 0.5) {
+      _scrollController.jumpTo(_targetOffset.clamp(minExtent, maxExtent));
+      _stopSmoothScroll();
+      return;
+    }
+
+    final durationSeconds =
+        widget.config.animationDuration.inMicroseconds / 1000000.0;
+    if (durationSeconds <= 0) {
+      _scrollController.jumpTo(_targetOffset.clamp(minExtent, maxExtent));
+      _stopSmoothScroll();
+      return;
+    }
+
+    final tau = durationSeconds / 3;
+    final smoothing = 1 - math.exp(-(dtMicros / 1000000.0) / tau);
+    final nextOffset = currentOffset + diff * smoothing;
+    _scrollController.jumpTo(nextOffset.clamp(minExtent, maxExtent));
   }
 
   void _handlePointerSignal(PointerSignalEvent event) {
@@ -133,12 +147,20 @@ class _SmoothScrollWrapperState extends State<SmoothScrollWrapper>
       // 应用滚动速度和灵敏度
       delta *= widget.config.scrollSpeed * widget.config.wheelSensitivity;
 
-      final currentOffset = _isAnimating ? _targetOffset : _scrollController.offset;
+      final isTrackpad = event.kind == PointerDeviceKind.trackpad;
+      final currentOffset = _scrollController.offset;
+      final baseOffset = isTrackpad ? currentOffset : (_isAnimating ? _targetOffset : currentOffset);
 
-      _targetOffset = (currentOffset + delta).clamp(
+      _targetOffset = (baseOffset + delta).clamp(
         _scrollController.position.minScrollExtent,
         _scrollController.position.maxScrollExtent,
       );
+
+      if (isTrackpad) {
+        _stopSmoothScroll();
+        _scrollController.jumpTo(_targetOffset);
+        return;
+      }
 
       _startSmoothScroll();
     }
@@ -146,28 +168,18 @@ class _SmoothScrollWrapperState extends State<SmoothScrollWrapper>
 
   void _startSmoothScroll() {
     if (!_scrollController.hasClients) return;
-
-    final startOffset = _scrollController.offset;
-    final endOffset = _targetOffset;
-
-    // 如果距离太小，直接跳转
-    if ((endOffset - startOffset).abs() < 0.5) {
-      _scrollController.jumpTo(endOffset);
-      return;
+    if (!_ticker.isActive) {
+      _lastTick = Duration.zero;
+      _ticker.start();
     }
-
     _isAnimating = true;
+  }
 
-    _animation = Tween<double>(
-      begin: startOffset,
-      end: endOffset,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: widget.config.animationCurve,
-    ));
-
-    _animationController.reset();
-    _animationController.forward();
+  void _stopSmoothScroll() {
+    if (_ticker.isActive) {
+      _ticker.stop();
+    }
+    _isAnimating = false;
   }
 
   @override
@@ -262,8 +274,8 @@ class SmoothListView extends StatefulWidget {
 class _SmoothListViewState extends State<SmoothListView>
     with SingleTickerProviderStateMixin {
   late ScrollController _scrollController;
-  late AnimationController _animationController;
-  Animation<double>? _animation;
+  late Ticker _ticker;
+  Duration _lastTick = Duration.zero;
 
   double _targetOffset = 0;
   bool _isAnimating = false;
@@ -280,20 +292,12 @@ class _SmoothListViewState extends State<SmoothListView>
       _ownsController = true;
     }
 
-    _animationController = AnimationController(
-      vsync: this,
-      duration: widget.config.animationDuration,
-    );
-
-    _animationController.addListener(_onAnimationTick);
-    _animationController.addStatusListener(_onAnimationStatus);
+    _ticker = createTicker(_onTick);
   }
 
   @override
   void dispose() {
-    _animationController.removeListener(_onAnimationTick);
-    _animationController.removeStatusListener(_onAnimationStatus);
-    _animationController.dispose();
+    _ticker.dispose();
 
     if (_ownsController) {
       _scrollController.dispose();
@@ -302,21 +306,41 @@ class _SmoothListViewState extends State<SmoothListView>
     super.dispose();
   }
 
-  void _onAnimationTick() {
-    if (_animation != null && _scrollController.hasClients) {
-      final newOffset = _animation!.value.clamp(
-        _scrollController.position.minScrollExtent,
-        _scrollController.position.maxScrollExtent,
-      );
-      _scrollController.jumpTo(newOffset);
+  void _onTick(Duration elapsed) {
+    if (!_scrollController.hasClients) {
+      _stopSmoothScroll();
+      return;
     }
-  }
 
-  void _onAnimationStatus(AnimationStatus status) {
-    if (status == AnimationStatus.completed ||
-        status == AnimationStatus.dismissed) {
-      _isAnimating = false;
+    final dtMicros = (elapsed - _lastTick).inMicroseconds;
+    if (dtMicros <= 0) {
+      return;
     }
+    _lastTick = elapsed;
+
+    final minExtent = _scrollController.position.minScrollExtent;
+    final maxExtent = _scrollController.position.maxScrollExtent;
+    final currentOffset = _scrollController.offset;
+    final diff = _targetOffset - currentOffset;
+
+    if (diff.abs() < 0.5) {
+      _scrollController.jumpTo(_targetOffset.clamp(minExtent, maxExtent));
+      _stopSmoothScroll();
+      return;
+    }
+
+    final durationSeconds =
+        widget.config.animationDuration.inMicroseconds / 1000000.0;
+    if (durationSeconds <= 0) {
+      _scrollController.jumpTo(_targetOffset.clamp(minExtent, maxExtent));
+      _stopSmoothScroll();
+      return;
+    }
+
+    final tau = durationSeconds / 3;
+    final smoothing = 1 - math.exp(-(dtMicros / 1000000.0) / tau);
+    final nextOffset = currentOffset + diff * smoothing;
+    _scrollController.jumpTo(nextOffset.clamp(minExtent, maxExtent));
   }
 
   void _handlePointerSignal(PointerSignalEvent event) {
@@ -331,12 +355,20 @@ class _SmoothListViewState extends State<SmoothListView>
       // 应用滚动速度和灵敏度
       delta *= widget.config.scrollSpeed * widget.config.wheelSensitivity;
 
-      final currentOffset = _isAnimating ? _targetOffset : _scrollController.offset;
+      final isTrackpad = event.kind == PointerDeviceKind.trackpad;
+      final currentOffset = _scrollController.offset;
+      final baseOffset = isTrackpad ? currentOffset : (_isAnimating ? _targetOffset : currentOffset);
 
-      _targetOffset = (currentOffset + delta).clamp(
+      _targetOffset = (baseOffset + delta).clamp(
         _scrollController.position.minScrollExtent,
         _scrollController.position.maxScrollExtent,
       );
+
+      if (isTrackpad) {
+        _stopSmoothScroll();
+        _scrollController.jumpTo(_targetOffset);
+        return;
+      }
 
       _startSmoothScroll();
     }
@@ -344,27 +376,18 @@ class _SmoothListViewState extends State<SmoothListView>
 
   void _startSmoothScroll() {
     if (!_scrollController.hasClients) return;
-
-    final startOffset = _scrollController.offset;
-    final endOffset = _targetOffset;
-
-    if ((endOffset - startOffset).abs() < 0.5) {
-      _scrollController.jumpTo(endOffset);
-      return;
+    if (!_ticker.isActive) {
+      _lastTick = Duration.zero;
+      _ticker.start();
     }
-
     _isAnimating = true;
+  }
 
-    _animation = Tween<double>(
-      begin: startOffset,
-      end: endOffset,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: widget.config.animationCurve,
-    ));
-
-    _animationController.reset();
-    _animationController.forward();
+  void _stopSmoothScroll() {
+    if (_ticker.isActive) {
+      _ticker.stop();
+    }
+    _isAnimating = false;
   }
 
   @override
@@ -431,8 +454,8 @@ class _SmoothSingleChildScrollViewState
     extends State<SmoothSingleChildScrollView>
     with SingleTickerProviderStateMixin {
   late ScrollController _scrollController;
-  late AnimationController _animationController;
-  Animation<double>? _animation;
+  late Ticker _ticker;
+  Duration _lastTick = Duration.zero;
 
   double _targetOffset = 0;
   bool _isAnimating = false;
@@ -449,20 +472,12 @@ class _SmoothSingleChildScrollViewState
       _ownsController = true;
     }
 
-    _animationController = AnimationController(
-      vsync: this,
-      duration: widget.config.animationDuration,
-    );
-
-    _animationController.addListener(_onAnimationTick);
-    _animationController.addStatusListener(_onAnimationStatus);
+    _ticker = createTicker(_onTick);
   }
 
   @override
   void dispose() {
-    _animationController.removeListener(_onAnimationTick);
-    _animationController.removeStatusListener(_onAnimationStatus);
-    _animationController.dispose();
+    _ticker.dispose();
 
     if (_ownsController) {
       _scrollController.dispose();
@@ -471,21 +486,41 @@ class _SmoothSingleChildScrollViewState
     super.dispose();
   }
 
-  void _onAnimationTick() {
-    if (_animation != null && _scrollController.hasClients) {
-      final newOffset = _animation!.value.clamp(
-        _scrollController.position.minScrollExtent,
-        _scrollController.position.maxScrollExtent,
-      );
-      _scrollController.jumpTo(newOffset);
+  void _onTick(Duration elapsed) {
+    if (!_scrollController.hasClients) {
+      _stopSmoothScroll();
+      return;
     }
-  }
 
-  void _onAnimationStatus(AnimationStatus status) {
-    if (status == AnimationStatus.completed ||
-        status == AnimationStatus.dismissed) {
-      _isAnimating = false;
+    final dtMicros = (elapsed - _lastTick).inMicroseconds;
+    if (dtMicros <= 0) {
+      return;
     }
+    _lastTick = elapsed;
+
+    final minExtent = _scrollController.position.minScrollExtent;
+    final maxExtent = _scrollController.position.maxScrollExtent;
+    final currentOffset = _scrollController.offset;
+    final diff = _targetOffset - currentOffset;
+
+    if (diff.abs() < 0.5) {
+      _scrollController.jumpTo(_targetOffset.clamp(minExtent, maxExtent));
+      _stopSmoothScroll();
+      return;
+    }
+
+    final durationSeconds =
+        widget.config.animationDuration.inMicroseconds / 1000000.0;
+    if (durationSeconds <= 0) {
+      _scrollController.jumpTo(_targetOffset.clamp(minExtent, maxExtent));
+      _stopSmoothScroll();
+      return;
+    }
+
+    final tau = durationSeconds / 3;
+    final smoothing = 1 - math.exp(-(dtMicros / 1000000.0) / tau);
+    final nextOffset = currentOffset + diff * smoothing;
+    _scrollController.jumpTo(nextOffset.clamp(minExtent, maxExtent));
   }
 
   void _handlePointerSignal(PointerSignalEvent event) {
@@ -499,12 +534,20 @@ class _SmoothSingleChildScrollViewState
 
       delta *= widget.config.scrollSpeed * widget.config.wheelSensitivity;
 
-      final currentOffset = _isAnimating ? _targetOffset : _scrollController.offset;
+      final isTrackpad = event.kind == PointerDeviceKind.trackpad;
+      final currentOffset = _scrollController.offset;
+      final baseOffset = isTrackpad ? currentOffset : (_isAnimating ? _targetOffset : currentOffset);
 
-      _targetOffset = (currentOffset + delta).clamp(
+      _targetOffset = (baseOffset + delta).clamp(
         _scrollController.position.minScrollExtent,
         _scrollController.position.maxScrollExtent,
       );
+
+      if (isTrackpad) {
+        _stopSmoothScroll();
+        _scrollController.jumpTo(_targetOffset);
+        return;
+      }
 
       _startSmoothScroll();
     }
@@ -512,27 +555,18 @@ class _SmoothSingleChildScrollViewState
 
   void _startSmoothScroll() {
     if (!_scrollController.hasClients) return;
-
-    final startOffset = _scrollController.offset;
-    final endOffset = _targetOffset;
-
-    if ((endOffset - startOffset).abs() < 0.5) {
-      _scrollController.jumpTo(endOffset);
-      return;
+    if (!_ticker.isActive) {
+      _lastTick = Duration.zero;
+      _ticker.start();
     }
-
     _isAnimating = true;
+  }
 
-    _animation = Tween<double>(
-      begin: startOffset,
-      end: endOffset,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: widget.config.animationCurve,
-    ));
-
-    _animationController.reset();
-    _animationController.forward();
+  void _stopSmoothScroll() {
+    if (_ticker.isActive) {
+      _ticker.stop();
+    }
+    _isAnimating = false;
   }
 
   @override

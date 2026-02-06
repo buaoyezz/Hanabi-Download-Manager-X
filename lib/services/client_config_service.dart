@@ -145,6 +145,7 @@ class ClientConfigService extends ChangeNotifier {
         'auto_start_download': true,
         'notify_on_complete': true,
         'close_button_behavior': 'minimize_to_tray', // 默认最小化到托盘
+        'show_tray_running_status': false, // 默认不显示“正在后台运行”提示
       },
     };
   }
@@ -279,6 +280,18 @@ class ClientConfigService extends ChangeNotifier {
 
   Future<void> setLogAutoScroll(bool value) async {
     await _setToConfig(_logConfig, _logConfigPath, 'display.auto_scroll', value);
+  }
+
+  /// 获取内置高亮规则的启用状态
+  Map<String, bool> getLogBuiltinRuleStates() {
+    final states = _getFromConfig<Map>(_logConfig, 'builtin_rule_states', defaultValue: {});
+    if (states == null) return {};
+    return states.map((key, value) => MapEntry(key.toString(), value as bool));
+  }
+
+  /// 保存内置高亮规则的启用状态
+  Future<void> saveLogBuiltinRuleStates(Map<String, bool> states) async {
+    await _setToConfig(_logConfig, _logConfigPath, 'builtin_rule_states', states);
   }
 
   // ========== 界面配置 ==========
@@ -500,6 +513,14 @@ class ClientConfigService extends ChangeNotifier {
 
   Future<void> setNotifyOnComplete(bool value) async {
     await _setToConfig(_appConfig, _appConfigPath, 'behavior.notify_on_complete', value);
+  }
+
+  bool getShowTrayRunningStatus() {
+    return _getFromConfig<bool>(_appConfig, 'behavior.show_tray_running_status', defaultValue: false) ?? false;
+  }
+
+  Future<void> setShowTrayRunningStatus(bool value) async {
+    await _setToConfig(_appConfig, _appConfigPath, 'behavior.show_tray_running_status', value);
   }
 
   // ========== 配置管理 ==========

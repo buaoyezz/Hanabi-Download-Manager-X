@@ -19,39 +19,43 @@ class SettingsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceCard.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.5)),
+        color: AppTheme.surfaceCard.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.6)),
+        // 优化：移除 BoxShadow，静态卡片不需要阴影
+        // BoxShadow 会触发 saveLayer，增加 GPU 合成层开销
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 16, color: AppTheme.textSecondary),
-              const SizedBox(width: 10),
-              Text(
-                title,
-                style: FluentTheme.of(context).typography.body?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
-                  fontSize: 13,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 16, color: AppTheme.textSecondary),
+                const SizedBox(width: 10),
+                Text(
+                  title,
+                  style: FluentTheme.of(context).typography.body?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary,
+                        fontSize: 13,
+                      ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...children,
-        ],
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...children,
+          ],
+        ),
       ),
     );
   }
 }
 
 /// 设置项组件 - Fluent Design 风格
-class SettingsItem extends StatelessWidget {
+class SettingsItem extends StatefulWidget {
   final String title;
   final String? subtitle;
   final Widget trailing;
@@ -64,43 +68,74 @@ class SettingsItem extends StatelessWidget {
   });
 
   @override
+  State<SettingsItem> createState() => _SettingsItemState();
+}
+
+class _SettingsItemState extends State<SettingsItem> {
+  bool _isHovered = false;
+
+  void _setHovered(bool value) {
+    if (_isHovered == value) {
+      return;
+    }
+    setState(() => _isHovered = value);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppTheme.bgLayer2.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: FluentTheme.of(context).typography.body?.copyWith(
-                    fontWeight: FontWeight.w400,
-                    color: AppTheme.textPrimary,
-                    fontSize: 13,
-                  ),
-                ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle!,
-                    style: FluentTheme.of(context).typography.caption?.copyWith(
-                      color: AppTheme.textTertiary,
-                      fontSize: 11,
+    final radius = BorderRadius.circular(AppTheme.radiusSm);
+    final background = _isHovered
+        ? AppTheme.bgLayer2.withValues(alpha: 0.70)
+        : AppTheme.bgLayer2.withValues(alpha: 0.52);
+    final borderColor = _isHovered
+        ? AppTheme.borderStrong.withValues(alpha: 0.65)
+        : AppTheme.borderSubtle.withValues(alpha: 0.45);
+
+    return MouseRegion(
+      onEnter: (_) => _setHovered(true),
+      onExit: (_) => _setHovered(false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOutCubic,
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: radius,
+          border: Border.all(color: borderColor),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.title,
+                      style: FluentTheme.of(context).typography.body?.copyWith(
+                            fontWeight: FontWeight.w400,
+                            color: AppTheme.textPrimary,
+                            fontSize: 13,
+                          ),
                     ),
-                  ),
-                ],
-              ],
-            ),
+                    if (widget.subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.subtitle!,
+                        style: FluentTheme.of(context).typography.caption?.copyWith(
+                              color: AppTheme.textTertiary,
+                              fontSize: 11,
+                            ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              widget.trailing,
+            ],
           ),
-          const SizedBox(width: 12),
-          trailing,
-        ],
+        ),
       ),
     );
   }
@@ -122,14 +157,16 @@ class StatusIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = isOnline ? AppTheme.statusSuccess : AppTheme.statusError;
-    
+
+    final baseColor = Color.lerp(AppTheme.surfaceCard, color, 0.10) ?? color.withValues(alpha: 0.1);
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: baseColor,
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         border: Border.all(
-          color: color.withValues(alpha: 0.3),
+          color: color.withValues(alpha: 0.30),
         ),
       ),
       child: Row(
@@ -151,10 +188,10 @@ class StatusIndicator extends StatelessWidget {
                 Text(
                   title,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: AppTheme.textPrimary,
-                    fontSize: 12,
-                  ),
+                        fontWeight: FontWeight.w500,
+                        color: AppTheme.textPrimary,
+                        fontSize: 12,
+                      ),
                 ),
                 const SizedBox(height: 2),
                 Row(
@@ -167,8 +204,8 @@ class StatusIndicator extends StatelessWidget {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: color.withValues(alpha: 0.5),
-                            blurRadius: 4,
+                            color: color.withValues(alpha: 0.4),
+                            blurRadius: 3,
                           ),
                         ],
                       ),
@@ -177,10 +214,10 @@ class StatusIndicator extends StatelessWidget {
                     Text(
                       isOnline ? '在线' : '离线',
                       style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: color,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11,
-                      ),
+                            color: color,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 11,
+                          ),
                     ),
                   ],
                 ),
@@ -205,7 +242,7 @@ class DangerZone extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.statusError.withValues(alpha: 0.05),
+        color: AppTheme.statusError.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         border: Border.all(
           color: AppTheme.statusError.withValues(alpha: 0.3),
@@ -233,9 +270,9 @@ class DangerZone extends StatelessWidget {
               Text(
                 '危险操作',
                 style: FluentTheme.of(context).typography.body?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.statusError,
-                ),
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.statusError,
+                    ),
               ),
             ],
           ),

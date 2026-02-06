@@ -15,6 +15,9 @@ class UpdatePage extends StatefulWidget {
 }
 
 class _UpdatePageState extends State<UpdatePage> {
+  final _changelogScrollController = ScrollController();
+  final _updateScrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
@@ -23,6 +26,13 @@ class _UpdatePageState extends State<UpdatePage> {
       final updateService = context.read<UpdateService>();
       updateService.checkForUpdates();
     });
+  }
+
+  @override
+  void dispose() {
+    _changelogScrollController.dispose();
+    _updateScrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -133,16 +143,42 @@ class _UpdatePageState extends State<UpdatePage> {
               const SizedBox(height: 12),
               Container(
                 width: double.infinity,
-                constraints: const BoxConstraints(maxHeight: 200),
+                height: 150, // 固定高度用于预览
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: AppTheme.bgLayer1,
                   borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                   border: Border.all(color: AppTheme.borderSubtle),
                 ),
-                child: SingleChildScrollView(
-                  child: _buildMarkdownContent(context, updateService.getCurrentChangelog()),
+                child: Stack(
+                  children: [
+                    SingleChildScrollView(
+                      physics: const NeverScrollableScrollPhysics(), // 禁止内部滚动
+                      child: _buildMarkdownContent(context, updateService.getCurrentChangelog()),
+                    ),
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            stops: const [0.0, 0.5, 1.0],
+                            colors: [
+                              Colors.transparent,
+                              Colors.transparent,
+                              AppTheme.bgLayer1,
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+              const SizedBox(height: 12),
+              Button(
+                onPressed: () => _showChangelogDialog(context, 'v${updateService.currentVersion} 更新日志', updateService.getCurrentChangelog()),
+                child: const Text('查看完整日志'),
               ),
             ],
           ),
@@ -591,6 +627,68 @@ class _UpdatePageState extends State<UpdatePage> {
     );
   }
 
+  void _showChangelogDialog(BuildContext context, String title, String content) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final theme = FluentTheme.of(context);
+        return Center(
+          child: Container(
+            width: 585,
+            height: 362,
+            decoration: BoxDecoration(
+              color: theme.micaBackgroundColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.borderSubtle),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+                  child: Text(
+                    title,
+                    style: theme.typography.subtitle?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: SingleChildScrollView(
+                      child: _buildMarkdownContent(context, content),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Button(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('关闭'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildUpdateSettingsSection(BuildContext context) {
     return Consumer<UpdateService>(
       builder: (context, updateService, child) {
@@ -885,13 +983,42 @@ class _UpdatePageState extends State<UpdatePage> {
         const SizedBox(height: 12),
         Container(
           width: double.infinity,
+          height: 150,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppTheme.bgLayer1,
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             border: Border.all(color: AppTheme.borderSubtle),
           ),
-          child: _buildMarkdownContent(context, updateService.getLatestChangelog()),
+          child: Stack(
+            children: [
+              SingleChildScrollView(
+                physics: const NeverScrollableScrollPhysics(),
+                child: _buildMarkdownContent(context, updateService.getLatestChangelog()),
+              ),
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: const [0.0, 0.5, 1.0],
+                      colors: [
+                        Colors.transparent,
+                        Colors.transparent,
+                        AppTheme.bgLayer1,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Button(
+          onPressed: () => _showChangelogDialog(context, 'v${release.version} 更新日志', updateService.getLatestChangelog()),
+          child: const Text('查看完整日志'),
         ),
         const SizedBox(height: 16),
         // .NET 8 提示信息

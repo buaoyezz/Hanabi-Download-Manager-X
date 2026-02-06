@@ -54,14 +54,14 @@ class _GlassCardState extends State<GlassCard>
 
   void _onEnter(PointerEvent _) {
     if (widget.enableHover) {
-      setState(() => _isHovered = true);
+      _isHovered = true;
       _hoverController.forward();
     }
   }
 
   void _onExit(PointerEvent _) {
     if (widget.enableHover) {
-      setState(() => _isHovered = false);
+      _isHovered = false;
       _hoverController.reverse();
     }
   }
@@ -91,8 +91,8 @@ class _GlassCardState extends State<GlassCard>
                   child: enableBlur
                       ? BackdropFilter(
                           filter: ImageFilter.blur(
-                            sigmaX: blurSigma + (hoverValue * 2),
-                            sigmaY: blurSigma + (hoverValue * 2),
+                            sigmaX: blurSigma,
+                            sigmaY: blurSigma,
                           ),
                           child: _buildContent(isDark, hoverValue, child),
                         )

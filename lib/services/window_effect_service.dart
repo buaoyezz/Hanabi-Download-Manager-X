@@ -31,7 +31,14 @@ class WindowEffectService extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     _effectMode = prefs.getString('window_effect_mode') ?? 'acrylic';
     _alpha = prefs.getInt('window_effect_alpha') ?? 160;
-    _effectEnabled = prefs.getBool('window_effect_enabled') ?? true;
+    
+    // 如果没有保存过设置（新用户），Win11 默认开启，Win10 默认关闭（性能考虑）
+    if (prefs.containsKey('window_effect_enabled')) {
+      _effectEnabled = prefs.getBool('window_effect_enabled')!;
+    } else {
+      _effectEnabled = _isWindows11;
+    }
+
     _dragSuspend = prefs.getBool('window_effect_drag_suspend') ?? true;
 
     if (!_isWindows11 && (_effectMode == 'mica_main' || _effectMode == 'mica_transient')) {
