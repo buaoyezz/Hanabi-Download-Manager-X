@@ -37,6 +37,9 @@ class FlutterWindow : public Win32Window {
   std::string PickFolder();
   int effect_mode_ = 2;
   int effect_alpha_ = 160;
+  // Win10 drag: disable effect during drag for smooth movement
+  bool drag_suspend_ = true;
+  bool is_suspended_ = false;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

@@ -971,7 +971,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
               context,
               title: '启用窗口特效',
               subtitle: windowEffect.effectEnabled
-                  ? '已启用亚克力/模糊效果（可能影响性能）'
+                  ? '已启用窗口特效'
                   : '已禁用窗口特效（性能优先）',
               trailing: ToggleSwitch(
                 checked: windowEffect.effectEnabled,
@@ -981,7 +981,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                     NotificationManager.of(context)?.showSuccess(
                       value ? '窗口特效已启用' : '窗口特效已禁用',
                       message: value
-                          ? '亚克力效果已开启，可能会影响性能'
+                          ? '窗口效果已开启'
                           : '已切换到纯色背景，性能更佳',
                     );
                   }
@@ -995,8 +995,45 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 ignoring: !windowEffect.effectEnabled,
                 child: _buildSettingItem(
                   context,
+                  title: '效果类型',
+                  subtitle: _getEffectModeDescription(windowEffect.effectMode),
+                  trailing: ComboBox<String>(
+                    value: windowEffect.effectMode,
+                    items: [
+                      const ComboBoxItem(value: 'acrylic', child: Text('亚克力 (Acrylic)')),
+                      const ComboBoxItem(value: 'blur', child: Text('模糊 (Blur)')),
+                      // Mica 选项仅在 Win11 上显示
+                      if (windowEffect.isWindows11) ...[
+                        const ComboBoxItem(value: 'mica_main', child: Text('云母 (Mica)')),
+                        const ComboBoxItem(value: 'mica_transient', child: Text('云母 Alt (Mica Alt)')),
+                      ],
+                    ],
+                    onChanged: (value) async {
+                      if (value != null) {
+                        await windowEffect.setEffectMode(value);
+                        if (mounted) {
+                          NotificationManager.of(context)?.showSuccess(
+                            '效果已切换',
+                            message: _getEffectModeDescription(value),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Opacity(
+              opacity: windowEffect.effectEnabled && !windowEffect.isMicaEffect ? 1.0 : 0.5,
+              child: IgnorePointer(
+                ignoring: !windowEffect.effectEnabled || windowEffect.isMicaEffect,
+                child: _buildSettingItem(
+                  context,
                   title: '亚克力透明度',
-                  subtitle: '调整窗口背景的透明度 (0-255，值越小越透明)',
+                  subtitle: windowEffect.isMicaEffect
+                      ? 'Mica 效果不支持调整透明度'
+                      : '调整窗口背景的透明度 (0-255，值越小越透明)',
                   trailing: SizedBox(
                     width: 250,
                     child: Row(
@@ -1027,41 +1064,70 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 ),
               ),
             ),
+            // Win10: suspend effect during drag (only show on Win10 with effect enabled)
+            if (!windowEffect.isWindows11 && windowEffect.effectEnabled) ...[
+              const SizedBox(height: 12),
+              _buildSettingItem(
+                context,
+                title: '拖动时禁用特效',
+                subtitle: windowEffect.dragSuspend
+                    ? '拖动窗口时临时禁用特效，确保流畅拖动'
+                    : '拖动窗口时保持特效（Win10 可能不跟手）',
+                trailing: ToggleSwitch(
+                  checked: windowEffect.dragSuspend,
+                  onChanged: (value) async {
+                    await windowEffect.setDragSuspend(value);
+                  },
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: windowEffect.effectEnabled
-                    ? Colors.orange.withValues(alpha: 0.1)
-                    : AppTheme.statusSuccess.withValues(alpha: 0.1),
+                color: windowEffect.isMicaEffect
+                    ? FluentTheme.of(context).accentColor.withValues(alpha: 0.1)
+                    : windowEffect.effectEnabled
+                        ? Colors.orange.withValues(alpha: 0.1)
+                        : AppTheme.statusSuccess.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
-                  color: windowEffect.effectEnabled
-                      ? Colors.orange.withValues(alpha: 0.3)
-                      : AppTheme.statusSuccess.withValues(alpha: 0.3),
+                  color: windowEffect.isMicaEffect
+                      ? FluentTheme.of(context).accentColor.withValues(alpha: 0.3)
+                      : windowEffect.effectEnabled
+                          ? Colors.orange.withValues(alpha: 0.3)
+                          : AppTheme.statusSuccess.withValues(alpha: 0.3),
                 ),
               ),
               child: Row(
                 children: [
                   Icon(
-                    windowEffect.effectEnabled
-                        ? CustomIcons.FluentIcons.warning
-                        : CustomIcons.FluentIcons.completed_solid,
+                    windowEffect.isMicaEffect
+                        ? CustomIcons.FluentIcons.info
+                        : windowEffect.effectEnabled
+                            ? CustomIcons.FluentIcons.warning
+                            : CustomIcons.FluentIcons.completed_solid,
                     size: 16,
-                    color: windowEffect.effectEnabled
-                        ? Colors.orange
-                        : AppTheme.statusSuccess,
+                    color: windowEffect.isMicaEffect
+                        ? FluentTheme.of(context).accentColor
+                        : windowEffect.effectEnabled
+                            ? Colors.orange
+                            : AppTheme.statusSuccess,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      windowEffect.effectEnabled
-                          ? '亚克力效果会消耗额外的GPU资源，如果感觉卡顿可以关闭此选项'
-                          : '窗口特效已关闭，应用将使用纯色背景以获得最佳性能',
+                      windowEffect.isMicaEffect
+                          ? 'Mica 效果仅在 Windows 11 上可用，会自动采用系统主题色'
+                          : windowEffect.effectEnabled
+                              ? '亚克力效果会消耗额外的GPU资源，如果感觉卡顿可以关闭此选项'
+                              : '窗口特效已关闭，应用将使用纯色背景以获得最佳性能',
                       style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: windowEffect.effectEnabled
-                            ? Colors.orange
-                            : AppTheme.statusSuccess,
+                        color: windowEffect.isMicaEffect
+                            ? FluentTheme.of(context).accentColor
+                            : windowEffect.effectEnabled
+                                ? Colors.orange
+                                : AppTheme.statusSuccess,
                       ),
                     ),
                   ),
@@ -1570,6 +1636,24 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         return '';
     }
   }
+
+  String _getEffectModeDescription(String mode) {
+    switch (mode) {
+      case 'none':
+        return '无效果';
+      case 'blur':
+        return '模糊效果 - 简单的背景模糊';
+      case 'acrylic':
+        return '亚克力效果 - 半透明模糊背景';
+      case 'mica_main':
+        return 'Mica 效果 - Windows 11 原生云母效果';
+      case 'mica_transient':
+        return 'Mica Alt 效果 - Windows 11 临时窗口云母效果';
+      default:
+        return '未知效果';
+    }
+  }
+
 
 
 
