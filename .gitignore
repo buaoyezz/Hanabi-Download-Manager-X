@@ -110,6 +110,7 @@ test_downloads/
 *.download
 *.part
 *.crdownload
+test_server/
 
 # Kernel executable (will be built)
 assets/kernel/soda_kernel.exe
