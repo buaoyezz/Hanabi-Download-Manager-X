@@ -50,6 +50,7 @@ class DownloadEngine {
       _logger.info('NSFX-Engine', 'Starting download: ${task.filename}');
       task.status = TaskStatus.downloading;
       task.startTime = DateTime.now();
+      onProgress(task); // 立即通知 UI 状态已改变
 
       final headers = _buildHeaders(task);
       final fileInfo = await httpClient.getFileInfo(task.url, headers);
@@ -62,6 +63,7 @@ class DownloadEngine {
       }
 
       task.totalSize = fileInfo.size;
+      onProgress(task); // 通知 UI 文件大小已获取
 
       if (!fileInfo.supportsRange) {
         _logger.info('NSFX-Engine', 'Server does not support Range requests, using single thread');
@@ -173,30 +175,52 @@ class DownloadEngine {
     int restoredBytes = 0;
     for (final segment in task.segments) {
       final partFile = File('${tempDir.path}/${task.filename}.part${segment.index}');
+      final segmentSize = segment.endByte - segment.startByte;
+
       if (await partFile.exists()) {
         final fileSize = await partFile.length();
-        final segmentSize = segment.endByte - segment.startByte;
-        
+
         // 如果临时文件大小超过分段大小，截断它（可能是动态分段导致的）
         if (fileSize > segmentSize) {
           _logger.warning('NSFX-Engine', 'Segment ${segment.index} temp file too large: $fileSize > $segmentSize, truncating');
-          final raf = await partFile.open(mode: FileMode.writeOnlyAppend);
-          await raf.truncate(segmentSize);
-          await raf.close();
-          // 截断后，设置为分段大小并标记为完成
-          segment.downloadedBytes = segmentSize;
-          segment.status = SegmentStatus.completed;
-          restoredBytes += segmentSize;
-          _logger.info('NSFX-Engine', 'Segment ${segment.index} truncated and marked complete: $segmentSize bytes');
-        } else {
-          segment.downloadedBytes = fileSize;
-          restoredBytes += fileSize;
-          if (fileSize >= segmentSize) {
+          try {
+            final raf = await partFile.open(mode: FileMode.writeOnlyAppend);
+            await raf.truncate(segmentSize);
+            await raf.close();
+            // 截断后，设置为分段大小并标记为完成
+            segment.downloadedBytes = segmentSize;
             segment.status = SegmentStatus.completed;
-            _logger.debug('NSFX-Engine', 'Segment ${segment.index} already completed ($fileSize bytes)');
-          } else if (fileSize > 0) {
-            _logger.debug('NSFX-Engine', 'Segment ${segment.index} restored: $fileSize/$segmentSize bytes');
+            restoredBytes += segmentSize;
+            _logger.info('NSFX-Engine', 'Segment ${segment.index} truncated and marked complete: $segmentSize bytes');
+          } catch (e) {
+            _logger.error('NSFX-Engine', 'Failed to truncate segment ${segment.index}: $e');
+            segment.downloadedBytes = 0;
+            segment.status = SegmentStatus.pending;
           }
+        } else if (fileSize == segmentSize) {
+          // 只有文件大小完全等于分段大小才标记为完成
+          segment.downloadedBytes = fileSize;
+          segment.status = SegmentStatus.completed;
+          restoredBytes += fileSize;
+          _logger.debug('NSFX-Engine', 'Segment ${segment.index} already completed ($fileSize bytes)');
+        } else if (fileSize > 0) {
+          // 部分下载，需要继续
+          segment.downloadedBytes = fileSize;
+          segment.status = SegmentStatus.pending;
+          restoredBytes += fileSize;
+          _logger.debug('NSFX-Engine', 'Segment ${segment.index} partial: $fileSize/$segmentSize bytes, will resume');
+        } else {
+          // 文件为空，重新下载
+          segment.downloadedBytes = 0;
+          segment.status = SegmentStatus.pending;
+        }
+      } else {
+        // 临时文件不存在
+        segment.downloadedBytes = 0;
+        if (segment.status == SegmentStatus.completed) {
+          // 之前标记为完成但文件不存在，需要重新下载
+          _logger.warning('NSFX-Engine', 'Segment ${segment.index} marked complete but temp file missing, resetting');
+          segment.status = SegmentStatus.pending;
         }
       }
     }
@@ -230,29 +254,85 @@ class DownloadEngine {
     try {
       // 使用信号量控制并发
       final semaphore = _Semaphore(actualThreads);
-      final futures = <Future<bool>>[];
 
-      for (final segment in task.segments) {
-        if (segment.status == SegmentStatus.completed) continue;
-        
-        final tempFile = '${tempDir.path}/${task.filename}.part${segment.index}';
-        
-        futures.add(semaphore.run(() async {
-          if (_cancelledTasks[task.id] == true) return false;
-          if (_pausedTasks[task.id] == true) return false;
-          
-          segment.status = SegmentStatus.downloading;
-          
-          return await _downloadSegmentInIsolate(
-            task: task,
-            segment: segment,
-            headers: headers,
-            tempFilePath: tempFile,
-          );
-        }));
+      // 无限循环重试失败的分段，直到全部完成或用户取消
+      int globalRetryRound = 0;
+      const maxGlobalRetryRounds = 9999; // 防止极端情况下的无限循环
+
+      while (globalRetryRound < maxGlobalRetryRounds) {
+        if (_cancelledTasks[task.id] == true) {
+          task.status = TaskStatus.cancelled;
+          progressTimer.cancel();
+          dynamicSegmentTimer.cancel();
+          return;
+        }
+
+        if (_pausedTasks[task.id] == true) {
+          task.status = TaskStatus.paused;
+          progressTimer.cancel();
+          dynamicSegmentTimer.cancel();
+          return;
+        }
+
+        // 找出所有未完成的分段（pending 或 failed）
+        final pendingSegments = task.segments.where((s) =>
+          s.status != SegmentStatus.completed
+        ).toList();
+
+        // 如果没有未完成的分段，退出循环
+        if (pendingSegments.isEmpty) {
+          break;
+        }
+
+        // 如果是重试轮次，记录日志
+        if (globalRetryRound > 0) {
+          final failedCount = task.segments.where((s) => s.status == SegmentStatus.failed).length;
+          _logger.info('NSFX-Engine',
+            'Retry round $globalRetryRound: ${pendingSegments.length} segments pending, $failedCount failed');
+
+          // 重置失败分段的状态为 pending
+          for (final segment in pendingSegments) {
+            if (segment.status == SegmentStatus.failed) {
+              segment.status = SegmentStatus.pending;
+              segment.retryCount = 0; // 重置重试计数，给予新的重试机会
+            }
+          }
+
+          // 在重试轮次之间稍作等待，避免过于激进
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+
+        final futures = <Future<bool>>[];
+
+        for (final segment in pendingSegments) {
+          final tempFile = '${tempDir.path}/${task.filename}.part${segment.index}';
+
+          futures.add(semaphore.run(() async {
+            if (_cancelledTasks[task.id] == true) return false;
+            if (_pausedTasks[task.id] == true) return false;
+
+            segment.status = SegmentStatus.downloading;
+
+            return await _downloadSegmentInIsolate(
+              task: task,
+              segment: segment,
+              headers: headers,
+              tempFilePath: tempFile,
+            );
+          }));
+        }
+
+        await Future.wait(futures);
+
+        // 检查是否全部完成
+        final allCompleted = task.segments.every((s) => s.status == SegmentStatus.completed);
+        if (allCompleted) {
+          break;
+        }
+
+        globalRetryRound++;
       }
 
-      final results = await Future.wait(futures);
       progressTimer.cancel();
       dynamicSegmentTimer.cancel();
 
@@ -266,27 +346,39 @@ class DownloadEngine {
         return;
       }
 
-      // 检查所有分段是否完成
+      // 最终检查所有分段是否完成
       final allCompleted = task.segments.every((s) => s.status == SegmentStatus.completed);
       if (!allCompleted) {
         final failedCount = task.segments.where((s) => s.status == SegmentStatus.failed).length;
         task.status = TaskStatus.failed;
-        task.errorMessage = '$failedCount segments failed';
+        task.errorMessage = '$failedCount segments failed after $globalRetryRound retry rounds';
+        _logger.error('NSFX-Engine', 'Download failed: ${task.errorMessage}');
         onError(task);
         return;
       }
 
-      // 合并分段
+      // 合并前严格验证所有分段的临时文件
       task.status = TaskStatus.merging;
       onProgress(task);
-      _logger.info('NSFX-Engine', 'Merging segments: ${task.filename}');
+      _logger.info('NSFX-Engine', 'Verifying and merging segments: ${task.filename}');
+
+      final verifyResult = await _verifyAllSegmentsBeforeMerge(task, tempDir);
+      if (!verifyResult) {
+        // 验证失败，有分段文件不完整
+        final failedSegments = task.segments.where((s) => s.status == SegmentStatus.failed).toList();
+        task.status = TaskStatus.failed;
+        task.errorMessage = '${failedSegments.length} segments incomplete or corrupted';
+        _logger.error('NSFX-Engine', 'Merge aborted: ${task.errorMessage}');
+        onError(task);
+        return;
+      }
 
       await _mergeSegments(task, tempDir);
 
       task.status = TaskStatus.completed;
       task.endTime = DateTime.now();
       task.progress = 100;
-      
+
       if (task.startTime != null && task.endTime != null) {
         final duration = task.endTime!.difference(task.startTime!).inSeconds;
         if (duration > 0) task.averageSpeed = task.totalSize / duration;
@@ -295,6 +387,12 @@ class DownloadEngine {
       _logger.info('NSFX-Engine', 'Download completed: ${task.filename}');
       onComplete(task);
 
+    } catch (e) {
+      // 下载或合并失败
+      _logger.error('NSFX-Engine', 'Download/Merge failed: ${task.filename} - $e');
+      task.status = TaskStatus.failed;
+      task.errorMessage = 'Failed: $e';
+      onError(task);
     } finally {
       progressTimer.cancel();
       dynamicSegmentTimer.cancel();
@@ -459,20 +557,45 @@ class DownloadEngine {
     required String tempFilePath,
   }) async {
     int retryCount = 0;
-    
+
     while (retryCount < config.maxRetries) {
       if (_cancelledTasks[task.id] == true || _pausedTasks[task.id] == true) {
         return false;
       }
-      
+
       try {
-        // 检查是否有已下载的部分（用于断点续传）
-        int alreadyDownloaded = segment.downloadedBytes;
+        // [关键修复] 每次重试前，从临时文件获取实际大小，而非依赖内存值
+        int alreadyDownloaded = 0;
+        final tempFile = File(tempFilePath);
+        if (await tempFile.exists()) {
+          alreadyDownloaded = await tempFile.length();
+          // 同步更新 segment 的内存值
+          segment.downloadedBytes = alreadyDownloaded;
+        }
+
+        final expectedSize = segment.endByte - segment.startByte;
+
+        // 如果临时文件已经完整，直接返回成功
+        if (alreadyDownloaded >= expectedSize) {
+          if (alreadyDownloaded > expectedSize) {
+            // 文件过大，截断
+            _logger.warning('NSFX-Engine', 'Segment ${segment.index} temp file too large, truncating');
+            final raf = await tempFile.open(mode: FileMode.writeOnlyAppend);
+            await raf.truncate(expectedSize);
+            await raf.close();
+            alreadyDownloaded = expectedSize;
+          }
+          segment.downloadedBytes = expectedSize;
+          segment.status = SegmentStatus.completed;
+          _logger.debug('NSFX-Engine', 'Segment ${segment.index} already complete from temp file');
+          return true;
+        }
+
         final actualStartByte = segment.startByte + alreadyDownloaded;
-        
+
         final receivePort = ReceivePort();
         final progressPort = _progressPorts[task.id];
-        
+
         final isolate = await Isolate.spawn(
           _isolateSegmentDownload,
           _IsolateParams(
@@ -489,56 +612,95 @@ class DownloadEngine {
             segmentIndex: segment.index,
           ),
         );
-        
+
         // 跟踪 Isolate
         _taskIsolates[task.id]?.add(isolate);
-        
+
         final result = await receivePort.first as _IsolateResult;
         receivePort.close();
-        
+
         // 从跟踪列表中移除
         _taskIsolates[task.id]?.remove(isolate);
-        
+
+        // [关键修复] 无论成功失败，都更新已下载字节数
+        segment.downloadedBytes = result.downloadedBytes;
+
         if (result.success) {
-          segment.downloadedBytes = result.downloadedBytes;
-          segment.status = SegmentStatus.completed;
-          return true;
+          // 验证下载的字节数是否等于分段大小
+          if (result.downloadedBytes == expectedSize) {
+            segment.status = SegmentStatus.completed;
+            _logger.debug('NSFX-Engine', 'Segment ${segment.index} completed: ${result.downloadedBytes} bytes');
+            return true;
+          } else {
+            // 下载的字节数不匹配，标记为失败
+            _logger.warning('NSFX-Engine',
+              'Segment ${segment.index} size mismatch after download: ${result.downloadedBytes}/$expectedSize');
+            segment.status = SegmentStatus.failed;
+            segment.lastError = 'Size mismatch: ${result.downloadedBytes}/$expectedSize';
+            return false;
+          }
         } else {
           throw Exception(result.error ?? 'Unknown error');
         }
-        
+
       } catch (e) {
         retryCount++;
         segment.retryCount = retryCount;
         segment.lastError = e.toString();
-        
+
+        // 只在每10次重试时打印日志，避免日志刷屏
+        if (retryCount % 10 == 1 || retryCount >= config.maxRetries) {
+          _logger.warning('NSFX-Engine',
+            'Segment ${segment.index} retry $retryCount/${config.maxRetries}: $e');
+        }
+
         if (retryCount < config.maxRetries) {
-          await Future.delayed(Duration(seconds: (1 << retryCount).clamp(1, 30)));
+          // IDM 风格：极短的重试延迟，快速恢复连接
+          // 在不稳定网络下，快速重试比等待更有效
+          // 前50次：几乎立即重试（20-50ms）
+          // 50-200次：短暂延迟（50-100ms）
+          // 200次以上：稍长延迟（150ms）
+          int delayMs;
+          if (retryCount <= 50) {
+            delayMs = 20 + (retryCount ~/ 10) * 6;  // 20-50ms
+          } else if (retryCount <= 200) {
+            delayMs = 50 + (retryCount - 50) ~/ 3;  // 50-100ms
+          } else {
+            delayMs = 150;  // 最多150ms
+          }
+          await Future.delayed(Duration(milliseconds: delayMs));
         }
       }
     }
-    
+
     segment.status = SegmentStatus.failed;
     return false;
   }
 
   /// Isolate 入口点 - 下载单个分段
   static void _isolateSegmentDownload(_IsolateParams params) async {
+    // params.startByte 已经是调整后的起始位置（segment.startByte + alreadyDownloaded）
+    // 所以 remainingSize 就是 endByte - startByte，不需要再减 alreadyDownloaded
+    final remainingSize = params.endByte - params.startByte;
+    // 整个分段的预期大小 = 剩余量 + 已下载量
+    final segmentTotalSize = remainingSize + params.alreadyDownloaded;
+    int downloadedBytes = 0;  // 本次下载的字节数（在外部定义，catch可访问）
+    HttpClient? client;
+    IOSink? sink;
+
     try {
-      final client = HttpClient();
-      client.connectionTimeout = Duration(seconds: params.connectionTimeout);
-      client.idleTimeout = const Duration(seconds: 60);
-      
+      client = HttpClient();
+      // 更短的超时，快速检测断开并重试
+      client.connectionTimeout = Duration(seconds: params.connectionTimeout.clamp(3, 5));
+      client.idleTimeout = const Duration(seconds: 5);  // 缩短空闲超时
+
       final uri = Uri.parse(params.url);
       final request = await client.getUrl(uri);
-      
+
       params.headers.forEach((key, value) {
         request.headers.set(key, value);
       });
-      
-      final expectedSize = params.endByte - params.startByte;
-      final remainingSize = expectedSize - params.alreadyDownloaded;
-      
+
       // [优化] 如果已经下载完成了，直接返回成功，不需要建立连接
       if (remainingSize <= 0) {
         client.close();
@@ -548,11 +710,11 @@ class DownloadEngine {
         ));
         return;
       }
-      
+
       request.headers.set('Range', 'bytes=${params.startByte}-${params.endByte - 1}');
-      
+
       final response = await request.close();
-      
+
       if (response.statusCode != 206 && response.statusCode != 200) {
         await response.drain();
         client.close();
@@ -563,31 +725,30 @@ class DownloadEngine {
         ));
         return;
       }
-      
+
       final file = File(params.tempFilePath);
       // 如果有已下载的数据，使用 append 模式；否则使用 writeOnly 模式
-      final sink = file.openWrite(mode: params.alreadyDownloaded > 0 ? FileMode.append : FileMode.writeOnly);
-      int downloadedBytes = 0;  // 本次下载的字节数
-      
+      sink = file.openWrite(mode: params.alreadyDownloaded > 0 ? FileMode.append : FileMode.writeOnly);
+
       // 进度上报：每下载 64KB 或每 100ms 通知一次主线程
       int bufferedBytes = 0;
       const int bufferThreshold = 64 * 1024; // 64KB
       DateTime lastProgressTime = DateTime.now();
       const progressInterval = Duration(milliseconds: 100);
-      
+
       await for (final chunk in response) {
         // [关键修复] 严格计算剩余量
         final currentRemaining = remainingSize - downloadedBytes;
         if (currentRemaining <= 0) break; // 已经够了，强制退出循环
-        
-        final toWrite = chunk.length > currentRemaining 
-            ? chunk.sublist(0, currentRemaining) 
+
+        final toWrite = chunk.length > currentRemaining
+            ? chunk.sublist(0, currentRemaining)
             : chunk;
-        
+
         sink.add(toWrite);
         downloadedBytes += toWrite.length;
         bufferedBytes += toWrite.length;
-        
+
         // 达到阈值或时间间隔，发送进度通知
         final now = DateTime.now();
         if (bufferedBytes >= bufferThreshold || now.difference(lastProgressTime) >= progressInterval) {
@@ -599,11 +760,11 @@ class DownloadEngine {
           bufferedBytes = 0;
           lastProgressTime = now;
         }
-        
+
         // [关键修复] 再次检查：如果刚刚写入导致满了，立即 break，不再等待下一个 chunk
         if (remainingSize - downloadedBytes <= 0) break;
       }
-      
+
       // 发送剩余的 buffer
       if (bufferedBytes > 0) {
         params.progressPort?.send(_ProgressMessage(
@@ -612,29 +773,42 @@ class DownloadEngine {
           bytesDelta: bufferedBytes,
         ));
       }
-      
+
       // [关键修复] 改变关闭顺序：先关闭网络连接，再处理文件
       // 这可以防止网络挂起导致文件流一直等待
       client.close(force: true);
-      
+      client = null;
+
       await sink.flush();
       await sink.close();
-      
+      sink = null;
+
       final totalDownloaded = params.alreadyDownloaded + downloadedBytes;
-      
+
       params.sendPort.send(_IsolateResult(
-        success: totalDownloaded >= expectedSize,
+        success: totalDownloaded == segmentTotalSize,
         downloadedBytes: totalDownloaded,
-        error: totalDownloaded < expectedSize 
-            ? 'Incomplete: $totalDownloaded/$expectedSize' 
+        error: totalDownloaded != segmentTotalSize
+            ? 'Size mismatch: $totalDownloaded/$segmentTotalSize'
             : null,
       ));
-      
+
     } catch (e) {
+      // [关键修复] 网络中断时，确保文件流被正确关闭，数据刷新到磁盘
+      try {
+        client?.close(force: true);
+        if (sink != null) {
+          await sink.flush();
+          await sink.close();
+        }
+      } catch (_) {}
+
+      // [关键修复] 返回实际已下载的字节数（包括本次下载的）
+      final actualDownloaded = params.alreadyDownloaded + downloadedBytes;
       params.sendPort.send(_IsolateResult(
         success: false,
         error: e.toString(),
-        downloadedBytes: params.alreadyDownloaded,
+        downloadedBytes: actualDownloaded,  // 返回实际字节数，而非传入参数
       ));
     }
   }
@@ -807,25 +981,140 @@ class DownloadEngine {
     }
   }
 
+  /// 合并分段前的严格验证
+  Future<bool> _verifyAllSegmentsBeforeMerge(Task task, Directory tempDir) async {
+    _logger.info('NSFX-Engine', 'Verifying all segments before merge...');
+
+    bool allValid = true;
+    int totalVerifiedBytes = 0;
+
+    for (final segment in task.segments) {
+      final partFile = File('${tempDir.path}/${task.filename}.part${segment.index}');
+      final expectedSize = segment.endByte - segment.startByte;
+
+      if (!await partFile.exists()) {
+        _logger.error('NSFX-Engine',
+          'Segment ${segment.index} temp file missing!');
+        segment.status = SegmentStatus.failed;
+        segment.lastError = 'Temp file missing';
+        allValid = false;
+        continue;
+      }
+
+      final actualSize = await partFile.length();
+
+      if (actualSize > expectedSize) {
+        // 文件过大（可能是动态分段导致的），尝试截断
+        _logger.warning('NSFX-Engine',
+          'Segment ${segment.index} file too large: $actualSize > $expectedSize, truncating...');
+        try {
+          final raf = await partFile.open(mode: FileMode.writeOnlyAppend);
+          await raf.truncate(expectedSize);
+          await raf.close();
+          // 截断成功，验证通过
+          segment.downloadedBytes = expectedSize;
+          segment.status = SegmentStatus.completed;
+          totalVerifiedBytes += expectedSize;
+          _logger.info('NSFX-Engine',
+            'Segment ${segment.index} truncated and verified: $expectedSize bytes OK');
+          continue;
+        } catch (e) {
+          _logger.error('NSFX-Engine',
+            'Failed to truncate segment ${segment.index}: $e');
+          segment.status = SegmentStatus.failed;
+          segment.lastError = 'Truncate failed: $e';
+          allValid = false;
+          continue;
+        }
+      } else if (actualSize < expectedSize) {
+        // 文件过小，需要重新下载
+        _logger.error('NSFX-Engine',
+          'Segment ${segment.index} file too small: $actualSize < $expectedSize');
+        segment.status = SegmentStatus.failed;
+        segment.lastError = 'Size mismatch: $actualSize/$expectedSize';
+        segment.downloadedBytes = actualSize;
+        allValid = false;
+        continue;
+      }
+
+      // 大小完全匹配，验证通过
+      segment.downloadedBytes = actualSize;
+      segment.status = SegmentStatus.completed;
+      totalVerifiedBytes += actualSize;
+      _logger.debug('NSFX-Engine',
+        'Segment ${segment.index} verified: $actualSize bytes OK');
+    }
+
+    if (allValid) {
+      _logger.info('NSFX-Engine',
+        'All ${task.segments.length} segments verified, total: ${(totalVerifiedBytes / 1024 / 1024).toStringAsFixed(2)} MB');
+    } else {
+      final failedCount = task.segments.where((s) => s.status == SegmentStatus.failed).length;
+      _logger.error('NSFX-Engine',
+        'Verification failed: $failedCount segments have issues');
+    }
+
+    return allValid;
+  }
+
   Future<void> _mergeSegments(Task task, Directory tempDir) async {
     final outputFile = File(task.filepath);
     await outputFile.parent.create(recursive: true);
-    
+
+    // 按分段起始位置排序，确保正确的合并顺序
+    final sortedSegments = task.segments.toList()
+      ..sort((a, b) => a.startByte.compareTo(b.startByte));
+
     final sink = outputFile.openWrite();
+    int totalMergedBytes = 0;
 
     try {
-      for (final segment in task.segments..sort((a, b) => a.index.compareTo(b.index))) {
+      for (final segment in sortedSegments) {
         final partFile = File('${tempDir.path}/${task.filename}.part${segment.index}');
         if (await partFile.exists()) {
+          final partSize = await partFile.length();
+          final expectedSize = segment.endByte - segment.startByte;
+
+          // 再次验证分段文件大小
+          if (partSize != expectedSize) {
+            _logger.error('NSFX-Engine',
+              'Segment ${segment.index} size mismatch during merge: $partSize != $expectedSize');
+            throw Exception('Segment ${segment.index} corrupted: size mismatch');
+          }
+
           await sink.addStream(partFile.openRead());
-          
+          totalMergedBytes += partSize;
+
           // 删除临时文件，带重试机制
           await _deleteFileWithRetry(partFile);
+        } else {
+          _logger.error('NSFX-Engine',
+            'Segment ${segment.index} temp file missing during merge');
+          throw Exception('Segment ${segment.index} temp file missing');
         }
       }
 
       await sink.flush();
       await sink.close();
+
+      // 验证合并的字节数
+      if (totalMergedBytes != task.totalSize) {
+        _logger.warning('NSFX-Engine',
+          'Merged bytes mismatch: $totalMergedBytes != ${task.totalSize}');
+      }
+
+      // 验证最终文件大小
+      final finalSize = await outputFile.length();
+      if (finalSize != task.totalSize) {
+        _logger.error('NSFX-Engine',
+          'Final file size mismatch: $finalSize != ${task.totalSize}');
+        // 删除损坏的文件
+        await outputFile.delete();
+        throw Exception('Final file corrupted: size $finalSize != ${task.totalSize}');
+      }
+
+      _logger.info('NSFX-Engine',
+        'Merge completed: ${task.filename}, size: ${(finalSize / 1024 / 1024).toStringAsFixed(2)} MB');
 
       // 删除临时目录，带重试机制
       if (await tempDir.exists()) {
@@ -834,6 +1123,12 @@ class DownloadEngine {
 
     } catch (e) {
       await sink.close();
+      // 如果合并失败，删除可能损坏的输出文件
+      if (await outputFile.exists()) {
+        try {
+          await outputFile.delete();
+        } catch (_) {}
+      }
       rethrow;
     }
   }

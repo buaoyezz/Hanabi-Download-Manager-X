@@ -15,15 +15,25 @@ class IntegratedDownloadService extends ChangeNotifier {
   final _appLogger = AppLoggerService();
   final List<DownloadTask> _tasks = [];
   Timer? _pollTimer;
-  
+
   // 节流控制，避免 Windows 消息队列溢出
   DateTime _lastNotify = DateTime.fromMillisecondsSinceEpoch(0);
-  static const _minNotifyInterval = Duration(milliseconds: 500);
+  static const _minNotifyInterval = Duration(milliseconds: 200); // 缩短到200ms
   bool _pendingNotify = false;
   Timer? _notifyTimer;
 
+  // 智能轮询：根据是否有活跃下载调整间隔
+  bool _hasActiveDownloads = false;
+  static const _activePollingInterval = Duration(seconds: 1);  // 有下载时1秒
+  static const _idlePollingInterval = Duration(seconds: 5);    // 空闲时5秒
+
+  // Stream 订阅
+  StreamSubscription? _progressSubscription;
+  StreamSubscription? _completeSubscription;
+
   IntegratedDownloadService(this._kernelService) {
     _startPolling();
+    _subscribeToKernelStreams();
   }
 
   bool get _useNewKernel => _clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
@@ -32,9 +42,88 @@ class IntegratedDownloadService extends ChangeNotifier {
   List<DownloadTask> get tasks => List.unmodifiable(_tasks);
 
   void _startPolling() {
-    // 降低轮询频率到 2 秒，减少 UI 更新压力
-    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+    _scheduleNextPoll();
+  }
+
+  /// 订阅内核的进度 Stream，实现实时更新
+  void _subscribeToKernelStreams() {
+    // 取消旧的订阅
+    _progressSubscription?.cancel();
+    _completeSubscription?.cancel();
+    _progressSubscription = null;
+    _completeSubscription = null;
+
+    if (_useNewKernel && _kernelManager.isRunning) {
+      _appLogger.info('App', 'Subscribing to kernel streams...');
+
+      // 监听进度更新
+      final progressStream = _kernelManager.onProgress;
+      if (progressStream != null) {
+        _progressSubscription = progressStream.listen((task) {
+          _appLogger.debug('App', 'Stream progress: ${task.filename} - ${task.progress.toStringAsFixed(1)}%');
+          _handleStreamUpdate(task);
+        });
+        _appLogger.info('App', 'Subscribed to progress stream');
+      }
+
+      // 监听完成事件
+      final completeStream = _kernelManager.onComplete;
+      if (completeStream != null) {
+        _completeSubscription = completeStream.listen((task) {
+          _appLogger.info('App', 'Stream complete: ${task.filename}');
+          _handleStreamUpdate(task);
+        });
+        _appLogger.info('App', 'Subscribed to complete stream');
+      }
+    }
+  }
+
+  /// 处理来自 Stream 的更新
+  void _handleStreamUpdate(kernel.DownloadTask kernelTask) {
+    final taskMap = _convertDownloadTaskToMap(kernelTask);
+    final newTask = _convertKernelTask(taskMap);
+
+    final existingIndex = _tasks.indexWhere((t) => t.id == newTask.id);
+
+    if (existingIndex != -1) {
+      final oldTask = _tasks[existingIndex];
+      _tasks[existingIndex] = newTask;
+
+      // 检查是否有关键变化
+      final isStatusChanged = oldTask.status != newTask.status;
+      final isSizeChanged = oldTask.fileSize != newTask.fileSize && newTask.fileSize != null && newTask.fileSize! > 0;
+
+      if (isStatusChanged || isSizeChanged) {
+        // 关键变化立即通知
+        _appLogger.debug('App', 'Critical change detected: status=$isStatusChanged, size=$isSizeChanged');
+        notifyListeners();
+      } else {
+        // 普通进度更新使用节流
+        _throttledNotify();
+      }
+    } else {
+      // 新任务
+      _tasks.add(newTask);
+      notifyListeners();
+    }
+
+    // 更新活跃下载状态
+    _hasActiveDownloads = _tasks.any((t) =>
+        t.status == DownloadStatus.downloading ||
+        t.status == DownloadStatus.merging);
+  }
+
+  // 智能轮询：根据下载状态动态调整间隔
+  void _scheduleNextPoll() {
+    _pollTimer?.cancel();
+    final interval = _hasActiveDownloads ? _activePollingInterval : _idlePollingInterval;
+    _pollTimer = Timer(interval, () async {
+      // 确保已订阅内核 Stream
+      if (_progressSubscription == null && isKernelRunning) {
+        _subscribeToKernelStreams();
+      }
       await _updateTasks();
+      _scheduleNextPoll();
     });
   }
   
@@ -86,13 +175,22 @@ class IntegratedDownloadService extends ChangeNotifier {
         if (existingIndex != -1) {
           final oldTask = _tasks[existingIndex];
 
-          // 检查是否有实际变化
-          final hasTaskChanged = oldTask.status != newTask.status ||
-              (oldTask.progress - newTask.progress).abs() > 0.001 ||
-              oldTask.speed != newTask.speed;
+          // 检查是否有实际变化（包括文件大小变化）
+          final isStatusChanged = oldTask.status != newTask.status;
+          final isSizeChanged = oldTask.fileSize != newTask.fileSize;
+          final isProgressChanged = (oldTask.progress - newTask.progress).abs() > 0.001;
+          final isSpeedChanged = oldTask.speed != newTask.speed;
+
+          final hasTaskChanged = isStatusChanged || isSizeChanged || isProgressChanged || isSpeedChanged;
+          final isCriticalChange = isStatusChanged || isSizeChanged;
 
           if (hasTaskChanged) {
             hasChanges = true;
+          }
+
+          // 关键变化需要立即通知
+          if (isCriticalChange) {
+            _appLogger.debug('App', 'Critical change in polling: status=$isStatusChanged, size=$isSizeChanged');
           }
 
           // Log status changes (only when status actually changes)
@@ -134,9 +232,18 @@ class IntegratedDownloadService extends ChangeNotifier {
         }
       }
 
-      // 只在有变化时才通知 UI
+      // 只在有变化时才通知 UI（直接通知，不节流，确保及时更新）
       if (hasChanges) {
-        _throttledNotify();
+        notifyListeners();
+      }
+
+      // 更新活跃下载状态，用于智能轮询
+      final newHasActiveDownloads = _tasks.any((t) =>
+          t.status == DownloadStatus.downloading ||
+          t.status == DownloadStatus.merging);
+      if (newHasActiveDownloads != _hasActiveDownloads) {
+        _hasActiveDownloads = newHasActiveDownloads;
+        _appLogger.debug('App', 'Active downloads: $_hasActiveDownloads, polling interval adjusted');
       }
     } catch (e) {
       _appLogger.error('App', 'Failed to update tasks: $e');
@@ -301,7 +408,7 @@ class IntegratedDownloadService extends ChangeNotifier {
   }
 
   Future<void> addTask(
-    String url, 
+    String url,
     String fileName, {
     String? referer,
     String? userAgent,
@@ -313,21 +420,26 @@ class IntegratedDownloadService extends ChangeNotifier {
       _addTestTask(url, fileName);
       return;
     }
-    
+
     if (!isKernelRunning) {
       _appLogger.error('App', 'Kernel not running');
       return;
+    }
+
+    // 确保已订阅内核 Stream（内核可能刚启动）
+    if (_progressSubscription == null) {
+      _subscribeToKernelStreams();
     }
 
     _appLogger.info('App', 'Adding download task: $fileName (using ${_useNewKernel ? 'NSFX' : 'Legacy'} kernel)');
     if (referer != null || userAgent != null || cookies != null || headers != null) {
       _appLogger.info('App', 'With authentication headers');
     }
-    
+
     String? taskId;
     if (_useNewKernel) {
       taskId = await _kernelManager.addDownload(
-        url, 
+        url,
         fileName,
         referer: referer,
         userAgent: userAgent,
@@ -336,7 +448,7 @@ class IntegratedDownloadService extends ChangeNotifier {
       );
     } else {
       taskId = await _kernelService.addDownload(
-        url, 
+        url,
         fileName,
         referer: referer,
         userAgent: userAgent,
@@ -344,10 +456,15 @@ class IntegratedDownloadService extends ChangeNotifier {
         headers: headers,
       );
     }
-    
+
     if (taskId != null) {
       _appLogger.info('App', 'Task added successfully: $taskId - $fileName');
+      // 立即切换到快速轮询模式
+      _hasActiveDownloads = true;
+      // 立即更新任务列表
       await _updateTasks();
+      // 强制通知 UI
+      notifyListeners();
     } else {
       _appLogger.error('App', 'Failed to add task: $fileName');
     }
@@ -711,6 +828,8 @@ class IntegratedDownloadService extends ChangeNotifier {
   void dispose() {
     _pollTimer?.cancel();
     _notifyTimer?.cancel();
+    _progressSubscription?.cancel();
+    _completeSubscription?.cancel();
     super.dispose();
   }
 }

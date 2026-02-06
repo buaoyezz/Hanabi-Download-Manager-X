@@ -35,6 +35,10 @@ class NsfxKernel implements KernelInterface {
   DateTime _lastProgressEmit = DateTime.fromMillisecondsSinceEpoch(0);
   static const _minProgressEmitInterval = Duration(milliseconds: 100);
 
+  // 记录上次发送的状态和文件大小，用于检测关键变化
+  final Map<String, TaskStatus> _lastEmittedStatus = {};
+  final Map<String, int> _lastEmittedTotalSize = {};
+
   @override
   String get name => 'NSFX (Next Speed Force X)';
 
@@ -402,12 +406,25 @@ class NsfxKernel implements KernelInterface {
   }
 
   void _onTaskProgress(Task task) {
-    // 节流：避免过于频繁的进度更新导致 Windows 消息队列溢出
     final now = DateTime.now();
-    if (now.difference(_lastProgressEmit) < _minProgressEmitInterval) {
+
+    // 检查是否有关键变化（状态变化或文件大小变化）
+    final lastStatus = _lastEmittedStatus[task.id];
+    final lastTotalSize = _lastEmittedTotalSize[task.id];
+    final isStatusChanged = lastStatus != task.status;
+    final isTotalSizeChanged = lastTotalSize != task.totalSize && task.totalSize > 0;
+    final isCriticalChange = isStatusChanged || isTotalSizeChanged;
+
+    // 关键变化必须立即发送，普通进度更新才节流
+    if (!isCriticalChange && now.difference(_lastProgressEmit) < _minProgressEmitInterval) {
       return;
     }
+
+    // 更新记录
+    _lastEmittedStatus[task.id] = task.status;
+    _lastEmittedTotalSize[task.id] = task.totalSize;
     _lastProgressEmit = now;
+
     _progressController.add(_toDownloadTask(task));
   }
 

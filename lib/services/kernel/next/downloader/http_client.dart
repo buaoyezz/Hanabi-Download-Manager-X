@@ -17,10 +17,11 @@ class NsfxHttpClient {
 
   HttpClient _createClient() {
     final client = HttpClient();
-    
-    client.connectionTimeout = Duration(seconds: config.connectionTimeout);
-    client.idleTimeout = const Duration(seconds: 120);
-    client.maxConnectionsPerHost = 64;
+
+    // 优化：缩短连接超时，提高响应速度
+    client.connectionTimeout = Duration(seconds: config.connectionTimeout.clamp(5, 15));
+    client.idleTimeout = const Duration(seconds: 30); // 缩短空闲超时
+    client.maxConnectionsPerHost = 128; // 增加连接数
     client.autoUncompress = false;
     
     // 代理配置
@@ -55,80 +56,79 @@ class NsfxHttpClient {
     return client;
   }
 
+  /// 快速获取文件信息 - 优化版
+  /// 直接用 Range 请求，一次获取所有信息
   Future<FileInfo> getFileInfo(String url, Map<String, String> headers) async {
     final uri = Uri.parse(url);
-    int? fileSize;
-    
-    // 先尝试 HEAD 请求获取文件大小
-    try {
-      final request = await client.headUrl(uri);
-      _applyHeaders(request, headers);
-      final response = await request.close();
-      
-      if (response.statusCode == 200) {
-        final contentLength = response.contentLength;
-        final acceptRanges = response.headers.value('accept-ranges');
-        
-        await response.drain();
-        
-        if (contentLength > 0) {
-          fileSize = contentLength;
-          // 如果明确声明支持 Range，直接返回
-          if (acceptRanges?.toLowerCase() == 'bytes') {
-            _logger.info('NSFX-HTTP', 'HEAD: size=$contentLength, range=true (Accept-Ranges header)');
-            return FileInfo(size: contentLength, supportsRange: true);
-          }
-          _logger.info('NSFX-HTTP', 'HEAD: size=$contentLength, checking Range support...');
-        }
-      } else {
-        await response.drain();
-      }
-    } catch (e) {
-      _logger.warning('NSFX-HTTP', 'HEAD request failed: $e');
-    }
+    const timeout = Duration(seconds: 3); // 缩短超时到3秒
 
-    // 用 Range 请求验证是否支持断点续传
+    // 使用独立的 HttpClient 进行探测，避免影响主下载连接池
+    // 探测完成后直接 force close，不会卡住
+    HttpClient? probeClient;
+
+    // 策略：直接发 Range 请求，一次性获取文件大小和 Range 支持信息
     try {
-      final request = await client.getUrl(uri);
+      probeClient = HttpClient();
+      probeClient.connectionTimeout = const Duration(seconds: 3);
+      probeClient.idleTimeout = const Duration(seconds: 5);
+
+      final request = await probeClient.getUrl(uri).timeout(timeout);
       _applyHeaders(request, headers);
       request.headers.set('Range', 'bytes=0-0');
-      final response = await request.close();
 
-      if (response.statusCode == 206) {
-        final contentRange = response.headers.value('content-range');
-        if (contentRange != null) {
-          final match = RegExp(r'bytes \d+-\d+/(\d+)').firstMatch(contentRange);
-          if (match != null) {
-            final size = int.parse(match.group(1)!);
-            await response.drain();
-            _logger.info('NSFX-HTTP', 'Range probe: size=$size, range=true');
-            return FileInfo(size: size, supportsRange: true);
-          }
+      final response = await request.close().timeout(timeout);
+      final statusCode = response.statusCode;
+      final contentRange = response.headers.value('content-range');
+      final contentLength = response.contentLength;
+
+      // 立即强制关闭，不等待响应体
+      probeClient.close(force: true);
+      probeClient = null;
+
+      if (statusCode == 206 && contentRange != null) {
+        // 格式: bytes 0-0/12345
+        final match = RegExp(r'bytes \d+-\d+/(\d+|\*)').firstMatch(contentRange);
+        if (match != null && match.group(1) != '*') {
+          final size = int.parse(match.group(1)!);
+          _logger.info('NSFX-HTTP', 'Fast probe: size=$size, range=true');
+          return FileInfo(size: size, supportsRange: true);
         }
-        await response.drain();
-        // 206 但没有 Content-Range，使用 HEAD 获取的大小
-        if (fileSize != null) {
-          _logger.info('NSFX-HTTP', 'Range probe: 206 without Content-Range, size=$fileSize, range=true');
-          return FileInfo(size: fileSize, supportsRange: true);
-        }
-      } else if (response.statusCode == 200) {
-        // 服务器忽略了 Range 请求，不支持断点续传
-        final contentLength = response.contentLength;
-        await response.drain();
-        final size = fileSize ?? contentLength;
-        _logger.info('NSFX-HTTP', 'Range probe: server returned 200 (ignores Range), size=$size, range=false');
-        return FileInfo(size: size, supportsRange: false);
+      } else if (statusCode == 200 && contentLength > 0) {
+        // 服务器不支持 Range，返回了完整内容
+        _logger.info('NSFX-HTTP', 'Fast probe: size=$contentLength, range=false');
+        return FileInfo(size: contentLength, supportsRange: false);
       }
-      
-      await response.drain();
     } catch (e) {
-      _logger.warning('NSFX-HTTP', 'Range probe failed: $e');
+      _logger.debug('NSFX-HTTP', 'Range probe failed: $e');
+    } finally {
+      probeClient?.close(force: true);
     }
 
-    // 如果有 HEAD 获取的大小，返回它（假设不支持 Range）
-    if (fileSize != null) {
-      _logger.info('NSFX-HTTP', 'Fallback: size=$fileSize, range=false');
-      return FileInfo(size: fileSize, supportsRange: false);
+    // 备用方案：HEAD 请求
+    try {
+      probeClient = HttpClient();
+      probeClient.connectionTimeout = const Duration(seconds: 3);
+
+      final request = await probeClient.headUrl(uri).timeout(timeout);
+      _applyHeaders(request, headers);
+      final response = await request.close().timeout(timeout);
+
+      final statusCode = response.statusCode;
+      final contentLength = response.contentLength;
+      final acceptRanges = response.headers.value('accept-ranges');
+
+      probeClient.close(force: true);
+      probeClient = null;
+
+      if (statusCode == 200 && contentLength > 0) {
+        final supportsRange = acceptRanges?.toLowerCase() == 'bytes';
+        _logger.info('NSFX-HTTP', 'HEAD fallback: size=$contentLength, range=$supportsRange');
+        return FileInfo(size: contentLength, supportsRange: supportsRange);
+      }
+    } catch (e) {
+      _logger.debug('NSFX-HTTP', 'HEAD fallback failed: $e');
+    } finally {
+      probeClient?.close(force: true);
     }
 
     _logger.warning('NSFX-HTTP', 'Could not determine file info');

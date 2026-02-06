@@ -136,7 +136,15 @@ class TaskStorage {
     try {
       final content = await _configFile.readAsString();
       final json = jsonDecode(content) as Map<String, dynamic>;
-      return NsfxConfig.fromJson(json);
+      final config = NsfxConfig.fromJson(json);
+
+      // 确保 maxRetries 至少为 200（IDM 风格）
+      // 旧配置可能保存了较小的值
+      if (config.maxRetries < 200) {
+        config.maxRetries = 200;
+      }
+
+      return config;
     } catch (_) {
       return NsfxConfig();
     }

@@ -186,8 +186,10 @@ class SegmentDownloader {
         segment.lastError = e.toString();
 
         if (retryCount < config.maxRetries) {
-          final delay = Duration(seconds: (1 << retryCount).clamp(1, 30));
-          await Future.delayed(delay);
+          // 优化：使用更短的重试间隔，循环使用
+          final delays = [200, 500, 1000, 1500, 2000];
+          final delayMs = delays[retryCount % delays.length];
+          await Future.delayed(Duration(milliseconds: delayMs));
         }
       }
     }

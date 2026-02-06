@@ -23,7 +23,7 @@ class NsfxConfig {
     this.chunkSize = 1024 * 1024,
     this.connectionTimeout = 30,
     this.readTimeout = 120,
-    this.maxRetries = 5,
+    this.maxRetries = 500, // 大量重试次数，应对极端网络（配合外层无限循环）
     this.enableDynamicSegments = true,
   }) : proxy = proxy ?? NsfxProxyConfig();
 
@@ -51,7 +51,7 @@ class NsfxConfig {
     chunkSize: json['chunk_size'] ?? json['chunkSize'] ?? 1024 * 1024,
     connectionTimeout: json['connection_timeout'] ?? json['connectionTimeout'] ?? 30,
     readTimeout: json['read_timeout'] ?? json['readTimeout'] ?? 120,
-    maxRetries: json['max_retries'] ?? json['maxRetries'] ?? 5,
+    maxRetries: json['max_retries'] ?? json['maxRetries'] ?? 500, // 大量重试
     enableDynamicSegments: json['enable_dynamic_segments'] ?? json['enableDynamicSegments'] ?? true,
   );
 }
