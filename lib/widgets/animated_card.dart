@@ -3,7 +3,7 @@ import 'package:fluent_ui/fluent_ui.dart' as fluent;
 import '../theme/app_theme.dart';
 
 /// 带动画效果的卡片组件 - 优化版本
-/// 使用 RepaintBoundary 减少重绘，优化动画曲线
+/// 使用 RepaintBoundary 减少重绘，简化动画逻辑
 class AnimatedCard extends StatefulWidget {
   final Widget child;
   final EdgeInsetsGeometry? margin;
@@ -33,7 +33,7 @@ class AnimatedCard extends StatefulWidget {
     this.enableHoverAnimation = true,
     this.enableScaleAnimation = true,
     this.enableGlowAnimation = true,
-    this.animationDuration = const Duration(milliseconds: 150), // 更快的响应
+    this.animationDuration = const Duration(milliseconds: 120),
   });
 
   @override
@@ -41,10 +41,10 @@ class AnimatedCard extends StatefulWidget {
 }
 
 class _AnimatedCardState extends State<AnimatedCard>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   late AnimationController _hoverController;
-  late AnimationController _tapController;
-  
+  bool _isHovered = false;
+
   // 缓存颜色值，避免每帧重新计算
   late Color _bgColor;
   late Color _hoverColor;
@@ -55,26 +55,20 @@ class _AnimatedCardState extends State<AnimatedCard>
   void initState() {
     super.initState();
     _initColors();
-    
     _hoverController = AnimationController(
       duration: widget.animationDuration,
       vsync: this,
     );
-
-    _tapController = AnimationController(
-      duration: const Duration(milliseconds: 80), // 更快的按压响应
-      vsync: this,
-    );
   }
-  
+
   void _initColors() {
     _bgColor = widget.backgroundColor ?? AppTheme.surfaceCard.withValues(alpha: 0.85);
-    _hoverColor = widget.hoverColor ?? (widget.backgroundColor == Colors.transparent 
-        ? Colors.transparent 
+    _hoverColor = widget.hoverColor ?? (widget.backgroundColor == Colors.transparent
+        ? Colors.transparent
         : AppTheme.surfaceCard.withValues(alpha: 0.95));
     _borderColor = widget.borderColor ?? AppTheme.borderSubtle;
-    _hoverBorderColor = widget.hoverBorderColor ?? (widget.borderColor == Colors.transparent 
-        ? Colors.transparent 
+    _hoverBorderColor = widget.hoverBorderColor ?? (widget.borderColor == Colors.transparent
+        ? Colors.transparent
         : AppTheme.accentPrimary.withValues(alpha: 0.4));
   }
 
@@ -92,51 +86,38 @@ class _AnimatedCardState extends State<AnimatedCard>
   @override
   void dispose() {
     _hoverController.dispose();
-    _tapController.dispose();
     super.dispose();
   }
 
-  void _handleTapDown(TapDownDetails details) {
-    _tapController.forward();
+  void _onEnter(PointerEvent _) {
+    if (widget.enableHoverAnimation && !_isHovered) {
+      _isHovered = true;
+      _hoverController.forward();
+    }
   }
 
-  void _handleTapUp(TapUpDetails details) {
-    _tapController.reverse();
-    widget.onTap?.call();
-  }
-
-  void _handleTapCancel() {
-    _tapController.reverse();
+  void _onExit(PointerEvent _) {
+    if (widget.enableHoverAnimation && _isHovered) {
+      _isHovered = false;
+      _hoverController.reverse();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
       child: MouseRegion(
-        onEnter: widget.enableHoverAnimation
-            ? (_) => _hoverController.forward()
-            : null,
-        onExit: widget.enableHoverAnimation
-            ? (_) => _hoverController.reverse()
-            : null,
+        onEnter: _onEnter,
+        onExit: _onExit,
         child: GestureDetector(
-          onTapDown: widget.onTap != null ? _handleTapDown : null,
-          onTapUp: widget.onTap != null ? _handleTapUp : null,
-          onTapCancel: widget.onTap != null ? _handleTapCancel : null,
+          onTap: widget.onTap,
           child: AnimatedBuilder(
-            animation: Listenable.merge([_hoverController, _tapController]),
+            animation: _hoverController,
             builder: (context, child) {
-              // 使用更丝滑的曲线
               final hoverValue = Curves.easeOutCubic.transform(_hoverController.value);
-              final tapValue = Curves.easeOutCubic.transform(_tapController.value);
-              
-              // 计算缩放 - 禁用缩放动画
-              final scale = 1.0; // 始终保持 1.0，不缩放
-              
-              // 插值颜色
               final currentBgColor = Color.lerp(_bgColor, _hoverColor, hoverValue)!;
               final currentBorderColor = Color.lerp(_borderColor, _hoverBorderColor, hoverValue)!;
-              
+
               return Container(
                 margin: widget.margin,
                 decoration: BoxDecoration(
@@ -146,7 +127,6 @@ class _AnimatedCardState extends State<AnimatedCard>
                     width: 1.0,
                   ),
                   boxShadow: [
-                    // 基础阴影
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.08),
                       blurRadius: 4,
@@ -166,7 +146,7 @@ class _AnimatedCardState extends State<AnimatedCard>
                 ),
               );
             },
-            child: widget.child, // 使用 child 参数避免子组件重建
+            child: widget.child,
           ),
         ),
       ),

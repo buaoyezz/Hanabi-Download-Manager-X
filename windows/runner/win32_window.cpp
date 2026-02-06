@@ -192,39 +192,47 @@ bool Win32Window::Create(const std::wstring& title,
   }
 
   {
-    MARGINS margins = {-1, -1, -1, -1};
-    HRESULT hr1 = DwmExtendFrameIntoClientArea(window, &margins);
     char buf[128];
-    sprintf_s(buf, sizeof(buf), "Win32Window Create: DwmExtendFrame hr=0x%08lx", hr1);
+    
+    // Get Windows build number first
+    DWORD buildNumber = 0;
+    HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
+    if (ntdll) {
+      typedef LONG(WINAPI* RtlGetVersionPtr)(PRTL_OSVERSIONINFOW);
+      RtlGetVersionPtr rtlGetVersion = (RtlGetVersionPtr)GetProcAddress(ntdll, "RtlGetVersion");
+      if (rtlGetVersion) {
+        RTL_OSVERSIONINFOW rovi = {0};
+        rovi.dwOSVersionInfoSize = sizeof(rovi);
+        if (rtlGetVersion(&rovi) == 0) {
+          buildNumber = rovi.dwBuildNumber;
+        }
+      }
+    }
+    sprintf_s(buf, sizeof(buf), "Win32Window Create: Windows build=%lu", buildNumber);
     OutputDebugStringA(buf);
-    DWORD policy = 1; // DWMNCRP_ENABLED
-    HRESULT hr2 = DwmSetWindowAttribute(window, DWMWA_NCRENDERING_POLICY, &policy, sizeof(policy));
-    sprintf_s(buf, sizeof(buf), "Win32Window Create: NCRenderingPolicy(ENABLED) hr=0x%08lx", hr2);
-    OutputDebugStringA(buf);
-    BOOL allowNcPaint = TRUE;
-    HRESULT hr3 = DwmSetWindowAttribute(window, DWMWA_ALLOW_NCPAINT, &allowNcPaint, sizeof(allowNcPaint));
-    sprintf_s(buf, sizeof(buf), "Win32Window Create: AllowNcPaint(TRUE) hr=0x%08lx", hr3);
-    OutputDebugStringA(buf);
-    DWORD borderColor = DWM_COLOR_NONE;
-    HRESULT hr4 = DwmSetWindowAttribute(window, DWMWA_BORDER_COLOR, &borderColor, sizeof(borderColor));
-    sprintf_s(buf, sizeof(buf), "Win32Window Create: BorderColor hr=0x%08lx", hr4);
-    OutputDebugStringA(buf);
-    DWORD captionColor = DWM_COLOR_NONE;
-    HRESULT hr5 = DwmSetWindowAttribute(window, DWMWA_CAPTION_COLOR, &captionColor, sizeof(captionColor));
-    sprintf_s(buf, sizeof(buf), "Win32Window Create: CaptionColor hr=0x%08lx", hr5);
-    OutputDebugStringA(buf);
+    
+    // Dark mode
     BOOL dark = TRUE;
-    HRESULT hr7 = DwmSetWindowAttribute(window, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
-    sprintf_s(buf, sizeof(buf), "Win32Window Create: DarkMode hr=0x%08lx", hr7);
-    OutputDebugStringA(buf);
-    DWORD corner = 2; // DWMWCP_ROUND
-    HRESULT hr8 = DwmSetWindowAttribute(window, 33, &corner, sizeof(corner));
-    sprintf_s(buf, sizeof(buf), "Win32Window Create: CornerPreference hr=0x%08lx", hr8);
-    OutputDebugStringA(buf);
+    DwmSetWindowAttribute(window, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
+    
+    if (buildNumber >= 22000) {
+      // Windows 11: Use native DWM features with rounded corners
+      MARGINS margins = {-1, -1, -1, -1};
+      DwmExtendFrameIntoClientArea(window, &margins);
+      
+      DWORD corner = 2; // DWMWCP_ROUND
+      DwmSetWindowAttribute(window, 33, &corner, sizeof(corner));
+      OutputDebugStringA("Win32Window Create: Win11 native rounded corners");
+    } else {
+      // Windows 10: Extend frame for acrylic, accept square corners
+      // Native rounded corners are not supported on Win10
+      MARGINS margins = {-1, -1, -1, -1};
+      DwmExtendFrameIntoClientArea(window, &margins);
+      OutputDebugStringA("Win32Window Create: Win10 - no native rounded corners");
+    }
+    
     BOOL transitionsDisabled = TRUE;
-    HRESULT hr6 = DwmSetWindowAttribute(window, DWMWA_TRANSITIONS_FORCEDISABLED, &transitionsDisabled, sizeof(transitionsDisabled));
-    sprintf_s(buf, sizeof(buf), "Win32Window Create: TransitionsDisabled hr=0x%08lx", hr6);
-    OutputDebugStringA(buf);
+    DwmSetWindowAttribute(window, DWMWA_TRANSITIONS_FORCEDISABLED, &transitionsDisabled, sizeof(transitionsDisabled));
   }
 
   UpdateTheme(window);

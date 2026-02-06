@@ -143,30 +143,54 @@ fn open_main_app() -> Result<(), String> {
         // 与 popup 同目录
         if let Ok(exe_path) = std::env::current_exe() {
             if let Some(parent) = exe_path.parent() {
-                possible_paths.push(parent.join("hanabi_download_manager.exe"));
+                // 正确的文件名（大写，Flutter 编译后的名称）
+                possible_paths.push(parent.join("HanabiDownloadManagerX.exe"));
+                // 备用文件名
                 possible_paths.push(parent.join("hanabi_download_managerx.exe"));
-                // 上级目录
+                possible_paths.push(parent.join("hanabi_download_manager.exe"));
+
+                // 上级目录（popup 在 data/zzbuaoye_assets 下）
                 if let Some(grandparent) = parent.parent() {
-                    possible_paths.push(grandparent.join("hanabi_download_manager.exe"));
-                    possible_paths.push(grandparent.join("hanabi_download_managerx.exe"));
+                    possible_paths.push(grandparent.join("HanabiDownloadManagerX.exe"));
+                    // 上上级目录（data 目录的上级就是主程序目录）
+                    if let Some(great_grandparent) = grandparent.parent() {
+                        possible_paths.push(great_grandparent.join("HanabiDownloadManagerX.exe"));
+                    }
+                }
+
+                // 开发模式：从 hanabi-popup/src-tauri/target/debug 向上找到项目根目录
+                // 然后查找 build/windows/x64/runner/Release 或 Debug
+                if let Some(target_dir) = parent.parent() {  // target
+                    if let Some(src_tauri_dir) = target_dir.parent() {  // src-tauri
+                        if let Some(popup_dir) = src_tauri_dir.parent() {  // hanabi-popup
+                            if let Some(project_root) = popup_dir.parent() {  // 项目根目录
+                                // Release 版本
+                                possible_paths.push(project_root.join("build/windows/x64/runner/Release/HanabiDownloadManagerX.exe"));
+                                // Debug 版本
+                                possible_paths.push(project_root.join("build/windows/x64/runner/Debug/HanabiDownloadManagerX.exe"));
+                                // Profile 版本
+                                possible_paths.push(project_root.join("build/windows/x64/runner/Profile/HanabiDownloadManagerX.exe"));
+                            }
+                        }
+                    }
                 }
             }
         }
 
         // 常见安装路径
-        possible_paths.push(PathBuf::from(r"C:\Program Files\Hanabi Download ManagerX\hanabi_download_manager.exe"));
+        possible_paths.push(PathBuf::from(r"C:\Program Files\Hanabi Download ManagerX\HanabiDownloadManagerX.exe"));
         possible_paths.push(PathBuf::from(r"C:\Program Files\Hanabi Download ManagerX\hanabi_download_managerx.exe"));
-        possible_paths.push(PathBuf::from(r"C:\Program Files (x86)\Hanabi Download ManagerX\hanabi_download_manager.exe"));
+        possible_paths.push(PathBuf::from(r"C:\Program Files (x86)\Hanabi Download ManagerX\HanabiDownloadManagerX.exe"));
 
         // 用户目录下的安装路径
         if let Some(local_app_data) = dirs::data_local_dir() {
-            possible_paths.push(local_app_data.join("Hanabi Download ManagerX").join("hanabi_download_manager.exe"));
+            possible_paths.push(local_app_data.join("Hanabi Download ManagerX").join("HanabiDownloadManagerX.exe"));
             possible_paths.push(local_app_data.join("Hanabi Download ManagerX").join("hanabi_download_managerx.exe"));
         }
 
-        for path in possible_paths {
+        for path in &possible_paths {
             if path.exists() {
-                std::process::Command::new(&path)
+                std::process::Command::new(path)
                     .spawn()
                     .map_err(|e| format!("Failed to open main app: {}", e))?;
                 return Ok(());
@@ -174,7 +198,7 @@ fn open_main_app() -> Result<(), String> {
         }
 
         // 如果找不到，返回错误提示用户
-        return Err("找不到主程序，请确保 Hanabi Download ManagerX 已正确安装".to_string());
+        return Err(format!("找不到主程序，请确保 Hanabi Download ManagerX 已正确安装"));
     }
 
     #[cfg(not(target_os = "windows"))]
