@@ -435,6 +435,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   /// 统一的顶部标题栏 - 横跨整个窗口
   Widget _buildUnifiedTitleBar(BuildContext context, double opacity) {
+    final windowWidth = MediaQuery.of(context).size.width;
+    final isMicroWidth = windowWidth < 200;
+    final menuWidth = isMicroWidth ? 40.0 : 52.0;
+    final menuButtonSize = isMicroWidth ? 24.0 : 28.0;
+    final menuIconSize = isMicroWidth ? 12.0 : 14.0;
+    final logoSize = isMicroWidth ? 16.0 : 18.0;
+    final logoSpacing = isMicroWidth ? 6.0 : 8.0;
+
     final titleBarContent = Container(
       height: 48,
       // 不设独立背景色，由外层 shell 背景提供
@@ -442,11 +450,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         children: [
           // 左侧：汉堡菜单
           SizedBox(
-            width: 52,
+            width: menuWidth,
             child: Center(
               child: SizedBox(
-                width: 28,
-                height: 28,
+                width: menuButtonSize,
+                height: menuButtonSize,
                 child: Button(
                   onPressed: _toggleSidebar,
                   style: ButtonStyle(
@@ -465,7 +473,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                   ),
                   child: Icon(CustomIcons.FluentIcons.global_nav_button,
-                    size: 14,
+                    size: menuIconSize,
                     color: AppTheme.textSecondary,
                   ),
                 ),
@@ -477,10 +485,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: MoveWindow(
               child: Row(
                 children: [
-                  const SizedBox(width: 8),
+                  SizedBox(width: logoSpacing),
                   Container(
-                    width: 18,
-                    height: 18,
+                    width: logoSize,
+                    height: logoSize,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(4),
                       boxShadow: [
@@ -495,30 +503,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       borderRadius: BorderRadius.circular(4),
                       child: Image.asset(
                         'assets/logo/logo.png',
-                        width: 18,
-                        height: 18,
+                        width: logoSize,
+                        height: logoSize,
                         fit: BoxFit.cover,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Hanabi Download Manager X',
-                    style: FluentTheme.of(context).typography.caption?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                      letterSpacing: 0.3,
+                  SizedBox(width: logoSpacing),
+                  Expanded(
+                    child: Text(
+                      'Hanabi Download Manager X',
+                      style: FluentTheme.of(context).typography.caption?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                        letterSpacing: 0.3,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
                   ),
-                  const Expanded(child: SizedBox()),
                 ],
               ),
             ),
           ),
           // 右侧：操作按钮（不抢占拖动区域空间）
-          _buildTitleBarActions(context),
+          _buildTitleBarActions(context, compactButtons: isMicroWidth),
         ],
       ),
     );
@@ -529,7 +538,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   /// 标题栏右侧操作按钮
-  Widget _buildTitleBarActions(BuildContext context) {
+  Widget _buildTitleBarActions(BuildContext context, {bool compactButtons = false}) {
     // 基于窗口宽度做响应式，不依赖父级约束
     final windowWidth = MediaQuery.of(context).size.width;
     final isNarrow = windowWidth < 800;
@@ -558,7 +567,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           const SizedBox(width: 8),
         ],
         // 窗口控制按钮（始终显示）
-        _buildWindowButtons(context),
+        _buildWindowButtons(context, compact: compactButtons),
       ],
     );
   }
@@ -1001,7 +1010,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
 
 
-  Widget _buildWindowButtons(BuildContext context) {
+  Widget _buildWindowButtons(BuildContext context, {bool compact = false}) {
     final buttonColors = WindowButtonColors(
       iconNormal: AppTheme.textSecondary,
       iconMouseDown: AppTheme.textPrimary,
@@ -1020,34 +1029,54 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       mouseDown: const Color(0xFFb52a1c),
     );
 
+    final buttonWidth = compact ? 32.0 : 36.0;
+    final buttonHeight = compact ? 26.0 : 28.0;
+    final iconSize = compact ? 14.0 : 16.0;
+
     return Padding(
-      padding: const EdgeInsets.only(right: 8),
+      padding: EdgeInsets.only(right: compact ? 4 : 8),
       child: SizedBox(
         height: 40,
         child: Row(
           children: [
-            _buildCustomMinimizeButton(buttonColors),
-            _buildCustomMaximizeButton(buttonColors),
-            _buildCustomCloseButton(closeButtonColors),
+            _buildCustomMinimizeButton(buttonColors, buttonWidth, buttonHeight, iconSize),
+            _buildCustomMaximizeButton(buttonColors, buttonWidth, buttonHeight, iconSize),
+            _buildCustomCloseButton(closeButtonColors, buttonWidth, buttonHeight, iconSize),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCustomMinimizeButton(WindowButtonColors colors) {
+  Widget _buildCustomMinimizeButton(
+    WindowButtonColors colors,
+    double width,
+    double height,
+    double iconSize,
+  ) {
     return _buildWindowButton(
       colors: colors,
       icon: CustomIcons.FluentIcons.subtract_20,
+      width: width,
+      height: height,
+      iconSize: iconSize,
       onPressed: () => appWindow.minimize(),
     );
   }
 
-  Widget _buildCustomMaximizeButton(WindowButtonColors colors) {
+  Widget _buildCustomMaximizeButton(
+    WindowButtonColors colors,
+    double width,
+    double height,
+    double iconSize,
+  ) {
     final isMaximized = isWindowMaximized();
     return _buildWindowButton(
       colors: colors,
       icon: isMaximized ? CustomIcons.FluentIcons.minimize_20 : CustomIcons.FluentIcons.maximize_20,
+      width: width,
+      height: height,
+      iconSize: iconSize,
       onPressed: () async {
         if (isMaximized) {
           await restoreWindowProperly();
@@ -1059,10 +1088,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildCustomCloseButton(WindowButtonColors colors) {
+  Widget _buildCustomCloseButton(
+    WindowButtonColors colors,
+    double width,
+    double height,
+    double iconSize,
+  ) {
     return _buildWindowButton(
       colors: colors,
       icon: CustomIcons.FluentIcons.dismiss_20,
+      width: width,
+      height: height,
+      iconSize: iconSize,
       onPressed: () async {
         try {
           final config = Provider.of<ClientConfigService>(context, listen: false);
@@ -1087,10 +1124,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     required WindowButtonColors colors,
     required IconData icon,
     required VoidCallback onPressed,
+    double width = 36,
+    double height = 28,
+    double iconSize = 16,
   }) {
     return SizedBox(
-      width: 36,
-      height: 28,
+      width: width,
+      height: height,
       child: HoverButton(
         onPressed: onPressed,
         builder: (context, states) {
@@ -1114,7 +1154,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               child: Icon(
                 icon,
                 color: iconColor,
-                size: 16,
+                size: iconSize,
               ),
             ),
           );
