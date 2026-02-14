@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
+import 'client_config_service.dart';
+import 'integrated_download_service.dart';
 import 'popup_window_service.dart';
 import 'logger_service.dart';
 
@@ -50,7 +53,7 @@ class DownloadListenerService {
         if (success && result['data'] != null) {
           final downloadData = result['data'] as Map<String, dynamic>;
           _logger.info('New download from browser: ${downloadData['filename']}');
-          await _showPopupForDownload(downloadData);
+          await _handleDownloadRequest(downloadData);
         }
       }
     } catch (e) {
@@ -58,6 +61,38 @@ class DownloadListenerService {
     } finally {
       _isChecking = false;
     }
+  }
+
+  Future<void> _handleDownloadRequest(Map<String, dynamic> downloadData) async {
+    final config = Provider.of<ClientConfigService>(context, listen: false);
+    final enablePopup = config.getEnablePopupWindow();
+
+    if (enablePopup) {
+      await _showPopupForDownload(downloadData);
+      return;
+    }
+
+    final url = downloadData['url']?.toString() ?? '';
+    final filename = downloadData['filename']?.toString() ?? '';
+    if (url.isEmpty || filename.isEmpty) {
+      _logger.warning('Invalid download data from browser');
+      return;
+    }
+
+    final downloadService = Provider.of<IntegratedDownloadService>(context, listen: false);
+    final headersRaw = downloadData['headers'];
+    final headers = headersRaw is Map ? headersRaw.cast<String, dynamic>() : null;
+
+    await downloadService.addTask(
+      url,
+      filename,
+      referer: downloadData['referer']?.toString(),
+      userAgent: (downloadData['user_agent'] ?? downloadData['userAgent'])?.toString(),
+      cookies: downloadData['cookies']?.toString(),
+      headers: headers,
+    );
+
+    _logger.info('Download auto-accepted: $filename');
   }
 
   // 为新下载显示弹窗（使用独立窗口，不需要拉起主窗口）

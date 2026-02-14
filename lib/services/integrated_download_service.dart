@@ -7,6 +7,7 @@ import 'kernel/kernel_manager.dart';
 import 'kernel/kernel_interface.dart' as kernel;
 import 'client_config_service.dart';
 import 'app_logger_service.dart';
+import 'download_failure_stats_service.dart';
 
 class IntegratedDownloadService extends ChangeNotifier {
   final KernelService _kernelService;
@@ -95,6 +96,10 @@ class IntegratedDownloadService extends ChangeNotifier {
       final isStatusChanged = oldTask.status != newTask.status;
       final isSizeChanged = oldTask.fileSize != newTask.fileSize && newTask.fileSize != null && newTask.fileSize! > 0;
 
+      if (isStatusChanged && newTask.status == DownloadStatus.failed) {
+        DownloadFailureStatsService().recordFailure(newTask);
+      }
+
       if (isStatusChanged || isSizeChanged) {
         // 关键变化走即时通知
         _appLogger.debug('App', 'Critical change detected: status=$isStatusChanged, size=$isSizeChanged');
@@ -106,6 +111,9 @@ class IntegratedDownloadService extends ChangeNotifier {
     } else {
       // 新任务
       _tasks.add(newTask);
+      if (newTask.status == DownloadStatus.failed) {
+        DownloadFailureStatsService().recordFailure(newTask);
+      }
       notifyNow();
     }
 
@@ -207,6 +215,10 @@ class IntegratedDownloadService extends ChangeNotifier {
           final hasTaskChanged = isStatusChanged || isSizeChanged || isProgressChanged || isSpeedChanged;
           final isCriticalChange = isStatusChanged || isSizeChanged;
 
+          if (isStatusChanged && newTask.status == DownloadStatus.failed) {
+            DownloadFailureStatsService().recordFailure(newTask);
+          }
+
           if (hasTaskChanged) {
             hasChanges = true;
           }
@@ -253,6 +265,9 @@ class IntegratedDownloadService extends ChangeNotifier {
           _tasks.add(newTask);
           hasChanges = true;
           _appLogger.info('App', 'New task added: ${newTask.fileName} (${newTask.status})');
+          if (newTask.status == DownloadStatus.failed) {
+            DownloadFailureStatsService().recordFailure(newTask);
+          }
         }
       }
 
@@ -860,4 +875,3 @@ class IntegratedDownloadService extends ChangeNotifier {
     super.dispose();
   }
 }
-

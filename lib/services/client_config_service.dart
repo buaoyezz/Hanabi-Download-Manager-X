@@ -146,6 +146,7 @@ class ClientConfigService extends ChangeNotifier {
         'notify_on_complete': true,
         'close_button_behavior': 'minimize_to_tray', // 默认最小化到托盘
         'show_tray_running_status': false, // 默认不显示“正在后台运行”提示
+        'enable_popup_window': true, // 默认启用浏览器下载弹窗
       },
     };
   }
@@ -185,6 +186,7 @@ class ClientConfigService extends ChangeNotifier {
       'display': {
         'show_stats': true,
         'auto_scroll': true,
+        'show_failure_stats': true,
       },
       'regex_rules': [
         {
@@ -272,6 +274,14 @@ class ClientConfigService extends ChangeNotifier {
 
   Future<void> setLogShowStats(bool value) async {
     await _setToConfig(_logConfig, _logConfigPath, 'display.show_stats', value);
+  }
+
+  bool getLogShowFailureStats() {
+    return _getFromConfig<bool>(_logConfig, 'display.show_failure_stats', defaultValue: true) ?? true;
+  }
+
+  Future<void> setLogShowFailureStats(bool value) async {
+    await _setToConfig(_logConfig, _logConfigPath, 'display.show_failure_stats', value);
   }
 
   bool getLogAutoScroll() {
@@ -523,6 +533,14 @@ class ClientConfigService extends ChangeNotifier {
     await _setToConfig(_appConfig, _appConfigPath, 'behavior.show_tray_running_status', value);
   }
 
+  bool getEnablePopupWindow() {
+    return _getFromConfig<bool>(_appConfig, 'behavior.enable_popup_window', defaultValue: true) ?? true;
+  }
+
+  Future<void> setEnablePopupWindow(bool value) async {
+    await _setToConfig(_appConfig, _appConfigPath, 'behavior.enable_popup_window', value);
+  }
+
   // ========== 配置管理 ==========
   
   /// 导出所有配置到目录
@@ -601,4 +619,3 @@ class ClientConfigService extends ChangeNotifier {
   String get uiConfigPath => _uiConfigPath;
   String get logConfigPath => _logConfigPath;
 }
-

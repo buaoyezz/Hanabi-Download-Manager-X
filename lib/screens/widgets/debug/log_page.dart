@@ -2,7 +2,10 @@ import 'package:fluent_ui/fluent_ui.dart' hide FluentIcons;
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import '../../../services/app_logger_service.dart';
+import '../../../services/download_failure_stats_service.dart';
 import '../../../services/client_config_service.dart';
 import '../../../widgets/folder_picker_dialog.dart';
 import '../../../theme/app_theme.dart';
@@ -90,6 +93,7 @@ class _LogPageState extends State<LogPage> {
   bool _autoScroll = true;
   bool _useRegexSearch = false;
   bool _showStats = true;
+  bool _showFailureStats = true;
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   
@@ -270,6 +274,7 @@ class _LogPageState extends State<LogPage> {
       )).toList();
       
       _showStats = config.getLogShowStats();
+      _showFailureStats = config.getLogShowFailureStats();
       _autoScroll = config.getLogAutoScroll();
       
       // 恢复内置规则启用状态
@@ -533,6 +538,112 @@ class _LogPageState extends State<LogPage> {
     }
   }
 
+  Future<void> _exportDiagnostics(BuildContext context) async {
+    String initialPath = 'C:\\';
+    try {
+      initialPath = Directory.current.path;
+    } catch (_) {}
+
+    final selectedPath = await showDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => FolderPickerDialog(
+        initialPath: initialPath,
+      ),
+    );
+
+    if (selectedPath == null || !mounted) return;
+
+    try {
+      final timestamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')
+          .first;
+      final exportRoot = Directory(p.join(selectedPath, 'hanabi_diagnostics_$timestamp'));
+      final configDir = Directory(p.join(exportRoot.path, 'config'));
+      final logsDir = Directory(p.join(exportRoot.path, 'logs'));
+
+      await configDir.create(recursive: true);
+      await logsDir.create(recursive: true);
+
+      // 导出配置
+      final config = context.read<ClientConfigService>();
+      await config.exportAllConfigs(configDir.path);
+
+      // 额外导出内核配置（如存在）
+      final kernelConfigFile = File(p.join(config.baseDir, 'kernel', 'config.json'));
+      if (await kernelConfigFile.exists()) {
+        await kernelConfigFile.copy(p.join(configDir.path, 'kernel_config.json'));
+      }
+
+      // 导出日志文件
+      final docsDir = await getApplicationDocumentsDirectory();
+      final logDir = Directory(p.join(docsDir.path, 'HanabiDownloadManagerX', 'logs'));
+      if (await logDir.exists()) {
+        await for (final entity in logDir.list()) {
+          if (entity is File) {
+            final name = p.basename(entity.path);
+            await entity.copy(p.join(logsDir.path, name));
+          }
+        }
+      } else {
+        final placeholder = File(p.join(logsDir.path, 'no_logs.txt'));
+        await placeholder.writeAsString('No log files found.');
+      }
+
+      // 生成摘要
+      final failureStats = context.read<DownloadFailureStatsService>();
+      final summary = StringBuffer()
+        ..writeln('Hanabi Download Manager X Diagnostics')
+        ..writeln('Export Time: $timestamp')
+        ..writeln('Total Failures: ${failureStats.totalFailures}');
+
+      if (failureStats.reasonCounts.isNotEmpty) {
+        summary.writeln('Failure Reasons:');
+        final sorted = failureStats.reasonCounts.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+        for (final entry in sorted) {
+          summary.writeln('- ${entry.key}: ${entry.value}');
+        }
+      }
+
+      await File(p.join(exportRoot.path, 'summary.txt')).writeAsString(summary.toString());
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => ContentDialog(
+            title: const Text('导出成功'),
+            content: Text('诊断包已保存至:\n${exportRoot.path}'),
+            actions: [
+              Button(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('确定'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => ContentDialog(
+            title: const Text('导出失败'),
+            content: Text('无法导出诊断包: $e'),
+            actions: [
+              Button(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('确定'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ScaffoldPage(
@@ -605,11 +716,24 @@ class _LogPageState extends State<LogPage> {
                 context.read<ClientConfigService>().setLogShowStats(_showStats);
               },
             ),
+            CommandBarButton(
+              icon: Icon(_showFailureStats ? FluentIcons.warning : FluentIcons.hide3),
+              label: Text(_showFailureStats ? '失败统计: 显示' : '失败统计: 隐藏'),
+              onPressed: () {
+                setState(() => _showFailureStats = !_showFailureStats);
+                context.read<ClientConfigService>().setLogShowFailureStats(_showFailureStats);
+              },
+            ),
             const CommandBarSeparator(),
             CommandBarButton(
               icon: Icon(FluentIcons.save),
               label: const Text('导出日志'),
               onPressed: () => _exportLogs(context),
+            ),
+            CommandBarButton(
+              icon: Icon(FluentIcons.folder_open),
+              label: const Text('导出诊断包'),
+              onPressed: () => _exportDiagnostics(context),
             ),
             CommandBarButton(
               icon: Icon(FluentIcons.archive),
@@ -625,8 +749,8 @@ class _LogPageState extends State<LogPage> {
           ],
         ),
       ),
-      content: Consumer<AppLoggerService>(
-        builder: (context, logger, child) {
+      content: Consumer2<AppLoggerService, DownloadFailureStatsService>(
+        builder: (context, logger, failureStats, child) {
           var logs = logger.logs;
 
           // 应用时间范围过滤
@@ -745,6 +869,9 @@ class _LogPageState extends State<LogPage> {
 
               // 统一信息栏（统计 + 筛选标签）
               if (_showStats) _buildInfoBar(stats),
+
+              // 下载失败统计
+              if (_showStats && _showFailureStats) _buildFailureStatsBar(failureStats),
 
               // 日志列表
               Expanded(
@@ -925,6 +1052,185 @@ class _LogPageState extends State<LogPage> {
         ),
       ),
     );
+  }
+
+  Widget _buildFailureStatsBar(DownloadFailureStatsService stats) {
+    final recent = stats.recentFailures;
+    final counts = stats.reasonCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceCard.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          border: Border.all(
+            color: AppTheme.borderSubtle.withValues(alpha: 0.5),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+              child: Row(
+                children: [
+                  Icon(FluentIcons.warning, size: 14, color: AppTheme.statusWarning),
+                  const SizedBox(width: 8),
+                  Text(
+                    '下载失败统计',
+                    style: TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '总计 ${stats.totalFailures} 次',
+                    style: TextStyle(
+                      color: AppTheme.textTertiary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (counts.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: counts.take(8).map((entry) {
+                    final color = _getReasonColor(entry.key);
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                        border: Border.all(color: color.withValues(alpha: 0.3), width: 0.5),
+                      ),
+                      child: Text(
+                        '${entry.key} · ${entry.value}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: color,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            if (recent.isEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                child: Text(
+                  '暂无下载失败记录',
+                  style: TextStyle(
+                    color: AppTheme.textTertiary,
+                    fontSize: 11,
+                  ),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                child: Column(
+                  children: recent.map(_buildFailureRow).toList(),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFailureRow(DownloadFailureRecord record) {
+    final reasonColor = _getReasonColor(record.reason);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                _formatFailureTime(record.timestamp),
+                style: TextStyle(
+                  color: AppTheme.textTertiary,
+                  fontSize: 10,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  record.filename,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: reasonColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                  border: Border.all(color: reasonColor.withValues(alpha: 0.3), width: 0.5),
+                ),
+                child: Text(
+                  record.reason,
+                  style: TextStyle(
+                    color: reasonColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (record.rawError != null && record.rawError!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                record.rawError!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: AppTheme.textTertiary,
+                  fontSize: 10,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Color _getReasonColor(String reason) {
+    if (reason.contains('服务器') || reason.contains('鉴权') || reason.contains('文件') || reason.contains('磁盘')) {
+      return AppTheme.statusError;
+    }
+    if (reason.contains('HTTP')) {
+      return AppTheme.statusError;
+    }
+    if (reason.contains('超时') || reason.contains('连接') || reason.contains('DNS') || reason.contains('Range')) {
+      return AppTheme.statusWarning;
+    }
+    return AppTheme.textSecondary;
+  }
+
+  String _formatFailureTime(DateTime time) {
+    return '${time.hour.toString().padLeft(2, '0')}:'
+        '${time.minute.toString().padLeft(2, '0')}:'
+        '${time.second.toString().padLeft(2, '0')}';
   }
 
   String _formatTimeRange() {

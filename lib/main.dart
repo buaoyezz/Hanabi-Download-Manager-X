@@ -29,6 +29,7 @@ import 'services/user_profile_service.dart';
 import 'services/notification_settings_service.dart';
 import 'services/pipe_listener_service.dart';
 import 'services/popup_progress_service.dart';
+import 'services/download_failure_stats_service.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
 import 'widgets/animated_notifications.dart';
@@ -261,6 +262,7 @@ void main(List<String> args) async {
             update: (context, kernel, previous) => previous ?? IntegratedDownloadService(kernel),
           ),
           ChangeNotifierProvider.value(value: appLogger),
+          ChangeNotifierProvider.value(value: DownloadFailureStatsService()),
           ChangeNotifierProvider.value(value: networkStatus),
           ChangeNotifierProvider.value(value: developerMode),
           ChangeNotifierProvider.value(value: clientConfig),

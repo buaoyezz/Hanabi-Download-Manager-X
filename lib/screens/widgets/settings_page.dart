@@ -112,6 +112,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String _downloadPath = '';
   String _closeButtonBehavior = 'minimize_to_tray';
   bool _showTrayRunningStatus = false;
+  bool _enablePopupWindow = true;
   
   // Status monitoring
   bool _kernelOnline = false;
@@ -270,11 +271,13 @@ class _SettingsPageState extends State<SettingsPage> {
       final config = Provider.of<ClientConfigService>(context, listen: false);
       final closeButtonBehavior = config.getCloseButtonBehavior();
       final showTrayRunningStatus = config.getShowTrayRunningStatus();
+      final enablePopupWindow = config.getEnablePopupWindow();
       
       if (mounted) {
         setState(() {
           _closeButtonBehavior = closeButtonBehavior;
           _showTrayRunningStatus = showTrayRunningStatus;
+          _enablePopupWindow = enablePopupWindow;
         });
       }
     } catch (e) {
@@ -339,6 +342,30 @@ class _SettingsPageState extends State<SettingsPage> {
     } catch (e) {
       if (mounted) {
         NotificationManager.of(context)?.showError('设置失败', message: '无法保存设置: $e');
+      }
+    }
+  }
+
+  Future<void> _saveEnablePopupWindow(bool value) async {
+    try {
+      final config = Provider.of<ClientConfigService>(context, listen: false);
+      await config.setEnablePopupWindow(value);
+
+      if (mounted) {
+        setState(() {
+          _enablePopupWindow = value;
+        });
+
+        NotificationManager.of(context)?.showSuccess(
+          value ? '弹窗已开启' : '弹窗已关闭',
+          message: value
+              ? '浏览器下载将弹出小窗确认'
+              : '浏览器下载将直接由软件接管',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        NotificationManager.of(context)?.showError('设置失败', message: '无法保存弹窗设置: $e');
       }
     }
   }
@@ -856,6 +883,16 @@ class _SettingsPageState extends State<SettingsPage> {
                   );
                 }
               },
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildSettingItem(
+            context,
+            title: '浏览器下载弹窗',
+            subtitle: '浏览器请求时弹出小窗确认，关闭后将直接接管',
+            trailing: ToggleSwitch(
+              checked: _enablePopupWindow,
+              onChanged: _saveEnablePopupWindow,
             ),
           ),
           const SizedBox(height: 12),
