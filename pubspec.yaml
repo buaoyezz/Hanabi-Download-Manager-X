@@ -29,6 +29,7 @@ dependencies:
   screen_retriever: ^0.1.9
   google_fonts: ^6.1.0
   fl_chart: ^0.69.0
+  scroll_animator: ^0.3.0
 
 dev_dependencies:
   flutter_test:

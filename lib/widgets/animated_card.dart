@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:fluent_ui/fluent_ui.dart' as fluent;
 import '../theme/app_theme.dart';
 
 /// 带动画效果的卡片组件 - 优化版本
@@ -114,23 +113,20 @@ class _AnimatedCardState extends State<AnimatedCard>
           child: AnimatedBuilder(
             animation: _hoverController,
             builder: (context, child) {
-              final hoverValue = Curves.easeOutCubic.transform(_hoverController.value);
-              final currentBgColor = Color.lerp(_bgColor, _hoverColor, hoverValue)!;
-              final currentBorderColor = Color.lerp(_borderColor, _hoverBorderColor, hoverValue)!;
-              final scale = widget.enableScaleAnimation ? (1.0 + 0.006 * hoverValue) : 1.0;
+              final hoverValue = _hoverController.value;
               
-              // 优化：移除 hover 时的 BoxShadow 动态计算
-              // BoxShadow 在每帧都会触发 saveLayer，是 GPU 卡顿的主要原因
-              // 改为只在非 hover 时显示静态阴影，hover 时通过边框颜色变化提供反馈
-              final currentShadows = widget.enableGlowAnimation && hoverValue <= 0.01
-                  ? [BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    )]
-                  : const <BoxShadow>[];
-
-              final card = Container(
+              // 优化：使用简单的透明度变化代替 Color.lerp
+              final currentBgColor = _bgColor.withValues(
+                alpha: _bgColor.a + (_hoverColor.a - _bgColor.a) * hoverValue
+              );
+              final currentBorderColor = _borderColor.withValues(
+                alpha: _borderColor.a + (_hoverBorderColor.a - _borderColor.a) * hoverValue
+              );
+              
+              // 优化：只在非 hover 时显示静态阴影
+              final showShadows = widget.enableGlowAnimation && hoverValue <= 0.01;
+              
+              return Container(
                 margin: widget.margin,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(widget.borderRadius),
@@ -138,7 +134,13 @@ class _AnimatedCardState extends State<AnimatedCard>
                     color: currentBorderColor,
                     width: 1.0,
                   ),
-                  boxShadow: currentShadows,
+                  boxShadow: showShadows
+                      ? [BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        )]
+                      : const <BoxShadow>[],
                 ),
                 child: Container(
                   padding: widget.padding ?? EdgeInsets.zero,
@@ -148,15 +150,6 @@ class _AnimatedCardState extends State<AnimatedCard>
                   ),
                   child: child,
                 ),
-              );
-
-              if (!widget.enableScaleAnimation || hoverValue <= 0.01) {
-                return card;
-              }
-
-              return Transform.scale(
-                scale: scale,
-                child: card,
               );
             },
             child: widget.child,

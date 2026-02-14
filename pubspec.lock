@@ -477,6 +477,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "0.1.9"
+  scroll_animator:
+    dependency: "direct main"
+    description:
+      name: scroll_animator
+      sha256: "6b8b0f03b7eb47cd014a8aecf69e1504257da3af2f4b408fe3cbba4513814e5c"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "0.3.0"
   scroll_pos:
     dependency: transitive
     description:
