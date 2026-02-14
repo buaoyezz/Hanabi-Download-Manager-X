@@ -115,6 +115,7 @@ class DynamicSegmentConfig {
 
   static (int threads, int segments) calculate(int fileSize, NsfxConfig config) {
     final mb = 1024 * 1024;
+    final maxThreads = config.threads.clamp(1, 64);
 
     if (config.mode == 'manual') {
       return (config.threads, config.segments ?? config.threads);
@@ -149,18 +150,29 @@ class DynamicSegmentConfig {
 
     // auto mode
     if (!config.enableDynamicSegments) {
-      if (fileSize < 5 * mb) return (1, 1);
-      if (fileSize < 10 * mb) return (4, 4);
-      if (fileSize < 30 * mb) return (8, 8);
-      if (fileSize < 100 * mb) return (16, 16);
-      if (fileSize < 300 * mb) return (24, 24);
-      return (32, 32);
+      int segs;
+      if (fileSize < 5 * mb) {
+        segs = 1;
+      } else if (fileSize < 10 * mb) {
+        segs = 4;
+      } else if (fileSize < 30 * mb) {
+        segs = 8;
+      } else if (fileSize < 100 * mb) {
+        segs = 16;
+      } else if (fileSize < 300 * mb) {
+        segs = 24;
+      } else {
+        segs = 32;
+      }
+      final threads = maxThreads.clamp(1, segs);
+      return (threads, segs);
     }
 
     // dynamic segments
     if (fileSize < smallFileThreshold) {
       final segs = (fileSize ~/ (5 * mb)).clamp(1, 8);
-      return (segs, segs);
+      final threads = maxThreads.clamp(1, segs);
+      return (threads, segs);
     }
 
     var idealSegs = fileSize ~/ idealSegmentSize;
@@ -181,6 +193,7 @@ class DynamicSegmentConfig {
       segs = (fileSize ~/ maxSegmentSize).clamp(minSegs, maxSegs);
     }
 
-    return (segs, segs);
+    final threads = maxThreads.clamp(1, segs);
+    return (threads, segs);
   }
 }

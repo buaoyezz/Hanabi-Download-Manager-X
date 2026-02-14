@@ -19,6 +19,7 @@ class DownloadEngine {
   final Map<String, bool> _pausedTasks = {};
   final Map<String, List<Isolate>> _taskIsolates = {}; // 跟踪每个任务的 Isolate
   final Map<String, ReceivePort> _progressPorts = {}; // 跟踪每个任务的进度端口
+  final Map<String, _Semaphore> _taskSemaphores = {}; // 跟踪每个任务的并发控制器
   
   // 用于速度计算的历史数据（基于内存计数器）
   final Map<String, int> _lastDownloaded = {};
@@ -58,7 +59,11 @@ class DownloadEngine {
 
       if (fileInfo.size == 0) {
         _logger.info('NSFX-Engine', 'Unknown file size, falling back to single thread download');
-        await _singleThreadDownload(task, headers);
+        await _singleThreadDownload(
+          task,
+          headers,
+          supportsRange: fileInfo.supportsRange,
+        );
         return;
       }
 
@@ -67,13 +72,23 @@ class DownloadEngine {
 
       if (!fileInfo.supportsRange) {
         _logger.info('NSFX-Engine', 'Server does not support Range requests, using single thread');
-        await _singleThreadDownload(task, headers);
+        await _singleThreadDownload(
+          task,
+          headers,
+          supportsRange: false,
+          totalSizeHint: fileInfo.size,
+        );
         return;
       }
       
       if (fileInfo.size < 1024 * 1024) {
         _logger.info('NSFX-Engine', 'File too small (${fileInfo.size} bytes < 1MB), using single thread');
-        await _singleThreadDownload(task, headers);
+        await _singleThreadDownload(
+          task,
+          headers,
+          supportsRange: fileInfo.supportsRange,
+          totalSizeHint: fileInfo.size,
+        );
         return;
       }
 
@@ -88,6 +103,7 @@ class DownloadEngine {
     } finally {
       _cancelledTasks.remove(task.id);
       _pausedTasks.remove(task.id);
+      _taskSemaphores.remove(task.id);
       
       // 清理速度计算的历史数据
       _lastDownloaded.remove(task.id);
@@ -143,10 +159,10 @@ class DownloadEngine {
   /// 使用 Isolate 的多线程下载
   Future<void> _isolateMultiThreadDownload(Task task, Map<String, String> headers, int fileSize) async {
     final (threads, segmentCount) = DynamicSegmentConfig.calculate(fileSize, config);
-    // 移除线程数限制，使用计算出的值
-    final actualThreads = threads;
+    final actualThreads = threads.clamp(1, segmentCount);
     task.threadCount = actualThreads;
     _logger.info('NSFX-Engine', 'Using $actualThreads concurrent isolates, $segmentCount segments');
+    final semaphore = _taskSemaphores[task.id] = _Semaphore(actualThreads);
 
     final tempDir = await _getTempDir(task);
     await tempDir.create(recursive: true);
@@ -253,8 +269,6 @@ class DownloadEngine {
 
     try {
       // 使用信号量控制并发
-      final semaphore = _Semaphore(actualThreads);
-
       // 无限循环重试失败的分段，直到全部完成或用户取消
       int globalRetryRound = 0;
       const maxGlobalRetryRounds = 9999; // 防止极端情况下的无限循环
@@ -538,15 +552,35 @@ class DownloadEngine {
     final tempDir = await _getTempDir(task);
     final tempFile = '${tempDir.path}/${task.filename}.part${segment.index}';
     final headers = _buildHeaders(task);
-    
-    segment.status = SegmentStatus.downloading;
-    
-    await _downloadSegmentInIsolate(
-      task: task,
-      segment: segment,
-      headers: headers,
-      tempFilePath: tempFile,
-    );
+
+    // 新分段加入队列，使用同一任务的并发控制器，避免动态分段导致并发失控
+    segment.status = SegmentStatus.pending;
+    final semaphore = _taskSemaphores[task.id];
+    if (semaphore == null) {
+      _logger.warning('NSFX-Engine', 'Semaphore missing for task ${task.id}, starting segment without limit');
+      segment.status = SegmentStatus.downloading;
+      await _downloadSegmentInIsolate(
+        task: task,
+        segment: segment,
+        headers: headers,
+        tempFilePath: tempFile,
+      );
+      return;
+    }
+
+    // ignore: unawaited_futures
+    semaphore.run(() async {
+      if (_cancelledTasks[task.id] == true || _pausedTasks[task.id] == true) {
+        return false;
+      }
+      segment.status = SegmentStatus.downloading;
+      return await _downloadSegmentInIsolate(
+        task: task,
+        segment: segment,
+        headers: headers,
+        tempFilePath: tempFile,
+      );
+    });
   }
 
   /// 在 Isolate 中下载单个分段
@@ -903,23 +937,100 @@ class DownloadEngine {
     // ---------------------------------------------------------
   }
 
-  Future<void> _singleThreadDownload(Task task, Map<String, String> headers) async {
+  Future<void> _singleThreadDownload(
+    Task task,
+    Map<String, String> headers, {
+    bool supportsRange = false,
+    int? totalSizeHint,
+  }) async {
     task.threadCount = 1;
     task.status = TaskStatus.downloading;
 
     final file = File(task.filepath);
     await file.parent.create(recursive: true);
 
-    final response = await httpClient.get(task.url, headers);
-    
-    if (response.statusCode != 200) {
-      await response.drain();
-      throw HttpException('HTTP ${response.statusCode}');
+    if (totalSizeHint != null && totalSizeHint > 0) {
+      task.totalSize = totalSizeHint;
     }
 
-    if (response.contentLength > 0) task.totalSize = response.contentLength;
+    int existingLength = 0;
+    if (await file.exists()) {
+      existingLength = await file.length();
+    }
 
-    final sink = file.openWrite();
+    HttpClientResponse response;
+    bool requestedRange = false;
+
+    if (existingLength > 0 && supportsRange) {
+      requestedRange = true;
+      response = await _getRangeResponse(task.url, headers, existingLength, task.totalSize > 0 ? task.totalSize : null);
+
+      if (response.statusCode == 416) {
+        final totalFromRange = _parseTotalFromContentRange(response.headers.value('content-range'));
+        await response.drain();
+        if (totalFromRange != null && existingLength >= totalFromRange) {
+          task.totalSize = totalFromRange;
+          task.downloadedSize = totalFromRange;
+          task.progress = 100;
+          task.status = TaskStatus.completed;
+          task.endTime = DateTime.now();
+          onComplete(task);
+          return;
+        }
+        existingLength = 0;
+        requestedRange = false;
+        await file.writeAsBytes(const [], mode: FileMode.write);
+        response = await httpClient.get(task.url, headers);
+      } else if (response.statusCode == 200) {
+        // 服务器忽略 Range，重新下载
+        await response.drain();
+        existingLength = 0;
+        requestedRange = false;
+        await file.writeAsBytes(const [], mode: FileMode.write);
+        response = await httpClient.get(task.url, headers);
+      }
+    } else {
+      if (existingLength > 0 && !supportsRange) {
+        existingLength = 0;
+        await file.writeAsBytes(const [], mode: FileMode.write);
+      }
+      response = await httpClient.get(task.url, headers);
+    }
+
+    if (requestedRange) {
+      if (response.statusCode != 206 && response.statusCode != 200) {
+        await response.drain();
+        throw HttpException('HTTP ${response.statusCode}');
+      }
+    } else {
+      if (response.statusCode != 200 && response.statusCode != 206) {
+        await response.drain();
+        throw HttpException('HTTP ${response.statusCode}');
+      }
+    }
+
+    if (requestedRange) {
+      final totalFromRange = _parseTotalFromContentRange(response.headers.value('content-range'));
+      if (totalFromRange != null) {
+        task.totalSize = totalFromRange;
+      } else if (response.contentLength > 0 && task.totalSize <= 0) {
+        task.totalSize = existingLength + response.contentLength;
+      }
+    } else {
+      if (response.contentLength > 0) {
+        task.totalSize = response.contentLength;
+      }
+    }
+
+    if (existingLength > 0) {
+      task.downloadedSize = existingLength;
+      if (task.totalSize > 0) {
+        task.progress = (task.downloadedSize / task.totalSize) * 100;
+      }
+      onProgress(task);
+    }
+
+    final sink = file.openWrite(mode: existingLength > 0 ? FileMode.append : FileMode.writeOnly);
     int bytesThisInterval = 0;
     DateTime lastUpdate = DateTime.now();
 
@@ -964,6 +1075,12 @@ class DownloadEngine {
       await sink.flush();
       await sink.close();
 
+      final finalSize = await file.length();
+      if (task.totalSize <= 0) {
+        task.totalSize = finalSize;
+      }
+      task.downloadedSize = finalSize;
+
       task.status = TaskStatus.completed;
       task.endTime = DateTime.now();
       task.progress = 100;
@@ -979,6 +1096,33 @@ class DownloadEngine {
       await sink.close();
       rethrow;
     }
+  }
+
+  Future<HttpClientResponse> _getRangeResponse(
+    String url,
+    Map<String, String> headers,
+    int start,
+    int? end,
+  ) async {
+    final uri = Uri.parse(url);
+    final request = await httpClient.client.getUrl(uri);
+    headers.forEach((key, value) {
+      request.headers.set(key, value);
+    });
+    final rangeValue = (end != null && end > start)
+        ? 'bytes=$start-${end - 1}'
+        : 'bytes=$start-';
+    request.headers.set('Range', rangeValue);
+    return await request.close();
+  }
+
+  int? _parseTotalFromContentRange(String? contentRange) {
+    if (contentRange == null) return null;
+    final match = RegExp(r'bytes\s+\d+-\d+/(\d+|\*)').firstMatch(contentRange);
+    if (match == null) return null;
+    final totalStr = match.group(1);
+    if (totalStr == null || totalStr == '*') return null;
+    return int.tryParse(totalStr);
   }
 
   /// 合并分段前的严格验证
