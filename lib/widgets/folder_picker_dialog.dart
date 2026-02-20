@@ -4,6 +4,7 @@ import 'package:path/path.dart' as path;
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../services/quick_path_service.dart';
+import '../l10n/app_localizations.dart';
 import '../utils/fluent_icons.dart' as CustomIcons;
 
 class FolderPickerDialog extends StatefulWidget {
@@ -24,6 +25,8 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
   bool _loading = true;  // 初始为 true，等待路径初始化
   String? _error;
   final TextEditingController _pathController = TextEditingController();
+
+  AppLocalizations get t => AppLocalizations.of(context)!;
 
   @override
   void initState() {
@@ -84,7 +87,7 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
       final dir = Directory(path);
       if (!await dir.exists()) {
         setState(() {
-          _error = '路径不存在';
+          _error = t.folderPickerErrorPathNotFound;
           _loading = false;
         });
         return;
@@ -97,7 +100,7 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
       } catch (e) {
         // 权限被拒绝或其他错误
         setState(() {
-          _error = '无法访问此路径（权限不足）';
+          _error = t.folderPickerErrorAccessDenied;
           _items = [];
           _currentPath = path;
           _pathController.text = path;
@@ -120,7 +123,7 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
       });
     } catch (e) {
       setState(() {
-        _error = '无法访问此路径: $e';
+        _error = t.folderPickerErrorAccessFailed(e.toString());
         _loading = false;
       });
     }
@@ -147,12 +150,12 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
     final result = await showDialog<String>(
       context: context,
       builder: (context) => ContentDialog(
-        title: const Text('新建文件夹'),
+        title: Text(t.folderPickerCreateTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('在以下位置创建新文件夹：'),
+            Text(t.folderPickerCreatePrompt),
             const SizedBox(height: 8),
             Text(
               _currentPath,
@@ -164,7 +167,7 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
             const SizedBox(height: 16),
             TextBox(
               controller: controller,
-              placeholder: '文件夹名称',
+              placeholder: t.folderPickerCreatePlaceholder,
               autofocus: true,
             ),
           ],
@@ -172,11 +175,11 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
         actions: [
           Button(
             onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
+            child: Text(t.folderPickerCancelButton),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text('创建'),
+            child: Text(t.folderPickerCreateButton),
           ),
         ],
       ),
@@ -195,12 +198,12 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
             await showDialog(
               context: context,
               builder: (context) => ContentDialog(
-                title: const Text('创建取消'),
-                content: Text('文件夹 "$result" 已存在\n已自动选择到该文件夹'),
+                title: Text(t.folderPickerCreateExistsTitle),
+                content: Text(t.folderPickerCreateExistsMessage(result)),
                 actions: [
                   FilledButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('确定'),
+                    child: Text(t.folderPickerConfirmButton),
                   ),
                 ],
               ),
@@ -218,12 +221,12 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
           await showDialog(
             context: context,
             builder: (context) => ContentDialog(
-              title: const Text('创建成功'),
-              content: Text('文件夹 "$result" 已创建并选择'),
+              title: Text(t.folderPickerCreateSuccessTitle),
+              content: Text(t.folderPickerCreateSuccessMessage(result)),
               actions: [
                 FilledButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('确定'),
+                  child: Text(t.folderPickerConfirmButton),
                 ),
               ],
             ),
@@ -234,12 +237,12 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
           await showDialog(
             context: context,
             builder: (context) => ContentDialog(
-              title: const Text('创建失败'),
-              content: Text('无法创建文件夹: $e'),
+              title: Text(t.folderPickerCreateFailedTitle),
+              content: Text(t.folderPickerCreateFailedMessage(e.toString())),
               actions: [
                 FilledButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('确定'),
+                  child: Text(t.folderPickerConfirmButton),
                 ),
               ],
             ),
@@ -302,12 +305,12 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
     final result = await showDialog<Map<String, String>>(
       context: context,
       builder: (context) => ContentDialog(
-        title: const Text('添加快捷路径'),
+        title: Text(t.folderPickerQuickPathAddTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('将当前路径添加到快捷路径：'),
+            Text(t.folderPickerQuickPathAddPrompt),
             const SizedBox(height: 8),
             Text(
               _currentPath,
@@ -317,14 +320,14 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              '自定义名称（留空自动生成）：',
-              style: TextStyle(fontSize: 12),
+            Text(
+              t.folderPickerQuickPathAddNameLabel,
+              style: const TextStyle(fontSize: 12),
             ),
             const SizedBox(height: 8),
             TextBox(
               controller: controller,
-              placeholder: '例如：我的项目',
+              placeholder: t.folderPickerQuickPathAddNamePlaceholder,
               autofocus: true,
             ),
           ],
@@ -332,14 +335,14 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
         actions: [
           Button(
             onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
+            child: Text(t.folderPickerCancelButton),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, {
               'path': _currentPath,
               'name': controller.text,
             }),
-            child: const Text('添加'),
+            child: Text(t.folderPickerQuickPathAddButton),
           ),
         ],
       ),
@@ -356,12 +359,16 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
         await showDialog(
           context: context,
           builder: (context) => ContentDialog(
-            title: Text(success ? '添加成功' : '添加失败'),
-            content: Text(success ? '快捷路径已添加' : '该路径已存在或无效'),
+            title: Text(
+              success ? t.folderPickerQuickPathAddSuccessTitle : t.folderPickerQuickPathAddFailedTitle,
+            ),
+            content: Text(
+              success ? t.folderPickerQuickPathAddSuccessMessage : t.folderPickerQuickPathAddFailedMessage,
+            ),
             actions: [
               FilledButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('确定'),
+                child: Text(t.folderPickerConfirmButton),
               ),
             ],
           ),
@@ -376,16 +383,16 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => ContentDialog(
-        title: const Text('删除快捷路径'),
-        content: Text('确定要删除这个快捷路径吗？\n\n$pathStr'),
+        title: Text(t.folderPickerQuickPathRemoveTitle),
+        content: Text(t.folderPickerQuickPathRemoveMessage(pathStr)),
         actions: [
           Button(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
+            child: Text(t.folderPickerCancelButton),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除'),
+            child: Text(t.folderPickerQuickPathRemoveButton),
           ),
         ],
       ),
@@ -416,7 +423,7 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
             ),
           ),
           const SizedBox(width: 12),
-          const Text('选择文件夹'),
+          Text(t.folderPickerTitle),
         ],
       ),
       content: Column(
@@ -440,13 +447,13 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
                 _NavButton(
                   icon: CustomIcons.FluentIcons.up,
                   onPressed: _navigateToParent,
-                  tooltip: '上级目录',
+                  tooltip: t.folderPickerNavUpTooltip,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextBox(
                     controller: _pathController,
-                    placeholder: '输入路径或从下方选择',
+                    placeholder: t.folderPickerPathPlaceholder,
                     style: const TextStyle(fontSize: 12),
                     onSubmitted: (value) {
                       if (value.isNotEmpty) {
@@ -459,13 +466,13 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
                 _NavButton(
                   icon: CustomIcons.FluentIcons.refresh,
                   onPressed: () => _loadDirectory(_pathController.text),
-                  tooltip: '刷新',
+                  tooltip: t.folderPickerRefreshTooltip,
                 ),
                 const SizedBox(width: 4),
                 _NavButton(
                   icon: CustomIcons.FluentIcons.add,
                   onPressed: _createNewFolder,
-                  tooltip: '新建文件夹',
+                  tooltip: t.folderPickerNewFolderTooltip,
                 ),
               ],
             ),
@@ -534,7 +541,7 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
       actions: [
         Button(
           onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
+          child: Text(t.folderPickerCancelButton),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context, _currentPath),
@@ -543,7 +550,7 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
             children: [
               Icon(CustomIcons.FluentIcons.check_mark, size: 12),
               SizedBox(width: 6),
-              Text('选择'),
+              Text(t.folderPickerSelectButton),
             ],
           ),
         ),
@@ -594,7 +601,7 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
           ),
           const SizedBox(height: 8),
           Text(
-            '此文件夹为空',
+            t.folderPickerEmptyMessage,
             style: FluentTheme.of(context).typography.body?.copyWith(
               color: AppTheme.textTertiary,
             ),
@@ -737,7 +744,7 @@ class _AddQuickPathButtonState extends State<_AddQuickPathButton> {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: '添加当前路径为快捷路径',
+      message: AppLocalizations.of(context)!.folderPickerAddQuickPathTooltip,
       child: MouseRegion(
         onEnter: (_) => setState(() => _isHovered = true),
         onExit: (_) => setState(() => _isHovered = false),

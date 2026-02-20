@@ -19,6 +19,7 @@ import '../models/download_task.dart';
 import '../theme/app_theme.dart';
 import '../main.dart';
 import '../widgets/animated_notifications.dart';
+import '../l10n/app_localizations.dart';
 import 'widgets/download_list.dart';
 import 'widgets/add_download_dialog.dart';
 import 'widgets/completed_list.dart';
@@ -31,11 +32,13 @@ import 'widgets/debug/online_stats_page.dart';
 import 'widgets/performance_monitor_page.dart';
 
 class NavigationItem {
+  final String id;
   final IconData icon;
   final String title;
   final Widget body;
 
   NavigationItem({
+    required this.id,
     required this.icon,
     required this.title,
     required this.body,
@@ -50,13 +53,43 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+  static const String _pageDownloading = 'downloading';
+  static const String _pageCompleted = 'completed';
+  static const String _pageLog = 'log';
+  static const String _pageStatus = 'status';
+  static const String _pageWebCheck = 'web_check';
+  static const String _pageOnlineStats = 'online_stats';
+  static const String _pagePerformance = 'performance';
+  static const String _pageSettings = 'settings';
+  static const String _pageAbout = 'about';
+
+  static const Set<String> _debugPageIds = {
+    _pageLog,
+    _pageStatus,
+    _pageWebCheck,
+    _pageOnlineStats,
+    _pagePerformance,
+    _pageSettings,
+    _pageAbout,
+  };
+
+  static const Set<String> _bottomPageIds = {
+    _pageLog,
+    _pageStatus,
+    _pageWebCheck,
+    _pageOnlineStats,
+    _pagePerformance,
+    _pageSettings,
+    _pageAbout,
+  };
+
   int _currentIndex = 0;
   bool _isSidebarExpanded = true;
   late AnimationController _sidebarController;
   late Animation<double> _widthAnimation;
 
-  // 当前选中的页面标识符（使用页面标题作为唯一标识）
-  String _currentPageTitle = '下载中';
+  // 当前选中的页面标识符
+  String _currentPageId = _pageDownloading;
   
   // 窗口大小监听
   Timer? _windowSizeCheckTimer;
@@ -64,6 +97,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   double _lastSavedHeight = 0;
   
   List<NavigationItem> _getNavItems(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     // 使用 select 只监听影响导航列表的字段
     final showLogPage = context.select<DeveloperModeService, bool>((s) => s.showLogPage);
     final showStatusPage = context.select<DeveloperModeService, bool>((s) => s.showStatusPage);
@@ -74,13 +108,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     
     final items = <NavigationItem>[
       NavigationItem(
+        id: _pageDownloading,
         icon: CustomIcons.FluentIcons.download,
-        title: '下载中',
+        title: t.homeNavDownloading,
         body: const DownloadList(),
       ),
       NavigationItem(
+        id: _pageCompleted,
         icon: CustomIcons.FluentIcons.completed_solid,
-        title: '已完成',
+        title: t.homeNavCompleted,
         body: const CompletedList(),
       ),
     ];
@@ -89,16 +125,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     
     if (showLogPage) {
       bottomItems.add(NavigationItem(
+        id: _pageLog,
         icon: CustomIcons.FluentIcons.document,
-        title: '日志',
+        title: t.homeNavLog,
         body: const LogPage(key: ValueKey('log_page')),
       ));
     }
     
     if (showStatusPage) {
       bottomItems.add(NavigationItem(
+        id: _pageStatus,
         icon: CustomIcons.FluentIcons.health,
-        title: '状态',
+        title: t.homeNavStatus,
         body: const StatusPage(key: ValueKey('status_page')),
         
       ));
@@ -106,8 +144,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     
     if (showWebCheckPage) {
       bottomItems.add(NavigationItem(
+        id: _pageWebCheck,
         icon: CustomIcons.FluentIcons.globe,
-        title: 'Web检测',
+        title: t.homeNavWebCheck,
         body: const WebCheckPage(key: ValueKey('web_check_page')),
       ));
     }
@@ -115,8 +154,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // 在线统计页面（独立开关）
     if (showOnlineStatsPage && statsEnabled) {
       bottomItems.add(NavigationItem(
+        id: _pageOnlineStats,
         icon: CustomIcons.FluentIcons.people,
-        title: '在线统计',
+        title: t.homeNavOnlineStats,
         body: const OnlineStatsPage(key: ValueKey('online_stats_page')),
       ));
     }
@@ -124,21 +164,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // 性能监控页面
     if (showPerformanceMonitorPage) {
       bottomItems.add(NavigationItem(
+        id: _pagePerformance,
         icon: CustomIcons.FluentIcons.speed_high,
-        title: '性能监控',
+        title: t.homeNavPerformance,
         body: const PerformanceMonitorPage(key: ValueKey('performance_monitor_page')),
       ));
     }
     
     bottomItems.addAll([
       NavigationItem(
+        id: _pageSettings,
         icon: CustomIcons.FluentIcons.settings,
-        title: '设置',
+        title: t.homeNavSettings,
         body: const SettingsPage(key: ValueKey('settings_page')),
       ),
       NavigationItem(
+        id: _pageAbout,
         icon: CustomIcons.FluentIcons.info,
-        title: '关于',
+        title: t.homeNavAbout,
         body: const AboutPage(key: ValueKey('about_page')),
       ),
     ]);
@@ -193,12 +236,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       if (hasUpdate && mounted) {
         final availableUpdate = updateService.availableUpdate;
         if (availableUpdate != null) {
+          final t = AppLocalizations.of(context)!;
           final currentVersion = updateService.currentVersion;
           final newVersion = availableUpdate.version;
           
           NotificationManager.of(context)?.showInfo(
-            '检测到了船新的版本啦',
-            message: '本次更新为 $currentVersion -> $newVersion\n快去设置页面更新吧！',
+            t.homeUpdateFoundTitle,
+            message: t.homeUpdateFoundMessage(currentVersion, newVersion),
           );
           
           AppLoggerService().info('Update', '发现新版本: $newVersion，已显示通知');
@@ -342,9 +386,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final effectEnabled = windowEffect.effectEnabled;
     final shellBgAlpha = isMica ? 0.4 : (effectEnabled ? sidebarOpacity : 1.0);
     
-    // 核心修复逻辑：确保 _currentIndex 与 _currentPageTitle 同步
+    // 核心修复逻辑：确保 _currentIndex 与 _currentPageId 同步
     // 这解决了列表项动态增减（如在线统计出现/消失）导致的索引错位
-    final correctIndex = navItems.indexWhere((item) => item.title == _currentPageTitle);
+    final correctIndex = navItems.indexWhere((item) => item.id == _currentPageId);
     
     if (correctIndex != -1) {
       // 找到了当前标题对应的页面，更新索引
@@ -355,9 +399,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       if (_currentIndex >= navItems.length) {
         _currentIndex = navItems.length > 0 ? navItems.length - 1 : 0;
       }
-      // 更新标题为当前索引的新页面
+      // 更新当前页面标识
       if (navItems.isNotEmpty) {
-        _currentPageTitle = navItems[_currentIndex].title;
+        _currentPageId = navItems[_currentIndex].id;
       }
     }
     
@@ -512,7 +556,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   SizedBox(width: logoSpacing),
                   Expanded(
                     child: Text(
-                      'Hanabi Download Manager X',
+                      AppLocalizations.of(context)!.appTitle,
                       style: FluentTheme.of(context).typography.caption?.copyWith(
                         fontWeight: FontWeight.w600,
                         fontSize: 13,
@@ -577,14 +621,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final isKernelRunning = kernelManagerIsRunning || kernelIsRunning;
 
     // 如果内核正在运行，或者当前页面是调试页面（日志、状态、Web检测、在线统计、性能监控），直接显示页面
-    final currentPageTitle = navItems[_currentIndex].title;
-    final isDebugPage = currentPageTitle == '日志' ||
-                        currentPageTitle == '状态' ||
-                        currentPageTitle == 'Web检测' ||
-                        currentPageTitle == '在线统计' ||
-                        currentPageTitle == '性能监控' ||
-                        currentPageTitle == '设置' ||
-                        currentPageTitle == '关于';
+    final currentPageId = navItems[_currentIndex].id;
+    final isDebugPage = _debugPageIds.contains(currentPageId);
     
     if (isKernelRunning || isDebugPage) {
       // 使用 AnimatedSwitcher 实现页面切换的淡入淡出效果
@@ -603,7 +641,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: KeyedSubtree(
             // 核心修复点：使用标题作为 Key，而不是索引
             // 这样即使列表发生变化导致索引改变，只要标题没变，就不会触发页面重绘或跳转
-            key: ValueKey(navItems[_currentIndex].title),
+            key: ValueKey(navItems[_currentIndex].id),
             child: navItems[_currentIndex].body,
           ),
         ),
@@ -649,9 +687,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               children: [
                 const ProgressRing(),
                 const SizedBox(height: 20),
-                const Text(
-                  '正在启动下载内核...',
-                  style: TextStyle(
+                Text(
+                  AppLocalizations.of(context)!.homeKernelStartingTitle,
+                  style: const TextStyle(
                     color: AppTheme.textPrimary,
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -667,9 +705,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                   )
                 else
-                  const Text(
-                    '请稍候，这可能需要几秒钟',
-                    style: TextStyle(
+                  Text(
+                    AppLocalizations.of(context)!.homeKernelStartingHint,
+                    style: const TextStyle(
                       color: AppTheme.textTertiary,
                       fontSize: 12,
                     ),
@@ -733,7 +771,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         if (mounted) {
                           setState(() {
                             _currentIndex = 2;  // 下载中(0), 已完成(1), 日志(2)
-                            _currentPageTitle = '日志';
+                            _currentPageId = _pageLog;
                           });
                         }
                       },
@@ -742,7 +780,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         children: [
                           Icon(CustomIcons.FluentIcons.text_document, size: 14),
                           SizedBox(width: 6),
-                          Text('查看日志'),
+                          Text(AppLocalizations.of(context)!.homeViewLog),
                         ],
                       ),
                     ),
@@ -766,7 +804,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         children: [
                           Icon(CustomIcons.FluentIcons.refresh, size: 14),
                           SizedBox(width: 6),
-                          Text('重试'),
+                          Text(AppLocalizations.of(context)!.homeRetry),
                         ],
                       ),
                     ),
@@ -797,7 +835,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
               // 主导航项
               ...navItems.asMap().entries
-                  .where((entry) => !['日志', '状态', 'Web检测', '在线统计', '性能监控', '设置', '关于'].contains(entry.value.title))
+                  .where((entry) => !_bottomPageIds.contains(entry.value.id))
                   .map((entry) => _buildNavItemWidget(context, entry.key, entry.value, isCompact)),
 
               const Spacer(),
@@ -857,7 +895,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   /// 构建底部导航项
   List<Widget> _buildBottomNavItems(BuildContext context, List<NavigationItem> navItems, bool isCompact) {
     final bottomItems = navItems.asMap().entries
-        .where((entry) => ['日志', '状态', 'Web检测', '在线统计', '性能监控', '设置', '关于'].contains(entry.value.title))
+        .where((entry) => _bottomPageIds.contains(entry.value.id))
         .toList();
     
     return bottomItems.map((entry) {
@@ -883,7 +921,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           children: [
             Icon(CustomIcons.FluentIcons.add, size: 12),
             SizedBox(width: 6),
-            Text('新建', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+            Text(
+              AppLocalizations.of(context)!.homeNewTask,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+            ),
           ],
         ),
       ),
@@ -1001,7 +1042,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           AppLoggerService().info('App', 'Navigated to: ${item.title}');
           setState(() {
             _currentIndex = index;
-            _currentPageTitle = item.title;
+            _currentPageId = item.id;
           });
         },
       ),

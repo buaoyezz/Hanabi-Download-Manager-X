@@ -8,6 +8,7 @@ import '../../../services/app_logger_service.dart';
 import '../../../services/download_failure_stats_service.dart';
 import '../../../services/client_config_service.dart';
 import '../../../widgets/folder_picker_dialog.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../../utils/fluent_icons.dart';
 
@@ -113,108 +114,108 @@ class _LogPageState extends State<LogPage> {
   final RegExp _windowSizeRegex = RegExp(r'\b\d+x\d+\b');
   
   // 内置高亮规则（始终启用）
-  static final List<_BuiltinHighlightRule> _builtinRules = [
+  List<_BuiltinHighlightRule> get _builtinRules => [
     // URL 高亮
     _BuiltinHighlightRule(
-      name: 'URL',
+      name: t.logRuleUrl,
       pattern: r'https?://[^\s<>"{}|\\^`\[\]]+',
       color: const Color(0xFF60CDFF),
       type: _HighlightType.url,
     ),
     // 文件路径 (Windows)
     _BuiltinHighlightRule(
-      name: '文件路径',
+      name: t.logRuleFilePath,
       pattern: r'[A-Za-z]:\\[^\s<>"{}|*?]+',
       color: const Color(0xFF89D185),
       type: _HighlightType.path,
     ),
     // 文件路径 (Unix)
     _BuiltinHighlightRule(
-      name: '文件路径',
+      name: t.logRuleFilePath,
       pattern: r'(?<!\w)/(?:[\w.-]+/)+[\w.-]+',
       color: const Color(0xFF89D185),
       type: _HighlightType.path,
     ),
     // IP 地址（含端口）
     _BuiltinHighlightRule(
-      name: 'IP地址',
+      name: t.logRuleIpAddress,
       pattern: r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?::\d{1,5})?\b',
       color: const Color(0xFFDCDCAA),
       type: _HighlightType.ip,
     ),
     // 数值（带单位：大小、速度、时间、百分比）
     _BuiltinHighlightRule(
-      name: '数值',
+      name: t.logRuleNumber,
       pattern: r'\b\d+(?:\.\d+)?\s*(?:KB/s|MB/s|GB/s|KB|MB|GB|TB|B|ms|s|秒|毫秒|%)\b',
       color: const Color(0xFFB5CEA8),
       type: _HighlightType.number,
     ),
     // 任务ID / Hash
     _BuiltinHighlightRule(
-      name: 'ID/Hash',
+      name: t.logRuleIdHash,
       pattern: r'\b[a-f0-9]{8,32}\b',
       color: const Color(0xFFCE9178),
       type: _HighlightType.id,
     ),
     // 错误关键词
     _BuiltinHighlightRule(
-      name: '错误',
+      name: t.logRuleError,
       pattern: r'\b(?:error|failed|failure|exception|critical|fatal|crash|panic|错误|失败|异常|崩溃)\b',
       color: const Color(0xFFFF6B6B),
       type: _HighlightType.error,
     ),
     // 成功关键词
     _BuiltinHighlightRule(
-      name: '成功',
+      name: t.logRuleSuccess,
       pattern: r'\b(?:success(?:ful(?:ly)?)?|completed|done|passed|healthy|ok|成功|完成|通过|健康)\b',
       color: const Color(0xFF6CCB5F),
       type: _HighlightType.success,
     ),
     // 警告关键词
     _BuiltinHighlightRule(
-      name: '警告',
+      name: t.logRuleWarning,
       pattern: r'\b(?:warning|warn|timeout|retry|retrying|注意|警告|超时|重试)\b',
       color: const Color(0xFFFFB900),
       type: _HighlightType.warning,
     ),
     // HTTP 方法
     _BuiltinHighlightRule(
-      name: 'HTTP方法',
+      name: t.logRuleHttpMethod,
       pattern: r'\b(?:GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\b',
       color: const Color(0xFF569CD6),
       type: _HighlightType.httpMethod,
     ),
     // HTTP 状态码（仅在上下文中匹配，避免误匹配普通数字）
     _BuiltinHighlightRule(
-      name: 'HTTP状态码',
+      name: t.logRuleHttpStatus,
       pattern: r'(?:status|HTTP|响应)\s*[:=]?\s*[1-5]\d{2}\b',
       color: const Color(0xFFD7BA7D),
       type: _HighlightType.httpStatus,
     ),
     // 时间戳
     _BuiltinHighlightRule(
-      name: '时间',
+      name: t.logRuleTime,
       pattern: r'\b\d{2}:\d{2}:\d{2}(?:[.,]\d{3})?\b',
       color: const Color(0xFF9CDCFE),
       type: _HighlightType.time,
     ),
     // 步骤指示器 [1/4] [2/4] 等
     _BuiltinHighlightRule(
-      name: '步骤',
+      name: t.logRuleStep,
       pattern: r'\[\d+/\d+\]',
       color: const Color(0xFFD4A0FF),
       type: _HighlightType.step,
     ),
     // 进程 PID
     _BuiltinHighlightRule(
-      name: 'PID',
+      name: t.logRulePid,
       pattern: r'\bPID[:=\s]*\d+\b',
       color: const Color(0xFF9CDCFE),
       type: _HighlightType.pid,
     ),
     // 键值对 key=value / key: value（限制 key 长度避免回溯）
     _BuiltinHighlightRule(
-      name: '键值对',
+      name: t.logRuleKeyValue,
       pattern: r'\b\w{1,30}\s*=\s*(?:"[^"]{0,100}"|\S{1,100})',
       color: const Color(0xFFCE9178),
       type: _HighlightType.keyValue,
@@ -253,6 +254,8 @@ class _LogPageState extends State<LogPage> {
   // 时间范围筛选
   DateTime? _startTime;
   DateTime? _endTime;
+
+  AppLocalizations get t => AppLocalizations.of(context)!;
 
   @override
   void initState() {
@@ -507,12 +510,12 @@ class _LogPageState extends State<LogPage> {
           showDialog(
             context: context,
             builder: (context) => ContentDialog(
-              title: const Text('导出成功'),
-              content: Text('日志已保存至:\n${file.path}'),
+              title: Text(t.logExportSuccessTitle),
+              content: Text(t.logExportSavedMessage(file.path)),
               actions: [
                 Button(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('确定'),
+                  child: Text(t.logDialogOk),
                 ),
               ],
             ),
@@ -523,12 +526,12 @@ class _LogPageState extends State<LogPage> {
           showDialog(
             context: context,
             builder: (context) => ContentDialog(
-              title: const Text('导出失败'),
-              content: Text('无法保存日志: $e'),
+              title: Text(t.logExportFailedTitle),
+              content: Text(t.logExportFailedMessage(e)),
               actions: [
                 Button(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('确定'),
+                  child: Text(t.logDialogOk),
                 ),
               ],
             ),
@@ -604,7 +607,8 @@ class _LogPageState extends State<LogPage> {
         final sorted = failureStats.reasonCounts.entries.toList()
           ..sort((a, b) => b.value.compareTo(a.value));
         for (final entry in sorted) {
-          summary.writeln('- ${entry.key}: ${entry.value}');
+          final label = _localizedReason(entry.key);
+          summary.writeln('- $label: ${entry.value}');
         }
       }
 
@@ -614,12 +618,12 @@ class _LogPageState extends State<LogPage> {
         showDialog(
           context: context,
           builder: (context) => ContentDialog(
-            title: const Text('导出成功'),
-            content: Text('诊断包已保存至:\n${exportRoot.path}'),
+            title: Text(t.logExportSuccessTitle),
+            content: Text(t.logDiagnosticsSavedMessage(exportRoot.path)),
             actions: [
               Button(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('确定'),
+                child: Text(t.logDialogOk),
               ),
             ],
           ),
@@ -630,12 +634,12 @@ class _LogPageState extends State<LogPage> {
         showDialog(
           context: context,
           builder: (context) => ContentDialog(
-            title: const Text('导出失败'),
-            content: Text('无法导出诊断包: $e'),
+            title: Text(t.logExportFailedTitle),
+            content: Text(t.logDiagnosticsExportFailedMessage(e)),
             actions: [
               Button(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('确定'),
+                child: Text(t.logDialogOk),
               ),
             ],
           ),
@@ -670,7 +674,7 @@ class _LogPageState extends State<LogPage> {
               child: Icon(FluentIcons.text_document, size: 18, color: AppTheme.accentLight),
             ),
             const SizedBox(width: 14),
-            const Text('日志'),
+            Text(t.logPageTitle),
           ],
         ),
         commandBar: CommandBar(
@@ -678,31 +682,31 @@ class _LogPageState extends State<LogPage> {
           primaryItems: [
             CommandBarButton(
               icon: Icon(FluentIcons.filter),
-              label: Text(_filterLevel == null ? '级别' : _filterLevel!.name.toUpperCase()),
+              label: Text(_filterLevel == null ? t.logFilterLevelLabel : _filterLevel!.name.toUpperCase()),
               onPressed: () => _showFilterMenu(context),
             ),
             CommandBarButton(
               icon: Icon(FluentIcons.source),
               label: Text(_filterTags.isNotEmpty 
-                ? _filterTags.length == 1 ? _filterTags.first : '${_filterTags.length} 个标签'
-                : _filterSource ?? '来源'),
+                ? _filterTags.length == 1 ? _filterTags.first : t.logFilterTagCount(_filterTags.length)
+                : _filterSource ?? t.logFilterSourceLabel),
               onPressed: () => _showSourceFilterMenu(context),
             ),
             CommandBarButton(
               icon: Icon(FluentIcons.clock),
-              label: Text(_startTime != null || _endTime != null ? '时间 ✓' : '时间'),
+              label: Text(_startTime != null || _endTime != null ? t.logFilterTimeSelectedLabel : t.logFilterTimeLabel),
               onPressed: () => _showTimeRangeDialog(context),
             ),
             CommandBarButton(
               icon: Icon(FluentIcons.code),
-              label: const Text('正则规则'),
+              label: Text(t.logRegexRulesButton),
               onPressed: () => _showRegexRulesDialog(context),
             ),
           ],
           secondaryItems: [
             CommandBarButton(
               icon: Icon(_autoScroll ? FluentIcons.chevron_down : FluentIcons.pause),
-              label: Text(_autoScroll ? '自动滚动: 开' : '自动滚动: 关'),
+              label: Text(_autoScroll ? t.logAutoScrollOn : t.logAutoScrollOff),
               onPressed: () {
                 setState(() => _autoScroll = !_autoScroll);
                 context.read<ClientConfigService>().setLogAutoScroll(_autoScroll);
@@ -710,7 +714,7 @@ class _LogPageState extends State<LogPage> {
             ),
             CommandBarButton(
               icon: Icon(_showStats ? FluentIcons.chart : FluentIcons.hide3),
-              label: Text(_showStats ? '统计: 显示' : '统计: 隐藏'),
+              label: Text(_showStats ? t.logStatsShow : t.logStatsHide),
               onPressed: () {
                 setState(() => _showStats = !_showStats);
                 context.read<ClientConfigService>().setLogShowStats(_showStats);
@@ -718,7 +722,7 @@ class _LogPageState extends State<LogPage> {
             ),
             CommandBarButton(
               icon: Icon(_showFailureStats ? FluentIcons.warning : FluentIcons.hide3),
-              label: Text(_showFailureStats ? '失败统计: 显示' : '失败统计: 隐藏'),
+              label: Text(_showFailureStats ? t.logFailureStatsShow : t.logFailureStatsHide),
               onPressed: () {
                 setState(() => _showFailureStats = !_showFailureStats);
                 context.read<ClientConfigService>().setLogShowFailureStats(_showFailureStats);
@@ -727,23 +731,23 @@ class _LogPageState extends State<LogPage> {
             const CommandBarSeparator(),
             CommandBarButton(
               icon: Icon(FluentIcons.save),
-              label: const Text('导出日志'),
+              label: Text(t.logExportLogsButton),
               onPressed: () => _exportLogs(context),
             ),
             CommandBarButton(
               icon: Icon(FluentIcons.folder_open),
-              label: const Text('导出诊断包'),
+              label: Text(t.logExportDiagnosticsButton),
               onPressed: () => _exportDiagnostics(context),
             ),
             CommandBarButton(
               icon: Icon(FluentIcons.archive),
-              label: const Text('归档日志'),
+              label: Text(t.logArchiveButton),
               onPressed: () => _showArchiveDialog(context),
             ),
             const CommandBarSeparator(),
             CommandBarButton(
               icon: Icon(FluentIcons.clear),
-              label: const Text('清空日志'),
+              label: Text(t.logClearButton),
               onPressed: () => _showClearConfirmDialog(context),
             ),
           ],
@@ -824,7 +828,7 @@ class _LogPageState extends State<LogPage> {
                     Expanded(
                       child: TextBox(
                         controller: _searchController,
-                        placeholder: _useRegexSearch ? '输入正则表达式...' : '搜索日志...',
+                        placeholder: _useRegexSearch ? t.logSearchPlaceholderRegex : t.logSearchPlaceholder,
                         prefix: Padding(
                           padding: const EdgeInsets.only(left: 10),
                           child: Icon(
@@ -862,10 +866,10 @@ class _LogPageState extends State<LogPage> {
                           ),
                         ),
                       ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
-              ),
 
               // 统一信息栏（统计 + 筛选标签）
               if (_showStats) _buildInfoBar(stats),
@@ -895,7 +899,7 @@ class _LogPageState extends State<LogPage> {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            '暂无日志',
+                            t.logEmptyTitle,
                             style: TextStyle(
                               color: AppTheme.textSecondary,
                               fontSize: 14,
@@ -903,7 +907,7 @@ class _LogPageState extends State<LogPage> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '日志将在此处显示',
+                            t.logEmptySubtitle,
                             style: TextStyle(
                               color: AppTheme.textTertiary,
                               fontSize: 12,
@@ -953,7 +957,7 @@ class _LogPageState extends State<LogPage> {
               child: Row(
                 children: [
                   // 统计项
-                  _buildStatChip('总计', stats.total, AppTheme.textSecondary, isTotal: true),
+                  _buildStatChip(t.logStatTotal, stats.total, AppTheme.textSecondary, isTotal: true),
                   const SizedBox(width: 6),
                   _buildStatChip('D', stats.debug, const Color(0xFFB794F6), level: LogLevel.debug),
                   const SizedBox(width: 6),
@@ -971,7 +975,7 @@ class _LogPageState extends State<LogPage> {
                       borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                     ),
                     child: Text(
-                      '${stats.groupedCount} 组',
+                      t.logGroupedCount(stats.groupedCount),
                       style: TextStyle(color: AppTheme.textTertiary, fontSize: 11),
                     ),
                   ),
@@ -1039,7 +1043,7 @@ class _LogPageState extends State<LogPage> {
                           children: [
                             Icon(FluentIcons.clear, size: 10, color: AppTheme.textTertiary),
                             const SizedBox(width: 4),
-                            Text('清除', style: TextStyle(fontSize: 11, color: AppTheme.textTertiary)),
+                            Text(t.logClearFiltersButton, style: TextStyle(fontSize: 11, color: AppTheme.textTertiary)),
                           ],
                         ),
                       ),
@@ -1079,7 +1083,7 @@ class _LogPageState extends State<LogPage> {
                   Icon(FluentIcons.warning, size: 14, color: AppTheme.statusWarning),
                   const SizedBox(width: 8),
                   Text(
-                    '下载失败统计',
+                    t.logFailureStatsTitle,
                     style: TextStyle(
                       color: AppTheme.textPrimary,
                       fontSize: 12,
@@ -1088,7 +1092,7 @@ class _LogPageState extends State<LogPage> {
                   ),
                   const Spacer(),
                   Text(
-                    '总计 ${stats.totalFailures} 次',
+                    t.logFailureStatsTotal(stats.totalFailures),
                     style: TextStyle(
                       color: AppTheme.textTertiary,
                       fontSize: 11,
@@ -1104,6 +1108,7 @@ class _LogPageState extends State<LogPage> {
                   spacing: 6,
                   runSpacing: 6,
                   children: counts.take(8).map((entry) {
+                    final label = _localizedReason(entry.key);
                     final color = _getReasonColor(entry.key);
                     return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1113,7 +1118,7 @@ class _LogPageState extends State<LogPage> {
                         border: Border.all(color: color.withValues(alpha: 0.3), width: 0.5),
                       ),
                       child: Text(
-                        '${entry.key} · ${entry.value}',
+                        '$label · ${entry.value}',
                         style: TextStyle(
                           fontSize: 11,
                           color: color,
@@ -1128,7 +1133,7 @@ class _LogPageState extends State<LogPage> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
                 child: Text(
-                  '暂无下载失败记录',
+                  t.logFailureStatsEmpty,
                   style: TextStyle(
                     color: AppTheme.textTertiary,
                     fontSize: 11,
@@ -1186,7 +1191,7 @@ class _LogPageState extends State<LogPage> {
                   border: Border.all(color: reasonColor.withValues(alpha: 0.3), width: 0.5),
                 ),
                 child: Text(
-                  record.reason,
+                  _localizedReason(record.reason),
                   style: TextStyle(
                     color: reasonColor,
                     fontSize: 10,
@@ -1214,17 +1219,65 @@ class _LogPageState extends State<LogPage> {
     );
   }
 
-  Color _getReasonColor(String reason) {
-    if (reason.contains('服务器') || reason.contains('鉴权') || reason.contains('文件') || reason.contains('磁盘')) {
-      return AppTheme.statusError;
+  String _localizedReason(String reasonKey) {
+    final parts = reasonKey.split(':');
+    final type = parts.isNotEmpty && parts.first.isNotEmpty ? parts.first : 'unknown';
+    final code = parts.length > 1 ? int.tryParse(parts[1]) : null;
+    final displayCode = code ?? '?';
+
+    switch (type) {
+      case 'unknown':
+        return t.logFailureReasonUnknown;
+      case 'auth':
+        return t.logFailureReasonAuth(displayCode);
+      case 'not_found':
+        return t.logFailureReasonNotFound(displayCode);
+      case 'range':
+        return code == null ? t.logFailureReasonRange : t.logFailureReasonRangeWithCode(displayCode);
+      case 'rate_limit':
+        return t.logFailureReasonTooManyRequests(displayCode);
+      case 'server':
+        return t.logFailureReasonServerError(displayCode);
+      case 'http':
+        return t.logFailureReasonHttpError(displayCode);
+      case 'timeout':
+        return t.logFailureReasonTimeout;
+      case 'connection':
+        return t.logFailureReasonConnection;
+      case 'dns':
+        return t.logFailureReasonDns;
+      case 'ssl':
+        return t.logFailureReasonSsl;
+      case 'checksum':
+        return t.logFailureReasonChecksum;
+      case 'disk':
+        return t.logFailureReasonDisk;
+      case 'other':
+        return t.logFailureReasonOther;
+      default:
+        return reasonKey;
     }
-    if (reason.contains('HTTP')) {
-      return AppTheme.statusError;
+  }
+
+  Color _getReasonColor(String reasonKey) {
+    final type = reasonKey.split(':').first;
+    switch (type) {
+      case 'auth':
+      case 'not_found':
+      case 'server':
+      case 'http':
+      case 'checksum':
+      case 'disk':
+        return AppTheme.statusError;
+      case 'timeout':
+      case 'connection':
+      case 'dns':
+      case 'range':
+      case 'ssl':
+        return AppTheme.statusWarning;
+      default:
+        return AppTheme.textSecondary;
     }
-    if (reason.contains('超时') || reason.contains('连接') || reason.contains('DNS') || reason.contains('Range')) {
-      return AppTheme.statusWarning;
-    }
-    return AppTheme.textSecondary;
   }
 
   String _formatFailureTime(DateTime time) {
@@ -1238,10 +1291,10 @@ class _LogPageState extends State<LogPage> {
       return '${_startTime!.hour}:${_startTime!.minute.toString().padLeft(2, '0')} - ${_endTime!.hour}:${_endTime!.minute.toString().padLeft(2, '0')}';
     } else if (_startTime != null) {
       final diff = DateTime.now().difference(_startTime!);
-      if (diff.inMinutes < 60) return '最近 ${diff.inMinutes} 分钟';
-      return '最近 ${diff.inHours} 小时';
+      if (diff.inMinutes < 60) return t.logTimeRangeRecentMinutes(diff.inMinutes);
+      return t.logTimeRangeRecentHours(diff.inHours);
     }
-    return '时间范围';
+    return t.logTimeRangeLabel;
   }
 
   Widget _buildStatChip(String label, int count, Color color, {LogLevel? level, bool isTotal = false}) {
@@ -1293,7 +1346,7 @@ class _LogPageState extends State<LogPage> {
             if (isTotal) ...[
               const SizedBox(width: 2),
               Text(
-                '条',
+                t.logStatCountUnit,
                 style: TextStyle(
                   color: AppTheme.textTertiary,
                   fontSize: 10,
@@ -1500,7 +1553,7 @@ class _LogPageState extends State<LogPage> {
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              '重复 ${item.count - 1} 次',
+                              t.logRepeatedCount(item.count - 1),
                               style: TextStyle(
                                 color: AppTheme.textTertiary,
                                 fontSize: 10,
@@ -1519,7 +1572,7 @@ class _LogPageState extends State<LogPage> {
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
-                            '... 还有 ${item.repeatedLogs!.length - 51} 条',
+                            t.logRepeatedMore(item.repeatedLogs!.length - 51),
                             style: TextStyle(color: AppTheme.textTertiary, fontSize: 10),
                           ),
                         ),
@@ -1539,13 +1592,13 @@ class _LogPageState extends State<LogPage> {
       items: [
         MenuFlyoutItem(
           leading: Icon(FluentIcons.copy),
-          text: const Text('复制日志'),
+          text: Text(t.logContextCopy),
           onPressed: () {
             final buffer = StringBuffer();
             for (var log in item.logs) {
               buffer.writeln('[${log.formattedTime}] [${log.levelString}] [${log.source}] ${log.message}');
             }
-            if (item.count > 1) buffer.writeln('(重复 ${item.count} 次)');
+            if (item.count > 1) buffer.writeln(t.logContextRepeated(item.count));
             Clipboard.setData(ClipboardData(text: buffer.toString().trim()));
             Navigator.pop(ctx);
           },
@@ -1554,7 +1607,7 @@ class _LogPageState extends State<LogPage> {
           leading: Icon(_bookmarkedIds.contains(item.id) 
             ? FluentIcons.single_bookmark_solid 
             : FluentIcons.single_bookmark),
-          text: Text(_bookmarkedIds.contains(item.id) ? '取消书签' : '添加书签'),
+          text: Text(_bookmarkedIds.contains(item.id) ? t.logContextRemoveBookmark : t.logContextAddBookmark),
           onPressed: () {
             setState(() {
               if (_bookmarkedIds.contains(item.id)) {
@@ -1569,7 +1622,7 @@ class _LogPageState extends State<LogPage> {
         const MenuFlyoutSeparator(),
         MenuFlyoutItem(
           leading: Icon(FluentIcons.filter),
-          text: Text('筛选: ${item.primaryLog.levelString}'),
+          text: Text(t.logContextFilterLevel(item.primaryLog.levelString)),
           onPressed: () {
             setState(() => _filterLevel = item.primaryLog.level);
             Navigator.pop(ctx);
@@ -1577,7 +1630,7 @@ class _LogPageState extends State<LogPage> {
         ),
         MenuFlyoutItem(
           leading: Icon(FluentIcons.source),
-          text: Text('筛选: ${item.primaryLog.source}'),
+          text: Text(t.logContextFilterSource(item.primaryLog.source)),
           onPressed: () {
             setState(() => _filterSource = item.primaryLog.source);
             Navigator.pop(ctx);
@@ -1667,7 +1720,7 @@ class _LogPageState extends State<LogPage> {
                 items: [
                   MenuFlyoutItem(
                     leading: Icon(FluentIcons.copy),
-                    text: const Text('复制此条'),
+                    text: Text(t.logContextCopySingle),
                     onPressed: () {
                       Clipboard.setData(ClipboardData(
                         text: '[${log.formattedTime}] [${log.levelString}] [${log.source}] ${log.message}',
@@ -1870,12 +1923,12 @@ class _LogPageState extends State<LogPage> {
     showDialog(
       context: context,
       builder: (ctx) => ContentDialog(
-        title: const Text('筛选日志级别'),
+        title: Text(t.logFilterLevelTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             for (final item in [
-              (null, '全部', AppTheme.textPrimary),
+              (null, t.logFilterAllLabel, AppTheme.textPrimary),
               (LogLevel.debug, 'DEBUG', const Color(0xFFB794F6)), // 淡紫色
               (LogLevel.info, 'INFO', Colors.blue),
               (LogLevel.warning, 'WARNING', Colors.orange),
@@ -1909,7 +1962,7 @@ class _LogPageState extends State<LogPage> {
           ],
         ),
         actions: [
-          Button(onPressed: () => Navigator.pop(ctx), child: const Text('关闭')),
+          Button(onPressed: () => Navigator.pop(ctx), child: Text(t.logDialogClose)),
         ],
       ),
     );
@@ -2099,7 +2152,7 @@ class _LogPageState extends State<LogPage> {
                                 : null,
                             ),
                             child: Text(
-                              '全部',
+                              t.logFilterAllLabel,
                               style: TextStyle(
                                 fontSize: 11,
                                 color: isAllSelected ? AppTheme.accentLight : AppTheme.textSecondary,
@@ -2116,7 +2169,7 @@ class _LogPageState extends State<LogPage> {
           }
           
           return ContentDialog(
-            title: const Text('筛选日志来源'),
+            title: Text(t.logSourceFilterTitle),
             content: ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 420, maxWidth: 340),
               child: SingleChildScrollView(
@@ -2152,12 +2205,12 @@ class _LogPageState extends State<LogPage> {
                               },
                             ),
                             const SizedBox(width: 8),
-                            Text('全部', style: TextStyle(
+                            Text(t.logFilterAllLabel, style: TextStyle(
                               fontSize: 13,
                               color: isAll ? AppTheme.accentLight : AppTheme.textPrimary,
                             )),
                             const Spacer(),
-                            Text('${sourceCounts.values.fold(0, (a, b) => a + b)} 条',
+                            Text(t.logSourceTotalCount(sourceCounts.values.fold<int>(0, (a, b) => a + b)),
                               style: TextStyle(fontSize: 11, color: AppTheme.textTertiary)),
                           ],
                         ),
@@ -2172,8 +2225,8 @@ class _LogPageState extends State<LogPage> {
                     
                     // Kernel 分类
                     buildCategoryHeader(
-                      title: 'Kernel',
-                      subtitle: '下载核心 · ${kernelTags.length} 个标签',
+                      title: t.logSourceCategoryKernel,
+                      subtitle: t.logSourceKernelSubtitle(kernelTags.length),
                       tagCount: kernelTags.length,
                       selectedCount: kernelSelectedCount,
                       expanded: kernelExpanded,
@@ -2207,8 +2260,8 @@ class _LogPageState extends State<LogPage> {
                     
                     // App 分类
                     buildCategoryHeader(
-                      title: 'App',
-                      subtitle: '应用程序 · ${appTags.length} 个标签',
+                      title: t.logSourceCategoryApp,
+                      subtitle: t.logSourceAppSubtitle(appTags.length),
                       tagCount: appTags.length,
                       selectedCount: appSelectedCount,
                       expanded: appExpanded,
@@ -2242,8 +2295,8 @@ class _LogPageState extends State<LogPage> {
                       const SizedBox(height: 6),
                       
                       buildCategoryHeader(
-                        title: 'System',
-                        subtitle: '系统 / 框架 · ${systemTags.length} 个标签',
+                        title: t.logSourceCategorySystem,
+                        subtitle: t.logSourceSystemSubtitle(systemTags.length),
                         tagCount: systemTags.length,
                         selectedCount: systemSelectedCount,
                         expanded: systemExpanded,
@@ -2281,11 +2334,11 @@ class _LogPageState extends State<LogPage> {
                   });
                   Navigator.pop(ctx);
                 },
-                child: const Text('确定'),
+                child: Text(t.logDialogOk),
               ),
               Button(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('取消'),
+                child: Text(t.logDialogCancel),
               ),
             ],
           );
@@ -2302,22 +2355,22 @@ class _LogPageState extends State<LogPage> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => ContentDialog(
-          title: const Text('时间范围筛选'),
+          title: Text(t.logTimeRangeTitle),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('快捷选择:', style: TextStyle(fontWeight: FontWeight.w600)),
+              Text(t.logTimeRangeQuickSelectLabel, style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
                   for (final preset in [
-                    ('最近1小时', const Duration(hours: 1)),
-                    ('最近30分钟', const Duration(minutes: 30)),
-                    ('最近10分钟', const Duration(minutes: 10)),
-                    ('最近5分钟', const Duration(minutes: 5)),
+                    (t.logTimeRangePreset1Hour, const Duration(hours: 1)),
+                    (t.logTimeRangePreset30Min, const Duration(minutes: 30)),
+                    (t.logTimeRangePreset10Min, const Duration(minutes: 10)),
+                    (t.logTimeRangePreset5Min, const Duration(minutes: 5)),
                   ])
                     Button(
                       onPressed: () {
@@ -2337,10 +2390,10 @@ class _LogPageState extends State<LogPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('开始时间:'),
+                        Text(t.logTimeRangeStartLabel),
                         const SizedBox(height: 4),
                         Text(
-                          tempStart?.toString().substring(0, 19) ?? '未设置',
+                          tempStart?.toString().substring(0, 19) ?? t.logTimeRangeNotSet,
                           style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
                         ),
                       ],
@@ -2350,10 +2403,10 @@ class _LogPageState extends State<LogPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('结束时间:'),
+                        Text(t.logTimeRangeEndLabel),
                         const SizedBox(height: 4),
                         Text(
-                          tempEnd?.toString().substring(0, 19) ?? '现在',
+                          tempEnd?.toString().substring(0, 19) ?? t.logTimeRangeNow,
                           style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
                         ),
                       ],
@@ -2368,7 +2421,7 @@ class _LogPageState extends State<LogPage> {
               onPressed: () {
                 setDialogState(() { tempStart = null; tempEnd = null; });
               },
-              child: const Text('清除'),
+              child: Text(t.logDialogClear),
             ),
             FilledButton(
               onPressed: () {
@@ -2378,7 +2431,7 @@ class _LogPageState extends State<LogPage> {
                 });
                 Navigator.pop(ctx);
               },
-              child: const Text('应用'),
+              child: Text(t.logDialogApply),
             ),
           ],
         ),
@@ -2391,7 +2444,7 @@ class _LogPageState extends State<LogPage> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => ContentDialog(
-          title: const Text('高亮规则管理'),
+          title: Text(t.logRulesDialogTitle),
           content: SizedBox(
             width: 450,
             height: 400,
@@ -2405,7 +2458,7 @@ class _LogPageState extends State<LogPage> {
                     children: [
                       Icon(FluentIcons.lightning_bolt, size: 14, color: AppTheme.accentLight),
                       const SizedBox(width: 6),
-                      const Text('内置规则', style: TextStyle(fontWeight: FontWeight.w600)),
+                      Text(t.logRulesBuiltinTitle, style: TextStyle(fontWeight: FontWeight.w600)),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -2429,7 +2482,7 @@ class _LogPageState extends State<LogPage> {
                     children: [
                       Icon(FluentIcons.code, size: 14, color: AppTheme.accentLight),
                       const SizedBox(width: 6),
-                      const Text('自定义规则', style: TextStyle(fontWeight: FontWeight.w600)),
+                      Text(t.logRulesCustomTitle, style: TextStyle(fontWeight: FontWeight.w600)),
                       const Spacer(),
                       Button(
                         onPressed: () => _showAddCustomRuleDialog(ctx, setDialogState),
@@ -2438,7 +2491,7 @@ class _LogPageState extends State<LogPage> {
                           children: [
                             Icon(FluentIcons.add, size: 12),
                             SizedBox(width: 4),
-                            Text('添加'),
+                            Text(t.logRulesAddButton),
                           ],
                         ),
                       ),
@@ -2454,7 +2507,7 @@ class _LogPageState extends State<LogPage> {
                       ),
                       child: Center(
                         child: Text(
-                          '暂无自定义规则',
+                          t.logRulesCustomEmpty,
                           style: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
                         ),
                       ),
@@ -2536,23 +2589,23 @@ class _LogPageState extends State<LogPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('颜色图例', style: TextStyle(color: AppTheme.textTertiary, fontSize: 11)),
+                        Text(t.logRulesLegendTitle, style: TextStyle(color: AppTheme.textTertiary, fontSize: 11)),
                         const SizedBox(height: 6),
                         Wrap(
                           spacing: 12,
                           runSpacing: 4,
                           children: [
-                            _buildLegendItem('URL', const Color(0xFF60CDFF)),
-                            _buildLegendItem('路径', const Color(0xFF89D185)),
-                            _buildLegendItem('IP', const Color(0xFFDCDCAA)),
-                            _buildLegendItem('数值', const Color(0xFFB5CEA8)),
-                            _buildLegendItem('错误', const Color(0xFFFF6B6B)),
-                            _buildLegendItem('成功', const Color(0xFF6CCB5F)),
-                            _buildLegendItem('警告', const Color(0xFFFFB900)),
-                            _buildLegendItem('HTTP', const Color(0xFF569CD6)),
-                            _buildLegendItem('步骤', const Color(0xFFD4A0FF)),
-                            _buildLegendItem('PID', const Color(0xFF9CDCFE)),
-                            _buildLegendItem('键值', const Color(0xFFCE9178)),
+                            _buildLegendItem(t.logRulesLegendUrl, const Color(0xFF60CDFF)),
+                            _buildLegendItem(t.logRulesLegendPath, const Color(0xFF89D185)),
+                            _buildLegendItem(t.logRulesLegendIp, const Color(0xFFDCDCAA)),
+                            _buildLegendItem(t.logRulesLegendNumber, const Color(0xFFB5CEA8)),
+                            _buildLegendItem(t.logRulesLegendError, const Color(0xFFFF6B6B)),
+                            _buildLegendItem(t.logRulesLegendSuccess, const Color(0xFF6CCB5F)),
+                            _buildLegendItem(t.logRulesLegendWarning, const Color(0xFFFFB900)),
+                            _buildLegendItem(t.logRulesLegendHttp, const Color(0xFF569CD6)),
+                            _buildLegendItem(t.logRulesLegendStep, const Color(0xFFD4A0FF)),
+                            _buildLegendItem(t.logRulesLegendPid, const Color(0xFF9CDCFE)),
+                            _buildLegendItem(t.logRulesLegendKeyValue, const Color(0xFFCE9178)),
                           ],
                         ),
                       ],
@@ -2563,7 +2616,7 @@ class _LogPageState extends State<LogPage> {
             ),
           ),
           actions: [
-            Button(onPressed: () => Navigator.pop(ctx), child: const Text('关闭')),
+            Button(onPressed: () => Navigator.pop(ctx), child: Text(t.logDialogClose)),
           ],
         ),
       ),
@@ -2658,27 +2711,27 @@ class _LogPageState extends State<LogPage> {
       context: parentCtx,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => ContentDialog(
-          title: const Text('添加自定义规则'),
+          title: Text(t.logAddRuleTitle),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('规则名称'),
+              Text(t.logAddRuleNameLabel),
               const SizedBox(height: 4),
               TextBox(
                 controller: nameController,
-                placeholder: '例如: 任务ID',
+                placeholder: t.logAddRuleNamePlaceholder,
               ),
               const SizedBox(height: 12),
-              const Text('正则表达式'),
+              Text(t.logAddRulePatternLabel),
               const SizedBox(height: 4),
               TextBox(
                 controller: patternController,
-                placeholder: r'例如: \b[a-f0-9]{16}\b',
+                placeholder: t.logAddRulePatternPlaceholder,
                 style: const TextStyle(fontFamily: 'Courier New'),
               ),
               const SizedBox(height: 12),
-              const Text('高亮颜色'),
+              Text(t.logAddRuleColorLabel),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
@@ -2707,7 +2760,7 @@ class _LogPageState extends State<LogPage> {
             ],
           ),
           actions: [
-            Button(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+            Button(onPressed: () => Navigator.pop(ctx), child: Text(t.logDialogCancel)),
             FilledButton(
               onPressed: () {
                 if (nameController.text.isNotEmpty && patternController.text.isNotEmpty) {
@@ -2729,17 +2782,17 @@ class _LogPageState extends State<LogPage> {
                     showDialog(
                       context: ctx,
                       builder: (c) => ContentDialog(
-                        title: const Text('正则表达式无效'),
-                        content: Text('错误: $e'),
+                        title: Text(t.logAddRuleInvalidTitle),
+                        content: Text(t.logAddRuleInvalidMessage(e)),
                         actions: [
-                          Button(onPressed: () => Navigator.pop(c), child: const Text('确定')),
+                          Button(onPressed: () => Navigator.pop(c), child: Text(t.logDialogOk)),
                         ],
                       ),
                     );
                   }
                 }
               },
-              child: const Text('添加'),
+              child: Text(t.logRulesAddButton),
             ),
           ],
         ),
@@ -2751,12 +2804,12 @@ class _LogPageState extends State<LogPage> {
     showDialog(
       context: context,
       builder: (ctx) => ContentDialog(
-        title: const Text('归档日志'),
+        title: Text(t.logArchiveTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('选择归档选项:'),
+            Text(t.logArchivePrompt),
             const SizedBox(height: 12),
             Button(
               onPressed: () {
@@ -2768,7 +2821,7 @@ class _LogPageState extends State<LogPage> {
                 children: [
                   Icon(FluentIcons.save, size: 16),
                   SizedBox(width: 8),
-                  Text('导出全部日志'),
+                  Text(t.logArchiveExportAll),
                 ],
               ),
             ),
@@ -2783,7 +2836,7 @@ class _LogPageState extends State<LogPage> {
                 children: [
                   Icon(FluentIcons.filter, size: 16),
                   SizedBox(width: 8),
-                  Text('导出当前筛选结果'),
+                  Text(t.logArchiveExportFiltered),
                 ],
               ),
             ),
@@ -2798,14 +2851,14 @@ class _LogPageState extends State<LogPage> {
                 children: [
                   Icon(FluentIcons.single_bookmark, size: 16),
                   const SizedBox(width: 8),
-                  Text('导出书签日志 (${_bookmarkedIds.length})'),
+                  Text(t.logArchiveExportBookmarked(_bookmarkedIds.length)),
                 ],
               ),
             ),
           ],
         ),
         actions: [
-          Button(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          Button(onPressed: () => Navigator.pop(ctx), child: Text(t.logDialogCancel)),
         ],
       ),
     );
@@ -2815,10 +2868,10 @@ class _LogPageState extends State<LogPage> {
     showDialog(
       context: context,
       builder: (ctx) => ContentDialog(
-        title: const Text('确认清空'),
-        content: const Text('确定要清空所有日志吗？此操作不可撤销。'),
+        title: Text(t.logClearConfirmTitle),
+        content: Text(t.logClearConfirmMessage),
         actions: [
-          Button(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          Button(onPressed: () => Navigator.pop(ctx), child: Text(t.logDialogCancel)),
           FilledButton(
             style: ButtonStyle(
               backgroundColor: WidgetStateProperty.all(AppTheme.statusError),
@@ -2829,7 +2882,7 @@ class _LogPageState extends State<LogPage> {
               _expandedGroupIds.clear();
               Navigator.pop(ctx);
             },
-            child: const Text('清空'),
+            child: Text(t.logClearConfirmButton),
           ),
         ],
       ),
@@ -2886,8 +2939,8 @@ class _LogPageState extends State<LogPage> {
         final file = File('$selectedPath\\log_${suffix}_$timestamp.txt');
         
         final buffer = StringBuffer();
-        buffer.writeln('# 日志导出 - $timestamp');
-        buffer.writeln('# 总计: ${logs.length} 条');
+        buffer.writeln(t.logExportFileHeader(timestamp));
+        buffer.writeln(t.logExportFileTotal(logs.length));
         buffer.writeln('');
         
         for (var log in logs) {
@@ -2900,10 +2953,10 @@ class _LogPageState extends State<LogPage> {
           await showDialog(
             context: context,
             builder: (ctx) => ContentDialog(
-              title: const Text('导出成功'),
-              content: Text('已保存 ${logs.length} 条日志至:\n${file.path}'),
+              title: Text(t.logExportSuccessTitle),
+              content: Text(t.logExportSavedCountMessage(logs.length, file.path)),
               actions: [
-                Button(onPressed: () => Navigator.pop(ctx), child: const Text('确定')),
+                Button(onPressed: () => Navigator.pop(ctx), child: Text(t.logDialogOk)),
               ],
             ),
           );
@@ -2913,10 +2966,10 @@ class _LogPageState extends State<LogPage> {
           await showDialog(
             context: context,
             builder: (ctx) => ContentDialog(
-              title: const Text('导出失败'),
-              content: Text('错误: $e'),
+              title: Text(t.logExportFailedTitle),
+              content: Text(t.logExportErrorMessage(e)),
               actions: [
-                Button(onPressed: () => Navigator.pop(ctx), child: const Text('确定')),
+                Button(onPressed: () => Navigator.pop(ctx), child: Text(t.logDialogOk)),
               ],
             ),
           );

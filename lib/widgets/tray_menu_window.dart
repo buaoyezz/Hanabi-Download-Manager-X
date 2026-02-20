@@ -1,5 +1,6 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
+import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/constants.dart';
 import '../services/kernel_service.dart';
@@ -27,6 +28,7 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
   @override
   Widget build(BuildContext context) {
     final kernelService = context.watch<KernelService>();
+    final t = AppLocalizations.of(context)!;
     
     return Container(
       width: 280,
@@ -52,7 +54,7 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
           mainAxisSize: MainAxisSize.min,
           children: [
             // 头部
-            _buildHeader(),
+            _buildHeader(context),
             
             // 分隔线
             Container(
@@ -70,8 +72,8 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
                   _buildMenuItem(
                     index: 0,
                     icon: CustomIcons.FluentIcons.chrome_restore,
-                    title: '显示窗口',
-                    subtitle: '打开主界面',
+                    title: t.trayMenuShowWindowTitle,
+                    subtitle: t.trayMenuShowWindowSubtitle,
                     onTap: () {
                       widget.onShowWindow();
                       appWindow.hide(); // 隐藏托盘菜单窗口
@@ -80,8 +82,10 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
                   _buildMenuItem(
                     index: 1,
                     icon: CustomIcons.FluentIcons.status_circle_checkmark,
-                    title: '下载内核',
-                    subtitle: kernelService.isRunning ? '运行中' : '已停止',
+                    title: t.trayMenuKernelTitle,
+                    subtitle: kernelService.isRunning
+                        ? t.trayMenuKernelSubtitleRunning
+                        : t.trayMenuKernelSubtitleStopped,
                     trailing: Container(
                       width: 8,
                       height: 8,
@@ -104,8 +108,8 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
                   _buildMenuItem(
                     index: 2,
                     icon: CustomIcons.FluentIcons.chrome_close,
-                    title: '退出应用',
-                    subtitle: '关闭所有窗口',
+                    title: t.trayMenuExitTitle,
+                    subtitle: t.trayMenuExitSubtitle,
                     iconColor: AppTheme.statusError,
                     onTap: () {
                       widget.onExit();
@@ -120,7 +124,8 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -155,7 +160,7 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  AppConstants.appName,
+                  t.appTitle,
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,

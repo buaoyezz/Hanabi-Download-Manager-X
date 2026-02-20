@@ -3,6 +3,8 @@ import 'package:fluent_ui/fluent_ui.dart' as fluent;
 import 'package:provider/provider.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
+import 'l10n/app_localizations.dart';
+import 'l10n/app_localizations_delegate.dart';
 import 'dart:io';
 import 'dart:ffi' hide Size;
 import 'package:ffi/ffi.dart';
@@ -30,6 +32,7 @@ import 'services/notification_settings_service.dart';
 import 'services/pipe_listener_service.dart';
 import 'services/popup_progress_service.dart';
 import 'services/download_failure_stats_service.dart';
+import 'services/localization_service.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
 import 'widgets/animated_notifications.dart';
@@ -226,6 +229,7 @@ void main(List<String> args) async {
     final onlineStatsService = OnlineStatsService();
     final userProfileService = UserProfileService();
     final notificationSettings = NotificationSettingsService();
+    final localizationService = LocalizationService();
     
     appLogger.info('App', 'Application starting...');
     await clientConfig.initialize();
@@ -244,6 +248,9 @@ void main(List<String> args) async {
     // 初始化用户配置并启动心跳
     await userProfileService.initialize();
     appLogger.info('App', 'User profile initialized: ${userProfileService.deviceId}');
+
+    await localizationService.initialize(clientConfig);
+    appLogger.info('App', 'Localization service initialized');
     
     // 加载自定义字体（异步，不阻塞启动）
     _loadCustomFonts(fontService).catchError((e) {
@@ -272,6 +279,7 @@ void main(List<String> args) async {
           ChangeNotifierProvider.value(value: windowEffectService),
           ChangeNotifierProvider.value(value: onlineStatsService),
           ChangeNotifierProvider.value(value: userProfileService),
+          ChangeNotifierProvider.value(value: localizationService),
           Provider<bool>.value(value: isAutoStart), // 传递启动模式
         ],
         child: const MyApp(),
@@ -626,8 +634,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<FontService, ClientConfigService>(
-      builder: (context, fontService, clientConfig, child) {
+    return Consumer3<FontService, ClientConfigService, LocalizationService>(
+      builder: (context, fontService, clientConfig, localizationService, child) {
         final baseTheme = AppTheme.fluentDarkTheme;
         final typography = baseTheme.typography;
         final scaleFactor = clientConfig.getWindowScaleFactor();
@@ -635,6 +643,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         return fluent.FluentApp(
           navigatorKey: navigatorKey,
           title: 'Hanabi Download ManagerX',
+          locale: localizationService.effectiveLocale,
+          onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
+          localizationsDelegates: [
+            AppLocalizationsDelegate(localizationService),
+          ],
+          supportedLocales: localizationService.supportedLocales,
           debugShowCheckedModeBanner: false,
           theme: baseTheme.copyWith(
             typography: fluent.Typography.raw(

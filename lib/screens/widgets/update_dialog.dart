@@ -2,6 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/update_service.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 
 class UpdateDialog extends StatelessWidget {
   final UpdateInfo updateInfo;
@@ -15,6 +16,7 @@ class UpdateDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return ContentDialog(
       title: Row(
         children: [
@@ -24,7 +26,7 @@ class UpdateDialog extends StatelessWidget {
             size: 20,
           ),
           const SizedBox(width: 10),
-          const Text('发现新版本'),
+          Text(t.updateAvailableTitle),
         ],
       ),
       content: SizedBox(
@@ -50,7 +52,7 @@ class UpdateDialog extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '当前版本',
+                        t.updateCurrentVersionTitle,
                         style: FluentTheme.of(context).typography.caption?.copyWith(
                           color: AppTheme.textSecondary,
                         ),
@@ -73,7 +75,7 @@ class UpdateDialog extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        '最新版本',
+                        t.updateLatestVersionLabel,
                         style: FluentTheme.of(context).typography.caption?.copyWith(
                           color: AppTheme.textSecondary,
                         ),
@@ -95,7 +97,7 @@ class UpdateDialog extends StatelessWidget {
             
             // 更新日志
             Text(
-              '更新内容',
+              t.updateAvailableChangelogTitle,
               style: FluentTheme.of(context).typography.subtitle?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -122,7 +124,7 @@ class UpdateDialog extends StatelessWidget {
       actions: [
         Button(
           onPressed: () => Navigator.pop(context),
-          child: const Text('稍后更新'),
+          child: Text(t.updateDialogLaterButton),
         ),
         FilledButton(
           onPressed: () async {
@@ -136,7 +138,7 @@ class UpdateDialog extends StatelessWidget {
               Navigator.pop(context);
             }
           },
-          child: const Text('立即下载'),
+          child: Text(t.updateDialogDownloadNowButton),
         ),
       ],
     );
@@ -155,6 +157,7 @@ class CurrentVersionDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return ContentDialog(
       title: Row(
         children: [
@@ -164,7 +167,7 @@ class CurrentVersionDialog extends StatelessWidget {
             size: 20,
           ),
           const SizedBox(width: 10),
-          const Text('当前版本信息'),
+          Text(t.updateDialogCurrentInfoTitle),
         ],
       ),
       content: SizedBox(
@@ -195,7 +198,7 @@ class CurrentVersionDialog extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '当前版本',
+                        t.updateCurrentVersionTitle,
                         style: FluentTheme.of(context).typography.caption?.copyWith(
                           color: AppTheme.textSecondary,
                         ),
@@ -217,7 +220,7 @@ class CurrentVersionDialog extends StatelessWidget {
             
             // 更新日志
             Text(
-              '版本更新内容',
+              t.updateChangelogTitle,
               style: FluentTheme.of(context).typography.subtitle?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -244,7 +247,7 @@ class CurrentVersionDialog extends StatelessWidget {
       actions: [
         FilledButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('关闭'),
+          child: Text(t.updateDialogCloseButton),
         ),
       ],
     );
@@ -261,6 +264,7 @@ class NoUpdateDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return ContentDialog(
       title: Row(
         children: [
@@ -270,7 +274,7 @@ class NoUpdateDialog extends StatelessWidget {
             size: 20,
           ),
           const SizedBox(width: 10),
-          const Text('已是最新版本'),
+          Text(t.updateLatestTitle),
         ],
       ),
       content: Container(
@@ -296,14 +300,14 @@ class NoUpdateDialog extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    '当前版本: v$currentVersion',
+                    '${t.updateCurrentVersionTitle}: v$currentVersion',
                     style: FluentTheme.of(context).typography.bodyLarge?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '您正在使用最新版本',
+                    t.updateLatestSubtitle,
                     style: FluentTheme.of(context).typography.body?.copyWith(
                       color: AppTheme.textSecondary,
                     ),
@@ -317,7 +321,7 @@ class NoUpdateDialog extends StatelessWidget {
       actions: [
         FilledButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('确定'),
+          child: Text(t.updateDialogCloseButton),
         ),
       ],
     );

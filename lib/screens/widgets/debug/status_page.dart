@@ -14,6 +14,7 @@ import '../../../services/client_config_service.dart';
 import '../../../services/integrated_download_service.dart';
 import '../../../services/popup_window_service.dart';
 import '../../../models/download_task.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../../utils/constants.dart';
 import '../../../widgets/animated_notifications.dart';
@@ -47,6 +48,8 @@ class _StatusPageState extends State<StatusPage> {
   // 弹窗窗口测试
   bool _testingPopupWindow = false;
   Map<String, dynamic>? _popupWindowTestResult;
+
+  AppLocalizations get t => AppLocalizations.of(context)!;
 
   @override
   void initState() {
@@ -113,15 +116,15 @@ class _StatusPageState extends State<StatusPage> {
       
       if (mounted) {
         NotificationManager.of(context)?.showSuccess(
-          '下载已添加',
-          message: '浏览器扩展插件已添加到下载列表',
+          t.statusExtensionDownloadAddedTitle,
+          message: t.statusExtensionDownloadAddedMessage,
         );
       }
     } catch (e) {
       if (mounted) {
         NotificationManager.of(context)?.showError(
-          '下载失败',
-          message: '无法添加下载任务: $e',
+          t.statusExtensionDownloadFailedTitle,
+          message: t.statusExtensionDownloadFailedMessage(e),
         );
       }
     }
@@ -136,13 +139,13 @@ class _StatusPageState extends State<StatusPage> {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
-        throw Exception('无法打开链接');
+        throw Exception(t.statusExtensionOpenLinkFailed);
       }
     } catch (e) {
       if (mounted) {
         NotificationManager.of(context)?.showError(
-          '打开失败',
-          message: '无法打开浏览器: $e',
+          t.statusExtensionOpenFailedTitle,
+          message: t.statusExtensionOpenFailedMessage(e),
         );
       }
     }
@@ -159,23 +162,23 @@ class _StatusPageState extends State<StatusPage> {
 
       if (success) {
         NotificationManager.of(context)?.showSuccess(
-          '修复成功',
-          message: '自启动注册已更新为当前版本',
+          t.statusAutoStartFixSuccessTitle,
+          message: t.statusAutoStartFixSuccessMessage,
         );
 
         // 重新检测状态
         await _checkAutoStartStatus();
       } else {
         NotificationManager.of(context)?.showError(
-          '修复失败',
-          message: '无法更新自启动注册，请检查权限',
+          t.statusAutoStartFixFailedTitle,
+          message: t.statusAutoStartFixFailedMessage,
         );
       }
     } catch (e) {
       if (!mounted) return;
       NotificationManager.of(context)?.showError(
-          '修复失败',
-          message: '发生错误: $e',
+          t.statusAutoStartFixFailedTitle,
+          message: t.statusAutoStartFixErrorMessage(e),
         );
     }
   }
@@ -185,14 +188,15 @@ class _StatusPageState extends State<StatusPage> {
     if (_testingPopupWindow) return;
 
     final appLogger = context.read<AppLoggerService>();
+    final t = AppLocalizations.of(context)!;
 
     setState(() {
       _testingPopupWindow = true;
-      _popupWindowTestResult = {'status': '正在创建窗口...'};
+      _popupWindowTestResult = {'status': t.statusPopupTestCreating};
     });
 
     final stopwatch = Stopwatch()..start();
-    appLogger.info('PopupTest', '开始测试弹窗窗口...');
+    appLogger.info('PopupTest', t.statusPopupTestStartLog);
 
     try {
       // 测试创建独立弹窗窗口
@@ -203,24 +207,24 @@ class _StatusPageState extends State<StatusPage> {
       );
 
       stopwatch.stop();
-      appLogger.info('PopupTest', '弹窗窗口创建成功，耗时: ${stopwatch.elapsedMilliseconds}ms');
+      appLogger.info('PopupTest', t.statusPopupTestSuccessLog(stopwatch.elapsedMilliseconds));
 
       if (!mounted) return;
       setState(() {
         _popupWindowTestResult = {
           'success': true,
           'time': stopwatch.elapsedMilliseconds,
-          'message': '窗口创建成功',
+          'message': t.statusPopupTestSuccessMessage,
         };
       });
 
       NotificationManager.of(context)?.showSuccess(
-          '测试成功',
-          message: '弹窗窗口创建成功，耗时 ${stopwatch.elapsedMilliseconds}ms',
+          t.statusPopupTestSuccessTitle,
+          message: t.statusPopupTestSuccessToast(stopwatch.elapsedMilliseconds),
         );
     } catch (e) {
       stopwatch.stop();
-      appLogger.error('PopupTest', '弹窗窗口创建失败: $e');
+      appLogger.error('PopupTest', t.statusPopupTestFailedLog(e));
 
       if (!mounted) return;
       setState(() {
@@ -232,8 +236,8 @@ class _StatusPageState extends State<StatusPage> {
       });
 
       NotificationManager.of(context)?.showError(
-          '测试失败',
-          message: '弹窗窗口创建失败: $e',
+          t.statusPopupTestFailedTitle,
+          message: t.statusPopupTestFailedToast(e),
         );
     } finally {
       if (mounted) {
@@ -247,9 +251,10 @@ class _StatusPageState extends State<StatusPage> {
   /// 测试旧版 Dialog 弹窗
   Future<void> _testDialogPopup() async {
     final appLogger = context.read<AppLoggerService>();
+    final t = AppLocalizations.of(context)!;
 
     final stopwatch = Stopwatch()..start();
-    appLogger.info('PopupTest', '开始测试 Dialog 弹窗...');
+    appLogger.info('PopupTest', t.statusPopupDialogTestStartLog);
 
     try {
       await PopupWindowService.showPopupDownload(
@@ -260,10 +265,10 @@ class _StatusPageState extends State<StatusPage> {
       );
 
       stopwatch.stop();
-      appLogger.info('PopupTest', 'Dialog 弹窗关闭，总耗时: ${stopwatch.elapsedMilliseconds}ms');
+      appLogger.info('PopupTest', t.statusPopupDialogTestCloseLog(stopwatch.elapsedMilliseconds));
     } catch (e) {
       stopwatch.stop();
-      appLogger.error('PopupTest', 'Dialog 弹窗失败: $e');
+      appLogger.error('PopupTest', t.statusPopupDialogTestFailedLog(e));
     }
   }
   
@@ -397,19 +402,20 @@ class _StatusPageState extends State<StatusPage> {
 
   Future<void> _testAllApis() async {
     if (!mounted) return;
+    final t = AppLocalizations.of(context)!;
     setState(() {
       _testingApi = true;
       _apiTestResults = {};
     });
 
-    final tests = {
-      'Health Check': 'http://127.0.0.1:9710/health',
-      'Get Tasks': 'http://127.0.0.1:9710/download/tasks',
-      'Get Statistics': 'http://127.0.0.1:9710/download/statistics',
-      'Get Config': 'http://127.0.0.1:9710/settings/download-config',
-    };
+    final tests = <MapEntry<String, String>>[
+      MapEntry(t.statusApiTestHealthCheck, 'http://127.0.0.1:9710/health'),
+      MapEntry(t.statusApiTestGetTasks, 'http://127.0.0.1:9710/download/tasks'),
+      MapEntry(t.statusApiTestGetStatistics, 'http://127.0.0.1:9710/download/statistics'),
+      MapEntry(t.statusApiTestGetConfig, 'http://127.0.0.1:9710/settings/download-config'),
+    ];
 
-    for (var entry in tests.entries) {
+    for (final entry in tests) {
       try {
         final stopwatch = Stopwatch()..start();
         final response = await http.get(Uri.parse(entry.value)).timeout(
@@ -453,7 +459,7 @@ class _StatusPageState extends State<StatusPage> {
     // 判断内核
     final useNewKernel = clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
     final kernelRunning = useNewKernel ? kernelManager.isRunning : kernelService.isRunning;
-    final kernelName = useNewKernel ? kernelManager.kernelName : 'Soda Kernel (Legacy)';
+    final kernelName = useNewKernel ? kernelManager.kernelName : t.statusKernelLegacyName;
 
     return ScaffoldPage(
       header: PageHeader(
@@ -479,7 +485,7 @@ class _StatusPageState extends State<StatusPage> {
               child: const Icon(FluentIcons.health, size: 18, color: AppTheme.accentLight),
             ),
             const SizedBox(width: 14),
-            const Text('系统状态'),
+            Text(t.statusPageTitle),
           ],
         ),
         commandBar: CommandBar(
@@ -487,7 +493,7 @@ class _StatusPageState extends State<StatusPage> {
           primaryItems: [
             CommandBarButton(
               icon: const Icon(FluentIcons.refresh),
-              label: const Text('刷新'),
+              label: Text(t.statusPageRefresh),
               onPressed: () {
                 _checkKernelHealth();
                 _loadKernelStats();
@@ -497,12 +503,12 @@ class _StatusPageState extends State<StatusPage> {
             ),
             CommandBarButton(
               icon: const Icon(FluentIcons.test_case),
-              label: const Text('测试 API'),
+              label: Text(t.statusPageTestApi),
               onPressed: _testingApi ? null : _testAllApis,
             ),
             CommandBarButton(
               icon: const Icon(FluentIcons.clear),
-              label: const Text('清空日志'),
+              label: Text(t.statusPageClearLogs),
               onPressed: () {
                 appLogger.clear();
               },
@@ -518,37 +524,39 @@ class _StatusPageState extends State<StatusPage> {
             // 下载核心状态
             _buildSection(
               context,
-              title: '下载核心状态',
+              title: t.statusSectionKernel,
               icon: FluentIcons.server,
               children: [
                 _buildStatusItem(
                   context,
-                  label: '核心服务',
-                  value: kernelRunning ? '运行中' : '已停止',
+                  label: t.statusItemKernelService,
+                  value: kernelRunning ? t.statusValueRunning : t.statusValueStopped,
                   isOnline: kernelRunning,
                 ),
                 _buildStatusItem(
                   context,
-                  label: '当前内核',
+                  label: t.statusItemKernelCurrent,
                   value: kernelName,
                   isInfo: true,
                 ),
                 _buildStatusItem(
                   context,
-                  label: 'HTTP 服务',
-                  value: _kernelHealthy ? '正常' : (useNewKernel ? '内置' : '异常'),
+                  label: t.statusItemHttpService,
+                  value: _kernelHealthy
+                      ? t.statusValueHealthy
+                      : (useNewKernel ? t.statusValueBuiltIn : t.statusValueUnhealthy),
                   isOnline: useNewKernel ? kernelRunning : _kernelHealthy,
                 ),
                 _buildStatusItem(
                   context,
-                  label: '服务地址',
+                  label: t.statusItemServiceAddress,
                   value: 'http://127.0.0.1:9710',
                   isInfo: true,
                 ),
                 if (_kernelVersion != null)
                   _buildStatusItem(
                     context,
-                    label: '核心版本',
+                    label: t.statusItemKernelVersion,
                     value: _kernelVersion!,
                     isInfo: true,
                   ),
@@ -560,38 +568,47 @@ class _StatusPageState extends State<StatusPage> {
             // 网络状态
             _buildSection(
               context,
-              title: '网络状态',
+              title: t.statusSectionNetwork,
               icon: FluentIcons.network_tower,
               children: [
                 _buildStatusItem(
                   context,
-                  label: '本地网络',
-                  value: networkService.networkInfo.isConnected ? '已连接' : '未连接',
+                  label: t.statusItemLocalNetwork,
+                  value: networkService.networkInfo.isConnected
+                      ? t.statusValueConnected
+                      : t.statusValueDisconnected,
                   isOnline: networkService.networkInfo.isConnected,
                 ),
                 _buildStatusItem(
                   context,
-                  label: '互联网',
-                  value: networkService.networkInfo.hasInternet ? '可访问' : '不可访问',
+                  label: t.statusItemInternet,
+                  value: networkService.networkInfo.hasInternet
+                      ? t.statusValueReachable
+                      : t.statusValueUnreachable,
                   isOnline: networkService.networkInfo.hasInternet,
                 ),
                 if (networkService.networkInfo.localIP != null)
                   _buildStatusItem(
                     context,
-                    label: '本地 IP',
+                    label: t.statusItemLocalIp,
                     value: networkService.networkInfo.localIP!,
                     isInfo: true,
                   ),
-                if (networkService.networkInfo.ping != null)
-                  _buildStatusItem(
-                    context,
-                    label: '网络延迟',
-                    value: '${networkService.networkInfo.ping} ms',
-                    isInfo: true,
-                  ),
+                if (networkService.networkInfo.ping != null) ...[
+                  Builder(builder: (context) {
+                    final ping = networkService.networkInfo.ping;
+                    if (ping == null) return const SizedBox.shrink();
+                    return _buildStatusItem(
+                      context,
+                      label: t.statusItemNetworkLatency,
+                      value: t.statusNetworkLatencyMs(ping),
+                      isInfo: true,
+                    );
+                  }),
+                ],
                 _buildStatusItem(
                   context,
-                  label: '连接类型',
+                  label: t.statusItemConnectionType,
                   value: networkService.networkInfo.connectionType,
                   isInfo: true,
                 ),
@@ -604,7 +621,7 @@ class _StatusPageState extends State<StatusPage> {
             if (_apiTestResults != null) ...[
               _buildSection(
                 context,
-                title: 'API 测试结果',
+                title: t.statusSectionApiTests,
                 icon: FluentIcons.test_case,
                 children: _apiTestResults!.entries.map((entry) {
                   final result = entry.value;
@@ -614,7 +631,7 @@ class _StatusPageState extends State<StatusPage> {
                   if (success) {
                     value = '${result['status']} (${result['time']}ms)';
                   } else {
-                    value = result['error'] ?? '失败';
+                    value = result['error'] ?? t.statusValueFailed;
                   }
 
                   return _buildStatusItem(
@@ -632,31 +649,31 @@ class _StatusPageState extends State<StatusPage> {
             if (_systemInfo != null)
               _buildSection(
                 context,
-                title: '系统信息',
+                title: t.statusSectionSystemInfo,
                 icon: FluentIcons.system,
                 children: [
                   _buildStatusItem(
                     context,
-                    label: '操作系统',
-                    value: _systemInfo!['platform'] ?? 'Unknown',
+                    label: t.statusItemOs,
+                    value: _systemInfo!['platform'] ?? t.statusValueUnknown,
                     isInfo: true,
                   ),
                   _buildStatusItem(
                     context,
-                    label: '系统版本',
-                    value: _systemInfo!['version'] ?? 'Unknown',
+                    label: t.statusItemOsVersion,
+                    value: _systemInfo!['version'] ?? t.statusValueUnknown,
                     isInfo: true,
                   ),
                   _buildStatusItem(
                     context,
-                    label: 'CPU 核心数',
-                    value: '${_systemInfo!['processors']} 核',
+                    label: t.statusItemCpuCores,
+                    value: t.statusSystemCpuCores(_systemInfo!['processors']),
                     isInfo: true,
                   ),
                   _buildStatusItem(
                     context,
-                    label: 'Dart 版本',
-                    value: _systemInfo!['dart_version'] ?? 'Unknown',
+                    label: t.statusItemDartVersion,
+                    value: _systemInfo!['dart_version'] ?? t.statusValueUnknown,
                     isInfo: true,
                   ),
                 ],
@@ -668,37 +685,37 @@ class _StatusPageState extends State<StatusPage> {
             if (_kernelStats != null)
               _buildSection(
                 context,
-                title: '下载统计',
+                title: t.statusSectionDownloadStats,
                 icon: FluentIcons.chart,
                 children: [
                   _buildStatusItem(
                     context,
-                    label: '总下载数',
+                    label: t.statusItemTotalDownloads,
                     value: '${_kernelStats!['total_downloads'] ?? 0}',
                     isInfo: true,
                   ),
                   _buildStatusItem(
                     context,
-                    label: '活跃任务',
+                    label: t.statusItemActiveTasks,
                     value: '${_kernelStats!['active_tasks'] ?? 0}',
                     isInfo: true,
                   ),
                   _buildStatusItem(
                     context,
-                    label: '已完成',
+                    label: t.statusItemCompletedTasks,
                     value: '${_kernelStats!['completed_tasks'] ?? 0}',
                     isInfo: true,
                   ),
                   _buildStatusItem(
                     context,
-                    label: '失败任务',
+                    label: t.statusItemFailedTasks,
                     value: '${_kernelStats!['failed_tasks'] ?? 0}',
                     isInfo: true,
                   ),
                   if (_kernelStats!['total_downloaded_bytes'] != null)
                     _buildStatusItem(
                       context,
-                      label: '总下载量',
+                      label: t.statusItemTotalDownloaded,
                       value: _formatBytes(_kernelStats!['total_downloaded_bytes']),
                       isInfo: true,
                     ),
@@ -710,24 +727,24 @@ class _StatusPageState extends State<StatusPage> {
             // 日志统计
             _buildSection(
               context,
-              title: '日志统计',
+              title: t.statusSectionLogStats,
               icon: FluentIcons.text_document,
               children: [
                 _buildStatusItem(
                   context,
-                  label: '日志条数',
+                  label: t.statusItemLogCount,
                   value: '${appLogger.logs.length}',
                   isInfo: true,
                 ),
                 _buildStatusItem(
                   context,
-                  label: '错误数',
+                  label: t.statusItemErrorCount,
                   value: '${appLogger.logs.where((log) => log.level == LogLevel.error).length}',
                   isInfo: true,
                 ),
                 _buildStatusItem(
                   context,
-                  label: '警告数',
+                  label: t.statusItemWarningCount,
                   value: '${appLogger.logs.where((log) => log.level == LogLevel.warning).length}',
                   isInfo: true,
                 ),
@@ -744,13 +761,13 @@ class _StatusPageState extends State<StatusPage> {
             // 浏览器扩展状态
             _buildSection(
               context,
-              title: '浏览器扩展',
+              title: t.statusSectionExtension,
               icon: FluentIcons.edge_logo,
               children: [
                 _buildStatusItem(
                   context,
-                  label: '提示',
-                  value: '感谢使用，现已支持软件内下载插件以及跳转至网页',
+                  label: t.statusItemTip,
+                  value: t.statusExtensionTip,
                   isInfo: true,
                 ),
                 const SizedBox(height: 12),
@@ -759,12 +776,12 @@ class _StatusPageState extends State<StatusPage> {
                     Expanded(
                       child: FilledButton(
                         onPressed: _downloadExtension,
-                        child: const Row(
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(FluentIcons.download, size: 16),
-                            SizedBox(width: 8),
-                            Text('下载扩展插件'),
+                            const Icon(FluentIcons.download, size: 16),
+                            const SizedBox(width: 8),
+                            Text(t.statusExtensionDownloadButton),
                           ],
                         ),
                       ),
@@ -773,12 +790,12 @@ class _StatusPageState extends State<StatusPage> {
                     Expanded(
                       child: Button(
                         onPressed: _openExtensionStore,
-                        child: const Row(
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(FluentIcons.edge_logo, size: 16),
-                            SizedBox(width: 8),
-                            Text('打开商店页面'),
+                            const Icon(FluentIcons.edge_logo, size: 16),
+                            const SizedBox(width: 8),
+                            Text(t.statusExtensionOpenStoreButton),
                           ],
                         ),
                       ),
@@ -809,13 +826,13 @@ class _StatusPageState extends State<StatusPage> {
     if (!Platform.isWindows) {
       return _buildSection(
         context,
-        title: '开机自启动',
+        title: t.statusSectionAutoStart,
         icon: FluentIcons.power_button,
         children: [
           _buildStatusItem(
             context,
-            label: '平台支持',
-            value: '仅支持 Windows 平台',
+            label: t.statusItemPlatformSupport,
+            value: t.statusAutoStartWindowsOnly,
             isInfo: true,
           ),
         ],
@@ -838,8 +855,8 @@ class _StatusPageState extends State<StatusPage> {
       children.add(
         _buildStatusItem(
           context,
-          label: '自启动状态',
-          value: _autoStartEnabled == true ? '已启用' : '未启用',
+          label: t.statusItemAutoStartStatus,
+          value: _autoStartEnabled == true ? t.statusValueEnabled : t.statusValueDisabled,
           isOnline: _autoStartEnabled == true,
         ),
       );
@@ -849,8 +866,8 @@ class _StatusPageState extends State<StatusPage> {
         children.add(
           _buildStatusItem(
             context,
-            label: '注册路径',
-            value: _autoStartPathCorrect == true ? '正确' : '需要更新',
+            label: t.statusItemRegistryPath,
+            value: _autoStartPathCorrect == true ? t.statusValueCorrect : t.statusValueNeedsUpdate,
             isOnline: _autoStartPathCorrect == true,
           ),
         );
@@ -860,7 +877,7 @@ class _StatusPageState extends State<StatusPage> {
           children.add(
             _buildStatusItem(
               context,
-              label: '当前注册',
+              label: t.statusItemCurrentRegistry,
               value: _registeredPath!,
               isInfo: true,
             ),
@@ -871,7 +888,7 @@ class _StatusPageState extends State<StatusPage> {
         children.add(
           _buildStatusItem(
             context,
-            label: '当前路径',
+            label: t.statusItemCurrentPath,
             value: '"${Platform.resolvedExecutable}" --autostart',
             isInfo: true,
           ),
@@ -903,7 +920,7 @@ class _StatusPageState extends State<StatusPage> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '检测到旧版本的自启动注册',
+                          t.statusAutoStartOldRegistryTitle,
                           style: FluentTheme.of(context).typography.body?.copyWith(
                             color: AppTheme.statusWarning,
                             fontWeight: FontWeight.w600,
@@ -914,7 +931,7 @@ class _StatusPageState extends State<StatusPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '注册的路径与当前可执行文件不匹配，可能是因为应用更新或移动了位置。点击下方按钮自动修复。',
+                    t.statusAutoStartOldRegistryMessage,
                     style: FluentTheme.of(context).typography.caption?.copyWith(
                       color: AppTheme.textSecondary,
                     ),
@@ -922,12 +939,12 @@ class _StatusPageState extends State<StatusPage> {
                   const SizedBox(height: 12),
                   FilledButton(
                     onPressed: _fixAutoStart,
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(FluentIcons.repair, size: 14),
-                        SizedBox(width: 6),
-                        Text('自动修复注册'),
+                        const Icon(FluentIcons.repair, size: 14),
+                        const SizedBox(width: 6),
+                        Text(t.statusAutoStartFixButton),
                       ],
                     ),
                   ),
@@ -941,7 +958,7 @@ class _StatusPageState extends State<StatusPage> {
     
     return _buildSection(
       context,
-      title: '开机自启动',
+      title: t.statusSectionAutoStart,
       icon: FluentIcons.power_button,
       children: children,
     );
@@ -951,22 +968,22 @@ class _StatusPageState extends State<StatusPage> {
   Widget _buildPopupWindowTestSection(BuildContext context) {
     return _buildSection(
       context,
-      title: '弹窗窗口测试',
+      title: t.statusSectionPopupTest,
       icon: FluentIcons.open_pane,
       children: [
         _buildStatusItem(
           context,
-          label: '说明',
-          value: '测试独立弹窗窗口功能（类似 IDM 风格）',
+          label: t.statusItemDescription,
+          value: t.statusPopupTestDescription,
           isInfo: true,
         ),
         if (_popupWindowTestResult != null) ...[
           _buildStatusItem(
             context,
-            label: '测试结果',
+            label: t.statusItemTestResult,
             value: _popupWindowTestResult!['success'] == true
-                ? '成功 (${_popupWindowTestResult!['time']}ms)'
-                : '失败: ${_popupWindowTestResult!['error'] ?? '未知错误'}',
+                ? t.statusPopupTestResultSuccess(_popupWindowTestResult!['time'])
+                : t.statusPopupTestResultFailed(_popupWindowTestResult!['error'] ?? t.statusValueUnknown),
             isOnline: _popupWindowTestResult!['success'] == true,
           ),
         ],
@@ -988,7 +1005,7 @@ class _StatusPageState extends State<StatusPage> {
                     else
                       const Icon(FluentIcons.open_pane, size: 16),
                     const SizedBox(width: 8),
-                    Text(_testingPopupWindow ? '创建中...' : '测试独立弹窗'),
+                    Text(_testingPopupWindow ? t.statusPopupTesting : t.statusPopupTestButton),
                   ],
                 ),
               ),
@@ -997,12 +1014,12 @@ class _StatusPageState extends State<StatusPage> {
             Expanded(
               child: Button(
                 onPressed: _testDialogPopup,
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(FluentIcons.comment, size: 16),
-                    SizedBox(width: 8),
-                    Text('测试 Dialog 弹窗'),
+                    const Icon(FluentIcons.comment, size: 16),
+                    const SizedBox(width: 8),
+                    Text(t.statusPopupDialogTestButton),
                   ],
                 ),
               ),
@@ -1031,7 +1048,7 @@ class _StatusPageState extends State<StatusPage> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    '测试说明',
+                    t.statusPopupTestInfoTitle,
                     style: FluentTheme.of(context).typography.body?.copyWith(
                       color: AppTheme.accentLight,
                       fontWeight: FontWeight.w600,
@@ -1042,9 +1059,7 @@ class _StatusPageState extends State<StatusPage> {
               ),
               const SizedBox(height: 8),
               Text(
-                '• 独立弹窗：使用 Tauri 创建独立窗口，不需要拉起主窗口\n'
-                '• Dialog 弹窗：传统方式，需要主窗口显示后才能弹出对话框\n'
-                '• 测试结果和耗时会记录到日志中',
+                t.statusPopupTestInfoBody,
                 style: FluentTheme.of(context).typography.caption?.copyWith(
                   color: AppTheme.textSecondary,
                   fontSize: 11,

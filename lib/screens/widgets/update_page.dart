@@ -4,6 +4,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/update_service.dart';
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/fluent_icons.dart';
 
@@ -17,6 +18,32 @@ class UpdatePage extends StatefulWidget {
 class _UpdatePageState extends State<UpdatePage> {
   final _changelogScrollController = ScrollController();
   final _updateScrollController = ScrollController();
+
+  String _getChannelDisplayName(VersionChannel channel, AppLocalizations t) {
+    switch (channel) {
+      case VersionChannel.alpha:
+        return t.updateChannelAlpha;
+      case VersionChannel.beta:
+        return t.updateChannelBeta;
+      case VersionChannel.release:
+        return t.updateChannelRelease;
+    }
+  }
+
+  String _getCheckIntervalLabel(UpdateCheckInterval interval, AppLocalizations t) {
+    switch (interval) {
+      case UpdateCheckInterval.startup:
+        return t.updateIntervalStartup;
+      case UpdateCheckInterval.hourly:
+        return t.updateIntervalHourly;
+      case UpdateCheckInterval.daily:
+        return t.updateIntervalDaily;
+      case UpdateCheckInterval.weekly:
+        return t.updateIntervalWeekly;
+      case UpdateCheckInterval.never:
+        return t.updateIntervalNever;
+    }
+  }
 
   @override
   void initState() {
@@ -37,6 +64,7 @@ class _UpdatePageState extends State<UpdatePage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     // 返回Column而不是ScaffoldPage，因为这个页面会被嵌入到settings_page的ScaffoldPage.scrollable中
     return Consumer<UpdateService>(
       builder: (context, updateService, child) {
@@ -47,21 +75,21 @@ class _UpdatePageState extends State<UpdatePage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildUpdateCheckSection(context),
+            _buildUpdateCheckSection(context, t),
             const SizedBox(height: 24),
             // 只有在没有更新时才显示当前版本信息
             if (!hasUpdate) ...[
-              _buildCurrentVersionSection(context),
+              _buildCurrentVersionSection(context, t),
               const SizedBox(height: 24),
             ],
-            _buildUpdateSettingsSection(context),
+            _buildUpdateSettingsSection(context, t),
           ],
         );
       },
     );
   }
 
-  Widget _buildCurrentVersionSection(BuildContext context) {
+  Widget _buildCurrentVersionSection(BuildContext context, AppLocalizations t) {
     return Consumer<UpdateService>(
       builder: (context, updateService, child) {
         return Container(
@@ -86,7 +114,7 @@ class _UpdatePageState extends State<UpdatePage> {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    '当前版本',
+                    t.updateCurrentVersionTitle,
                     style: FluentTheme.of(context).typography.subtitle?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -123,7 +151,7 @@ class _UpdatePageState extends State<UpdatePage> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Hanabi Download ManagerX',
+                          t.appTitle,
                           style: FluentTheme.of(context).typography.body?.copyWith(
                             color: AppTheme.textSecondary,
                           ),
@@ -135,7 +163,7 @@ class _UpdatePageState extends State<UpdatePage> {
               ),
               const SizedBox(height: 20),
               Text(
-                '更新日志',
+                t.updateChangelogTitle,
                 style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -177,8 +205,12 @@ class _UpdatePageState extends State<UpdatePage> {
               ),
               const SizedBox(height: 12),
               Button(
-                onPressed: () => _showChangelogDialog(context, 'v${updateService.currentVersion} 更新日志', updateService.getCurrentChangelog()),
-                child: const Text('查看完整日志'),
+                onPressed: () => _showChangelogDialog(
+                  context,
+                  t.updateChangelogDialogTitle(updateService.currentVersion),
+                  updateService.getCurrentChangelog(),
+                ),
+                child: Text(t.updateChangelogViewFullButton),
               ),
             ],
           ),
@@ -187,7 +219,7 @@ class _UpdatePageState extends State<UpdatePage> {
     );
   }
 
-  Widget _buildUpdateCheckSection(BuildContext context) {
+  Widget _buildUpdateCheckSection(BuildContext context, AppLocalizations t) {
     return Consumer<UpdateService>(
       builder: (context, updateService, child) {
         return Container(
@@ -215,7 +247,7 @@ class _UpdatePageState extends State<UpdatePage> {
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        '检查更新',
+                        t.updateCheckTitle,
                         style: FluentTheme.of(context).typography.subtitle?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
@@ -232,13 +264,13 @@ class _UpdatePageState extends State<UpdatePage> {
                             final confirmed = await showDialog<bool>(
                               context: context,
                               builder: (context) => ContentDialog(
-                                title: const Text('确认更新'),
+                                title: Text(t.updateConfirmTitle),
                                 content: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      '新版本已经准备好啦，为保障安装过程可以正常进行，本应用将会关闭！',
+                                      t.updateConfirmMessage,
                                       style: FluentTheme.of(context).typography.body,
                                     ),
                                     const SizedBox(height: 12),
@@ -261,7 +293,25 @@ class _UpdatePageState extends State<UpdatePage> {
                                           const SizedBox(width: 8),
                                           Expanded(
                                             child: Text(
-                                                '新版本：${updateService.availableUpdate?.version ?? updateService.latestRelease?.version ?? "未知"}\n旧版本：${updateService.currentVersion}\n变化：${updateService.currentVersion} → ${updateService.availableUpdate?.version ?? updateService.latestRelease?.version ?? "未知"}\n通道：${updateService.currentChannel.name} → ${updateService.availableUpdate?.versionInfo.channel?.name ?? updateService.latestRelease?.versionInfo.channel?.name ?? "未知"}\n全新的版本已经准备好啦，准备好更新了吗？',
+                                              t.updateConfirmDetails(
+                                                updateService.availableUpdate?.version ??
+                                                    updateService.latestRelease?.version ??
+                                                    t.updateUnknownVersion,
+                                                updateService.currentVersion,
+                                                '${updateService.currentVersion} → ${updateService.availableUpdate?.version ?? updateService.latestRelease?.version ?? t.updateUnknownVersion}',
+                                                _getChannelDisplayName(updateService.currentChannel, t),
+                                                updateService.availableUpdate?.versionInfo.channel != null
+                                                    ? _getChannelDisplayName(
+                                                        updateService.availableUpdate!.versionInfo.channel!,
+                                                        t,
+                                                      )
+                                                    : updateService.latestRelease?.versionInfo.channel != null
+                                                        ? _getChannelDisplayName(
+                                                            updateService.latestRelease!.versionInfo.channel!,
+                                                            t,
+                                                          )
+                                                        : t.updateUnknownChannel,
+                                              ),
                                               style: FluentTheme.of(context).typography.caption?.copyWith(
                                                 color: AppTheme.textSecondary,
                                               ),
@@ -275,11 +325,11 @@ class _UpdatePageState extends State<UpdatePage> {
                                 actions: [
                                   Button(
                                     onPressed: () => Navigator.pop(context, false),
-                                    child: const Text('取消'),
+                                    child: Text(t.updateConfirmCancelButton),
                                   ),
                                   FilledButton(
                                     onPressed: () => Navigator.pop(context, true),
-                                    child: const Text('确认更新'),
+                                    child: Text(t.updateConfirmProceedButton),
                                   ),
                                 ],
                               ),
@@ -295,12 +345,12 @@ class _UpdatePageState extends State<UpdatePage> {
                                 await showDialog(
                                   context: context,
                                   builder: (context) => ContentDialog(
-                                    title: const Text('启动更新器失败'),
-                                    content: const Text('无法启动 Update.exe\n问题自查\n ·请检查 Update.exe 是否被删除或移动了\n ·.NET 8 是否安装正常\n ·本软件安装包是否完整\n若均无效可以选择手动下载并安装'),
+                                    title: Text(t.updateLauncherFailedTitle),
+                                    content: Text(t.updateLauncherFailedMessage),
                                     actions: [
                                       Button(
                                         onPressed: () => Navigator.pop(context),
-                                        child: const Text('关闭'),
+                                        child: Text(t.updateLauncherFailedCloseButton),
                                       ),
                                       FilledButton(
                                         onPressed: () async {
@@ -313,7 +363,7 @@ class _UpdatePageState extends State<UpdatePage> {
                                             }
                                           }
                                         },
-                                        child: const Text('手动下载'),
+                                        child: Text(t.updateLauncherFailedManualDownloadButton),
                                       ),
                                     ],
                                   ),
@@ -335,7 +385,7 @@ class _UpdatePageState extends State<UpdatePage> {
                             children: [
                               Icon(FluentIcons.download, size: 14),
                               const SizedBox(width: 6),
-                              const Text('开始更新'),
+                              Text(t.updateStartButton),
                             ],
                           ),
                         ),
@@ -353,7 +403,7 @@ class _UpdatePageState extends State<UpdatePage> {
                           onPressed: () async {
                             await updateService.checkForUpdates();
                           },
-                          child: const Text('重新检查'),
+                          child: Text(t.updateCheckAgainButton),
                         ),
                     ],
                   ),
@@ -361,17 +411,17 @@ class _UpdatePageState extends State<UpdatePage> {
               ),
               const SizedBox(height: 16),
               if (updateService.isChecking)
-                _buildCheckingState(context)
+                _buildCheckingState(context, t)
               else if (updateService.error != null)
-                _buildErrorState(context, updateService.error!)
+                _buildErrorState(context, updateService.error!, t)
               else if (updateService.isVersionNewer)
-                _buildVersionNewerState(context, updateService)
+                _buildVersionNewerState(context, updateService, t)
               else if (updateService.hasUpdate())
-                _buildUpdateAvailable(context, updateService)
+                _buildUpdateAvailable(context, updateService, t)
               else if (updateService.lastCheckTime != null)
-                _buildNoUpdate(context)
+                _buildNoUpdate(context, t)
               else
-                _buildInitialState(context),
+                _buildInitialState(context, t),
             ],
           ),
         );
@@ -379,7 +429,7 @@ class _UpdatePageState extends State<UpdatePage> {
     );
   }
 
-  Widget _buildCheckingState(BuildContext context) {
+  Widget _buildCheckingState(BuildContext context, AppLocalizations t) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -399,7 +449,7 @@ class _UpdatePageState extends State<UpdatePage> {
           const SizedBox(width: 16),
           Expanded(
             child: Text(
-              '正在检查更新...',
+              t.updateCheckingStatus,
               style: FluentTheme.of(context).typography.body,
             ),
           ),
@@ -408,7 +458,7 @@ class _UpdatePageState extends State<UpdatePage> {
     );
   }
 
-  Widget _buildErrorState(BuildContext context, String error) {
+  Widget _buildErrorState(BuildContext context, String error, AppLocalizations t) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -431,7 +481,7 @@ class _UpdatePageState extends State<UpdatePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '检查更新失败',
+                  t.updateCheckFailedTitle,
                   style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
                     color: AppTheme.statusError,
                   ),
@@ -451,7 +501,7 @@ class _UpdatePageState extends State<UpdatePage> {
     );
   }
 
-  Widget _buildNoUpdate(BuildContext context) {
+  Widget _buildNoUpdate(BuildContext context, AppLocalizations t) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -469,23 +519,23 @@ class _UpdatePageState extends State<UpdatePage> {
             size: 24,
           ),
           const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '已是最新版本',
-                  style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                    color: AppTheme.statusSuccess,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '您正在使用最新版本',
-                  style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      t.updateLatestTitle,
+                      style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
+                        color: AppTheme.statusSuccess,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      t.updateLatestSubtitle,
+                      style: FluentTheme.of(context).typography.caption?.copyWith(
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
               ],
             ),
           ),
@@ -494,7 +544,7 @@ class _UpdatePageState extends State<UpdatePage> {
     );
   }
 
-  Widget _buildInitialState(BuildContext context) {
+  Widget _buildInitialState(BuildContext context, AppLocalizations t) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -512,7 +562,7 @@ class _UpdatePageState extends State<UpdatePage> {
           const SizedBox(width: 16),
           Expanded(
             child: Text(
-              '点击"重新检查"按钮检查最新版本',
+              t.updateInitialHint,
               style: FluentTheme.of(context).typography.body?.copyWith(
                 color: AppTheme.textSecondary,
               ),
@@ -584,7 +634,11 @@ class _UpdatePageState extends State<UpdatePage> {
     );
   }
 
-  Widget _buildVersionNewerState(BuildContext context, UpdateService updateService) {
+  Widget _buildVersionNewerState(
+    BuildContext context,
+    UpdateService updateService,
+    AppLocalizations t,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -607,14 +661,14 @@ class _UpdatePageState extends State<UpdatePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '未发布的版本',
+                  t.updateUnreleasedTitle,
                   style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
                     color: AppTheme.accentLight,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '当前版本 v${updateService.currentVersion} | 当前版本号不存在,或许为特殊版本或开发版',
+                  t.updateUnreleasedSubtitle(updateService.currentVersion),
                   style: FluentTheme.of(context).typography.caption?.copyWith(
                     color: AppTheme.textSecondary,
                   ),
@@ -632,6 +686,7 @@ class _UpdatePageState extends State<UpdatePage> {
       context: context,
       builder: (context) {
         final theme = FluentTheme.of(context);
+        final t = AppLocalizations.of(context)!;
         return Center(
           child: Container(
             width: 585,
@@ -676,7 +731,7 @@ class _UpdatePageState extends State<UpdatePage> {
                     children: [
                       Button(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text('关闭'),
+                        child: Text(t.updateDialogCloseButton),
                       ),
                     ],
                   ),
@@ -689,7 +744,7 @@ class _UpdatePageState extends State<UpdatePage> {
     );
   }
 
-  Widget _buildUpdateSettingsSection(BuildContext context) {
+  Widget _buildUpdateSettingsSection(BuildContext context, AppLocalizations t) {
     return Consumer<UpdateService>(
       builder: (context, updateService, child) {
         final hasDotNet8 = updateService.isDotNet8Installed;
@@ -716,7 +771,7 @@ class _UpdatePageState extends State<UpdatePage> {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    '更新设置',
+                    t.updateSettingsTitle,
                     style: FluentTheme.of(context).typography.subtitle?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -753,7 +808,7 @@ class _UpdatePageState extends State<UpdatePage> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              '未安装 - 推荐安装以使用自动更新器',
+                              t.updateDotNetMissingSubtitle,
                               style: FluentTheme.of(context).typography.caption?.copyWith(
                                 color: AppTheme.textSecondary,
                               ),
@@ -768,7 +823,7 @@ class _UpdatePageState extends State<UpdatePage> {
                             await launchUrl(uri, mode: LaunchMode.externalApplication);
                           }
                         },
-                        child: const Text('下载'),
+                        child: Text(t.updateDotNetDownloadButton),
                       ),
                     ],
                   ),
@@ -780,18 +835,18 @@ class _UpdatePageState extends State<UpdatePage> {
                 _buildSettingRow(
                   context,
                   title: '.NET 8 Desktop Runtime',
-                  subtitle: '已安装 - 可使用更新器',
+                  subtitle: t.updateDotNetInstalledSubtitle,
                   trailing: Button(
                     onPressed: () => updateService.checkDotNet8Installation(),
-                    child: const Text('重新检测'),
+                    child: Text(t.updateDotNetRecheckButton),
                   ),
                 ),
               if (hasDotNet8 == true) const SizedBox(height: 12),
               // 当前通道显示
               _buildSettingRow(
                 context,
-                title: '当前通道',
-                subtitle: updateService.getChannelDisplayName(updateService.currentChannel),
+                title: t.updateChannelTitle,
+                subtitle: _getChannelDisplayName(updateService.currentChannel, t),
                 trailing: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -811,14 +866,14 @@ class _UpdatePageState extends State<UpdatePage> {
               // 自动检查间隔
               _buildSettingRow(
                 context,
-                title: '自动检查更新',
-                subtitle: '设置自动检查更新的频率',
+                title: t.updateIntervalTitle,
+                subtitle: t.updateIntervalSubtitle,
                 trailing: ComboBox<UpdateCheckInterval>(
                   value: updateService.checkInterval,
                   items: UpdateCheckInterval.values.map((interval) {
                     return ComboBoxItem(
                       value: interval,
-                      child: Text(interval.displayName),
+                      child: Text(_getCheckIntervalLabel(interval, t)),
                     );
                   }).toList(),
                   onChanged: (value) {
@@ -832,8 +887,8 @@ class _UpdatePageState extends State<UpdatePage> {
               // 允许 Beta 更新
               _buildSettingRow(
                 context,
-                title: '接收 Beta 更新',
-                subtitle: '允许接收较稳定的测试版更新',
+                title: t.updateAllowBetaTitle,
+                subtitle: t.updateAllowBetaSubtitle,
                 trailing: ToggleSwitch(
                   checked: updateService.allowBeta,
                   onChanged: (value) => updateService.setAllowBeta(value),
@@ -843,8 +898,8 @@ class _UpdatePageState extends State<UpdatePage> {
               // 允许 Alpha 更新
               _buildSettingRow(
                 context,
-                title: '接收 Alpha 更新',
-                subtitle: '允许接收最新的测试版更新（可能不稳定）',
+                title: t.updateAllowAlphaTitle,
+                subtitle: t.updateAllowAlphaSubtitle,
                 trailing: ToggleSwitch(
                   checked: updateService.allowAlpha,
                   onChanged: (value) => updateService.setAllowAlpha(value),
@@ -853,7 +908,7 @@ class _UpdatePageState extends State<UpdatePage> {
               if (updateService.lastCheckTime != null) ...[
                 const SizedBox(height: 16),
                 Text(
-                  '上次检查: ${_formatDateTime(updateService.lastCheckTime!)}',
+                  t.updateLastCheckLabel(_formatDateTime(updateService.lastCheckTime!, t)),
                   style: FluentTheme.of(context).typography.caption?.copyWith(
                     color: AppTheme.textSecondary,
                   ),
@@ -910,22 +965,26 @@ class _UpdatePageState extends State<UpdatePage> {
     }
   }
 
-  String _formatDateTime(DateTime dateTime) {
+  String _formatDateTime(DateTime dateTime, AppLocalizations t) {
     final now = DateTime.now();
     final diff = now.difference(dateTime);
     
     if (diff.inMinutes < 1) {
-      return '刚刚';
+      return t.updateTimeJustNow;
     } else if (diff.inHours < 1) {
-      return '${diff.inMinutes} 分钟前';
+      return t.updateTimeMinutesAgo(diff.inMinutes);
     } else if (diff.inDays < 1) {
-      return '${diff.inHours} 小时前';
+      return t.updateTimeHoursAgo(diff.inHours);
     } else {
       return '${dateTime.month}/${dateTime.day} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
     }
   }
 
-  Widget _buildUpdateAvailable(BuildContext context, UpdateService updateService) {
+  Widget _buildUpdateAvailable(
+    BuildContext context,
+    UpdateService updateService,
+    AppLocalizations t,
+  ) {
     final release = updateService.availableUpdate ?? updateService.latestRelease!;
     final hasDotNet8 = updateService.isDotNet8Installed ?? false;
     
@@ -950,16 +1009,16 @@ class _UpdatePageState extends State<UpdatePage> {
                 size: 24,
               ),
               const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '发现新版本',
-                      style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                        color: AppTheme.statusWarning,
-                      ),
-                    ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          t.updateAvailableTitle,
+                          style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
+                            color: AppTheme.statusWarning,
+                          ),
+                        ),
                     const SizedBox(height: 4),
                     Text(
                       'v${updateService.currentVersion} → v${release.version}',
@@ -975,7 +1034,7 @@ class _UpdatePageState extends State<UpdatePage> {
         ),
         const SizedBox(height: 16),
         Text(
-          '更新内容',
+          t.updateAvailableChangelogTitle,
           style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
             fontWeight: FontWeight.w600,
           ),
@@ -1017,8 +1076,12 @@ class _UpdatePageState extends State<UpdatePage> {
         ),
         const SizedBox(height: 12),
         Button(
-          onPressed: () => _showChangelogDialog(context, 'v${release.version} 更新日志', updateService.getLatestChangelog()),
-          child: const Text('查看完整日志'),
+          onPressed: () => _showChangelogDialog(
+            context,
+            t.updateChangelogDialogTitle(release.version),
+            updateService.getLatestChangelog(),
+          ),
+          child: Text(t.updateChangelogViewFullButton),
         ),
         const SizedBox(height: 16),
         // .NET 8 提示信息
@@ -1041,22 +1104,22 @@ class _UpdatePageState extends State<UpdatePage> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '推荐安装 .NET 8',
-                        style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                          color: AppTheme.statusInfo,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          t.updateDotNetRecommendTitle,
+                          style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
+                            color: AppTheme.statusInfo,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '安装 .NET 8 Desktop Runtime 后可使用更新器自动更新',
-                        style: FluentTheme.of(context).typography.caption?.copyWith(
-                          color: AppTheme.textSecondary,
+                        const SizedBox(height: 4),
+                        Text(
+                          t.updateDotNetRecommendSubtitle,
+                          style: FluentTheme.of(context).typography.caption?.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -1067,7 +1130,7 @@ class _UpdatePageState extends State<UpdatePage> {
                       await launchUrl(uri, mode: LaunchMode.externalApplication);
                     }
                   },
-                  child: const Text('下载 .NET 8'),
+                  child: Text(t.updateDotNetRecommendButton),
                 ),
               ],
             ),

@@ -10,6 +10,7 @@ import '../../widgets/settings_components.dart';
 import '../../widgets/animated_notifications.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/fluent_icons.dart' as CustomIcons;
+import '../../l10n/app_localizations.dart';
 
 class PerformanceMonitorPage extends StatefulWidget {
   const PerformanceMonitorPage({super.key});
@@ -21,6 +22,7 @@ class PerformanceMonitorPage extends StatefulWidget {
 class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
   final _performanceMonitor = PerformanceMonitorService();
   final _notificationSettings = NotificationSettingsService();
+  AppLocalizations get t => AppLocalizations.of(context)!;
 
   @override
   void initState() {
@@ -93,13 +95,15 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '性能监控',
+                t.performanceMonitorTitle,
                 style: FluentTheme.of(context).typography.subtitle?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
-                isMonitoring ? '正在监控中...' : '点击开始监控以收集性能数据',
+                isMonitoring
+                    ? t.performanceMonitorStatusRunning
+                    : t.performanceMonitorStatusIdle,
                 style: FluentTheme.of(context).typography.caption?.copyWith(
                   color: AppTheme.textSecondary,
                 ),
@@ -130,7 +134,7 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
                 size: 16,
               ),
               const SizedBox(width: 8),
-              Text(isMonitoring ? '停止监控' : '开始监控'),
+              Text(isMonitoring ? t.performanceMonitorButtonStop : t.performanceMonitorButtonStart),
             ],
           ),
         ),
@@ -169,7 +173,7 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
               ),
               const SizedBox(width: 8),
               Text(
-                '实时数据',
+                t.performanceMonitorRealtimeTitle,
                 style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
                   color: isJank ? Colors.red : null,
                 ),
@@ -183,7 +187,7 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    'JANK',
+                    t.performanceMonitorJankBadge,
                     style: FluentTheme.of(context).typography.caption?.copyWith(
                       color: Colors.red,
                       fontWeight: FontWeight.bold,
@@ -196,13 +200,13 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _buildMetricCard(context, 'FPS', fps.toStringAsFixed(1), _getFpsColor(fps))),
+              Expanded(child: _buildMetricCard(context, t.performanceMonitorMetricFps, fps.toStringAsFixed(1), _getFpsColor(fps))),
               const SizedBox(width: 12),
-              Expanded(child: _buildMetricCard(context, 'Build', '${buildTime.toStringAsFixed(2)} ms', _getTimeColor(buildTime))),
+              Expanded(child: _buildMetricCard(context, t.performanceMonitorMetricBuild, '${buildTime.toStringAsFixed(2)} ms', _getTimeColor(buildTime))),
               const SizedBox(width: 12),
-              Expanded(child: _buildMetricCard(context, 'Raster', '${rasterTime.toStringAsFixed(2)} ms', _getTimeColor(rasterTime))),
+              Expanded(child: _buildMetricCard(context, t.performanceMonitorMetricRaster, '${rasterTime.toStringAsFixed(2)} ms', _getTimeColor(rasterTime))),
               const SizedBox(width: 12),
-              Expanded(child: _buildMetricCard(context, 'Total', '${totalTime.toStringAsFixed(2)} ms', _getTimeColor(totalTime))),
+              Expanded(child: _buildMetricCard(context, t.performanceMonitorMetricTotal, '${totalTime.toStringAsFixed(2)} ms', _getTimeColor(totalTime))),
             ],
           ),
         ],
@@ -244,24 +248,24 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
 
   Widget _buildStatsPanel(BuildContext context, PerformanceStats stats) {
     return SettingsSection(
-      title: '统计摘要',
+      title: t.performanceMonitorStatsTitle,
       icon: CustomIcons.FluentIcons.chart,
       children: [
-        _buildStatRow(context, '总帧数', '${stats.totalFrames}'),
-        _buildStatRow(context, '卡顿帧数', '${stats.jankFrames}',
+        _buildStatRow(context, t.performanceMonitorStatTotalFrames, '${stats.totalFrames}'),
+        _buildStatRow(context, t.performanceMonitorStatJankFrames, '${stats.jankFrames}',
             valueColor: stats.jankFrames > 0 ? Colors.orange : null),
-        _buildStatRow(context, '卡顿率', '${stats.jankRate.toStringAsFixed(2)}%',
+        _buildStatRow(context, t.performanceMonitorStatJankRate, '${stats.jankRate.toStringAsFixed(2)}%',
             valueColor: _getJankRateColor(stats.jankRate)),
         const Divider(),
-        _buildStatRow(context, '平均 Build 时间', '${stats.avgBuildTime.toStringAsFixed(2)} ms'),
-        _buildStatRow(context, '平均 Raster 时间', '${stats.avgRasterTime.toStringAsFixed(2)} ms'),
-        _buildStatRow(context, '平均 Total 时间', '${stats.avgTotalTime.toStringAsFixed(2)} ms'),
+        _buildStatRow(context, t.performanceMonitorStatAvgBuildTime, '${stats.avgBuildTime.toStringAsFixed(2)} ms'),
+        _buildStatRow(context, t.performanceMonitorStatAvgRasterTime, '${stats.avgRasterTime.toStringAsFixed(2)} ms'),
+        _buildStatRow(context, t.performanceMonitorStatAvgTotalTime, '${stats.avgTotalTime.toStringAsFixed(2)} ms'),
         const Divider(),
-        _buildStatRow(context, '最大 Build 时间', '${stats.maxBuildTime.toStringAsFixed(2)} ms',
+        _buildStatRow(context, t.performanceMonitorStatMaxBuildTime, '${stats.maxBuildTime.toStringAsFixed(2)} ms',
             valueColor: _getTimeColor(stats.maxBuildTime)),
-        _buildStatRow(context, '最大 Raster 时间', '${stats.maxRasterTime.toStringAsFixed(2)} ms',
+        _buildStatRow(context, t.performanceMonitorStatMaxRasterTime, '${stats.maxRasterTime.toStringAsFixed(2)} ms',
             valueColor: _getTimeColor(stats.maxRasterTime)),
-        _buildStatRow(context, '最大 Total 时间', '${stats.maxTotalTime.toStringAsFixed(2)} ms',
+        _buildStatRow(context, t.performanceMonitorStatMaxTotalTime, '${stats.maxTotalTime.toStringAsFixed(2)} ms',
             valueColor: _getTimeColor(stats.maxTotalTime)),
       ],
     );
@@ -271,18 +275,18 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
     final topRebuilds = _performanceMonitor.getTopRebuilds(limit: 10);
 
     return SettingsSection(
-      title: 'Widget 重建统计',
+      title: t.performanceMonitorRebuildTitle,
       icon: CustomIcons.FluentIcons.refresh,
       children: [
-        _buildStatRow(context, '总重建次数', '${stats.totalRebuilds}',
+        _buildStatRow(context, t.performanceMonitorRebuildTotal, '${stats.totalRebuilds}',
             valueColor: stats.totalRebuilds > 100 ? Colors.orange : null),
-        _buildStatRow(context, '追踪的 Widget 数', '${stats.trackedWidgets}'),
+        _buildStatRow(context, t.performanceMonitorRebuildTracked, '${stats.trackedWidgets}'),
         if (topRebuilds.isNotEmpty) ...[
           const Divider(),
           Padding(
             padding: const EdgeInsets.only(top: 8, bottom: 4),
             child: Text(
-              '重建次数最多的 Widget',
+              t.performanceMonitorRebuildTopTitle,
               style: FluentTheme.of(context).typography.caption?.copyWith(
                 color: AppTheme.textSecondary,
                 fontWeight: FontWeight.w600,
@@ -296,7 +300,7 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Center(
               child: Text(
-                '暂无重建数据\n在代码中调用 trackRebuild() 来追踪',
+                t.performanceMonitorRebuildEmpty,
                 textAlign: TextAlign.center,
                 style: FluentTheme.of(context).typography.caption?.copyWith(
                   color: AppTheme.textTertiary,
@@ -380,7 +384,7 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
     final frames = _performanceMonitor.frameHistory;
 
     return SettingsSection(
-      title: '帧时间图表 (最近 ${frames.length} 帧)',
+      title: t.performanceMonitorFrameChartTitle(frames.length),
       icon: CustomIcons.FluentIcons.timeline_progress,
       children: [
         Container(
@@ -392,7 +396,7 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
           child: frames.isEmpty
               ? Center(
                   child: Text(
-                    '暂无数据，请开始监控',
+                    t.performanceMonitorFrameChartEmpty,
                     style: FluentTheme.of(context).typography.caption?.copyWith(
                       color: AppTheme.textTertiary,
                     ),
@@ -407,11 +411,11 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildLegend(context, '正常帧', AppTheme.statusSuccess),
+            _buildLegend(context, t.performanceMonitorLegendNormal, AppTheme.statusSuccess),
             const SizedBox(width: 16),
-            _buildLegend(context, '卡顿帧 (>16.67ms)', Colors.red),
+            _buildLegend(context, t.performanceMonitorLegendJankMs(16.67), Colors.red),
             const SizedBox(width: 16),
-            _buildLegend(context, '60fps 阈值', Colors.orange),
+            _buildLegend(context, t.performanceMonitorLegendFpsThreshold, Colors.orange),
           ],
         ),
       ],
@@ -446,20 +450,22 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
     final windowEffect = context.watch<WindowEffectService>();
 
     return SettingsSection(
-      title: '当前渲染设置',
+      title: t.performanceMonitorSettingsTitle,
       icon: CustomIcons.FluentIcons.settings,
       children: [
-        _buildStatRow(context, '性能模式', _getPerformanceModeName(_notificationSettings.performanceMode)),
-        _buildStatRow(context, '模糊效果', _notificationSettings.enableBlur ? '启用' : '禁用'),
-        _buildStatRow(context, '模糊强度', '${_notificationSettings.blurSigma.toStringAsFixed(1)}'),
+        _buildStatRow(context, t.performanceMonitorSettingsModeLabel, _getPerformanceModeName(_notificationSettings.performanceMode)),
+        _buildStatRow(context, t.performanceMonitorSettingsBlurLabel, _notificationSettings.enableBlur ? t.performanceMonitorValueEnabled : t.performanceMonitorValueDisabled),
+        _buildStatRow(context, t.performanceMonitorSettingsBlurStrengthLabel, '${_notificationSettings.blurSigma.toStringAsFixed(1)}'),
         const Divider(),
         _buildStatRow(
           context,
-          '窗口特效',
-          windowEffect.effectEnabled ? '启用 (${windowEffect.effectMode})' : '禁用',
+          t.performanceMonitorSettingsWindowEffectLabel,
+          windowEffect.effectEnabled
+              ? t.performanceMonitorWindowEffectEnabled(windowEffect.effectMode)
+              : t.performanceMonitorValueDisabled,
           valueColor: windowEffect.effectEnabled ? Colors.orange : AppTheme.statusSuccess,
         ),
-        _buildStatRow(context, '亚克力透明度', '${windowEffect.alpha}'),
+        _buildStatRow(context, t.performanceMonitorSettingsAcrylicOpacityLabel, '${windowEffect.alpha}'),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(12),
@@ -487,8 +493,8 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
               Expanded(
                 child: Text(
                   windowEffect.effectEnabled
-                      ? '窗口特效已启用，可能影响性能。如果卡顿率较高，建议在"设置 → 界面 → 窗口效果"中关闭'
-                      : '窗口特效已禁用，性能最佳。如需视觉效果可在"设置 → 界面 → 窗口效果"中开启',
+                      ? t.performanceMonitorWindowEffectHintEnabled
+                      : t.performanceMonitorWindowEffectHintDisabled,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
                     color: windowEffect.effectEnabled ? Colors.orange.darker : AppTheme.statusSuccess,
                   ),
@@ -514,7 +520,7 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
               children: [
                 Icon(CustomIcons.FluentIcons.save, size: 16),
                 const SizedBox(width: 8),
-                const Text('导出日志'),
+                Text(t.performanceMonitorActionExport),
               ],
             ),
           ),
@@ -530,7 +536,7 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
               children: [
                 Icon(CustomIcons.FluentIcons.copy, size: 16),
                 const SizedBox(width: 8),
-                const Text('复制到剪贴板'),
+                Text(t.performanceMonitorActionCopy),
               ],
             ),
           ),
@@ -542,14 +548,14 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
                 ? null
                 : () {
                     _performanceMonitor.clearHistory();
-                    _showInfoBar(context, '已清空', '历史数据已清空');
+                    _showInfoBar(context, t.performanceMonitorToastClearedTitle, t.performanceMonitorToastClearedMessage);
                   },
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(CustomIcons.FluentIcons.delete, size: 16),
                 const SizedBox(width: 8),
-                const Text('清空数据'),
+                Text(t.performanceMonitorActionClear),
               ],
             ),
           ),
@@ -567,11 +573,20 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
       await file.writeAsString(log);
 
       if (mounted) {
-        _showInfoBar(context, '导出成功', '日志已保存到: ${file.path}');
+        _showInfoBar(
+          context,
+          t.performanceMonitorToastExportSuccessTitle,
+          t.performanceMonitorToastExportSuccessMessage(file.path),
+        );
       }
     } catch (e) {
       if (mounted) {
-        _showInfoBar(context, '导出失败', e.toString(), isError: true);
+        _showInfoBar(
+          context,
+          t.performanceMonitorToastExportFailedTitle,
+          t.performanceMonitorToastExportFailedMessage(e),
+          isError: true,
+        );
       }
     }
   }
@@ -579,7 +594,11 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
   void _copyToClipboard(BuildContext context) {
     final log = _performanceMonitor.exportLog();
     Clipboard.setData(ClipboardData(text: log));
-    _showInfoBar(context, '已复制', '性能日志已复制到剪贴板');
+    _showInfoBar(
+      context,
+      t.performanceMonitorToastCopiedTitle,
+      t.performanceMonitorToastCopiedMessage,
+    );
   }
 
   void _showInfoBar(BuildContext context, String title, String message, {bool isError = false}) {
@@ -611,11 +630,11 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
   String _getPerformanceModeName(NotificationPerformanceMode mode) {
     switch (mode) {
       case NotificationPerformanceMode.quality:
-        return '高质量';
+        return t.performanceMonitorModeQuality;
       case NotificationPerformanceMode.balanced:
-        return '平衡';
+        return t.performanceMonitorModeBalanced;
       case NotificationPerformanceMode.performance:
-        return '性能优先';
+        return t.performanceMonitorModePerformance;
     }
   }
 }

@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../theme/app_theme.dart';
 import '../../../services/user_profile_service.dart';
 import '../../../services/online_stats_service.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../widgets/animated_notifications.dart';
 
 class OnlineStatsPage extends StatefulWidget {
@@ -16,6 +17,7 @@ class _OnlineStatsPageState extends State<OnlineStatsPage> {
   final _statsService = OnlineStatsService();
   final _userProfile = UserProfileService();
   bool _isSendingHeartbeat = false;
+  AppLocalizations get t => AppLocalizations.of(context)!;
   
   @override
   void initState() {
@@ -55,7 +57,7 @@ class _OnlineStatsPageState extends State<OnlineStatsPage> {
               child: const Icon(FluentIcons.people, size: 18, color: AppTheme.accentLight),
             ),
             const SizedBox(width: 14),
-            const Text('当前与你同行的人'),
+            Text(t.onlineStatsPageTitle),
           ],
         ),
       ),
@@ -133,7 +135,7 @@ class _OnlineStatsPageState extends State<OnlineStatsPage> {
                                 ),
                                 const SizedBox(width: 12),
                                 Text(
-                                  '位',
+                                  t.onlineStatsCountUnit,
                                   style: FluentTheme.of(context).typography.title?.copyWith(
                                     fontSize: 24,
                                     color: AppTheme.textSecondary,
@@ -146,7 +148,9 @@ class _OnlineStatsPageState extends State<OnlineStatsPage> {
                           
                           // 说明文字
                           Text(
-                            othersOnline == 0 ? '暂时只有你在使用 Hanabi' : '除了你，还有 $othersOnline 位用户正在使用 Hanabi',
+                            othersOnline == 0
+                                ? t.onlineStatsAloneMessage
+                                : t.onlineStatsOthersMessage(othersOnline),
                             style: FluentTheme.of(context).typography.body?.copyWith(
                               color: AppTheme.textSecondary,
                               fontSize: 15,
@@ -157,7 +161,7 @@ class _OnlineStatsPageState extends State<OnlineStatsPage> {
                           if (!isLoading && totalOnline > 0) ...[
                             const SizedBox(height: 8),
                             Text(
-                              '（包括你在内共 $totalOnline 位）',
+                              t.onlineStatsTotalMessage(totalOnline),
                               style: FluentTheme.of(context).typography.caption?.copyWith(
                                 color: AppTheme.textTertiary,
                                 fontSize: 13,
@@ -202,7 +206,7 @@ class _OnlineStatsPageState extends State<OnlineStatsPage> {
                           ),
                           const SizedBox(width: 12),
                           Text(
-                            '当前我的状态',
+                            t.onlineStatsMyStatusTitle,
                             style: FluentTheme.of(context).typography.subtitle?.copyWith(
                               fontWeight: FontWeight.w600,
                               color: AppTheme.textPrimary,
@@ -212,13 +216,14 @@ class _OnlineStatsPageState extends State<OnlineStatsPage> {
                         ],
                       ),
                       const SizedBox(height: 20),
-                      _buildInfoRow(context, '设备 ID', _userProfile.deviceId ?? '未初始化'),
+                      _buildInfoRow(context, t.onlineStatsDeviceIdLabel,
+                          _userProfile.deviceId ?? t.onlineStatsNotInitialized),
                       const SizedBox(height: 12),
-                      _buildInfoRow(context, '应用版本', _userProfile.appVersion),
+                      _buildInfoRow(context, t.onlineStatsAppVersionLabel, _userProfile.appVersion),
                       const SizedBox(height: 12),
-                      _buildInfoRow(context, '心跳间隔', '每 5 分钟自动发送'),
+                      _buildInfoRow(context, t.onlineStatsHeartbeatLabel, t.onlineStatsHeartbeatValue),
                       const SizedBox(height: 12),
-                      _buildInfoRow(context, '统计服务器', 'zzbuaoye.top'),
+                      _buildInfoRow(context, t.onlineStatsServerLabel, 'zzbuaoye.top'),
                     ],
                   ),
                 ),
@@ -246,7 +251,7 @@ class _OnlineStatsPageState extends State<OnlineStatsPage> {
                               ),
                               const SizedBox(width: 12),
                               Text(
-                                '发送中...',
+                                t.onlineStatsSending,
                                 style: FluentTheme.of(context).typography.body?.copyWith(
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -259,7 +264,7 @@ class _OnlineStatsPageState extends State<OnlineStatsPage> {
                               const Icon(FluentIcons.sync, size: 16),
                               const SizedBox(width: 8),
                               Text(
-                                '向服务器发送我的信号',
+                                t.onlineStatsSendSignalButton,
                                 style: FluentTheme.of(context).typography.body?.copyWith(
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -280,7 +285,7 @@ class _OnlineStatsPageState extends State<OnlineStatsPage> {
                     HyperlinkButton(
                       onPressed: () => _openUrl('https://x.zzbuaoye.top/privacy'),
                       child: Text(
-                        '隐私条款',
+                        t.onlineStatsPrivacyPolicy,
                         style: FluentTheme.of(context).typography.caption?.copyWith(
                           color: AppTheme.accentLight,
                           fontSize: 13,
@@ -296,7 +301,7 @@ class _OnlineStatsPageState extends State<OnlineStatsPage> {
                     HyperlinkButton(
                       onPressed: () => _openUrl('https://x.zzbuaoye.top/terms'),
                       child: Text(
-                        '服务条款',
+                        t.onlineStatsTermsOfService,
                         style: FluentTheme.of(context).typography.caption?.copyWith(
                           color: AppTheme.accentLight,
                           fontSize: 13,
@@ -312,7 +317,7 @@ class _OnlineStatsPageState extends State<OnlineStatsPage> {
                     HyperlinkButton(
                       onPressed: () => _openUrl('https://x.zzbuaoye.top'),
                       child: Text(
-                        '官网地址',
+                        t.onlineStatsOfficialSite,
                         style: FluentTheme.of(context).typography.caption?.copyWith(
                           color: AppTheme.accentLight,
                           fontSize: 13,
@@ -366,12 +371,21 @@ class _OnlineStatsPageState extends State<OnlineStatsPage> {
       
       if (mounted) {
         if (result['success'] == true) {
-          NotificationManager.of(context)?.showSuccess('发送成功', message: '您的信号已成功发送到服务器');
+          NotificationManager.of(context)?.showSuccess(
+            t.onlineStatsSendSuccessTitle,
+            message: t.onlineStatsSendSuccessMessage,
+          );
         } else if (result['message'] == 'cooldown') {
           final remainingMinutes = result['remaining_minutes'] ?? 5;
-          NotificationManager.of(context)?.showInfo('服务器已标记在线', message: '您的在线状态已被服务器记录，请在 $remainingMinutes 分钟后再试');
+          NotificationManager.of(context)?.showInfo(
+            t.onlineStatsCooldownTitle,
+            message: t.onlineStatsCooldownMessage(remainingMinutes),
+          );
         } else {
-          NotificationManager.of(context)?.showError('发送失败', message: result['message'] ?? '无法连接到统计服务器，请检查网络连接');
+          NotificationManager.of(context)?.showError(
+            t.onlineStatsSendFailedTitle,
+            message: result['message'] ?? t.onlineStatsSendFailedMessage,
+          );
         }
       }
     } finally {
@@ -392,11 +406,11 @@ class _OnlineStatsPageState extends State<OnlineStatsPage> {
           await showDialog(
             context: context,
             builder: (context) => ContentDialog(
-              title: const Text('无法打开链接'),
-              content: Text('请手动在浏览器中访问：\n$urlString'),
+              title: Text(t.onlineStatsOpenLinkFailedTitle),
+              content: Text(t.onlineStatsOpenLinkFailedMessage(urlString)),
               actions: [
                 FilledButton(
-                  child: const Text('确定'),
+                  child: Text(t.onlineStatsDialogOk),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
@@ -409,11 +423,11 @@ class _OnlineStatsPageState extends State<OnlineStatsPage> {
         await showDialog(
           context: context,
           builder: (context) => ContentDialog(
-            title: const Text('打开失败'),
-            content: Text('错误：$e\n\n请手动在浏览器中访问：\n$urlString'),
+            title: Text(t.onlineStatsOpenFailedTitle),
+            content: Text(t.onlineStatsOpenFailedMessage(e, urlString)),
             actions: [
               FilledButton(
-                child: const Text('确定'),
+                child: Text(t.onlineStatsDialogOk),
                 onPressed: () => Navigator.pop(context),
               ),
             ],

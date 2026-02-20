@@ -16,6 +16,8 @@ import '../../services/window_effect_service.dart';
 import '../../services/client_config_service.dart';
 import '../../services/notification_settings_service.dart';
 import '../../services/performance_monitor_service.dart';
+import '../../services/localization_service.dart';
+import '../../l10n/app_localizations.dart';
 import '../../widgets/animated_notifications.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/fluent_icons.dart' as CustomIcons;
@@ -233,7 +235,11 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     
     // 显示提示字体已应用
     if (mounted) {
-      NotificationManager.of(context)?.showSuccess('字体已更改', message: '新字体已应用到整个应用');
+      final t = AppLocalizations.of(context)!;
+      NotificationManager.of(context)?.showSuccess(
+        t.appearanceFontChangedTitle,
+        message: t.appearanceFontChangedMessage,
+      );
     }
   }
 
@@ -292,51 +298,52 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     setState(() => _performanceMode = value);
   }
 
-  String _getNotificationColorSchemeName(String scheme) {
+  String _getNotificationColorSchemeName(String scheme, AppLocalizations t) {
     switch (scheme) {
       case 'defaultScheme':
-        return '跟随主题';
+        return t.appearanceNotificationSchemeSystem;
       case 'light':
-        return '浅色系';
+        return t.appearanceNotificationSchemeLight;
       case 'dark':
-        return '深色系';
+        return t.appearanceNotificationSchemeDark;
       case 'fluent2':
-        return 'Fluent 2 色系（推荐）';
+        return t.appearanceNotificationSchemeFluent2;
       default:
-        return '未知';
+        return t.appearanceNotificationSchemeUnknown;
     }
   }
   
-  String _getNotificationPositionName(String position) {
+  String _getNotificationPositionName(String position, AppLocalizations t) {
     switch (position) {
       case 'topRight':
-        return '右上角（标题栏下方）';
+        return t.appearanceNotificationPositionTopRight;
       case 'bottomRight':
-        return '右下角';
+        return t.appearanceNotificationPositionBottomRight;
       default:
-        return '未知';
+        return t.appearanceNotificationPositionUnknown;
     }
   }
 
-  String _getPerformanceModeName(String mode) {
+  String _getPerformanceModeName(String mode, AppLocalizations t) {
     switch (mode) {
       case 'quality':
-        return '高质量（完整毛玻璃效果）';
+        return t.appearancePerformanceModeQuality;
       case 'balanced':
-        return '平衡（轻度毛玻璃）';
+        return t.appearancePerformanceModeBalanced;
       case 'performance':
-        return '性能优先（无毛玻璃，推荐）';
+        return t.appearancePerformanceModePerformance;
       default:
-        return '未知';
+        return t.appearancePerformanceModeUnknown;
     }
   }
 
   void _showTestNotification() {
     final notificationManager = NotificationManager.of(context);
     if (notificationManager != null) {
+      final t = AppLocalizations.of(context)!;
       notificationManager.showSuccess(
-        '测试通知',
-        message: '这是一条测试通知消息',
+        t.appearanceNotificationTestTitle,
+        message: t.appearanceNotificationTestMessage,
       );
     }
   }
@@ -345,6 +352,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
   Widget _buildNotificationPreview(BuildContext context) {
     final notificationSettings = NotificationSettingsService();
     final isDark = FluentTheme.of(context).brightness == Brightness.dark;
+    final t = AppLocalizations.of(context)!;
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -357,7 +365,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             ),
             const SizedBox(width: 6),
             Text(
-              '配色预览',
+              t.appearanceNotificationPreviewTitle,
               style: FluentTheme.of(context).typography.caption?.copyWith(
                 color: AppTheme.textSecondary,
                 fontSize: 11,
@@ -380,8 +388,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             children: [
               _buildPreviewNotificationCard(
                 context,
-                title: '成功通知',
-                message: '操作已成功完成',
+                title: t.appearanceNotificationPreviewSuccessTitle,
+                message: t.appearanceNotificationPreviewSuccessMessage,
                 icon: CustomIcons.FluentIcons.completed_solid,
                 color: notificationSettings.getSuccessColor(isDark),
                 isDark: isDark,
@@ -389,8 +397,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
               const SizedBox(height: 10),
               _buildPreviewNotificationCard(
                 context,
-                title: '警告通知',
-                message: '请注意此操作的影响',
+                title: t.appearanceNotificationPreviewWarningTitle,
+                message: t.appearanceNotificationPreviewWarningMessage,
                 icon: CustomIcons.FluentIcons.warning,
                 color: notificationSettings.getWarningColor(isDark),
                 isDark: isDark,
@@ -398,8 +406,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
               const SizedBox(height: 10),
               _buildPreviewNotificationCard(
                 context,
-                title: '错误通知',
-                message: '操作失败，请重试',
+                title: t.appearanceNotificationPreviewErrorTitle,
+                message: t.appearanceNotificationPreviewErrorMessage,
                 icon: CustomIcons.FluentIcons.status_error_full,
                 color: notificationSettings.getErrorColor(isDark),
                 isDark: isDark,
@@ -407,8 +415,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
               const SizedBox(height: 10),
               _buildPreviewNotificationCard(
                 context,
-                title: '信息通知',
-                message: '这是一条提示信息',
+                title: t.appearanceNotificationPreviewInfoTitle,
+                message: t.appearanceNotificationPreviewInfoMessage,
                 icon: CustomIcons.FluentIcons.info,
                 color: notificationSettings.getInfoColor(isDark),
                 isDark: isDark,
@@ -565,10 +573,11 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
 
   Future<void> _importCustomFont() async {
     try {
+      final t = AppLocalizations.of(context)!;
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['ttf', 'otf'],
-        dialogTitle: '选择字体文件',
+        dialogTitle: t.appearanceFontImportDialogTitle,
       );
 
       if (result != null && result.files.single.path != null) {
@@ -576,7 +585,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         
         if (mounted) {
           // 显示加载提示
-          NotificationManager.of(context)?.showInfo('正在导入字体...', message: '请稍候');
+          NotificationManager.of(context)?.showInfo(
+            t.appearanceFontImportingTitle,
+            message: t.appearanceFontImportingMessage,
+          );
         }
 
         final fontService = context.read<FontService>();
@@ -587,35 +599,46 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             // 重新加载字体列表
             await _loadAvailableFonts();
             
-            NotificationManager.of(context)?.showSuccess('导入成功', message: '字体已成功导入');
+            NotificationManager.of(context)?.showSuccess(
+              t.appearanceFontImportSuccessTitle,
+              message: t.appearanceFontImportSuccessMessage,
+            );
           } else {
-            NotificationManager.of(context)?.showError('导入失败', message: '无法导入字体文件，请检查文件格式');
+            NotificationManager.of(context)?.showError(
+              t.appearanceFontImportFailedTitle,
+              message: t.appearanceFontImportFailedMessage,
+            );
           }
         }
       }
     } catch (e) {
       debugPrint('Error importing font: $e');
       if (mounted) {
-        NotificationManager.of(context)?.showError('导入失败', message: '发生错误: $e');
+        final t = AppLocalizations.of(context)!;
+        NotificationManager.of(context)?.showError(
+          t.appearanceFontImportFailedTitle,
+          message: t.appearanceFontImportFailedWithErrorMessage(e.toString()),
+        );
         Clipboard.setData(ClipboardData(text: e.toString()));
       }
     }
   }
 
   Future<void> _removeCustomFont(String fontName) async {
+    final t = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => ContentDialog(
-        title: const Text('确认删除'),
-        content: Text('确定要删除字体 "$fontName" 吗？'),
+        title: Text(t.appearanceFontDeleteConfirmTitle),
+        content: Text(t.appearanceFontDeleteConfirmMessage(fontName)),
         actions: [
           Button(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
+            child: Text(t.appearanceFontDeleteCancelButton),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除'),
+            child: Text(t.appearanceFontDeleteConfirmButton),
           ),
         ],
       ),
@@ -628,9 +651,15 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
       if (mounted) {
         if (success) {
           await _loadAvailableFonts();
-          NotificationManager.of(context)?.showSuccess('删除成功', message: '字体已删除');
+          NotificationManager.of(context)?.showSuccess(
+            t.appearanceFontDeleteSuccessTitle,
+            message: t.appearanceFontDeleteSuccessMessage,
+          );
         } else {
-          NotificationManager.of(context)?.showError('删除失败', message: '无法删除字体');
+          NotificationManager.of(context)?.showError(
+            t.appearanceFontDeleteFailedTitle,
+            message: t.appearanceFontDeleteFailedMessage,
+          );
         }
       }
     }
@@ -644,6 +673,27 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     final windowEffect = context.watch<WindowEffectService>();
     final alpha = windowEffect.alpha;
     final clientConfig = context.watch<ClientConfigService>();
+    final localizationService = context.watch<LocalizationService>();
+    final t = AppLocalizations.of(context)!;
+
+    final packs = [...localizationService.languagePacks]
+      ..sort((a, b) => a.localeTag.compareTo(b.localeTag));
+    final languageLabels = <String, String>{
+      'system': t.appearanceLanguageSystem,
+      'zh': t.appearanceLanguageChinese,
+      'en': t.appearanceLanguageEnglish,
+    };
+    for (final pack in packs) {
+      if (languageLabels.containsKey(pack.localeTag)) continue;
+      final name = (pack.name ?? '').trim();
+      final label = name.isEmpty ? pack.localeTag : '$name (${pack.localeTag})';
+      languageLabels[pack.localeTag] = label;
+    }
+    final languagePreference = localizationService.languagePreference;
+    final selectedLanguage = languageLabels.containsKey(languagePreference)
+        ? languagePreference
+        : 'system';
+    final langDir = '${clientConfig.baseDir}${Platform.pathSeparator}lang';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -654,7 +704,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         // 窗口大小设置
         _buildSection(
           context,
-          title: '窗口大小',
+          title: t.appearanceWindowSizeSection,
           icon: CustomIcons.FluentIcons.full_screen,
           children: [
             _buildWindowSizeSettings(context, clientConfig),
@@ -665,13 +715,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         // UI 缩放设置
         _buildSection(
           context,
-          title: 'UI 缩放',
+          title: t.appearanceUiScaleSection,
           icon: CustomIcons.FluentIcons.font_size,
           children: [
             _buildSettingItem(
               context,
-              title: '界面缩放比例',
-              subtitle: '调整整个应用的UI缩放，适配高分辨率屏幕 (50%-200%)',
+              title: t.appearanceUiScaleTitle,
+              subtitle: t.appearanceUiScaleSubtitle,
               trailing: SizedBox(
                 width: 250,
                 child: Row(
@@ -708,7 +758,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                     onPressed: () async {
                       await clientConfig.setWindowScaleFactor(1.0);
                       if (mounted) {
-                        NotificationManager.of(context)?.showInfo('已重置', message: 'UI缩放已重置为100%');
+                        NotificationManager.of(context)?.showInfo(
+                          t.appearanceUiScaleResetTitle,
+                          message: t.appearanceUiScaleResetMessage,
+                        );
                       }
                     },
                     child: Row(
@@ -716,7 +769,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                       children: [
                         Icon(CustomIcons.FluentIcons.refresh, size: 14),
                         SizedBox(width: 6),
-                        Text('重置为100%'),
+                        Text(t.appearanceUiScaleResetButton),
                       ],
                     ),
                   ),
@@ -727,7 +780,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                     onPressed: () async {
                       await clientConfig.setWindowScaleFactor(1.25);
                       if (mounted) {
-                        NotificationManager.of(context)?.showSuccess('已应用', message: 'UI缩放已设为125% (推荐4K屏幕)');
+                        NotificationManager.of(context)?.showSuccess(
+                          t.appearanceUiScaleApplyTitle,
+                          message: t.appearanceUiScaleApplyMessage,
+                        );
                       }
                     },
                     child: Row(
@@ -735,7 +791,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                       children: [
                         Icon(CustomIcons.FluentIcons.full_screen, size: 14),
                         SizedBox(width: 6),
-                        Text('4K推荐 (125%)'),
+                        Text(t.appearanceUiScale4kButton),
                       ],
                     ),
                   ),
@@ -762,7 +818,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      '调整此设置可以让应用在高分辨率屏幕上显示更清晰。4K屏幕推荐125%-150%',
+                      t.appearanceUiScaleHint,
                       style: FluentTheme.of(context).typography.caption?.copyWith(
                         color: Colors.white.withValues(alpha: 0.7),
                       ),
@@ -774,17 +830,90 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
           ],
         ),
         const SizedBox(height: 24),
+
+        // 语言设置
+        _buildSection(
+          context,
+          title: t.appearanceSectionLanguage,
+          icon: CustomIcons.FluentIcons.globe,
+          children: [
+            _buildSettingItem(
+              context,
+              title: t.appearanceLanguageTitle,
+              subtitle: t.appearanceLanguageSubtitle,
+              trailing: SizedBox(
+                width: 250,
+                child: ComboBox<String>(
+                  value: selectedLanguage,
+                  items: languageLabels.entries
+                      .map(
+                        (entry) => ComboBoxItem(
+                          value: entry.key,
+                          child: Text(entry.value),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) async {
+                    if (value == null) return;
+                    await localizationService.setLanguagePreference(value);
+                    if (mounted) {
+                      NotificationManager.of(context)?.showSuccess(
+                        t.appearanceLanguageSwitchedTitle,
+                        message: value == 'system'
+                            ? t.appearanceLanguageSwitchedSystem
+                            : t.appearanceLanguageSwitchedTo(languageLabels[value] ?? value),
+                      );
+                    }
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildSettingItem(
+              context,
+              title: t.appearanceLanguagePacksTitle,
+              subtitle: t.appearanceLanguagePacksSubtitle(langDir),
+              trailing: SizedBox(
+                width: 250,
+                child: Button(
+                  onPressed: () async {
+                    await localizationService.reloadLanguagePacks();
+                    if (mounted) {
+                      NotificationManager.of(context)?.showSuccess(
+                        t.appearanceLanguagePacksRefreshedTitle,
+                        message: t.appearanceLanguagePacksRefreshedMessage(
+                          localizationService.languagePacks.length,
+                        ),
+                      );
+                    }
+                  },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(CustomIcons.FluentIcons.refresh, size: 14),
+                      const SizedBox(width: 6),
+                      Text(t.appearanceLanguageRefreshButton),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
         
         // 字体设置
         _buildSection(
           context,
-          title: '字体',
+          title: t.appearanceFontSection,
           icon: CustomIcons.FluentIcons.font,
           children: [
             _buildSettingItem(
               context,
-              title: '应用字体',
-              subtitle: _selectedFont == 'system' ? '使用系统默认字体' : '当前字体: $_selectedFont',
+              title: t.appearanceFontTitle,
+              subtitle: _selectedFont == 'system'
+                  ? t.appearanceFontSystemSubtitle
+                  : t.appearanceFontCurrentSubtitle(_selectedFont),
               trailing: _loadingFonts
                   ? const SizedBox(
                       width: 20,
@@ -799,7 +928,9 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                           children: [
                             Expanded(
                               child: Text(
-                                _selectedFont == 'system' ? '系统默认' : _selectedFont,
+                                _selectedFont == 'system'
+                                    ? t.appearanceFontSystemLabel
+                                    : _selectedFont,
                                 style: _selectedFont == 'system' 
                                     ? null 
                                     : TextStyle(fontFamily: _selectedFont),
@@ -824,7 +955,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                       children: [
                         Icon(CustomIcons.FluentIcons.add, size: 14),
                         const SizedBox(width: 6),
-                        const Text('导入字体'),
+                        Text(t.appearanceFontImportButton),
                       ],
                     ),
                   ),
@@ -842,7 +973,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                           children: [
                             Icon(CustomIcons.FluentIcons.delete, size: 14),
                             const SizedBox(width: 6),
-                            const Text('删除当前字体'),
+                            Text(t.appearanceFontDeleteButton),
                           ],
                         ),
                       );
@@ -871,7 +1002,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      '支持导入 .ttf 和 .otf 格式的字体文件',
+                      t.appearanceFontHint,
                       style: FluentTheme.of(context).typography.caption?.copyWith(
                         color: Colors.white.withValues(alpha: 0.7),
                       ),
@@ -887,25 +1018,27 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         // 窗口效果
         _buildSection(
           context,
-          title: '窗口效果',
+          title: t.appearanceWindowEffectsSection,
           icon: CustomIcons.FluentIcons.color,
           children: [
             _buildSettingItem(
               context,
-              title: '启用窗口特效',
+              title: t.appearanceWindowEffectsEnableTitle,
               subtitle: windowEffect.effectEnabled
-                  ? '已启用窗口特效'
-                  : '已禁用窗口特效（性能优先）',
+                  ? t.appearanceWindowEffectsEnabledSubtitle
+                  : t.appearanceWindowEffectsDisabledSubtitle,
               trailing: ToggleSwitch(
                 checked: windowEffect.effectEnabled,
                 onChanged: (value) async {
                   await windowEffect.setEffectEnabled(value);
                   if (mounted) {
                     NotificationManager.of(context)?.showSuccess(
-                      value ? '窗口特效已启用' : '窗口特效已禁用',
+                      value
+                          ? t.appearanceWindowEffectsEnabledTitle
+                          : t.appearanceWindowEffectsDisabledTitle,
                       message: value
-                          ? '窗口效果已开启'
-                          : '已切换到纯色背景，性能更佳',
+                          ? t.appearanceWindowEffectsEnabledMessage
+                          : t.appearanceWindowEffectsDisabledMessage,
                     );
                   }
                 },
@@ -918,17 +1051,29 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 ignoring: !windowEffect.effectEnabled,
                 child: _buildSettingItem(
                   context,
-                  title: '效果类型',
-                  subtitle: _getEffectModeDescription(windowEffect.effectMode),
+                  title: t.appearanceWindowEffectsTypeTitle,
+                  subtitle: _getEffectModeDescription(windowEffect.effectMode, t),
                   trailing: ComboBox<String>(
                     value: windowEffect.effectMode,
                     items: [
-                      const ComboBoxItem(value: 'acrylic', child: Text('亚克力 (Acrylic)')),
-                      const ComboBoxItem(value: 'blur', child: Text('模糊 (Blur)')),
+                      ComboBoxItem(
+                        value: 'acrylic',
+                        child: Text(t.appearanceWindowEffectAcrylic),
+                      ),
+                      ComboBoxItem(
+                        value: 'blur',
+                        child: Text(t.appearanceWindowEffectBlur),
+                      ),
                       // Mica 选项仅在 Win11 上显示
                       if (windowEffect.isWindows11) ...[
-                        const ComboBoxItem(value: 'mica_main', child: Text('云母 (Mica)')),
-                        const ComboBoxItem(value: 'mica_transient', child: Text('云母 Alt (Mica Alt)')),
+                        ComboBoxItem(
+                          value: 'mica_main',
+                          child: Text(t.appearanceWindowEffectMica),
+                        ),
+                        ComboBoxItem(
+                          value: 'mica_transient',
+                          child: Text(t.appearanceWindowEffectMicaAlt),
+                        ),
                       ],
                     ],
                     onChanged: (value) async {
@@ -936,8 +1081,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                         await windowEffect.setEffectMode(value);
                         if (mounted) {
                           NotificationManager.of(context)?.showSuccess(
-                            '效果已切换',
-                            message: _getEffectModeDescription(value),
+                            t.appearanceWindowEffectSwitchedTitle,
+                            message: _getEffectModeDescription(value, t),
                           );
                         }
                       }
@@ -953,10 +1098,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 ignoring: !windowEffect.effectEnabled || windowEffect.isMicaEffect,
                 child: _buildSettingItem(
                   context,
-                  title: '亚克力透明度',
+                  title: t.appearanceWindowEffectsAcrylicOpacityTitle,
                   subtitle: windowEffect.isMicaEffect
-                      ? 'Mica 效果不支持调整透明度'
-                      : '调整窗口背景的透明度 (0-255，值越小越透明)',
+                      ? t.appearanceWindowEffectsAcrylicOpacityMicaHint
+                      : t.appearanceWindowEffectsAcrylicOpacityHint,
                   trailing: SizedBox(
                     width: 250,
                     child: Row(
@@ -992,10 +1137,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
               const SizedBox(height: 12),
               _buildSettingItem(
                 context,
-                title: '拖动时禁用特效',
+                title: t.appearanceWindowEffectsDragSuspendTitle,
                 subtitle: windowEffect.dragSuspend
-                    ? '拖动窗口时临时禁用特效，确保流畅拖动'
-                    : '拖动窗口时保持特效（Win10 可能不跟手）',
+                    ? t.appearanceWindowEffectsDragSuspendEnabledSubtitle
+                    : t.appearanceWindowEffectsDragSuspendDisabledSubtitle,
                 trailing: ToggleSwitch(
                   checked: windowEffect.dragSuspend,
                   onChanged: (value) async {
@@ -1041,10 +1186,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                   Expanded(
                     child: Text(
                       windowEffect.isMicaEffect
-                          ? 'Mica 效果仅在 Windows 11 上可用，会自动采用系统主题色'
+                          ? t.appearanceWindowEffectsMicaHint
                           : windowEffect.effectEnabled
-                              ? '亚克力效果会消耗额外的GPU资源，如果感觉卡顿可以关闭此选项'
-                              : '窗口特效已关闭，应用将使用纯色背景以获得最佳性能',
+                              ? t.appearanceWindowEffectsAcrylicHint
+                              : t.appearanceWindowEffectsDisabledHint,
                       style: FluentTheme.of(context).typography.caption?.copyWith(
                         color: windowEffect.isMicaEffect
                             ? FluentTheme.of(context).accentColor
@@ -1064,24 +1209,28 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         // 侧边栏设置
         _buildSection(
           context,
-          title: '侧边栏',
+          title: t.appearanceSidebarSection,
           icon: CustomIcons.FluentIcons.side_panel,
           children: [
             _buildSettingItem(
               context,
-              title: '默认展开状态',
-              subtitle: '应用启动时侧边栏的默认状态',
+              title: t.appearanceSidebarDefaultTitle,
+              subtitle: t.appearanceSidebarDefaultSubtitle,
               trailing: ComboBox<bool>(
                 value: clientConfig.getSidebarDefaultExpanded(),
-                items: const [
-                  ComboBoxItem(value: true, child: Text('展开')),
-                  ComboBoxItem(value: false, child: Text('收缩')),
+                items: [
+                  ComboBoxItem(value: true, child: Text(t.appearanceSidebarExpandedLabel)),
+                  ComboBoxItem(value: false, child: Text(t.appearanceSidebarCollapsedLabel)),
                 ],
                 onChanged: (value) async {
                   if (value != null) {
                     await clientConfig.setSidebarDefaultExpanded(value);
                     if (mounted) {
-                      NotificationManager.of(context)?.showSuccess('设置已保存', message: '侧边栏默认状态已设为${value ? "展开" : "收缩"}');
+                      final label = value ? t.appearanceSidebarExpandedLabel : t.appearanceSidebarCollapsedLabel;
+                      NotificationManager.of(context)?.showSuccess(
+                        t.appearanceSidebarSavedTitle,
+                        message: t.appearanceSidebarSavedMessage(label),
+                      );
                     }
                   }
                 },
@@ -1094,13 +1243,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         // 通知设置
         _buildSection(
           context,
-          title: '通知',
+          title: t.appearanceNotificationSection,
           icon: CustomIcons.FluentIcons.ringer,
           children: [
             _buildSettingItem(
               context,
-              title: '启用通知',
-              subtitle: '显示下载完成、错误等通知',
+              title: t.appearanceNotificationEnableTitle,
+              subtitle: t.appearanceNotificationEnableSubtitle,
               trailing: ToggleSwitch(
                 checked: _notificationEnabled,
                 onChanged: (value) => _saveNotificationEnabled(value),
@@ -1109,15 +1258,27 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             const SizedBox(height: 12),
             _buildSettingItem(
               context,
-              title: '配色方案',
-              subtitle: _getNotificationColorSchemeName(_notificationColorScheme),
+              title: t.appearanceNotificationSchemeTitle,
+              subtitle: _getNotificationColorSchemeName(_notificationColorScheme, t),
               trailing: ComboBox<String>(
                 value: _notificationColorScheme,
-                items: const [
-                  ComboBoxItem(value: 'defaultScheme', child: Text('默认配色')),
-                  ComboBoxItem(value: 'light', child: Text('浅色系')),
-                  ComboBoxItem(value: 'dark', child: Text('深色系')),
-                  ComboBoxItem(value: 'fluent2', child: Text('Fluent 2 色系')),
+                items: [
+                  ComboBoxItem(
+                    value: 'defaultScheme',
+                    child: Text(t.appearanceNotificationSchemeDefaultOption),
+                  ),
+                  ComboBoxItem(
+                    value: 'light',
+                    child: Text(t.appearanceNotificationSchemeLightOption),
+                  ),
+                  ComboBoxItem(
+                    value: 'dark',
+                    child: Text(t.appearanceNotificationSchemeDarkOption),
+                  ),
+                  ComboBoxItem(
+                    value: 'fluent2',
+                    child: Text(t.appearanceNotificationSchemeFluent2Option),
+                  ),
                 ],
                 onChanged: (value) {
                   if (value != null) _saveNotificationColorScheme(value);
@@ -1127,13 +1288,19 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             const SizedBox(height: 12),
             _buildSettingItem(
               context,
-              title: '显示位置',
-              subtitle: _getNotificationPositionName(_notificationPosition),
+              title: t.appearanceNotificationPositionTitle,
+              subtitle: _getNotificationPositionName(_notificationPosition, t),
               trailing: ComboBox<String>(
                 value: _notificationPosition,
-                items: const [
-                  ComboBoxItem(value: 'topRight', child: Text('右上角')),
-                  ComboBoxItem(value: 'bottomRight', child: Text('右下角')),
+                items: [
+                  ComboBoxItem(
+                    value: 'topRight',
+                    child: Text(t.appearanceNotificationPositionTopRightOption),
+                  ),
+                  ComboBoxItem(
+                    value: 'bottomRight',
+                    child: Text(t.appearanceNotificationPositionBottomRightOption),
+                  ),
                 ],
                 onChanged: (value) {
                   if (value != null) _saveNotificationPosition(value);
@@ -1143,14 +1310,23 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             const SizedBox(height: 12),
             _buildSettingItem(
               context,
-              title: '渲染性能模式',
-              subtitle: _getPerformanceModeName(_performanceMode),
+              title: t.appearanceNotificationPerformanceTitle,
+              subtitle: _getPerformanceModeName(_performanceMode, t),
               trailing: ComboBox<String>(
                 value: _performanceMode,
-                items: const [
-                  ComboBoxItem(value: 'performance', child: Text('性能优先')),
-                  ComboBoxItem(value: 'balanced', child: Text('平衡')),
-                  ComboBoxItem(value: 'quality', child: Text('高质量')),
+                items: [
+                  ComboBoxItem(
+                    value: 'performance',
+                    child: Text(t.appearanceNotificationPerformanceOptionPerformance),
+                  ),
+                  ComboBoxItem(
+                    value: 'balanced',
+                    child: Text(t.appearanceNotificationPerformanceOptionBalanced),
+                  ),
+                  ComboBoxItem(
+                    value: 'quality',
+                    child: Text(t.appearanceNotificationPerformanceOptionQuality),
+                  ),
                 ],
                 onChanged: (value) {
                   if (value != null) _savePerformanceMode(value);
@@ -1177,7 +1353,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      '毛玻璃效果会影响动画流畅度。如果感觉卡顿，建议选择"性能优先"模式',
+                      t.appearanceNotificationPerformanceHint,
                       style: FluentTheme.of(context).typography.caption?.copyWith(
                         color: Colors.white.withValues(alpha: 0.7),
                       ),
@@ -1189,11 +1365,11 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             const SizedBox(height: 12),
             _buildSettingItem(
               context,
-              title: '预览通知',
-              subtitle: '点击按钮预览当前配色效果',
+              title: t.appearanceNotificationPreviewButtonTitle,
+              subtitle: t.appearanceNotificationPreviewButtonSubtitle,
               trailing: Button(
                 onPressed: _showTestNotification,
-                child: const Text('预览'),
+                child: Text(t.appearanceNotificationPreviewButton),
               ),
             ),
             const SizedBox(height: 16),
@@ -1206,19 +1382,28 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         // 下载列表显示
         _buildSection(
           context,
-          title: '下载列表显示',
+          title: t.appearanceDownloadListSection,
           icon: CustomIcons.FluentIcons.list,
           children: [
             _buildSettingItem(
               context,
-              title: '分段进度显示模式',
-              subtitle: _getSegmentsDisplayModeDescription(_segmentsDisplayMode),
+              title: t.appearanceSegmentsModeTitle,
+              subtitle: _getSegmentsDisplayModeDescription(_segmentsDisplayMode, t),
               trailing: ComboBox<String>(
                 value: _segmentsDisplayMode,
-                items: const [
-                  ComboBoxItem(value: 'none', child: Text('简洁模式')),
-                  ComboBoxItem(value: 'merged', child: Text('合并进度条')),
-                  ComboBoxItem(value: 'list', child: Text('分段列表')),
+                items: [
+                  ComboBoxItem(
+                    value: 'none',
+                    child: Text(t.appearanceSegmentsModeNoneOption),
+                  ),
+                  ComboBoxItem(
+                    value: 'merged',
+                    child: Text(t.appearanceSegmentsModeMergedOption),
+                  ),
+                  ComboBoxItem(
+                    value: 'list',
+                    child: Text(t.appearanceSegmentsModeListOption),
+                  ),
                 ],
                 onChanged: (value) {
                   if (value != null) _saveSegmentsDisplayMode(value);
@@ -1233,8 +1418,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 ignoring: _segmentsDisplayMode != 'list',
                 child: _buildSettingItem(
                   context,
-                  title: '默认展开分段信息',
-                  subtitle: '下载任务的分段进度默认展开显示',
+                  title: t.appearanceSegmentsDefaultExpandedTitle,
+                  subtitle: t.appearanceSegmentsDefaultExpandedSubtitle,
                   trailing: ToggleSwitch(
                     checked: _segmentsDefaultExpanded,
                     onChanged: (value) => _saveSegmentsExpandedSetting(value),
@@ -1249,8 +1434,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 ignoring: _segmentsDisplayMode != 'list',
                 child: _buildSettingItem(
                   context,
-                  title: '默认显示分段数量',
-                  subtitle: '展开时默认显示的分段数量 (1-32)',
+                  title: t.appearanceSegmentsMaxVisibleTitle,
+                  subtitle: t.appearanceSegmentsMaxVisibleSubtitle,
                   trailing: SizedBox(
                     width: 200,
                     child: Row(
@@ -1288,6 +1473,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
   }
 
   Widget _buildWindowSizeSettings(BuildContext context, ClientConfigService config) {
+    final t = AppLocalizations.of(context)!;
     final rememberSize = config.getWindowRememberSize();
     final defaultWidth = config.getWindowDefaultWidth();
     final defaultHeight = config.getWindowDefaultHeight();
@@ -1315,10 +1501,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
       children: [
         _buildSettingItem(
           context,
-          title: '记忆窗口大小',
+          title: t.appearanceWindowRememberTitle,
           subtitle: rememberSize 
-              ? '启动时使用上次关闭时的窗口大小'
-              : '启动时使用默认窗口大小',
+              ? t.appearanceWindowRememberSubtitleOn
+              : t.appearanceWindowRememberSubtitleOff,
           trailing: ToggleSwitch(
             checked: rememberSize,
             onChanged: (value) async {
@@ -1336,8 +1522,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
               children: [
                 _buildSettingItem(
                   context,
-                  title: '默认窗口宽度',
-                  subtitle: '启动时的默认宽度 (600-${maxWidth.toInt()})',
+                  title: t.appearanceWindowDefaultWidthTitle,
+                  subtitle: t.appearanceWindowDefaultWidthSubtitle(maxWidth.toInt()),
                   trailing: SizedBox(
                     width: 250,
                     child: Row(
@@ -1369,8 +1555,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 const SizedBox(height: 12),
                 _buildSettingItem(
                   context,
-                  title: '默认窗口高度',
-                  subtitle: '启动时的默认高度 (400-${maxHeight.toInt()})',
+                  title: t.appearanceWindowDefaultHeightTitle,
+                  subtitle: t.appearanceWindowDefaultHeightSubtitle(maxHeight.toInt()),
                   trailing: SizedBox(
                     width: 250,
                     child: Row(
@@ -1416,7 +1602,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                           await config.setWindowHeight(safeHeight);
                           
                           if (mounted) {
-                            NotificationManager.of(context)?.showSuccess('已保存', message: '当前窗口大小已设为默认大小 (${safeWidth.toInt()}×${safeHeight.toInt()})');
+                            NotificationManager.of(context)?.showSuccess(
+                              t.appearanceWindowSaveTitle,
+                              message: t.appearanceWindowSaveMessage(
+                                safeWidth.toInt(),
+                                safeHeight.toInt(),
+                              ),
+                            );
                           }
                         },
                         child: Row(
@@ -1424,7 +1616,12 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                           children: [
                             Icon(CustomIcons.FluentIcons.save, size: 14),
                             const SizedBox(width: 6),
-                            Text('使用当前大小 (${currentWidth.toInt()}×${currentHeight.toInt()})'),
+                            Text(
+                              t.appearanceWindowSaveButton(
+                                currentWidth.toInt(),
+                                currentHeight.toInt(),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -1440,7 +1637,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                           await config.setWindowHeight(586.0);
                           
                           if (mounted) {
-                            NotificationManager.of(context)?.showInfo('已重置', message: '默认窗口大小已重置为 889×586');
+                            NotificationManager.of(context)?.showInfo(
+                              t.appearanceWindowResetTitle,
+                              message: t.appearanceWindowResetMessage,
+                            );
                           }
                         },
                         child: Row(
@@ -1448,7 +1648,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                           children: [
                             Icon(CustomIcons.FluentIcons.refresh, size: 14),
                             SizedBox(width: 6),
-                            Text('重置为默认'),
+                            Text(t.appearanceWindowResetButton),
                           ],
                         ),
                       ),
@@ -1464,14 +1664,25 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                       final targetWidth = safeDefaultWidth.clamp(600.0, maxWidth);
                       final targetHeight = safeDefaultHeight.clamp(400.0, maxHeight);
                       appWindow.size = Size(targetWidth, targetHeight);
-                      NotificationManager.of(context)?.showSuccess('已应用', message: '窗口大小已调整为 ${targetWidth.toInt()}×${targetHeight.toInt()}');
+                      NotificationManager.of(context)?.showSuccess(
+                        t.appearanceWindowApplyTitle,
+                        message: t.appearanceWindowApplyMessage(
+                          targetWidth.toInt(),
+                          targetHeight.toInt(),
+                        ),
+                      );
                     },
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(CustomIcons.FluentIcons.full_screen, size: 14),
                         const SizedBox(width: 6),
-                        Text('立即应用默认大小 (${safeDefaultWidth.toInt()}×${safeDefaultHeight.toInt()})'),
+                        Text(
+                          t.appearanceWindowApplyButton(
+                            safeDefaultWidth.toInt(),
+                            safeDefaultHeight.toInt(),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -1501,8 +1712,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
               Expanded(
                 child: Text(
                   rememberSize 
-                      ? '当前启用记忆模式，应用会记住上次关闭时的窗口大小'
-                      : '当前使用默认大小模式，每次启动都会使用设定的默认大小',
+                      ? t.appearanceWindowRememberHintOn
+                      : t.appearanceWindowRememberHintOff,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
                     color: Colors.white.withValues(alpha: 0.7),
                   ),
@@ -1515,33 +1726,33 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     );
   }
 
-  String _getSegmentsDisplayModeDescription(String mode) {
+  String _getSegmentsDisplayModeDescription(String mode, AppLocalizations t) {
     switch (mode) {
       case 'none':
-        return '简洁模式：不显示分段信息';
+        return t.appearanceSegmentsModeNoneDescription;
       case 'merged':
-        return '合并模式：所有分段合并在一个进度条中显示';
+        return t.appearanceSegmentsModeMergedDescription;
       case 'list':
-        return '列表模式：每个分段单独一行显示';
+        return t.appearanceSegmentsModeListDescription;
       default:
         return '';
     }
   }
 
-  String _getEffectModeDescription(String mode) {
+  String _getEffectModeDescription(String mode, AppLocalizations t) {
     switch (mode) {
       case 'none':
-        return '无效果';
+        return t.appearanceEffectNone;
       case 'blur':
-        return '模糊效果 - 简单的背景模糊';
+        return t.appearanceEffectBlur;
       case 'acrylic':
-        return '亚克力效果 - 半透明模糊背景';
+        return t.appearanceEffectAcrylic;
       case 'mica_main':
-        return 'Mica 效果 - Windows 11 原生云母效果';
+        return t.appearanceEffectMica;
       case 'mica_transient':
-        return 'Mica Alt 效果 - Windows 11 临时窗口云母效果';
+        return t.appearanceEffectMicaAlt;
       default:
-        return '未知效果';
+        return t.appearanceEffectUnknown;
     }
   }
 
@@ -1576,11 +1787,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
 
   /// 显示字体选择对话框（带搜索功能）
   Future<void> _showFontPickerDialog(BuildContext context) async {
+    final t = AppLocalizations.of(context)!;
     final result = await showDialog<String>(
       context: context,
       builder: (context) => _FontPickerDialog(
         availableFonts: _availableFonts,
         selectedFont: _selectedFont,
+        t: t,
       ),
     );
 
@@ -1594,10 +1807,12 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
 class _FontPickerDialog extends StatefulWidget {
   final List<String> availableFonts;
   final String selectedFont;
+  final AppLocalizations t;
 
   const _FontPickerDialog({
     required this.availableFonts,
     required this.selectedFont,
+    required this.t,
   });
 
   @override
@@ -1636,7 +1851,7 @@ class _FontPickerDialogState extends State<_FontPickerDialog> {
   @override
   Widget build(BuildContext context) {
     return ContentDialog(
-      title: const Text('选择字体'),
+      title: Text(widget.t.appearanceFontPickerTitle),
       constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1644,7 +1859,7 @@ class _FontPickerDialogState extends State<_FontPickerDialog> {
           // 搜索框
           TextBox(
             controller: _searchController,
-            placeholder: '搜索字体...',
+            placeholder: widget.t.appearanceFontPickerSearchPlaceholder,
             prefix: Padding(
               padding: EdgeInsets.only(left: 10),
               child: Icon(CustomIcons.FluentIcons.searchIcon, size: 16),
@@ -1665,13 +1880,13 @@ class _FontPickerDialogState extends State<_FontPickerDialog> {
           Row(
             children: [
               Text(
-                '共 ${_filteredFonts.length} 个字体',
+                widget.t.appearanceFontPickerCount(_filteredFonts.length),
                 style: FluentTheme.of(context).typography.caption,
               ),
               if (_searchController.text.isNotEmpty) ...[
                 const SizedBox(width: 8),
                 Text(
-                  '(已过滤)',
+                  widget.t.appearanceFontPickerFilteredLabel,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
                     color: FluentTheme.of(context).accentColor,
                   ),
@@ -1690,7 +1905,7 @@ class _FontPickerDialogState extends State<_FontPickerDialog> {
                         Icon(CustomIcons.FluentIcons.searchIcon, size: 48, color: Colors.grey),
                         const SizedBox(height: 12),
                         Text(
-                          '没有找到匹配的字体',
+                          widget.t.appearanceFontPickerEmpty,
                           style: FluentTheme.of(context).typography.body,
                         ),
                       ],
@@ -1737,7 +1952,9 @@ class _FontPickerDialogState extends State<_FontPickerDialog> {
                                   ),
                                 Expanded(
                                   child: Text(
-                                    font == 'system' ? '系统默认' : font,
+                                    font == 'system'
+                                        ? widget.t.appearanceFontSystemLabel
+                                        : font,
                                     style: font == 'system'
                                         ? FluentTheme.of(context).typography.body
                                         : FluentTheme.of(context).typography.body?.copyWith(
@@ -1754,7 +1971,7 @@ class _FontPickerDialogState extends State<_FontPickerDialog> {
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
-                                      '推荐',
+                                      widget.t.appearanceFontPickerRecommended,
                                       style: FluentTheme.of(context).typography.caption?.copyWith(
                                         color: FluentTheme.of(context).accentColor,
                                         fontSize: 10,
@@ -1774,7 +1991,7 @@ class _FontPickerDialogState extends State<_FontPickerDialog> {
       actions: [
         Button(
           onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
+          child: Text(widget.t.appearanceFontPickerCancel),
         ),
       ],
     );

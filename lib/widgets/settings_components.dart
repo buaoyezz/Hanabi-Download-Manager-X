@@ -1,6 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import '../theme/app_theme.dart';
 import '../utils/fluent_icons.dart' as CustomIcons;
+import '../l10n/app_localizations.dart';
 
 /// 设置页面区块卡片 - Fluent Design 风格
 class SettingsSection extends StatelessWidget {
@@ -156,6 +157,7 @@ class StatusIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final color = isOnline ? AppTheme.statusSuccess : AppTheme.statusError;
 
     final baseColor = Color.lerp(AppTheme.surfaceCard, color, 0.10) ?? color.withValues(alpha: 0.1);
@@ -212,7 +214,7 @@ class StatusIndicator extends StatelessWidget {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      isOnline ? '在线' : '离线',
+                      isOnline ? t.statusOnline : t.statusOffline,
                       style: FluentTheme.of(context).typography.caption?.copyWith(
                             color: color,
                             fontWeight: FontWeight.w600,
@@ -238,6 +240,7 @@ class DangerZone extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(20),
@@ -268,7 +271,7 @@ class DangerZone extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Text(
-                '危险操作',
+                t.settingsDangerZoneTitle,
                 style: FluentTheme.of(context).typography.body?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: AppTheme.statusError,

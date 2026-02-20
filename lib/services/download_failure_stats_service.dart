@@ -66,21 +66,21 @@ class DownloadFailureStatsService extends ChangeNotifier {
   }
 
   String _classifyReason(String? error) {
-    if (error == null || error.trim().isEmpty) return '未知错误';
+    if (error == null || error.trim().isEmpty) return 'unknown';
 
     final msg = error.toLowerCase();
     final httpCode = _extractHttpCode(msg);
     if (httpCode != null) {
-      if (httpCode == 401 || httpCode == 403) return '鉴权失败 ($httpCode)';
-      if (httpCode == 404) return '资源不存在 (404)';
-      if (httpCode == 416) return 'Range 不支持 (416)';
-      if (httpCode == 429) return '请求过快 (429)';
-      if (httpCode >= 500) return '服务器错误 ($httpCode)';
-      if (httpCode >= 400) return 'HTTP $httpCode';
+      if (httpCode == 401 || httpCode == 403) return 'auth:$httpCode';
+      if (httpCode == 404) return 'not_found:$httpCode';
+      if (httpCode == 416) return 'range:$httpCode';
+      if (httpCode == 429) return 'rate_limit:$httpCode';
+      if (httpCode >= 500) return 'server:$httpCode';
+      if (httpCode >= 400) return 'http:$httpCode';
     }
 
     if (_containsAny(msg, ['timeout', 'timed out', '超时'])) {
-      return '连接超时';
+      return 'timeout';
     }
     if (_containsAny(msg, [
       'connection reset',
@@ -92,7 +92,7 @@ class DownloadFailureStatsService extends ChangeNotifier {
       '连接断开',
       '拒绝连接',
     ])) {
-      return '连接中断';
+      return 'connection';
     }
     if (_containsAny(msg, [
       'failed host lookup',
@@ -102,7 +102,7 @@ class DownloadFailureStatsService extends ChangeNotifier {
       '无法解析',
       '解析失败',
     ])) {
-      return 'DNS 解析失败';
+      return 'dns';
     }
     if (_containsAny(msg, [
       'ssl',
@@ -110,7 +110,7 @@ class DownloadFailureStatsService extends ChangeNotifier {
       'certificate',
       '证书',
     ])) {
-      return 'SSL/证书错误';
+      return 'ssl';
     }
     if (_containsAny(msg, [
       'size mismatch',
@@ -119,7 +119,7 @@ class DownloadFailureStatsService extends ChangeNotifier {
       '校验',
       '文件损坏',
     ])) {
-      return '文件校验失败';
+      return 'checksum';
     }
     if (_containsAny(msg, [
       'no space left',
@@ -132,13 +132,13 @@ class DownloadFailureStatsService extends ChangeNotifier {
       '权限',
       '拒绝访问',
     ])) {
-      return '磁盘/权限错误';
+      return 'disk';
     }
     if (_containsAny(msg, ['range not satisfiable', 'range'])) {
-      return 'Range 不支持';
+      return 'range';
     }
 
-    return '其他错误';
+    return 'other';
   }
 
   int? _extractHttpCode(String msg) {

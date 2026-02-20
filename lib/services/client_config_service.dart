@@ -155,6 +155,7 @@ class ClientConfigService extends ChangeNotifier {
   Map<String, dynamic> _getDefaultUiConfig() {
     return {
       'version': AppConstants.version,
+      'language': 'system', // system | en | zh | <plugin locale>
       'window': {
         'effect_mode': 'acrylic',
         'effect_alpha': 160,
@@ -332,6 +333,14 @@ class ClientConfigService extends ChangeNotifier {
 
   double getWindowHeight() {
     return _getFromConfig<double>(_uiConfig, 'window.height', defaultValue: 586.0) ?? 586.0;
+  }
+
+  String getLanguagePreference() {
+    return _getFromConfig<String>(_uiConfig, 'language', defaultValue: 'system') ?? 'system';
+  }
+
+  Future<void> setLanguagePreference(String value) async {
+    await _setToConfig(_uiConfig, _uiConfigPath, 'language', value);
   }
 
   Future<void> setWindowHeight(double height) async {

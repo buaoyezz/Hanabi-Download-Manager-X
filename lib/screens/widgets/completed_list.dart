@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/integrated_download_service.dart';
 import '../../services/client_config_service.dart';
 import '../../services/performance_monitor_service.dart';
@@ -39,22 +40,22 @@ enum FileCategory {
   program,
   other;
 
-  String get label {
+  String label(AppLocalizations t) {
     switch (this) {
       case FileCategory.all:
-        return '所有下载';
+        return t.completedCategoryAll;
       case FileCategory.video:
-        return '视频';
+        return t.completedCategoryVideo;
       case FileCategory.audio:
-        return '音频';
+        return t.completedCategoryAudio;
       case FileCategory.archive:
-        return '压缩包';
+        return t.completedCategoryArchive;
       case FileCategory.document:
-        return '文档';
+        return t.completedCategoryDocument;
       case FileCategory.program:
-        return '程序';
+        return t.completedCategoryProgram;
       case FileCategory.other:
-        return '杂项';
+        return t.completedCategoryOther;
     }
   }
 
@@ -130,6 +131,7 @@ class _CompletedListState extends State<CompletedList> {
   bool _showSearch = false;
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  AppLocalizations get t => AppLocalizations.of(context)!;
 
   @override
   void initState() {
@@ -303,7 +305,7 @@ class _CompletedListState extends State<CompletedList> {
           Expanded(
             child: TextBox(
               controller: _searchController,
-              placeholder: '搜索已完成的文件...',
+              placeholder: t.completedSearchPlaceholder,
               onChanged: (value) => setState(() => _searchQuery = value),
               decoration: WidgetStateProperty.all(const BoxDecoration()),
               style: FluentTheme.of(context).typography.body?.copyWith(fontSize: 13),
@@ -351,14 +353,14 @@ class _CompletedListState extends State<CompletedList> {
           ),
           const SizedBox(height: 16),
           Text(
-            '未找到匹配的文件',
+            t.completedNoResultsTitle,
             style: FluentTheme.of(context).typography.subtitle?.copyWith(
               color: AppTheme.textSecondary,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            '尝试修改搜索条件',
+            t.completedNoResultsSubtitle,
             style: FluentTheme.of(context).typography.caption?.copyWith(
               color: AppTheme.textTertiary,
             ),
@@ -404,7 +406,7 @@ class _CompletedListState extends State<CompletedList> {
                           padding: const EdgeInsets.only(right: 6),
                           child: _TabButton(
                             icon: category.icon,
-                            label: category.label,
+                            label: category.label(t),
                             count: count,
                             isSelected: isSelected,
                             onTap: () => setState(() => _currentTabIndex = index),
@@ -488,23 +490,23 @@ class _CompletedListState extends State<CompletedList> {
     showDialog(
       context: context,
       builder: (context) => ContentDialog(
-        title: const Text('创建自定义分类'),
+        title: Text(t.completedCreateCategoryTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('分类名称'),
+            Text(t.completedCreateCategoryNameLabel),
             const SizedBox(height: 8),
             TextBox(
               controller: nameController,
-              placeholder: '例如：图片',
+              placeholder: t.completedCreateCategoryNamePlaceholder,
             ),
             const SizedBox(height: 16),
-            const Text('文件扩展名'),
+            Text(t.completedCreateCategoryExtensionsLabel),
             const SizedBox(height: 8),
             TextBox(
               controller: extensionsController,
-              placeholder: '例如：.jpg,.png,.gif（用逗号分隔）',
+              placeholder: t.completedCreateCategoryExtensionsPlaceholder,
             ),
             const SizedBox(height: 12),
             Container(
@@ -513,9 +515,9 @@ class _CompletedListState extends State<CompletedList> {
                 color: AppTheme.accentPrimary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppTheme.radiusSm),
               ),
-              child: const Text(
-                '提示：扩展名需要包含点号，多个扩展名用逗号分隔',
-                style: TextStyle(
+              child: Text(
+                t.completedCreateCategoryHint,
+                style: const TextStyle(
                   fontSize: 11,
                   color: AppTheme.textTertiary,
                 ),
@@ -526,7 +528,7 @@ class _CompletedListState extends State<CompletedList> {
         actions: [
           Button(
             onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
+            child: Text(t.completedCancelButton),
           ),
           FilledButton(
             onPressed: () async {
@@ -535,8 +537,8 @@ class _CompletedListState extends State<CompletedList> {
               
               if (name.isEmpty || extensionsText.isEmpty) {
                 NotificationManager.of(context)?.showWarning(
-                  '输入错误',
-                  message: '请填写完整信息',
+                  t.completedCreateCategoryInputErrorTitle,
+                  message: t.completedCreateCategoryInputErrorMessage,
                 );
                 return;
               }
@@ -549,8 +551,8 @@ class _CompletedListState extends State<CompletedList> {
 
               if (extensions.isEmpty) {
                 NotificationManager.of(context)?.showWarning(
-                  '输入错误',
-                  message: '请输入有效的扩展名',
+                  t.completedCreateCategoryInputErrorTitle,
+                  message: t.completedCreateCategoryInvalidExtMessage,
                 );
                 return;
               }
@@ -566,11 +568,11 @@ class _CompletedListState extends State<CompletedList> {
               Navigator.pop(context);
 
               NotificationManager.of(context)?.showSuccess(
-                  '创建成功',
-                  message: '已创建分类：$name',
+                  t.completedCreateCategorySuccessTitle,
+                  message: t.completedCreateCategorySuccessMessage(name),
                 );
             },
-            child: const Text('创建'),
+            child: Text(t.completedCreateButton),
           ),
         ],
       ),
@@ -582,12 +584,12 @@ class _CompletedListState extends State<CompletedList> {
     showDialog(
       context: context,
       builder: (context) => ContentDialog(
-        title: const Text('确认删除'),
-        content: Text('确定要删除自定义分类 "${category.name}" 吗？'),
+        title: Text(t.completedConfirmDeleteTitle),
+        content: Text(t.completedDeleteCategoryMessage(category.name)),
         actions: [
           Button(
             onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
+            child: Text(t.completedCancelButton),
           ),
           FilledButton(
             style: ButtonStyle(
@@ -613,11 +615,11 @@ class _CompletedListState extends State<CompletedList> {
               Navigator.pop(context);
 
               NotificationManager.of(context)?.showSuccess(
-                  '删除成功',
-                  message: '已删除分类：${category.name}',
+                  t.completedDeleteCategorySuccessTitle,
+                  message: t.completedDeleteCategorySuccessMessage(category.name),
                 );
             },
-            child: const Text('删除'),
+            child: Text(t.completedDeleteButton),
           ),
         ],
       ),
@@ -649,7 +651,7 @@ class _CompletedListState extends State<CompletedList> {
           ),
           const SizedBox(width: 10),
           Text(
-            '已完成',
+            t.completedHeaderTitle,
             style: FluentTheme.of(context).typography.body?.copyWith(
               fontWeight: FontWeight.w600,
               color: AppTheme.textPrimary,
@@ -683,7 +685,7 @@ class _CompletedListState extends State<CompletedList> {
               children: [
                 Icon(CustomIcons.FluentIcons.folder_open, size: 12),
                 SizedBox(width: 6),
-                Text('打开文件夹', style: TextStyle(fontSize: 12)),
+                Text(t.completedOpenFolderButton, style: const TextStyle(fontSize: 12)),
               ],
             ),
           ),
@@ -723,7 +725,7 @@ class _CompletedListState extends State<CompletedList> {
                   child: Opacity(
                     opacity: value,
                     child: Text(
-                      '暂无已完成任务',
+                      t.completedEmptyTitle,
                       style: FluentTheme.of(context).typography.subtitle?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: AppTheme.textPrimary,
@@ -744,7 +746,7 @@ class _CompletedListState extends State<CompletedList> {
                   child: Opacity(
                     opacity: value,
                     child: Text(
-                      '完成的下载任务将显示在这里',
+                      t.completedEmptySubtitle,
                       style: FluentTheme.of(context).typography.body?.copyWith(
                         color: AppTheme.textTertiary,
                       ),
@@ -770,6 +772,7 @@ class _CompletedTaskCard extends StatefulWidget {
 
 class _CompletedTaskCardState extends State<_CompletedTaskCard> {
   bool _isExpanded = false;
+  AppLocalizations get t => AppLocalizations.of(context)!;
 
   @override
   Widget build(BuildContext context) {
@@ -833,7 +836,7 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
               ),
               const SizedBox(width: 6),
               Text(
-                '下载统计',
+                t.completedStatsTitle,
                 style: FluentTheme.of(context).typography.body?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: AppTheme.textPrimary,
@@ -854,38 +857,38 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
       // 第一行：重要统计
       _StatItem(
         icon: CustomIcons.FluentIcons.speed_high,
-        label: '峰值速度',
+        label: t.completedStatsPeakSpeed,
         value: widget.task.formattedPeakSpeed,
         color: AppTheme.statusSuccess,
       ),
       _StatItem(
         icon: CustomIcons.FluentIcons.timeline_progress,
-        label: '平均速度',
+        label: t.completedStatsAverageSpeed,
         value: widget.task.formattedAverageSpeed,
         color: AppTheme.accentPrimary,
       ),
       _StatItem(
         icon: CustomIcons.FluentIcons.clock,
-        label: '用时',
+        label: t.completedStatsDuration,
         value: widget.task.formattedDuration,
         color: AppTheme.statusWarning,
       ),
       // 第二行：详细信息
       _StatItem(
         icon: CustomIcons.FluentIcons.split,
-        label: '分段数',
+        label: t.completedStatsSegments,
         value: '${widget.task.segmentCount ?? 0}',
         color: AppTheme.textSecondary,
       ),
       _StatItem(
         icon: CustomIcons.FluentIcons.processing,
-        label: '线程数',
+        label: t.completedStatsThreads,
         value: '${widget.task.threadCount ?? 0}',
         color: AppTheme.textSecondary,
       ),
       _StatItem(
         icon: CustomIcons.FluentIcons.server,
-        label: '下载核心',
+        label: t.completedStatsCore,
         value: widget.task.downloadCore ?? 'NSF-X',
         color: AppTheme.textSecondary,
       ),
@@ -963,14 +966,14 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
       children: [
         _ActionButton(
           icon: CustomIcons.FluentIcons.play,
-          label: '运行',
+          label: t.completedActionRun,
           color: AppTheme.accentPrimary,
           onPressed: () => _runFile(widget.task.filePath),
         ),
         const SizedBox(width: 6),
         _ActionButton(
           icon: CustomIcons.FluentIcons.folder_open,
-          label: '位置',
+          label: t.completedActionLocation,
           color: AppTheme.textSecondary,
           onPressed: () => _openFileLocation(widget.task.filePath),
         ),
@@ -994,57 +997,57 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
     final now = DateTime.now();
     final diff = now.difference(date);
     
-    if (diff.inMinutes < 1) return '刚刚';
-    if (diff.inHours < 1) return '${diff.inMinutes}分钟前';
-    if (diff.inDays < 1) return '${diff.inHours}小时前';
-    if (diff.inDays < 7) return '${diff.inDays}天前';
+    if (diff.inMinutes < 1) return t.completedTimeJustNow;
+    if (diff.inHours < 1) return t.completedTimeMinutesAgo(diff.inMinutes);
+    if (diff.inDays < 1) return t.completedTimeHoursAgo(diff.inHours);
+    if (diff.inDays < 7) return t.completedTimeDaysAgo(diff.inDays);
     
-    return '${date.month}/${date.day}';
+    return t.completedTimeMonthDay(date.month, date.day);
   }
 
   void _runFile(String? filePath) async {
     if (filePath == null) {
-      _showMessage('文件路径不存在');
+      _showMessage(t.completedFilePathMissingMessage);
       return;
     }
 
     try {
       final file = File(filePath);
       if (!await file.exists()) {
-        _showMessage('文件不存在');
+        _showMessage(t.completedFileNotFoundMessage);
         return;
       }
 
       final safePath = filePath.replaceAll('/', '\\');
       await Process.start('cmd', ['/c', 'start', '', safePath], runInShell: true);
     } catch (e) {
-      _showMessage('运行文件失败: $e');
+      _showMessage(t.completedRunFileFailedMessage(e));
     }
   }
 
   void _openFileLocation(String? filePath) async {
     if (filePath == null) {
-      _showMessage('文件路径不存在');
+      _showMessage(t.completedFilePathMissingMessage);
       return;
     }
 
     try {
       final file = File(filePath);
       if (!await file.exists()) {
-        _showMessage('文件不存在');
+        _showMessage(t.completedFileNotFoundMessage);
         return;
       }
 
       final safePath = filePath.replaceAll('/', '\\');
       await Process.run('explorer', ['/select,', safePath]);
     } catch (e) {
-      _showMessage('打开文件位置失败: $e');
+      _showMessage(t.completedOpenFileLocationFailedMessage(e));
     }
   }
 
   void _showMessage(String message) {
     NotificationManager.of(context)?.showWarning(
-      '提示',
+      t.completedHintTitle,
       message: message,
     );
   }
@@ -1057,10 +1060,10 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
           children: [
             Icon(CustomIcons.FluentIcons.delete, size: 18, color: AppTheme.statusError),
             const SizedBox(width: 8),
-            const Text('确认删除'),
+            Text(t.completedConfirmDeleteTitle),
           ],
         ),
-        content: Text('确定要删除 "${widget.task.fileName}" 吗？'),
+        content: Text(t.completedDeleteTaskMessage(widget.task.fileName)),
         actions: [
           Button(
             onPressed: () => Navigator.pop(context),
@@ -1069,7 +1072,7 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
               children: [
                 Icon(CustomIcons.FluentIcons.chrome_close, size: 12),
                 const SizedBox(width: 6),
-                const Text('取消'),
+                Text(t.completedCancelButton),
               ],
             ),
           ),
@@ -1078,8 +1081,8 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
               service.removeTask(widget.task.id);
               Navigator.pop(context);
               NotificationManager.of(this.context)?.showSuccess(
-                '删除成功',
-                message: '已从列表中移除任务',
+                t.completedRemoveSuccessTitle,
+                message: t.completedRemoveSuccessMessage,
               );
             },
             child: Row(
@@ -1087,7 +1090,7 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
               children: [
                 Icon(CustomIcons.FluentIcons.list, size: 12),
                 const SizedBox(width: 6),
-                const Text('移除'),
+                Text(t.completedRemoveButton),
               ],
             ),
           ),
@@ -1104,7 +1107,7 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
               children: [
                 Icon(CustomIcons.FluentIcons.delete, size: 12, color: Colors.white),
                 const SizedBox(width: 6),
-                const Text('删除'),
+                Text(t.completedDeleteButton),
               ],
             ),
           ),
@@ -1122,23 +1125,23 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
           await file.delete();
           if (mounted) {
             NotificationManager.of(context)?.showSuccess(
-              '删除成功',
-              message: '已删除文件：${widget.task.fileName}',
+              t.completedDeleteSuccessTitle,
+              message: t.completedDeleteFileSuccessMessage(widget.task.fileName),
             );
           }
         } else {
           if (mounted) {
             NotificationManager.of(context)?.showWarning(
-              '文件不存在',
-              message: '文件可能已被移动或删除',
+              t.completedFileNotFoundTitle,
+              message: t.completedFileNotFoundMessage,
             );
           }
         }
       } catch (e) {
         if (mounted) {
           NotificationManager.of(context)?.showError(
-            '删除失败',
-            message: '无法删除文件：$e',
+            t.completedDeleteFailedTitle,
+            message: t.completedDeleteFailedMessage(e),
           );
         }
       }

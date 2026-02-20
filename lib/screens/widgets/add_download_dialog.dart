@@ -3,6 +3,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import '../../services/integrated_download_service.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 
 import '../../widgets/animated_notifications.dart';
 
@@ -22,6 +23,8 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
   String? _parsedFileName;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+
+  AppLocalizations get t => AppLocalizations.of(context)!;
 
   @override
   void initState() {
@@ -160,7 +163,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '新建下载任务',
+                  t.addDownloadTitle,
                   style: FluentTheme.of(context).typography.subtitle?.copyWith(
                     fontWeight: FontWeight.w600,
                     fontSize: 18,
@@ -169,7 +172,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '支持多线程下载和断点续传',
+                  t.addDownloadSubtitle,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
                     color: AppTheme.textTertiary,
                     fontSize: 12,
@@ -227,7 +230,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
             ),
             const SizedBox(width: 6),
             Text(
-              '下载链接',
+              t.addDownloadUrlLabel,
               style: FluentTheme.of(context).typography.body?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: AppTheme.textPrimary,
@@ -242,7 +245,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
-                '必填',
+                t.addDownloadRequiredBadge,
                 style: FluentTheme.of(context).typography.caption?.copyWith(
                   color: AppTheme.statusError,
                   fontSize: 10,
@@ -270,7 +273,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
               filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
               child: TextBox(
                 controller: _urlController,
-                placeholder: 'https://example.com/file.zip',
+                placeholder: t.addDownloadUrlPlaceholder,
                 maxLines: 3,
                 minLines: 2,
                 style: FluentTheme.of(context).typography.body?.copyWith(
@@ -335,7 +338,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '已自动识别文件名',
+                  t.addDownloadParsedFileNameTitle,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
                     color: AppTheme.statusSuccess,
                     fontSize: 11,
@@ -386,7 +389,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
             ),
             const SizedBox(width: 8),
             Text(
-              '高级选项',
+              t.addDownloadAdvancedToggle,
               style: FluentTheme.of(context).typography.body?.copyWith(
                 color: _showAdvanced ? AppTheme.accentLight : AppTheme.textSecondary,
                 fontSize: 12,
@@ -395,7 +398,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
             ),
             const Spacer(),
             Text(
-              _showAdvanced ? '收起' : '自定义文件名',
+              _showAdvanced ? t.addDownloadAdvancedExpandedHint : t.addDownloadAdvancedCollapsedHint,
               style: FluentTheme.of(context).typography.caption?.copyWith(
                 color: AppTheme.textTertiary,
                 fontSize: 11,
@@ -420,7 +423,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
             ),
             const SizedBox(width: 6),
             Text(
-              '自定义文件名',
+              t.addDownloadFileNameLabel,
               style: FluentTheme.of(context).typography.body?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: AppTheme.textPrimary,
@@ -435,7 +438,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
-                '可选',
+                t.addDownloadOptionalBadge,
                 style: FluentTheme.of(context).typography.caption?.copyWith(
                   color: AppTheme.textTertiary,
                   fontSize: 10,
@@ -457,7 +460,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
           ),
           child: TextBox(
             controller: _fileNameController,
-            placeholder: '留空则使用自动识别的文件名',
+            placeholder: t.addDownloadFileNamePlaceholder,
             style: FluentTheme.of(context).typography.body?.copyWith(
               fontSize: 13,
             ),
@@ -515,7 +518,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
               ),
               const SizedBox(width: 10),
               Text(
-                '智能下载特性',
+                t.addDownloadFeatureTitle,
                 style: FluentTheme.of(context).typography.body?.copyWith(
                   color: AppTheme.accentLight,
                   fontSize: 13,
@@ -525,11 +528,11 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
             ],
           ),
           const SizedBox(height: 12),
-          _buildFeatureItem(context, FluentIcons.split_object, '多线程分段下载', '最大化下载速度'),
+          _buildFeatureItem(context, FluentIcons.split_object, t.addDownloadFeature1Title, t.addDownloadFeature1Desc),
           const SizedBox(height: 8),
-          _buildFeatureItem(context, FluentIcons.sync, '自动断点续传', '网络中断后自动恢复'),
+          _buildFeatureItem(context, FluentIcons.sync, t.addDownloadFeature2Title, t.addDownloadFeature2Desc),
           const SizedBox(height: 8),
-          _buildFeatureItem(context, FluentIcons.processing, '动态分段优化', '智能调整下载策略'),
+          _buildFeatureItem(context, FluentIcons.processing, t.addDownloadFeature3Title, t.addDownloadFeature3Desc),
         ],
       ),
     );
@@ -579,7 +582,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
             const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           ),
         ),
-        child: const Text('取消'),
+        child: Text(t.addDownloadCancelButton),
       ),
       FilledButton(
         onPressed: _isLoading ? null : _handleSubmit,
@@ -598,7 +601,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
           }),
         ),
         child: _isLoading
-            ? const Row(
+            ? Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   SizedBox(
@@ -607,15 +610,15 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
                     child: ProgressRing(strokeWidth: 2),
                   ),
                   SizedBox(width: 10),
-                  Text('添加中...'),
+                  Text(t.addDownloadAdding),
                 ],
               )
-            : const Row(
+            : Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(FluentIcons.download, size: 16),
                   SizedBox(width: 8),
-                  Text('开始下载'),
+                  Text(t.addDownloadStart),
                 ],
               ),
       ),
@@ -625,7 +628,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
   Future<void> _handleSubmit() async {
     // 验证 URL
     if (_urlController.text.trim().isEmpty) {
-      await _showErrorDialog('请输入下载链接');
+      await _showErrorDialog(t.addDownloadErrorMissingUrl);
       return;
     }
 
@@ -634,7 +637,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
     if (!url.startsWith('test_task_') && 
         !url.startsWith('http://') && 
         !url.startsWith('https://')) {
-      await _showErrorDialog('请输入有效的 HTTP/HTTPS 链接');
+      await _showErrorDialog(t.addDownloadErrorInvalidUrl);
       return;
     }
 
@@ -656,7 +659,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        await _showErrorDialog('添加任务失败: $e');
+        await _showErrorDialog(t.addDownloadErrorAddFailed(e.toString()));
       }
     }
   }
@@ -674,16 +677,16 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
                 color: AppTheme.statusError.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(
-                FluentIcons.error_badge,
-                size: 16,
-                color: AppTheme.statusError,
-              ),
+            child: const Icon(
+              FluentIcons.error_badge,
+              size: 16,
+              color: AppTheme.statusError,
             ),
-            const SizedBox(width: 12),
-            const Text('错误'),
-          ],
-        ),
+          ),
+          const SizedBox(width: 12),
+          Text(t.addDownloadErrorTitle),
+        ],
+      ),
         content: Text(
           message,
           style: FluentTheme.of(context).typography.body?.copyWith(
@@ -696,7 +699,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
               backgroundColor: WidgetStateProperty.all(AppTheme.statusError),
             ),
             onPressed: () => Navigator.pop(context),
-            child: const Text('确定'),
+            child: Text(t.addDownloadErrorConfirm),
           ),
         ],
       ),
@@ -706,8 +709,8 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
   void _showSuccessMessage(String fileName) {
     if (mounted) {
       NotificationManager.of(context)?.showSuccess(
-        '任务已添加',
-        message: '正在下载: $fileName',
+        t.addDownloadSuccessTitle,
+        message: t.addDownloadSuccessMessage(fileName),
       );
     }
   }

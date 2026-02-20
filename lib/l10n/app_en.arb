@@ -1,0 +1,1844 @@
+{
+  "appTitle": "Hanabi Download ManagerX",
+  "aboutEasterEggCongrats": "Congrats, you found the easter egg!",
+  "aboutEasterEggTitle": "This easter egg doesn't do much.",
+  "aboutEasterEggMessage": "Thanks for using {appName}!\\nThanks for your support.\\nHope you can give it a star.",
+  "@aboutEasterEggMessage": {
+    "placeholders": {
+      "appName": {}
+    }
+  },
+  "aboutEasterEggDismiss": "Pretend I didn't see it",
+  "aboutMadeBy": "Made by {developer}",
+  "@aboutMadeBy": {
+    "placeholders": {
+      "developer": {}
+    }
+  },
+  "aboutEasterEggDialogTitle": "Hey!",
+  "aboutPageTitle": "About",
+  "aboutSectionAppInfo": "App Info",
+  "aboutTapHintRemaining": "Tap {count} more times...",
+  "@aboutTapHintRemaining": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "aboutVersionLabel": "v{version}",
+  "@aboutVersionLabel": {
+    "placeholders": {
+      "version": {}
+    }
+  },
+  "aboutSectionDetails": "Details",
+  "aboutDetailDeveloperLabel": "Developer",
+  "aboutDetailKernelLabel": "Download core",
+  "aboutDetailUiFrameworkLabel": "UI framework",
+  "aboutDetailUiFrameworkValue": "Fluent UI for Flutter",
+  "aboutSectionLinks": "Links",
+  "aboutLinkOfficialTitle": "Official Website",
+  "aboutLinkOfficialSubtitle": "Visit the project homepage",
+  "aboutLinkGithubTitle": "GitHub",
+  "aboutLinkGithubSubtitle": "View source code and contribute",
+  "aboutLinkContactTitle": "Contact Us",
+  "aboutCopyrightMessage": "© {year} {developer}. All rights reserved.",
+  "@aboutCopyrightMessage": {
+    "placeholders": {
+      "year": {},
+      "developer": {}
+    }
+  },
+  "aboutOpenLinkErrorTitle": "Error",
+  "aboutOpenLinkErrorMessage": "Failed to open link: {error}",
+  "@aboutOpenLinkErrorMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "settingsTitle": "Settings",
+  "settingsTabGeneral": "General",
+  "settingsTabDownload": "Downloads",
+  "settingsTabAppearance": "Appearance",
+  "settingsTabUpdate": "Updates",
+  "settingsTabAdvanced": "Advanced",
+  "settingsTabDeveloper": "Developer",
+  "appearanceSectionLanguage": "Language",
+  "appearanceLanguageTitle": "Interface Language",
+  "appearanceLanguageSubtitle": "Follow system by default: the app will automatically choose the appropriate language for you",
+  "appearanceLanguageSystem": "Follow system",
+  "appearanceLanguageChinese": "Chinese",
+  "appearanceLanguageEnglish": "English",
+  "appearanceLanguageSwitchedTitle": "Language switched",
+  "appearanceLanguageSwitchedSystem": "It will follow your system language",
+  "appearanceLanguageSwitchedTo": "Switched to {language}",
+  "@appearanceLanguageSwitchedTo": {
+    "placeholders": {
+      "language": {}
+    }
+  },
+  "appearanceLanguagePacksTitle": "Language Packs",
+  "appearanceLanguagePacksSubtitle": "Put .json/.arb files into {path}, then click refresh",
+  "@appearanceLanguagePacksSubtitle": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "appearanceLanguagePacksRefreshedTitle": "Language packs refreshed",
+  "appearanceLanguagePacksRefreshedMessage": "Found {count} language pack(s)",
+  "@appearanceLanguagePacksRefreshedMessage": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "appearanceLanguageRefreshButton": "Refresh language packs",
+  "trayMenuShowWindowTitle": "Show Window",
+  "trayMenuShowWindowSubtitle": "Open main window",
+  "trayMenuKernelTitle": "Download Kernel",
+  "trayMenuKernelSubtitleRunning": "Running",
+  "trayMenuKernelSubtitleStopped": "Stopped",
+  "trayMenuExitTitle": "Exit",
+  "trayMenuExitSubtitle": "Close all windows",
+  "tempFilesDialogTitle": "Clean Temporary Files",
+  "tempFilesDialogScanPath": "Scan path: {path}",
+  "@tempFilesDialogScanPath": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "tempFilesStatFiles": "Files",
+  "tempFilesStatTotalSize": "Total size",
+  "tempFilesStatSelected": "Selected",
+  "tempFilesSupportedFormats": "Supported: .temp, .tmp, .download, .partN (segments), .crdownload, .partial, .!ut",
+  "tempFilesSelectAll": "Select all",
+  "tempFilesIncludeTempDirs": "Include temp folders",
+  "tempFilesSortLabel": "Sort:",
+  "tempFilesSortName": "Name",
+  "tempFilesSortSize": "Size",
+  "tempFilesSortTime": "Time",
+  "tempFilesEmpty": "No temporary files found",
+  "tempFilesCloseButton": "Close",
+  "tempFilesDeleteSelected": "Delete selected ({count})",
+  "@tempFilesDeleteSelected": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tempFilesDeleteConfirmTitle": "Confirm deletion",
+  "tempFilesDeleteConfirmMessage": "Delete {count} temporary files?",
+  "@tempFilesDeleteConfirmMessage": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tempFilesDeleteTotalSize": "Total size: {size}",
+  "@tempFilesDeleteTotalSize": {
+    "placeholders": {
+      "size": {}
+    }
+  },
+  "tempFilesDeleteWarning": "This action cannot be undone",
+  "tempFilesCancelButton": "Cancel",
+  "tempFilesDeleteButton": "Delete",
+  "tempFilesDeleteDoneTitle": "Deletion complete",
+  "tempFilesDeleteDoneWithFailures": "Deleted {success}, failed {failed}",
+  "@tempFilesDeleteDoneWithFailures": {
+    "placeholders": {
+      "success": {},
+      "failed": {}
+    }
+  },
+  "tempFilesDeleteDoneSuccess": "Deleted {success} temporary files",
+  "@tempFilesDeleteDoneSuccess": {
+    "placeholders": {
+      "success": {}
+    }
+  },
+  "homeNavDownloading": "Downloading",
+  "homeNavCompleted": "Completed",
+  "homeNavLog": "Logs",
+  "homeNavStatus": "Status",
+  "homeNavWebCheck": "Web Check",
+  "homeNavOnlineStats": "Online Stats",
+  "homeNavPerformance": "Performance",
+  "homeNavSettings": "Settings",
+  "homeNavAbout": "About",
+  "homeUpdateFoundTitle": "New version detected",
+  "homeUpdateFoundMessage": "Update: {currentVersion} -> {newVersion}\\nGo to Settings to update.",
+  "@homeUpdateFoundMessage": {
+    "placeholders": {
+      "currentVersion": {},
+      "newVersion": {}
+    }
+  },
+  "homeKernelStartingTitle": "Starting download kernel...",
+  "homeKernelStartingHint": "Please wait, this may take a few seconds",
+  "homeViewLog": "View logs",
+  "homeRetry": "Retry",
+  "homeNewTask": "New",
+  "fileName": "File name",
+  "id": "ID",
+  "name": "Name",
+  "segments": "Segments",
+  "speed": "Speed",
+  "status": "Status",
+  "url": "URL",
+  "settingsSectionSystem": "System",
+  "settingsAutoStartTitle": "Launch on startup",
+  "settingsAutoStartSubtitle": "Start the app when the system starts",
+  "settingsAutoStartEnabledTitle": "Auto start enabled",
+  "settingsAutoStartEnabledMessage": "The app will launch on startup",
+  "settingsAutoStartDisabledTitle": "Auto start disabled",
+  "settingsAutoStartDisabledMessage": "The app will not launch on startup",
+  "settingsAutoStartEnableFailed": "Failed to enable auto start",
+  "settingsAutoStartDisableFailed": "Failed to disable auto start",
+  "settingsAutoStartFixedTitle": "Auto start fixed",
+  "settingsAutoStartFixedMessage": "Auto start path has been corrected",
+  "settingsSectionBehavior": "Behavior",
+  "settingsAutoDownloadTitle": "Auto start downloads",
+  "settingsAutoDownloadSubtitle": "Start new tasks automatically",
+  "settingsAutoDownloadEnabledTitle": "Auto download enabled",
+  "settingsAutoDownloadEnabledMessage": "New tasks will start automatically",
+  "settingsAutoDownloadDisabledTitle": "Auto download disabled",
+  "settingsAutoDownloadDisabledMessage": "New tasks will wait until you start them",
+  "settingsPopupWindowTitle": "Popup window",
+  "settingsPopupWindowSubtitle": "Show download popups",
+  "settingsPopupEnabledTitle": "Popup enabled",
+  "settingsPopupEnabledMessage": "Popup window is enabled",
+  "settingsPopupDisabledTitle": "Popup disabled",
+  "settingsPopupDisabledMessage": "Popup window is disabled",
+  "settingsCompleteNotifyTitle": "Completion notifications",
+  "settingsCompleteNotifySubtitle": "Notify when downloads finish",
+  "settingsCompleteNotifyEnabledTitle": "Notifications enabled",
+  "settingsCompleteNotifyEnabledMessage": "You'll be notified on completion",
+  "settingsCompleteNotifyDisabledTitle": "Notifications disabled",
+  "settingsCompleteNotifyDisabledMessage": "No completion notifications",
+  "settingsOnlineStatsTitle": "Online stats",
+  "settingsOnlineStatsSubtitle": "Enable online user statistics",
+  "settingsOnlineStatsEnabledTitle": "Online stats enabled",
+  "settingsOnlineStatsEnabledMessage": "Online stats are now enabled",
+  "settingsOnlineStatsDisabledTitle": "Online stats disabled",
+  "settingsOnlineStatsDisabledMessage": "Online stats are now disabled",
+  "settingsTrayHintTitle": "Tray running status",
+  "settingsTrayHintSubtitle": "Show running status in tray tooltip",
+  "settingsTrayHintEnabledTitle": "Tray hint enabled",
+  "settingsTrayHintEnabledMessage": "Tray tooltip will show running status",
+  "settingsTrayHintDisabledTitle": "Tray hint disabled",
+  "settingsTrayHintDisabledMessage": "Tray tooltip will be simplified",
+  "settingsCloseBehaviorTitle": "Close button behavior",
+  "settingsCloseBehaviorMinimizeLabel": "Minimize to tray",
+  "settingsCloseBehaviorExitLabel": "Exit app",
+  "settingsCloseBehaviorMinimize": "Minimize to tray",
+  "settingsCloseBehaviorExit": "Exit app",
+  "settingsCloseBehaviorUnknown": "Unknown",
+  "settingsCloseBehaviorSavedMessage": "Close behavior set to {behavior}",
+  "settingsSaveSuccessTitle": "Saved",
+  "settingsSaveFailedTitle": "Save failed",
+  "settingsSaveFailedMessage": "Failed to save: {error}",
+  "@settingsCloseBehaviorSavedMessage": {
+    "placeholders": {
+      "behavior": {}
+    }
+  },
+  "@settingsSaveFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "settingsDownloadPathSection": "Download path",
+  "settingsDownloadPathTitle": "Download folder",
+  "settingsDownloadPathChangeButton": "Change",
+  "settingsDownloadPathDialogTitle": "Change download folder",
+  "settingsDownloadPathDialogPrompt": "Please choose or input a download folder",
+  "settingsDownloadPathPlaceholder": "Enter folder path",
+  "settingsBrowseButton": "Browse",
+  "settingsDownloadPathHintTitle": "Tip",
+  "settingsDownloadPathHintBody": "Use a local disk folder for better performance",
+  "settingsCancelButton": "Cancel",
+  "settingsConfirmButton": "Confirm",
+  "settingsDownloadPathChangedMessage": "Download path updated to {path}",
+  "settingsDownloadPathChangeFailedMessage": "Failed to update download path",
+  "settingsDownloadConfigSection": "Download settings",
+  "settingsDownloadModeTitle": "Download mode",
+  "settingsDownloadModeAuto": "Auto",
+  "settingsDownloadModeThreadsOnly": "Threads only",
+  "settingsDownloadModeSegmentsOnly": "Segments only",
+  "settingsDownloadModeManual": "Manual",
+  "settingsThreadsTitle": "Threads",
+  "settingsThreadsSubtitle": "Number of download threads",
+  "settingsSegmentsTitle": "Segments",
+  "settingsSegmentsSubtitle": "Number of segments per download",
+  "settingsDynamicSegmentsTitle": "Dynamic segments",
+  "settingsDynamicSegmentsSubtitle": "Adjust segments based on file size",
+  "settingsDynamicSegmentsEnabledTitle": "Dynamic segments enabled",
+  "settingsDynamicSegmentsEnabledMessage": "Segments will adjust automatically",
+  "settingsDynamicSegmentsDisabledTitle": "Dynamic segments disabled",
+  "settingsDynamicSegmentsDisabledMessage": "Segments will stay fixed",
+  "settingsMaxConcurrentTitle": "Max concurrent tasks",
+  "settingsMaxConcurrentSubtitle": "Limit concurrent downloads",
+  "settingsSegmentSpeedLimitTitle": "Per-segment speed limit",
+  "settingsSegmentSpeedLimitSubtitle": "Limit speed per segment",
+  "settingsSpeedUnlimited": "Unlimited",
+  "settingsSpeedTotal": "Total {speed} KB/s",
+  "@settingsDownloadPathChangedMessage": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "@settingsSpeedTotal": {
+    "placeholders": {
+      "speed": {}
+    }
+  },
+  "settingsPopupSaveFailedMessage": "Failed to save: {error}",
+  "settingsProxySection": "Proxy",
+  "settingsProxyEnableTitle": "Enable proxy",
+  "settingsProxyEnableSubtitle": "Use proxy for downloads",
+  "settingsProxySavedTitle": "Proxy settings saved",
+  "settingsProxyEnabledMessage": "Proxy enabled: {host}:{port}",
+  "settingsProxyDisabledMessage": "Proxy disabled",
+  "settingsProxyTypeTitle": "Proxy type",
+  "settingsProxyTypeSubtitle": "Choose proxy protocol",
+  "settingsProxyTypeSystem": "System",
+  "settingsProxyTypeHttp": "HTTP",
+  "settingsProxyTypeSocks5": "SOCKS5",
+  "settingsProxyServerTitle": "Proxy server",
+  "settingsProxyServerSubtitle": "Server address and port",
+  "settingsProxyHostPlaceholder": "Host",
+  "settingsProxyAuthTitle": "Authentication",
+  "settingsProxyAuthSubtitle": "Requires username/password",
+  "settingsProxyUsernameTitle": "Username",
+  "settingsProxyUsernameSubtitle": "Proxy account username",
+  "settingsProxyUsernamePlaceholder": "Enter username",
+  "settingsProxyPasswordTitle": "Password",
+  "settingsProxyPasswordSubtitle": "Proxy account password",
+  "settingsProxyPasswordPlaceholder": "Enter password",
+  "settingsProxyTipsTitle": "Proxy tips",
+  "settingsProxyTipsSystem": "Use system proxy settings",
+  "settingsProxyTipsHttp": "HTTP proxy format: host:port",
+  "settingsProxyTipsSocks5": "SOCKS5 proxy format: host:port",
+  "settingsProxyTipsDefault": "Configure your proxy settings",
+  "settingsProxyTestButton": "Test proxy",
+  "settingsProxyTestingTitle": "Testing proxy...",
+  "settingsProxyTestingMessage": "Please wait",
+  "settingsProxyTestSuccessTitle": "Proxy works",
+  "settingsProxyTestSuccessMessage": "Proxy connection successful",
+  "settingsProxyTestFailedTitle": "Proxy failed",
+  "settingsProxyTestFailedMessage": "Could not connect to proxy",
+  "settingsProxyTestErrorTitle": "Proxy error",
+  "settingsProxyTestErrorMessage": "Test failed: {error}",
+  "settingsProxyErrorTitle": "Proxy config error",
+  "settingsProxyErrorMessage": "Please enter a proxy host",
+  "settingsKernelSection": "Download kernel",
+  "settingsKernelCurrentTitle": "Current kernel",
+  "settingsKernelOnline": "Online",
+  "settingsKernelOffline": "Offline",
+  "settingsKernelNsfxTitle": "Use NSFX kernel",
+  "settingsKernelNsfxSubtitle": "Switch to the new kernel",
+  "settingsKernelNsfxHint": "NSFX provides better performance and stability",
+  "settingsKernelSodaHint": "Legacy kernel is for compatibility",
+  "settingsKernelSwitchedTitle": "Kernel switched",
+  "settingsKernelSwitchedMessage": "Now using {kernelName}",
+  "settingsKernelSwitchedLegacyMessage": "Switched to legacy kernel",
+  "settingsKernelSwitchFailedTitle": "Kernel switch failed",
+  "settingsKernelSwitchFailedNewMessage": "Failed to start new kernel",
+  "settingsKernelSwitchFailedLegacyMessage": "Failed to start legacy kernel",
+  "settingsStatusTitle": "System status",
+  "settingsStatusKernelNsfx": "NSFX Kernel",
+  "settingsStatusKernelSoda": "Legacy Kernel",
+  "settingsStatusBrowserExtension": "Browser extension",
+  "settingsModeDescriptionAuto": "Automatically balance threads and segments",
+  "settingsModeDescriptionThreadsOnly": "Use threads only",
+  "settingsModeDescriptionSegmentsOnly": "Use segments only",
+  "settingsModeDescriptionManual": "Manually control threads and segments",
+  "settingsModeDescriptionUnknown": "Unknown mode",
+  "settingsDeveloperSection": "Developer options",
+  "settingsDeveloperModeTitle": "Developer mode",
+  "settingsDeveloperModeSubtitle": "Enable debugging and diagnostics",
+  "settingsDeveloperModeHint": "Developer features are for debugging only",
+  "settingsDeveloperModeEnabledTitle": "Developer mode enabled",
+  "settingsDeveloperModeEnabledMessage": "Advanced debugging is enabled",
+  "settingsDeveloperModeDisabledTitle": "Developer mode disabled",
+  "settingsDeveloperModeDisabledMessage": "Advanced debugging is disabled",
+  "settingsDeveloperPageVisibilityTitle": "Debug page visibility",
+  "settingsDeveloperShowLogTitle": "Show log page",
+  "settingsDeveloperShowLogSubtitle": "Show log viewer in navigation",
+  "settingsDeveloperShowStatusTitle": "Show status page",
+  "settingsDeveloperShowStatusSubtitle": "Show system status in navigation",
+  "settingsDeveloperShowOnlineStatsTitle": "Show online stats page",
+  "settingsDeveloperShowOnlineStatsSubtitle": "Show online stats in navigation",
+  "settingsDeveloperShowWebCheckTitle": "Show web check page",
+  "settingsDeveloperShowWebCheckSubtitle": "Show web status tools in navigation",
+  "settingsDeveloperPageHint": "Debug pages may consume resources; enable only when needed",
+  "settingsDangerCleanTempTitle": "Clean temporary files",
+  "settingsDangerCleanTempSubtitle": "Scan and delete .temp files in the download folder",
+  "settingsDangerCleanTempButton": "Clean temporary files",
+  "settingsDangerClearDataTitle": "Clear all data",
+  "settingsDangerClearDataSubtitle": "Delete all download tasks and history",
+  "settingsDangerClearDataButton": "Clear data",
+  "settingsDangerConfirmTitle": "Confirm clear",
+  "settingsDangerConfirmMessage": "Clear all download tasks and history? This cannot be undone.",
+  "settingsDangerConfirmButton": "Confirm",
+  "settingsDangerClearingTitle": "Clearing...",
+  "settingsDangerClearingMessage": "Please wait",
+  "settingsDangerClearedTitle": "Cleared",
+  "settingsDangerClearedMessage": "All download tasks and history have been cleared",
+  "settingsDangerClearFailedTitle": "Clear failed",
+  "settingsDangerClearFailedMessage": "Unable to clear data. Make sure the download kernel is running.",
+  "settingsUserLoading": "Loading...",
+  "settingsUserLoadFailed": "Failed to load",
+  "settingsUserUnknown": "Unknown",
+  "@settingsPopupSaveFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@settingsProxyEnabledMessage": {
+    "placeholders": {
+      "host": {},
+      "port": {}
+    }
+  },
+  "@settingsProxyTestErrorMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@settingsKernelSwitchedMessage": {
+    "placeholders": {
+      "kernelName": {}
+    }
+  },
+  "appearanceWindowSizeSection": "Window size",
+  "appearanceWindowRememberTitle": "Remember window size",
+  "appearanceWindowRememberSubtitleOn": "Use last window size on startup",
+  "appearanceWindowRememberSubtitleOff": "Use default window size on startup",
+  "appearanceWindowDefaultWidthTitle": "Default window width",
+  "appearanceWindowDefaultWidthSubtitle": "Default width on startup (600-{max})",
+  "appearanceWindowDefaultHeightTitle": "Default window height",
+  "appearanceWindowDefaultHeightSubtitle": "Default height on startup (400-{max})",
+  "appearanceWindowSaveTitle": "Saved",
+  "appearanceWindowSaveMessage": "Current window size set as default ({width}?{height})",
+  "appearanceWindowSaveButton": "Use current size ({width}?{height})",
+  "appearanceWindowResetTitle": "Reset",
+  "appearanceWindowResetMessage": "Default window size reset to 889?586",
+  "appearanceWindowResetButton": "Reset to default",
+  "appearanceWindowApplyTitle": "Applied",
+  "appearanceWindowApplyMessage": "Window size adjusted to {width}?{height}",
+  "appearanceWindowApplyButton": "Apply default size ({width}?{height})",
+  "appearanceWindowRememberHintOn": "Remember mode is enabled; the app will restore last window size",
+  "appearanceWindowRememberHintOff": "Default size mode is enabled; the app will use the configured size",
+  "appearanceUiScaleSection": "UI scale",
+  "appearanceUiScaleTitle": "Interface scale",
+  "appearanceUiScaleSubtitle": "Adjust UI scale for high-DPI screens (50%-200%)",
+  "appearanceUiScaleResetTitle": "Reset",
+  "appearanceUiScaleResetMessage": "UI scale reset to 100%",
+  "appearanceUiScaleResetButton": "Reset to 100%",
+  "appearanceUiScaleApplyTitle": "Applied",
+  "appearanceUiScaleApplyMessage": "UI scale set to 125% (recommended for 4K)",
+  "appearanceUiScale4kButton": "4K recommended (125%)",
+  "appearanceUiScaleHint": "Adjusting this helps on high-DPI screens. 4K recommended 125%-150%.",
+  "@appearanceWindowDefaultWidthSubtitle": {
+    "placeholders": {
+      "max": {}
+    }
+  },
+  "@appearanceWindowDefaultHeightSubtitle": {
+    "placeholders": {
+      "max": {}
+    }
+  },
+  "@appearanceWindowSaveMessage": {
+    "placeholders": {
+      "width": {},
+      "height": {}
+    }
+  },
+  "@appearanceWindowSaveButton": {
+    "placeholders": {
+      "width": {},
+      "height": {}
+    }
+  },
+  "@appearanceWindowApplyMessage": {
+    "placeholders": {
+      "width": {},
+      "height": {}
+    }
+  },
+  "@appearanceWindowApplyButton": {
+    "placeholders": {
+      "width": {},
+      "height": {}
+    }
+  },
+  "appearanceFontSection": "Font",
+  "appearanceFontTitle": "App font",
+  "appearanceFontSystemSubtitle": "Use system default font",
+  "appearanceFontCurrentSubtitle": "Current font: {font}",
+  "appearanceFontSystemLabel": "System default",
+  "appearanceFontImportButton": "Import font",
+  "appearanceFontDeleteButton": "Delete current font",
+  "appearanceFontHint": "Supports .ttf and .otf font files",
+  "appearanceFontChangedTitle": "Font changed",
+  "appearanceFontChangedMessage": "The new font has been applied",
+  "appearanceFontImportDialogTitle": "Select font file",
+  "appearanceFontImportingTitle": "Importing font...",
+  "appearanceFontImportingMessage": "Please wait",
+  "appearanceFontImportSuccessTitle": "Import successful",
+  "appearanceFontImportSuccessMessage": "Font imported successfully",
+  "appearanceFontImportFailedTitle": "Import failed",
+  "appearanceFontImportFailedMessage": "Unable to import font file, please check format",
+  "appearanceFontImportFailedWithErrorMessage": "Import failed: {error}",
+  "appearanceFontDeleteConfirmTitle": "Confirm deletion",
+  "appearanceFontDeleteConfirmMessage": "Delete font \"{fontName}\"?",
+  "appearanceFontDeleteCancelButton": "Cancel",
+  "appearanceFontDeleteConfirmButton": "Delete",
+  "appearanceFontDeleteSuccessTitle": "Deleted",
+  "appearanceFontDeleteSuccessMessage": "Font deleted",
+  "appearanceFontDeleteFailedTitle": "Delete failed",
+  "appearanceFontDeleteFailedMessage": "Unable to delete font",
+  "appearanceFontPickerTitle": "Choose font",
+  "appearanceFontPickerSearchPlaceholder": "Search fonts...",
+  "appearanceFontPickerCount": "{count} fonts",
+  "appearanceFontPickerFilteredLabel": "(filtered)",
+  "appearanceFontPickerEmpty": "No matching fonts found",
+  "appearanceFontPickerRecommended": "Recommended",
+  "appearanceFontPickerCancel": "Cancel",
+  "@appearanceFontCurrentSubtitle": {
+    "placeholders": {
+      "font": {}
+    }
+  },
+  "@appearanceFontDeleteConfirmMessage": {
+    "placeholders": {
+      "fontName": {}
+    }
+  },
+  "@appearanceFontImportFailedWithErrorMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@appearanceFontPickerCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "appearanceWindowEffectsSection": "Window effects",
+  "appearanceWindowEffectsEnableTitle": "Enable window effects",
+  "appearanceWindowEffectsEnabledSubtitle": "Window effects enabled",
+  "appearanceWindowEffectsDisabledSubtitle": "Window effects disabled (performance mode)",
+  "appearanceWindowEffectsEnabledTitle": "Window effects enabled",
+  "appearanceWindowEffectsDisabledTitle": "Window effects disabled",
+  "appearanceWindowEffectsEnabledMessage": "Window effects are on",
+  "appearanceWindowEffectsDisabledMessage": "Switched to solid background for performance",
+  "appearanceWindowEffectsTypeTitle": "Effect type",
+  "appearanceWindowEffectSwitchedTitle": "Effect switched",
+  "appearanceWindowEffectAcrylic": "Acrylic",
+  "appearanceWindowEffectBlur": "Blur",
+  "appearanceWindowEffectMica": "Mica",
+  "appearanceWindowEffectMicaAlt": "Mica Alt",
+  "appearanceWindowEffectsAcrylicOpacityTitle": "Acrylic opacity",
+  "appearanceWindowEffectsAcrylicOpacityHint": "Adjust background opacity (0-255, lower is more transparent)",
+  "appearanceWindowEffectsAcrylicOpacityMicaHint": "Mica does not support opacity adjustments",
+  "appearanceWindowEffectsDragSuspendTitle": "Disable effects while dragging",
+  "appearanceWindowEffectsDragSuspendEnabledSubtitle": "Temporarily disable effects while dragging for smoothness",
+  "appearanceWindowEffectsDragSuspendDisabledSubtitle": "Keep effects while dragging (may lag on Win10)",
+  "appearanceWindowEffectsMicaHint": "Mica is only available on Windows 11 and follows system theme",
+  "appearanceWindowEffectsAcrylicHint": "Acrylic uses extra GPU. Disable if it stutters.",
+  "appearanceWindowEffectsDisabledHint": "Effects are off for best performance",
+  "appearanceEffectNone": "No effect",
+  "appearanceEffectBlur": "Blur - simple background blur",
+  "appearanceEffectAcrylic": "Acrylic - translucent blur background",
+  "appearanceEffectMica": "Mica - Windows 11 native effect",
+  "appearanceEffectMicaAlt": "Mica Alt - Windows 11 transient effect",
+  "appearanceEffectUnknown": "Unknown effect",
+  "appearanceSidebarSection": "Sidebar",
+  "appearanceSidebarDefaultTitle": "Default expanded",
+  "appearanceSidebarDefaultSubtitle": "Default sidebar state on startup",
+  "appearanceSidebarExpandedLabel": "Expanded",
+  "appearanceSidebarCollapsedLabel": "Collapsed",
+  "appearanceSidebarSavedTitle": "Saved",
+  "appearanceSidebarSavedMessage": "Sidebar default set to {state}",
+  "@appearanceSidebarSavedMessage": {
+    "placeholders": {
+      "state": {}
+    }
+  },
+  "appearanceNotificationSection": "Notifications",
+  "appearanceNotificationEnableTitle": "Enable notifications",
+  "appearanceNotificationEnableSubtitle": "Show download completion and error notifications",
+  "appearanceNotificationSchemeTitle": "Color scheme",
+  "appearanceNotificationSchemeSystem": "Follow theme",
+  "appearanceNotificationSchemeLight": "Light",
+  "appearanceNotificationSchemeDark": "Dark",
+  "appearanceNotificationSchemeFluent2": "Fluent 2 (Recommended)",
+  "appearanceNotificationSchemeUnknown": "Unknown",
+  "appearanceNotificationSchemeDefaultOption": "Default",
+  "appearanceNotificationSchemeLightOption": "Light",
+  "appearanceNotificationSchemeDarkOption": "Dark",
+  "appearanceNotificationSchemeFluent2Option": "Fluent 2",
+  "appearanceNotificationPositionTitle": "Position",
+  "appearanceNotificationPositionTopRight": "Top right (below title bar)",
+  "appearanceNotificationPositionBottomRight": "Bottom right",
+  "appearanceNotificationPositionUnknown": "Unknown",
+  "appearanceNotificationPositionTopRightOption": "Top right",
+  "appearanceNotificationPositionBottomRightOption": "Bottom right",
+  "appearanceNotificationPerformanceTitle": "Render performance",
+  "appearanceNotificationPerformanceOptionPerformance": "Performance",
+  "appearanceNotificationPerformanceOptionBalanced": "Balanced",
+  "appearanceNotificationPerformanceOptionQuality": "Quality",
+  "appearanceNotificationPerformanceHint": "Blur effects can impact smoothness. Choose Performance if stuttering.",
+  "appearanceNotificationPreviewButtonTitle": "Preview notifications",
+  "appearanceNotificationPreviewButtonSubtitle": "Click to preview current scheme",
+  "appearanceNotificationPreviewButton": "Preview",
+  "appearanceNotificationPreviewTitle": "Color preview",
+  "appearanceNotificationPreviewSuccessTitle": "Success",
+  "appearanceNotificationPreviewSuccessMessage": "Operation completed successfully",
+  "appearanceNotificationPreviewWarningTitle": "Warning",
+  "appearanceNotificationPreviewWarningMessage": "Please note the impact of this action",
+  "appearanceNotificationPreviewErrorTitle": "Error",
+  "appearanceNotificationPreviewErrorMessage": "Operation failed, please retry",
+  "appearanceNotificationPreviewInfoTitle": "Info",
+  "appearanceNotificationPreviewInfoMessage": "This is an informational message",
+  "appearanceNotificationTestTitle": "Test notification",
+  "appearanceNotificationTestMessage": "This is a test notification message",
+  "appearancePerformanceModePerformance": "Performance (no blur, recommended)",
+  "appearancePerformanceModeBalanced": "Balanced (light blur)",
+  "appearancePerformanceModeQuality": "Quality (full blur)",
+  "appearancePerformanceModeUnknown": "Unknown",
+  "appearanceSegmentsModeTitle": "Segment progress display",
+  "appearanceSegmentsModeNoneOption": "Compact",
+  "appearanceSegmentsModeMergedOption": "Merged bar",
+  "appearanceSegmentsModeListOption": "Segment list",
+  "appearanceSegmentsModeNoneDescription": "Compact: hide segment details",
+  "appearanceSegmentsModeMergedDescription": "Merged: show all segments in one bar",
+  "appearanceSegmentsModeListDescription": "List: each segment in its own row",
+  "appearanceSegmentsDefaultExpandedTitle": "Expand segments by default",
+  "appearanceSegmentsDefaultExpandedSubtitle": "Show segment details expanded by default",
+  "appearanceSegmentsMaxVisibleTitle": "Default visible segments",
+  "appearanceSegmentsMaxVisibleSubtitle": "Number of segments shown when expanded (1-32)",
+  "appearanceDownloadListSection": "Download list display",
+  "developerSectionDebugTools": "Debug tools",
+  "developerSectionTestTools": "Test tools",
+  "developerModeEnabledSubtitle": "Debug tools are enabled",
+  "developerModeDisabledSubtitle": "Enable to access debug tools",
+  "developerToolLogTitle": "Log viewer",
+  "developerToolLogSubtitle": "View runtime logs",
+  "developerToolLogShownTitle": "Log viewer shown",
+  "developerToolLogShownMessage": "Log page added to navigation",
+  "developerToolLogHiddenTitle": "Log viewer hidden",
+  "developerToolLogHiddenMessage": "Log page removed from navigation",
+  "developerToolStatusTitle": "System status",
+  "developerToolStatusSubtitle": "Kernel & extension",
+  "developerToolStatusShownTitle": "System status shown",
+  "developerToolStatusShownMessage": "Status page added to navigation",
+  "developerToolStatusHiddenTitle": "System status hidden",
+  "developerToolStatusHiddenMessage": "Status page removed from navigation",
+  "developerToolOnlineStatsTitle": "Online stats",
+  "developerToolOnlineStatsSubtitle": "User data",
+  "developerToolOnlineStatsShownTitle": "Online stats shown",
+  "developerToolOnlineStatsShownMessage": "Online stats page added to navigation",
+  "developerToolOnlineStatsHiddenTitle": "Online stats hidden",
+  "developerToolOnlineStatsHiddenMessage": "Online stats page removed from navigation",
+  "developerToolWebCheckTitle": "Web check",
+  "developerToolWebCheckSubtitle": "Website diagnostics",
+  "developerToolWebCheckShownTitle": "Web check shown",
+  "developerToolWebCheckShownMessage": "Web check page added to navigation",
+  "developerToolWebCheckHiddenTitle": "Web check hidden",
+  "developerToolWebCheckHiddenMessage": "Web check page removed from navigation",
+  "developerToolPerformanceTitle": "Performance monitor",
+  "developerToolPerformanceSubtitle": "FPS & rendering",
+  "developerToolPerformanceShownTitle": "Performance monitor shown",
+  "developerToolPerformanceShownMessage": "Performance monitor page added to navigation",
+  "developerToolPerformanceHiddenTitle": "Performance monitor hidden",
+  "developerToolPerformanceHiddenMessage": "Performance monitor page removed from navigation",
+  "developerTestNotificationTitle": "Notification test",
+  "developerTestNotificationTitlePlaceholder": "Title",
+  "developerTestNotificationMessagePlaceholder": "Message (optional)",
+  "developerTestNotificationTypeSuccess": "Success",
+  "developerTestNotificationTypeWarning": "Warning",
+  "developerTestNotificationTypeError": "Error",
+  "developerTestNotificationTypeInfo": "Info",
+  "developerTestNotificationTitleRequired": "Please enter a title",
+  "developerTestPopupTitle": "Popup test",
+  "developerTestPopupButton": "Popup window",
+  "developerTestPopupTestingLabel": "Testing...",
+  "developerTestPopupHint": "Popup window uses Tauri; Dialog needs the main window",
+  "developerTestPopupResultSuccess": "Success ? {time}ms",
+  "developerTestPopupResultFailed": "Failed",
+  "@developerTestPopupResultSuccess": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "updateCurrentVersionTitle": "Current version",
+  "updateChangelogTitle": "Changelog",
+  "updateChangelogViewFullButton": "View full changelog",
+  "updateChangelogDialogTitle": "v{version} Changelog",
+  "updateCheckTitle": "Check for updates",
+  "updateStartButton": "Start update",
+  "updateCheckAgainButton": "Check again",
+  "updateCheckingStatus": "Checking for updates...",
+  "updateCheckFailedTitle": "Update check failed",
+  "updateLatestTitle": "You're up to date",
+  "updateLatestSubtitle": "You are using the latest version",
+  "updateInitialHint": "Click \"Check again\" to look for updates",
+  "updateUnreleasedTitle": "Unreleased version",
+  "updateUnreleasedSubtitle": "Current version v{version} | Version not found, possibly a special or dev build",
+  "updateConfirmTitle": "Confirm update",
+  "updateConfirmMessage": "A new version is ready. The app will close to install it.",
+  "updateConfirmDetails": "New version: {newVersion}\nCurrent version: {currentVersion}\nChange: {change}\nChannel: {currentChannel} ? {targetChannel}\nReady to update?",
+  "updateConfirmCancelButton": "Cancel",
+  "updateConfirmProceedButton": "Update now",
+  "updateUnknownVersion": "Unknown",
+  "updateUnknownChannel": "Unknown",
+  "updateLauncherFailedTitle": "Failed to launch updater",
+  "updateLauncherFailedMessage": "Unable to start Update.exe\nTroubleshooting:\n ?Check if Update.exe was removed or moved\n ?Ensure .NET 8 is installed\n ?Ensure the installer is intact\nIf still failing, download and install manually.",
+  "updateLauncherFailedCloseButton": "Close",
+  "updateLauncherFailedManualDownloadButton": "Manual download",
+  "updateAvailableTitle": "Update available",
+  "updateAvailableChangelogTitle": "What's new",
+  "updateSettingsTitle": "Update settings",
+  "updateDotNetMissingSubtitle": "Not installed - recommended for the updater",
+  "updateDotNetDownloadButton": "Download",
+  "updateDotNetInstalledSubtitle": "Installed - updater available",
+  "updateDotNetRecheckButton": "Recheck",
+  "updateDotNetRecommendTitle": "Recommended: .NET 8",
+  "updateDotNetRecommendSubtitle": "Install .NET 8 Desktop Runtime to enable auto updates",
+  "updateDotNetRecommendButton": "Download .NET 8",
+  "updateChannelTitle": "Current channel",
+  "updateChannelAlpha": "Alpha (preview)",
+  "updateChannelBeta": "Beta (public)",
+  "updateChannelRelease": "Release (stable)",
+  "updateIntervalTitle": "Auto check updates",
+  "updateIntervalSubtitle": "Set how often to check for updates",
+  "updateIntervalStartup": "On startup only",
+  "updateIntervalHourly": "Hourly",
+  "updateIntervalDaily": "Daily",
+  "updateIntervalWeekly": "Weekly",
+  "updateIntervalNever": "Never",
+  "updateAllowBetaTitle": "Receive Beta updates",
+  "updateAllowBetaSubtitle": "Allow receiving stable beta releases",
+  "updateAllowAlphaTitle": "Receive Alpha updates",
+  "updateAllowAlphaSubtitle": "Allow receiving the latest test builds (may be unstable)",
+  "updateLastCheckLabel": "Last checked: {time}",
+  "updateTimeJustNow": "Just now",
+  "updateTimeMinutesAgo": "{minutes} minutes ago",
+  "updateTimeHoursAgo": "{hours} hours ago",
+  "@updateConfirmDetails": {
+    "placeholders": {
+      "newVersion": {},
+      "currentVersion": {},
+      "change": {},
+      "currentChannel": {},
+      "targetChannel": {}
+    }
+  },
+  "@updateChangelogDialogTitle": {
+    "placeholders": {
+      "version": {}
+    }
+  },
+  "@updateLastCheckLabel": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "@updateTimeMinutesAgo": {
+    "placeholders": {
+      "minutes": {}
+    }
+  },
+  "@updateTimeHoursAgo": {
+    "placeholders": {
+      "hours": {}
+    }
+  },
+  "@updateUnreleasedSubtitle": {
+    "placeholders": {
+      "version": {}
+    }
+  },
+  "updateDialogCloseButton": "Close",
+  "statusOnline": "Online",
+  "statusOffline": "Offline",
+  "settingsDangerZoneTitle": "Danger Zone",
+  "popupDownloadTitle": "New download",
+  "popupDownloadLinkLabel": "Download URL",
+  "popupDownloadLinkPlaceholder": "HTTP/HTTPS URL",
+  "popupDownloadFileNameLabel": "File name",
+  "popupDownloadFileNamePlaceholder": "Save as filename",
+  "popupDownloadAutoStart": "Start download immediately",
+  "popupDownloadFeatureHint": "Supports multi-threading, resume, and speed limits",
+  "popupDownloadCancel": "Cancel",
+  "popupDownloadAdding": "Adding...",
+  "popupDownloadStart": "Start download",
+  "popupDownloadErrorMissingInfo": "Please fill in all fields",
+  "popupDownloadErrorInvalidUrl": "Please enter a valid HTTP/HTTPS URL",
+  "popupDownloadErrorAddFailed": "Failed to add task: {error}",
+  "popupDownloadErrorTitle": "Error",
+  "popupDownloadErrorConfirm": "OK",
+  "popupDownloadDefaultFileName": "download",
+  "addDownloadTitle": "New download",
+  "addDownloadSubtitle": "Supports multi-threaded downloads and resume",
+  "addDownloadUrlLabel": "Download URL",
+  "addDownloadRequiredBadge": "Required",
+  "addDownloadUrlPlaceholder": "https://example.com/file.zip",
+  "addDownloadParsedFileNameTitle": "Filename detected",
+  "addDownloadAdvancedToggle": "Advanced options",
+  "addDownloadAdvancedCollapsedHint": "Custom filename",
+  "addDownloadAdvancedExpandedHint": "Collapse",
+  "addDownloadFileNameLabel": "Custom filename",
+  "addDownloadOptionalBadge": "Optional",
+  "addDownloadFileNamePlaceholder": "Leave blank to use detected name",
+  "addDownloadFeatureTitle": "Smart download features",
+  "addDownloadFeature1Title": "Multi-threaded segments",
+  "addDownloadFeature1Desc": "Maximize download speed",
+  "addDownloadFeature2Title": "Auto resume",
+  "addDownloadFeature2Desc": "Recover after network interruption",
+  "addDownloadFeature3Title": "Dynamic segmentation",
+  "addDownloadFeature3Desc": "Adaptive download strategy",
+  "addDownloadCancelButton": "Cancel",
+  "addDownloadAdding": "Adding...",
+  "addDownloadStart": "Start download",
+  "addDownloadErrorMissingUrl": "Please enter a download URL",
+  "addDownloadErrorInvalidUrl": "Please enter a valid HTTP/HTTPS URL",
+  "addDownloadErrorAddFailed": "Failed to add task: {error}",
+  "addDownloadErrorTitle": "Error",
+  "addDownloadErrorConfirm": "OK",
+  "addDownloadSuccessTitle": "Task added",
+  "addDownloadSuccessMessage": "Downloading: {fileName}",
+  "folderPickerErrorPathNotFound": "Path not found",
+  "folderPickerErrorAccessDenied": "Unable to access this path (permission denied)",
+  "folderPickerErrorAccessFailed": "Unable to access this path: {error}",
+  "folderPickerCreateTitle": "Create folder",
+  "folderPickerCreatePrompt": "Create the folder in:",
+  "folderPickerCreatePlaceholder": "Folder name",
+  "folderPickerCancelButton": "Cancel",
+  "folderPickerCreateButton": "Create",
+  "folderPickerConfirmButton": "OK",
+  "folderPickerCreateExistsTitle": "Creation canceled",
+  "folderPickerCreateExistsMessage": "Folder \"{name}\" already exists.\nSelected that folder.",
+  "folderPickerCreateSuccessTitle": "Created",
+  "folderPickerCreateSuccessMessage": "Folder \"{name}\" was created and selected",
+  "folderPickerCreateFailedTitle": "Creation failed",
+  "folderPickerCreateFailedMessage": "Failed to create folder: {error}",
+  "folderPickerQuickPathAddTitle": "Add quick path",
+  "folderPickerQuickPathAddPrompt": "Add current path to quick paths:",
+  "folderPickerQuickPathAddNameLabel": "Custom name (optional):",
+  "folderPickerQuickPathAddNamePlaceholder": "e.g. My Project",
+  "folderPickerQuickPathAddButton": "Add",
+  "folderPickerQuickPathAddSuccessTitle": "Added",
+  "folderPickerQuickPathAddFailedTitle": "Add failed",
+  "folderPickerQuickPathAddSuccessMessage": "Quick path added",
+  "folderPickerQuickPathAddFailedMessage": "Path already exists or is invalid",
+  "folderPickerQuickPathRemoveTitle": "Remove quick path",
+  "folderPickerQuickPathRemoveMessage": "Remove this quick path?\n\n{path}",
+  "folderPickerQuickPathRemoveButton": "Remove",
+  "folderPickerTitle": "Select folder",
+  "folderPickerNavUpTooltip": "Parent folder",
+  "folderPickerPathPlaceholder": "Enter a path or pick below",
+  "folderPickerRefreshTooltip": "Refresh",
+  "folderPickerNewFolderTooltip": "New folder",
+  "folderPickerAddQuickPathTooltip": "Add current path to quick paths",
+  "folderPickerEmptyMessage": "This folder is empty",
+  "folderPickerSelectButton": "Select",
+  "updateLatestVersionLabel": "Latest version",
+  "updateDialogLaterButton": "Later",
+  "updateDialogDownloadNowButton": "Download now",
+  "updateDialogCurrentInfoTitle": "Current version info",
+  "@popupDownloadErrorAddFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@addDownloadErrorAddFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@addDownloadSuccessMessage": {
+    "placeholders": {
+      "fileName": {}
+    }
+  },
+  "@folderPickerErrorAccessFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@folderPickerCreateExistsMessage": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "@folderPickerCreateSuccessMessage": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "@folderPickerCreateFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@folderPickerQuickPathRemoveMessage": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "downloadStatusDownloading": "Downloading",
+  "downloadStatusPaused": "Paused",
+  "downloadStatusPending": "Pending",
+  "downloadStatusFailed": "Failed",
+  "downloadStatusMerging": "Merging",
+  "downloadStatusCompleted": "Completed",
+  "downloadFilterTitle": "Filter downloads",
+  "downloadFilterSubtitle": "Select status to display:",
+  "downloadFilterAll": "All",
+  "downloadDialogCloseButton": "Close",
+  "downloadSortTitle": "Sort order",
+  "downloadSortSubtitle": "Choose task order:",
+  "downloadSortNewest": "Newest first",
+  "downloadSortOldest": "Oldest first",
+  "downloadSortNewestDesc": "Newest tasks appear at the top",
+  "downloadSortOldestDesc": "Oldest tasks appear at the top",
+  "downloadSearchPlaceholder": "Search filename or URL...",
+  "downloadNoResultsTitle": "No matching downloads",
+  "downloadNoResultsSubtitle": "Try adjusting your search or filters",
+  "downloadStatsActiveLabel": "Active",
+  "downloadStatsSpeedLabel": "Total speed",
+  "downloadStatsSegmentsLabel": "Active segments",
+  "downloadEmptyTitle": "No downloads yet",
+  "downloadEmptySubtitle": "Click \"New\" in the top right to start",
+  "downloadCopySuccessTitle": "Copied",
+  "downloadCopySuccessMessage": "Link copied to clipboard",
+  "downloadCopyFailedTitle": "Copy failed",
+  "downloadCopyFailedMessage": "Unable to copy link: {error}",
+  "downloadCopyTooltip": "Click to copy link",
+  "downloadActionStart": "Start",
+  "downloadActionPause": "Pause",
+  "downloadActionRetrySegments": "Retry failed segments",
+  "downloadActionRetryAll": "Redownload",
+  "downloadActionDelete": "Delete",
+  "downloadMergingStatus": "Verifying and merging data",
+  "downloadCalculatingSize": "Calculating file size...",
+  "downloadCalculating": "Calculating",
+  "downloadSegmentsTitleWithCount": "Segments ({count})",
+  "downloadSegmentsTitle": "Segments",
+  "downloadSegmentsStatusCompleted": "Done",
+  "downloadSegmentsStatusDownloading": "Downloading",
+  "downloadSegmentsStatusFailed": "Failed",
+  "downloadSegmentsSummary": "{total} segments ? {completed} done ? {downloading} downloading",
+  "downloadSegmentsSummaryWithFailed": "{total} segments - {completed} done - {downloading} downloading - {failed} failed",
+  "downloadRetryButton": "Retry",
+  "downloadSegmentLabel": "Segment {index}",
+  "downloadSegmentRetryCount": "Retry {count}",
+  "downloadSegmentsCollapse": "Collapse",
+  "downloadSegmentsShowAll": "Show all {count}",
+  "downloadSizeUnknown": "{downloaded} / Unknown",
+  "downloadFailedTitle": "Download failed",
+  "downloadFailedSegmentsHint": "{count} segments failed. Try re-downloading.",
+  "downloadConfirmDeleteTitle": "Confirm delete",
+  "downloadConfirmDeleteMessage": "Delete task \"{fileName}\"?",
+  "downloadDeleteButton": "Delete",
+  "@downloadCopyFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@downloadSegmentsTitleWithCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "@downloadSegmentsSummary": {
+    "placeholders": {
+      "total": {},
+      "completed": {},
+      "downloading": {}
+    }
+  },
+  "@downloadSegmentsSummaryWithFailed": {
+    "placeholders": {
+      "total": {},
+      "completed": {},
+      "downloading": {},
+      "failed": {}
+    }
+  },
+  "@downloadSegmentLabel": {
+    "placeholders": {
+      "index": {}
+    }
+  },
+  "@downloadSegmentRetryCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "@downloadSegmentsShowAll": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "@downloadSizeUnknown": {
+    "placeholders": {
+      "downloaded": {}
+    }
+  },
+  "@downloadFailedSegmentsHint": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "@downloadConfirmDeleteMessage": {
+    "placeholders": {
+      "fileName": {}
+    }
+  },
+  "completedCategoryAll": "All",
+  "completedCategoryVideo": "Video",
+  "completedCategoryAudio": "Audio",
+  "completedCategoryArchive": "Archive",
+  "completedCategoryDocument": "Document",
+  "completedCategoryProgram": "Program",
+  "completedCategoryOther": "Other",
+  "completedSearchPlaceholder": "Search completed files...",
+  "completedNoResultsTitle": "No matching files",
+  "completedNoResultsSubtitle": "Try adjusting your search",
+  "completedHeaderTitle": "Completed",
+  "completedOpenFolderButton": "Open folder",
+  "completedEmptyTitle": "No completed tasks yet",
+  "completedEmptySubtitle": "Finished downloads will show up here",
+  "completedStatsTitle": "Download stats",
+  "completedStatsPeakSpeed": "Peak speed",
+  "completedStatsAverageSpeed": "Average speed",
+  "completedStatsDuration": "Duration",
+  "completedStatsSegments": "Segments",
+  "completedStatsThreads": "Threads",
+  "completedStatsCore": "Download core",
+  "completedActionRun": "Run",
+  "completedActionLocation": "Location",
+  "completedTimeJustNow": "Just now",
+  "completedTimeMinutesAgo": "{minutes} min ago",
+  "@completedTimeMinutesAgo": {
+    "placeholders": {
+      "minutes": {}
+    }
+  },
+  "completedTimeHoursAgo": "{hours} hr ago",
+  "@completedTimeHoursAgo": {
+    "placeholders": {
+      "hours": {}
+    }
+  },
+  "completedTimeDaysAgo": "{days} days ago",
+  "@completedTimeDaysAgo": {
+    "placeholders": {
+      "days": {}
+    }
+  },
+  "completedTimeMonthDay": "{month}/{day}",
+  "@completedTimeMonthDay": {
+    "placeholders": {
+      "month": {},
+      "day": {}
+    }
+  },
+  "completedFilePathMissingMessage": "File path not found",
+  "completedFileNotFoundMessage": "File not found",
+  "completedRunFileFailedMessage": "Failed to run file: {error}",
+  "@completedRunFileFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "completedOpenFileLocationFailedMessage": "Failed to open file location: {error}",
+  "@completedOpenFileLocationFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "completedHintTitle": "Notice",
+  "completedConfirmDeleteTitle": "Confirm deletion",
+  "completedDeleteTaskMessage": "Delete \"{fileName}\"?",
+  "@completedDeleteTaskMessage": {
+    "placeholders": {
+      "fileName": {}
+    }
+  },
+  "completedRemoveSuccessTitle": "Removed",
+  "completedRemoveSuccessMessage": "Task removed from list",
+  "completedDeleteSuccessTitle": "Deleted",
+  "completedDeleteFileSuccessMessage": "Deleted file: {fileName}",
+  "@completedDeleteFileSuccessMessage": {
+    "placeholders": {
+      "fileName": {}
+    }
+  },
+  "completedFileNotFoundTitle": "File not found",
+  "completedFileNotFoundMessage": "The file may have been moved or deleted",
+  "completedDeleteFailedTitle": "Delete failed",
+  "completedDeleteFailedMessage": "Failed to delete file: {error}",
+  "@completedDeleteFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "completedCancelButton": "Cancel",
+  "completedRemoveButton": "Remove",
+  "completedDeleteButton": "Delete",
+  "completedCreateButton": "Create",
+  "completedCreateCategoryTitle": "Create custom category",
+  "completedCreateCategoryNameLabel": "Category name",
+  "completedCreateCategoryNamePlaceholder": "e.g. Images",
+  "completedCreateCategoryExtensionsLabel": "File extensions",
+  "completedCreateCategoryExtensionsPlaceholder": "e.g. .jpg,.png,.gif (comma-separated)",
+  "completedCreateCategoryHint": "Tip: extensions must include dot; separate with commas",
+  "completedCreateCategoryInputErrorTitle": "Input error",
+  "completedCreateCategoryInputErrorMessage": "Please fill in all fields",
+  "completedCreateCategoryInvalidExtMessage": "Please enter valid extensions",
+  "completedCreateCategorySuccessTitle": "Created",
+  "completedCreateCategorySuccessMessage": "Category created: {name}",
+  "@completedCreateCategorySuccessMessage": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "completedDeleteCategoryMessage": "Delete custom category \"{name}\"?",
+  "@completedDeleteCategoryMessage": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "completedDeleteCategorySuccessTitle": "Deleted",
+  "completedDeleteCategorySuccessMessage": "Category deleted: {name}",
+  "@completedDeleteCategorySuccessMessage": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "webCheckHeaderTitle": "Web Status Check",
+  "webCheckInputTitle": "Enter URL",
+  "webCheckInputPlaceholder": "example.com or https://example.com",
+  "webCheckInputHint": "Tip: enter a domain and https:// will be added automatically",
+  "webCheckStartButton": "Start check",
+  "webCheckChecking": "Checking...",
+  "webCheckErrorEmptyUrl": "Please enter a URL",
+  "webCheckErrorUnsupportedKernel": "Web check is not supported by the new kernel. Switch to the legacy kernel in Settings.",
+  "webCheckErrorInvalidUrl": "Invalid URL format",
+  "webCheckErrorCheckFailed": "Check failed: {error}",
+  "@webCheckErrorCheckFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "webCheckErrorLanUnsupportedKernel": "LAN scan is not supported by the new kernel. Switch to the legacy kernel in Settings.",
+  "webCheckErrorScanFailed": "Scan failed: {error}",
+  "@webCheckErrorScanFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "webCheckErrorCardTitle": "Check failed",
+  "webCheckDnsTime": "DNS: {ms}ms",
+  "@webCheckDnsTime": {
+    "placeholders": {
+      "ms": {}
+    }
+  },
+  "webCheckResponseTime": "Response: {ms}ms",
+  "@webCheckResponseTime": {
+    "placeholders": {
+      "ms": {}
+    }
+  },
+  "webCheckInfoHostname": "Hostname",
+  "webCheckInfoIpAddress": "IP address",
+  "webCheckInfoPort": "Port",
+  "webCheckInfoProtocol": "Protocol",
+  "webCheckInfoFinalUrl": "Final URL",
+  "webCheckInfoContentType": "Content-Type",
+  "webCheckInfoContentLength": "Content-Length",
+  "webCheckInfoServer": "Server",
+  "webCheckRedirectHistoryTitle": "Redirect history ({count})",
+  "@webCheckRedirectHistoryTitle": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "webCheckRedirectFrom": "From: {url}",
+  "@webCheckRedirectFrom": {
+    "placeholders": {
+      "url": {}
+    }
+  },
+  "webCheckRedirectTo": "To: {url}",
+  "@webCheckRedirectTo": {
+    "placeholders": {
+      "url": {}
+    }
+  },
+  "webCheckHeadersTitle": "Response headers",
+  "webCheckSslTitle": "SSL/TLS info",
+  "webCheckSslError": "SSL error: {error}",
+  "@webCheckSslError": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "webCheckSslVersion": "Version",
+  "webCheckSslCipher": "Cipher",
+  "webCheckSslSubject": "Subject",
+  "webCheckSslIssuer": "Issuer",
+  "webCheckSslNotBefore": "Valid from",
+  "webCheckSslNotAfter": "Valid until",
+  "webCheckCookiesTitle": "Cookies ({count})",
+  "@webCheckCookiesTitle": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "webCheckCookieDomain": "Domain: {domain}",
+  "@webCheckCookieDomain": {
+    "placeholders": {
+      "domain": {}
+    }
+  },
+  "webCheckLanScanTitle": "LAN scan",
+  "webCheckAutoScan": "Auto scan",
+  "webCheckLanScanSubtitle": "Scan all online devices on the current LAN",
+  "webCheckScanning": "Scanning...",
+  "webCheckScanStart": "Start scan",
+  "webCheckLanDevicesTitle": "Found {count} devices",
+  "@webCheckLanDevicesTitle": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "webCheckLanNetworkLabel": "Network: {network}",
+  "@webCheckLanNetworkLabel": {
+    "placeholders": {
+      "network": {}
+    }
+  },
+  "webCheckLanLocalIpLabel": "Local IP: {ip}",
+  "@webCheckLanLocalIpLabel": {
+    "placeholders": {
+      "ip": {}
+    }
+  },
+  "webCheckLanLocalBadge": "Local",
+  "webCheckStatusUnknown": "Unknown",
+  "webCheckStatusOk": "OK",
+  "webCheckStatusMovedPermanently": "Moved Permanently",
+  "webCheckStatusFound": "Found",
+  "webCheckStatusNotModified": "Not Modified",
+  "webCheckStatusBadRequest": "Bad Request",
+  "webCheckStatusUnauthorized": "Unauthorized",
+  "webCheckStatusForbidden": "Forbidden",
+  "webCheckStatusNotFound": "Not Found",
+  "webCheckStatusInternalServerError": "Internal Server Error",
+  "webCheckStatusBadGateway": "Bad Gateway",
+  "webCheckStatusServiceUnavailable": "Service Unavailable",
+  "webCheckStatusWithCode": "Status {code}",
+  "@webCheckStatusWithCode": {
+    "placeholders": {
+      "code": {}
+    }
+  },
+  "statusPageTitle": "System Status",
+  "statusPageRefresh": "Refresh",
+  "statusPageTestApi": "Test API",
+  "statusPageClearLogs": "Clear logs",
+  "statusSectionKernel": "Kernel status",
+  "statusItemKernelService": "Kernel service",
+  "statusValueRunning": "Running",
+  "statusValueStopped": "Stopped",
+  "statusItemKernelCurrent": "Current kernel",
+  "statusKernelLegacyName": "Soda Kernel (Legacy)",
+  "statusItemHttpService": "HTTP service",
+  "statusValueHealthy": "Healthy",
+  "statusValueBuiltIn": "Built-in",
+  "statusValueUnhealthy": "Unhealthy",
+  "statusItemServiceAddress": "Service address",
+  "statusItemKernelVersion": "Kernel version",
+  "statusSectionNetwork": "Network status",
+  "statusItemLocalNetwork": "Local network",
+  "statusValueConnected": "Connected",
+  "statusValueDisconnected": "Disconnected",
+  "statusItemInternet": "Internet",
+  "statusValueReachable": "Reachable",
+  "statusValueUnreachable": "Unreachable",
+  "statusItemLocalIp": "Local IP",
+  "statusItemNetworkLatency": "Network latency",
+  "statusNetworkLatencyMs": "{ms} ms",
+  "@statusNetworkLatencyMs": {
+    "placeholders": {
+      "ms": {}
+    }
+  },
+  "statusItemConnectionType": "Connection type",
+  "statusSectionApiTests": "API test results",
+  "statusValueFailed": "Failed",
+  "statusSectionSystemInfo": "System info",
+  "statusItemOs": "Operating system",
+  "statusValueUnknown": "Unknown",
+  "statusItemOsVersion": "OS version",
+  "statusItemCpuCores": "CPU cores",
+  "statusSystemCpuCores": "{count} cores",
+  "@statusSystemCpuCores": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statusItemDartVersion": "Dart version",
+  "statusSectionDownloadStats": "Download stats",
+  "statusItemTotalDownloads": "Total downloads",
+  "statusItemActiveTasks": "Active tasks",
+  "statusItemCompletedTasks": "Completed",
+  "statusItemFailedTasks": "Failed tasks",
+  "statusItemTotalDownloaded": "Total downloaded",
+  "statusSectionLogStats": "Log stats",
+  "statusItemLogCount": "Log count",
+  "statusItemErrorCount": "Error count",
+  "statusItemWarningCount": "Warning count",
+  "statusSectionExtension": "Browser extension",
+  "statusItemTip": "Tip",
+  "statusExtensionTip": "Thanks for using. In-app download plugin and store link are supported.",
+  "statusExtensionDownloadButton": "Download extension",
+  "statusExtensionOpenStoreButton": "Open store",
+  "statusSectionAutoStart": "Auto start",
+  "statusItemPlatformSupport": "Platform support",
+  "statusAutoStartWindowsOnly": "Windows only",
+  "statusItemAutoStartStatus": "Auto-start status",
+  "statusValueEnabled": "Enabled",
+  "statusValueDisabled": "Disabled",
+  "statusItemRegistryPath": "Registry path",
+  "statusValueCorrect": "Correct",
+  "statusValueNeedsUpdate": "Needs update",
+  "statusItemCurrentRegistry": "Current registry",
+  "statusItemCurrentPath": "Current path",
+  "statusAutoStartOldRegistryTitle": "Legacy auto-start entry detected",
+  "statusAutoStartOldRegistryMessage": "Registry path doesn't match current executable (app updated or moved). Click below to fix automatically.",
+  "statusAutoStartFixButton": "Fix auto-start",
+  "statusSectionPopupTest": "Popup window test",
+  "statusItemDescription": "Description",
+  "statusPopupTestDescription": "Test standalone popup window (IDM-style)",
+  "statusItemTestResult": "Test result",
+  "statusPopupTestResultSuccess": "Success ({time}ms)",
+  "@statusPopupTestResultSuccess": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "statusPopupTestResultFailed": "Failed: {error}",
+  "@statusPopupTestResultFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "statusPopupTesting": "Creating...",
+  "statusPopupTestButton": "Test popup window",
+  "statusPopupDialogTestButton": "Test Dialog popup",
+  "statusPopupTestInfoTitle": "Test notes",
+  "statusPopupTestInfoBody": "• Standalone popup: uses Tauri, no need to show main window\\n• Dialog popup: legacy mode, requires main window\\n• Results and timing are recorded in logs",
+  "statusExtensionDownloadAddedTitle": "Download added",
+  "statusExtensionDownloadAddedMessage": "Browser extension added to download list",
+  "statusExtensionDownloadFailedTitle": "Download failed",
+  "statusExtensionDownloadFailedMessage": "Failed to add download task: {error}",
+  "@statusExtensionDownloadFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "statusExtensionOpenLinkFailed": "Unable to open link",
+  "statusExtensionOpenFailedTitle": "Open failed",
+  "statusExtensionOpenFailedMessage": "Unable to open browser: {error}",
+  "@statusExtensionOpenFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "statusAutoStartFixSuccessTitle": "Fix succeeded",
+  "statusAutoStartFixSuccessMessage": "Auto-start registry updated to current version",
+  "statusAutoStartFixFailedTitle": "Fix failed",
+  "statusAutoStartFixFailedMessage": "Unable to update auto-start registry. Check permissions.",
+  "statusAutoStartFixErrorMessage": "Error occurred: {error}",
+  "@statusAutoStartFixErrorMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "statusPopupTestCreating": "Creating window...",
+  "statusPopupTestStartLog": "Starting popup window test...",
+  "statusPopupTestSuccessLog": "Popup window created successfully in {time}ms",
+  "@statusPopupTestSuccessLog": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "statusPopupTestSuccessMessage": "Window created successfully",
+  "statusPopupTestSuccessTitle": "Test succeeded",
+  "statusPopupTestSuccessToast": "Popup window created in {time}ms",
+  "@statusPopupTestSuccessToast": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "statusPopupTestFailedLog": "Popup window creation failed: {error}",
+  "@statusPopupTestFailedLog": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "statusPopupTestFailedTitle": "Test failed",
+  "statusPopupTestFailedToast": "Popup window creation failed: {error}",
+  "@statusPopupTestFailedToast": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "statusPopupDialogTestStartLog": "Starting Dialog popup test...",
+  "statusPopupDialogTestCloseLog": "Dialog popup closed in {time}ms",
+  "@statusPopupDialogTestCloseLog": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "statusPopupDialogTestFailedLog": "Dialog popup failed: {error}",
+  "@statusPopupDialogTestFailedLog": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "statusApiTestHealthCheck": "Health Check",
+  "statusApiTestGetTasks": "Get Tasks",
+  "statusApiTestGetStatistics": "Get Statistics",
+  "statusApiTestGetConfig": "Get Config",
+  "onlineStatsPageTitle": "Who's online with you",
+  "onlineStatsCountUnit": "people",
+  "onlineStatsAloneMessage": "You're the only one using Hanabi right now",
+  "onlineStatsOthersMessage": "Besides you, {count} users are using Hanabi",
+  "@onlineStatsOthersMessage": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "onlineStatsTotalMessage": "(Including you, {count} total)",
+  "@onlineStatsTotalMessage": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "onlineStatsMyStatusTitle": "My status",
+  "onlineStatsDeviceIdLabel": "Device ID",
+  "onlineStatsNotInitialized": "Not initialized",
+  "onlineStatsAppVersionLabel": "App version",
+  "onlineStatsHeartbeatLabel": "Heartbeat interval",
+  "onlineStatsHeartbeatValue": "Auto-send every 5 minutes",
+  "onlineStatsServerLabel": "Stats server",
+  "onlineStatsSending": "Sending...",
+  "onlineStatsSendSignalButton": "Send my signal to server",
+  "onlineStatsPrivacyPolicy": "Privacy policy",
+  "onlineStatsTermsOfService": "Terms of service",
+  "onlineStatsOfficialSite": "Official website",
+  "onlineStatsSendSuccessTitle": "Sent",
+  "onlineStatsSendSuccessMessage": "Your signal was sent to the server",
+  "onlineStatsCooldownTitle": "Server marked online",
+  "onlineStatsCooldownMessage": "Your status was recorded. Try again in {minutes} minutes.",
+  "@onlineStatsCooldownMessage": {
+    "placeholders": {
+      "minutes": {}
+    }
+  },
+  "onlineStatsSendFailedTitle": "Send failed",
+  "onlineStatsSendFailedMessage": "Unable to reach stats server. Check your network connection.",
+  "onlineStatsOpenLinkFailedTitle": "Unable to open link",
+  "onlineStatsOpenLinkFailedMessage": "Please open in your browser manually:\\n{url}",
+  "@onlineStatsOpenLinkFailedMessage": {
+    "placeholders": {
+      "url": {}
+    }
+  },
+  "onlineStatsOpenFailedTitle": "Open failed",
+  "onlineStatsOpenFailedMessage": "Error: {error}\\n\\nPlease open in your browser manually:\\n{url}",
+  "@onlineStatsOpenFailedMessage": {
+    "placeholders": {
+      "error": {},
+      "url": {}
+    }
+  },
+  "onlineStatsDialogOk": "OK",
+  "logPageTitle": "Logs",
+  "logFilterLevelLabel": "Level",
+  "logFilterTagCount": "{count} tags",
+  "@logFilterTagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logFilterSourceLabel": "Source",
+  "logFilterTimeSelectedLabel": "Time ✓",
+  "logFilterTimeLabel": "Time",
+  "logRegexRulesButton": "Regex rules",
+  "logAutoScrollOn": "Auto scroll: On",
+  "logAutoScrollOff": "Auto scroll: Off",
+  "logStatsShow": "Stats: Show",
+  "logStatsHide": "Stats: Hide",
+  "logFailureStatsShow": "Failure stats: Show",
+  "logFailureStatsHide": "Failure stats: Hide",
+  "logExportLogsButton": "Export logs",
+  "logExportDiagnosticsButton": "Export diagnostics",
+  "logArchiveButton": "Archive logs",
+  "logClearButton": "Clear logs",
+  "logSearchPlaceholderRegex": "Enter regex...",
+  "logSearchPlaceholder": "Search logs...",
+  "logEmptyTitle": "No logs",
+  "logEmptySubtitle": "Logs will appear here",
+  "logStatTotal": "Total",
+  "logGroupedCount": "{count} groups",
+  "@logGroupedCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logClearFiltersButton": "Clear",
+  "logFailureStatsTitle": "Download failure stats",
+  "logFailureStatsTotal": "Total {count} times",
+  "@logFailureStatsTotal": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logFailureStatsEmpty": "No download failure records",
+  "logFailureReasonUnknown": "Unknown error",
+  "logFailureReasonAuth": "Authorization failed ({code})",
+  "@logFailureReasonAuth": {
+    "placeholders": {
+      "code": {}
+    }
+  },
+  "logFailureReasonNotFound": "Resource not found ({code})",
+  "@logFailureReasonNotFound": {
+    "placeholders": {
+      "code": {}
+    }
+  },
+  "logFailureReasonRange": "Range not supported",
+  "logFailureReasonRangeWithCode": "Range not supported ({code})",
+  "@logFailureReasonRangeWithCode": {
+    "placeholders": {
+      "code": {}
+    }
+  },
+  "logFailureReasonTooManyRequests": "Too many requests ({code})",
+  "@logFailureReasonTooManyRequests": {
+    "placeholders": {
+      "code": {}
+    }
+  },
+  "logFailureReasonServerError": "Server error ({code})",
+  "@logFailureReasonServerError": {
+    "placeholders": {
+      "code": {}
+    }
+  },
+  "logFailureReasonHttpError": "HTTP {code}",
+  "@logFailureReasonHttpError": {
+    "placeholders": {
+      "code": {}
+    }
+  },
+  "logFailureReasonTimeout": "Connection timed out",
+  "logFailureReasonConnection": "Connection interrupted",
+  "logFailureReasonDns": "DNS lookup failed",
+  "logFailureReasonSsl": "SSL/Certificate error",
+  "logFailureReasonChecksum": "File checksum failed",
+  "logFailureReasonDisk": "Disk/Permission error",
+  "logFailureReasonOther": "Other error",
+  "logTimeRangeRecentMinutes": "Last {minutes} minutes",
+  "@logTimeRangeRecentMinutes": {
+    "placeholders": {
+      "minutes": {}
+    }
+  },
+  "logTimeRangeRecentHours": "Last {hours} hours",
+  "@logTimeRangeRecentHours": {
+    "placeholders": {
+      "hours": {}
+    }
+  },
+  "logTimeRangeLabel": "Time range",
+  "logStatCountUnit": "items",
+  "logRepeatedCount": "Repeated {count} times",
+  "@logRepeatedCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logRepeatedMore": "... {count} more",
+  "@logRepeatedMore": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logContextCopy": "Copy logs",
+  "logContextRepeated": "(Repeated {count} times)",
+  "@logContextRepeated": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logContextRemoveBookmark": "Remove bookmark",
+  "logContextAddBookmark": "Add bookmark",
+  "logContextFilterLevel": "Filter: {level}",
+  "@logContextFilterLevel": {
+    "placeholders": {
+      "level": {}
+    }
+  },
+  "logContextFilterSource": "Filter: {source}",
+  "@logContextFilterSource": {
+    "placeholders": {
+      "source": {}
+    }
+  },
+  "logContextCopySingle": "Copy this entry",
+  "logFilterLevelTitle": "Filter log level",
+  "logFilterAllLabel": "All",
+  "logDialogClose": "Close",
+  "logSourceFilterTitle": "Filter log source",
+  "logSourceTotalCount": "{count} items",
+  "@logSourceTotalCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logSourceCategoryKernel": "Kernel",
+  "logSourceKernelSubtitle": "Kernel · {count} tags",
+  "@logSourceKernelSubtitle": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logSourceCategoryApp": "App",
+  "logSourceAppSubtitle": "App · {count} tags",
+  "@logSourceAppSubtitle": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logSourceCategorySystem": "System",
+  "logSourceSystemSubtitle": "System / Framework · {count} tags",
+  "@logSourceSystemSubtitle": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logDialogOk": "OK",
+  "logDialogCancel": "Cancel",
+  "logTimeRangeTitle": "Time range filter",
+  "logTimeRangeQuickSelectLabel": "Quick select:",
+  "logTimeRangePreset1Hour": "Last 1 hour",
+  "logTimeRangePreset30Min": "Last 30 minutes",
+  "logTimeRangePreset10Min": "Last 10 minutes",
+  "logTimeRangePreset5Min": "Last 5 minutes",
+  "logTimeRangeStartLabel": "Start time:",
+  "logTimeRangeEndLabel": "End time:",
+  "logTimeRangeNotSet": "Not set",
+  "logTimeRangeNow": "Now",
+  "logDialogClear": "Clear",
+  "logDialogApply": "Apply",
+  "logRulesDialogTitle": "Highlight rules",
+  "logRulesBuiltinTitle": "Built-in rules",
+  "logRulesCustomTitle": "Custom rules",
+  "logRulesAddButton": "Add",
+  "logRulesCustomEmpty": "No custom rules",
+  "logRulesLegendTitle": "Color legend",
+  "logRulesLegendUrl": "URL",
+  "logRulesLegendPath": "Path",
+  "logRulesLegendIp": "IP",
+  "logRulesLegendNumber": "Number",
+  "logRulesLegendError": "Error",
+  "logRulesLegendSuccess": "Success",
+  "logRulesLegendWarning": "Warning",
+  "logRulesLegendHttp": "HTTP",
+  "logRulesLegendStep": "Step",
+  "logRulesLegendPid": "PID",
+  "logRulesLegendKeyValue": "Key/Value",
+  "logAddRuleTitle": "Add custom rule",
+  "logAddRuleNameLabel": "Rule name",
+  "logAddRuleNamePlaceholder": "e.g. Task ID",
+  "logAddRulePatternLabel": "Regex pattern",
+  "logAddRulePatternPlaceholder": "e.g. \\b[a-f0-9]+\\b (16 chars)",
+  "logAddRuleColorLabel": "Highlight color",
+  "logAddRuleInvalidTitle": "Invalid regex",
+  "logAddRuleInvalidMessage": "Error: {error}",
+  "@logAddRuleInvalidMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "logArchiveTitle": "Archive logs",
+  "logArchivePrompt": "Choose archive option:",
+  "logArchiveExportAll": "Export all logs",
+  "logArchiveExportFiltered": "Export current filter",
+  "logArchiveExportBookmarked": "Export bookmarked logs ({count})",
+  "@logArchiveExportBookmarked": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logClearConfirmTitle": "Confirm clear",
+  "logClearConfirmMessage": "Clear all logs? This action cannot be undone.",
+  "logClearConfirmButton": "Clear",
+  "logExportSuccessTitle": "Export successful",
+  "logExportSavedMessage": "Logs saved to:\\n{path}",
+  "@logExportSavedMessage": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "logExportFailedTitle": "Export failed",
+  "logExportFailedMessage": "Failed to save logs: {error}",
+  "@logExportFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "logDiagnosticsSavedMessage": "Diagnostics saved to:\\n{path}",
+  "@logDiagnosticsSavedMessage": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "logDiagnosticsExportFailedMessage": "Failed to export diagnostics: {error}",
+  "@logDiagnosticsExportFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "logExportFileHeader": "# Log Export - {time}",
+  "@logExportFileHeader": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "logExportFileTotal": "# Total: {count} items",
+  "@logExportFileTotal": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logExportSavedCountMessage": "Saved {count} logs to:\\n{path}",
+  "@logExportSavedCountMessage": {
+    "placeholders": {
+      "count": {},
+      "path": {}
+    }
+  },
+  "logExportErrorMessage": "Error: {error}",
+  "@logExportErrorMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "logRuleUrl": "URL",
+  "logRuleFilePath": "File path",
+  "logRuleIpAddress": "IP address",
+  "logRuleNumber": "Number",
+  "logRuleIdHash": "ID/Hash",
+  "logRuleError": "Error",
+  "logRuleSuccess": "Success",
+  "logRuleWarning": "Warning",
+  "logRuleHttpMethod": "HTTP method",
+  "logRuleHttpStatus": "HTTP status",
+  "logRuleTime": "Time",
+  "logRuleStep": "Step",
+  "logRulePid": "PID",
+  "logRuleKeyValue": "Key/Value",
+  "performanceMonitorTitle": "Performance Monitor",
+  "performanceMonitorStatusRunning": "Monitoring...",
+  "performanceMonitorStatusIdle": "Click start to collect performance data",
+  "performanceMonitorButtonStop": "Stop monitoring",
+  "performanceMonitorButtonStart": "Start monitoring",
+  "performanceMonitorRealtimeTitle": "Realtime",
+  "performanceMonitorJankBadge": "JANK",
+  "performanceMonitorMetricFps": "FPS",
+  "performanceMonitorMetricBuild": "Build",
+  "performanceMonitorMetricRaster": "Raster",
+  "performanceMonitorMetricTotal": "Total",
+  "performanceMonitorStatsTitle": "Summary",
+  "performanceMonitorStatTotalFrames": "Total frames",
+  "performanceMonitorStatJankFrames": "Jank frames",
+  "performanceMonitorStatJankRate": "Jank rate",
+  "performanceMonitorStatAvgBuildTime": "Avg Build time",
+  "performanceMonitorStatAvgRasterTime": "Avg Raster time",
+  "performanceMonitorStatAvgTotalTime": "Avg Total time",
+  "performanceMonitorStatMaxBuildTime": "Max Build time",
+  "performanceMonitorStatMaxRasterTime": "Max Raster time",
+  "performanceMonitorStatMaxTotalTime": "Max Total time",
+  "performanceMonitorRebuildTitle": "Widget rebuilds",
+  "performanceMonitorRebuildTotal": "Total rebuilds",
+  "performanceMonitorRebuildTracked": "Tracked widgets",
+  "performanceMonitorRebuildTopTitle": "Top rebuild widgets",
+  "performanceMonitorRebuildEmpty": "No rebuild data yet\\nCall trackRebuild() in code to track",
+  "performanceMonitorFrameChartTitle": "Frame time chart (last {count} frames)",
+  "@performanceMonitorFrameChartTitle": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "performanceMonitorFrameChartEmpty": "No data yet. Start monitoring.",
+  "performanceMonitorLegendNormal": "Normal frame",
+  "performanceMonitorLegendJankMs": "Jank frame (> {ms} ms)",
+  "@performanceMonitorLegendJankMs": {
+    "placeholders": {
+      "ms": {}
+    }
+  },
+  "performanceMonitorLegendFpsThreshold": "60fps threshold",
+  "performanceMonitorSettingsTitle": "Render settings",
+  "performanceMonitorSettingsModeLabel": "Performance mode",
+  "performanceMonitorSettingsBlurLabel": "Blur effect",
+  "performanceMonitorSettingsBlurStrengthLabel": "Blur strength",
+  "performanceMonitorSettingsWindowEffectLabel": "Window effects",
+  "performanceMonitorSettingsAcrylicOpacityLabel": "Acrylic opacity",
+  "performanceMonitorValueEnabled": "Enabled",
+  "performanceMonitorValueDisabled": "Disabled",
+  "performanceMonitorWindowEffectEnabled": "Enabled ({mode})",
+  "@performanceMonitorWindowEffectEnabled": {
+    "placeholders": {
+      "mode": {}
+    }
+  },
+  "performanceMonitorWindowEffectHintEnabled": "Window effects are enabled and may impact performance. If jank is high, disable them in Settings → Appearance → Window effects.",
+  "performanceMonitorWindowEffectHintDisabled": "Window effects are disabled for best performance. You can enable them in Settings → Appearance → Window effects.",
+  "performanceMonitorActionExport": "Export log",
+  "performanceMonitorActionCopy": "Copy to clipboard",
+  "performanceMonitorActionClear": "Clear data",
+  "performanceMonitorToastClearedTitle": "Cleared",
+  "performanceMonitorToastClearedMessage": "History has been cleared",
+  "performanceMonitorToastExportSuccessTitle": "Export successful",
+  "performanceMonitorToastExportSuccessMessage": "Log saved to: {path}",
+  "@performanceMonitorToastExportSuccessMessage": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "performanceMonitorToastExportFailedTitle": "Export failed",
+  "performanceMonitorToastExportFailedMessage": "{error}",
+  "@performanceMonitorToastExportFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "performanceMonitorToastCopiedTitle": "Copied",
+  "performanceMonitorToastCopiedMessage": "Performance log copied to clipboard",
+  "performanceMonitorModeQuality": "Quality",
+  "performanceMonitorModeBalanced": "Balanced",
+  "performanceMonitorModePerformance": "Performance"
+}

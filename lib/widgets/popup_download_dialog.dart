@@ -2,6 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import '../services/integrated_download_service.dart';
 import '../theme/app_theme.dart';
+import '../l10n/app_localizations.dart';
 import '../utils/fluent_icons.dart' as CustomIcons;
 
 // 弹窗下载对话框
@@ -32,6 +33,9 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
   late TextEditingController _fileNameController;
   bool _isLoading = false;
   bool _autoStart = true;
+  String _defaultFileName = 'download';
+
+  AppLocalizations get t => AppLocalizations.of(context)!;
 
   @override
   void initState() {
@@ -43,6 +47,19 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
     
     // 如果是从浏览器来的，自动开始下载
     _autoStart = widget.isFromBrowser;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final localized = AppLocalizations.of(context)?.popupDownloadDefaultFileName;
+    if (localized != null && localized.isNotEmpty && localized != _defaultFileName) {
+      final previous = _defaultFileName;
+      _defaultFileName = localized;
+      if (_fileNameController.text == previous) {
+        _fileNameController.text = localized;
+      }
+    }
   }
 
   @override
@@ -62,7 +79,7 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
     } catch (e) {
       // ignore
     }
-    return 'download';
+    return _defaultFileName;
   }
 
   @override
@@ -125,7 +142,7 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '新建下载任务',
+                  t.popupDownloadTitle,
                   style: FluentTheme.of(context).typography.body?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textPrimary,
@@ -134,7 +151,7 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Hanabi Download ManagerX',
+                  t.appTitle,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
                     color: AppTheme.textTertiary,
                     fontSize: 11,
@@ -155,7 +172,7 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildInfoLabel('下载链接', CustomIcons.FluentIcons.link),
+          _buildInfoLabel(t.popupDownloadLinkLabel, CustomIcons.FluentIcons.link),
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
@@ -165,14 +182,14 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
             ),
             child: TextBox(
               controller: _urlController,
-              placeholder: 'HTTP/HTTPS 下载链接',
+              placeholder: t.popupDownloadLinkPlaceholder,
               maxLines: 2,
               style: FluentTheme.of(context).typography.body,
               decoration: WidgetStateProperty.all(const BoxDecoration()),
             ),
           ),
           const SizedBox(height: 16),
-          _buildInfoLabel('文件名', CustomIcons.FluentIcons.document),
+          _buildInfoLabel(t.popupDownloadFileNameLabel, CustomIcons.FluentIcons.document),
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
@@ -182,7 +199,7 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
             ),
             child: TextBox(
               controller: _fileNameController,
-              placeholder: '保存的文件名',
+              placeholder: t.popupDownloadFileNamePlaceholder,
               style: FluentTheme.of(context).typography.body,
               decoration: WidgetStateProperty.all(const BoxDecoration()),
             ),
@@ -192,7 +209,7 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
             checked: _autoStart,
             onChanged: (value) => setState(() => _autoStart = value ?? true),
             content: Text(
-              '立即开始下载',
+              t.popupDownloadAutoStart,
               style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
             ),
           ),
@@ -228,7 +245,7 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    '支持多线程下载、断点续传、速度限制',
+                    t.popupDownloadFeatureHint,
                     style: FluentTheme.of(context).typography.caption?.copyWith(
                       color: AppTheme.accentLight,
                       fontSize: 11,
@@ -281,9 +298,9 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
         children: [
           Button(
             onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              child: Text('取消'),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              child: Text(t.popupDownloadCancel),
             ),
           ),
           const SizedBox(width: 10),
@@ -292,7 +309,7 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               child: _isLoading
-                  ? const Row(
+                  ? Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         SizedBox(
@@ -301,7 +318,7 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
                           child: ProgressRing(strokeWidth: 2),
                         ),
                         SizedBox(width: 8),
-                        Text('添加中...'),
+                        Text(t.popupDownloadAdding),
                       ],
                     )
                   : Row(
@@ -309,7 +326,7 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
                       children: [
                         Icon(CustomIcons.FluentIcons.download, size: 12),
                         SizedBox(width: 6),
-                        Text('开始下载'),
+                        Text(t.popupDownloadStart),
                       ],
                     ),
             ),
@@ -324,12 +341,12 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
     final filename = _fileNameController.text.trim();
 
     if (url.isEmpty || filename.isEmpty) {
-      await _showError('请填写完整信息');
+      await _showError(t.popupDownloadErrorMissingInfo);
       return;
     }
 
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      await _showError('请输入有效的 HTTP/HTTPS 链接');
+      await _showError(t.popupDownloadErrorInvalidUrl);
       return;
     }
 
@@ -352,7 +369,7 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        await _showError('添加任务失败: $e');
+        await _showError(t.popupDownloadErrorAddFailed(e.toString()));
       }
     }
   }
@@ -361,12 +378,12 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
     await showDialog(
       context: context,
       builder: (context) => ContentDialog(
-        title: const Text('错误'),
+        title: Text(t.popupDownloadErrorTitle),
         content: Text(message),
         actions: [
           FilledButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('确定'),
+            child: Text(t.popupDownloadErrorConfirm),
           ),
         ],
       ),

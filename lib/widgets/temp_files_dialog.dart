@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
 import '../services/app_logger_service.dart';
 import '../utils/fluent_icons.dart' as CustomIcons;
+import '../l10n/app_localizations.dart';
 
 /// 临时文件信息
 class TempFileInfo {
@@ -214,6 +215,7 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
   }
 
   Future<void> _deleteSelected() async {
+    final t = AppLocalizations.of(context)!;
     final selected = _tempFiles.where((f) => f.isSelected).toList();
     if (selected.isEmpty) return;
     
@@ -223,15 +225,15 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => ContentDialog(
-        title: const Text('确认删除'),
+        title: Text(t.tempFilesDeleteConfirmTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('确定要删除 ${selected.length} 个临时文件吗？'),
+            Text(t.tempFilesDeleteConfirmMessage(selected.length)),
             const SizedBox(height: 8),
             Text(
-              '总大小: ${_formatSize(totalSize)}',
+              t.tempFilesDeleteTotalSize(_formatSize(totalSize)),
               style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
             ),
             const SizedBox(height: 8),
@@ -247,7 +249,7 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '此操作不可恢复',
+                      t.tempFilesDeleteWarning,
                       style: TextStyle(color: AppTheme.statusWarning, fontSize: 12),
                     ),
                   ),
@@ -259,14 +261,14 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
         actions: [
           Button(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('取消'),
+            child: Text(t.tempFilesCancelButton),
           ),
           FilledButton(
             style: ButtonStyle(
               backgroundColor: WidgetStateProperty.all(AppTheme.statusError),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('删除'),
+            child: Text(t.tempFilesDeleteButton),
           ),
         ],
       ),
@@ -303,13 +305,13 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
     if (mounted) {
       if (failedCount > 0) {
         NotificationManager.of(context)?.showWarning(
-          '删除完成',
-          message: '成功删除 $successCount 个，失败 $failedCount 个',
+          t.tempFilesDeleteDoneTitle,
+          message: t.tempFilesDeleteDoneWithFailures(successCount, failedCount),
         );
       } else {
         NotificationManager.of(context)?.showSuccess(
-          '删除完成',
-          message: '成功删除 $successCount 个临时文件',
+          t.tempFilesDeleteDoneTitle,
+          message: t.tempFilesDeleteDoneSuccess(successCount),
         );
       }
       await _scanTempFiles();
@@ -318,6 +320,7 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     final selectedCount = _tempFiles.where((f) => f.isSelected).length;
     final totalSize = _tempFiles.fold<int>(0, (sum, f) => sum + f.size);
     final selectedSize = _tempFiles
@@ -334,7 +337,7 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
             children: [
               Icon(CustomIcons.FluentIcons.delete, size: 20),
               const SizedBox(width: 12),
-              const Text('清理临时文件'),
+              Text(t.tempFilesDialogTitle),
               const Spacer(),
               if (!_loading)
                 IconButton(
@@ -345,7 +348,7 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
           ),
           const SizedBox(height: 4),
           Text(
-            '扫描路径: ${widget.downloadPath}',
+            t.tempFilesDialogScanPath(widget.downloadPath),
             style: TextStyle(
               fontSize: 11,
               color: AppTheme.textTertiary,
@@ -368,14 +371,14 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
             child: Row(
               children: [
                 _buildStatChip(
-                  '文件数',
+                  t.tempFilesStatFiles,
                   '${_tempFiles.length}',
                   CustomIcons.FluentIcons.document,
                   AppTheme.accentPrimary,
                 ),
                 const SizedBox(width: 12),
                 _buildStatChip(
-                  '总大小',
+                  t.tempFilesStatTotalSize,
                   _formatSize(totalSize),
                   CustomIcons.FluentIcons.hard_drive,
                   AppTheme.statusInfo,
@@ -383,7 +386,7 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
                 const SizedBox(width: 12),
                 if (selectedCount > 0)
                   _buildStatChip(
-                    '已选',
+                    t.tempFilesStatSelected,
                     '$selectedCount (${_formatSize(selectedSize)})',
                     CustomIcons.FluentIcons.checkbox_composite,
                     AppTheme.statusWarning,
@@ -406,7 +409,7 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '支持格式: .temp, .tmp, .download, .partN (分段), .crdownload, .partial, .!ut',
+                    t.tempFilesSupportedFormats,
                     style: TextStyle(
                       fontSize: 10,
                       color: AppTheme.textTertiary,
@@ -424,7 +427,7 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
               Checkbox(
                 checked: _selectAll,
                 onChanged: (_) => _toggleSelectAll(),
-                content: const Text('全选'),
+                content: Text(t.tempFilesSelectAll),
               ),
               const SizedBox(width: 12),
               Checkbox(
@@ -433,17 +436,17 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
                   setState(() => _includeTempDirs = v ?? true);
                   _scanTempFiles();
                 },
-                content: const Text('包含临时目录'),
+                content: Text(t.tempFilesIncludeTempDirs),
               ),
               const Spacer(),
-              Text('排序:', style: TextStyle(color: AppTheme.textSecondary)),
+              Text(t.tempFilesSortLabel, style: TextStyle(color: AppTheme.textSecondary)),
               const SizedBox(width: 8),
               ComboBox<String>(
                 value: _sortBy,
-                items: const [
-                  ComboBoxItem(value: 'name', child: Text('名称')),
-                  ComboBoxItem(value: 'size', child: Text('大小')),
-                  ComboBoxItem(value: 'time', child: Text('时间')),
+                items: [
+                  ComboBoxItem(value: 'name', child: Text(t.tempFilesSortName)),
+                  ComboBoxItem(value: 'size', child: Text(t.tempFilesSortSize)),
+                  ComboBoxItem(value: 'time', child: Text(t.tempFilesSortTime)),
                 ],
                 onChanged: (value) {
                   if (value != null) {
@@ -483,7 +486,7 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              '没有找到临时文件',
+                              t.tempFilesEmpty,
                               style: TextStyle(color: AppTheme.textSecondary),
                             ),
                           ],
@@ -502,7 +505,7 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
       actions: [
         Button(
           onPressed: () => Navigator.pop(context),
-          child: const Text('关闭'),
+          child: Text(t.tempFilesCloseButton),
         ),
         if (selectedCount > 0)
           FilledButton(
@@ -510,7 +513,7 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
               backgroundColor: WidgetStateProperty.all(AppTheme.statusError),
             ),
             onPressed: _deleteSelected,
-            child: Text('删除选中 ($selectedCount)'),
+            child: Text(t.tempFilesDeleteSelected(selectedCount)),
           ),
       ],
     );

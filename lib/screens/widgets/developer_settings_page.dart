@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../services/developer_mode_service.dart';
 import '../../services/popup_window_service.dart';
 import '../../services/app_logger_service.dart';
+import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/fluent_icons.dart' as CustomIcons;
 import '../../widgets/animated_notifications.dart';
@@ -21,6 +22,8 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
   final TextEditingController _customTitleController = TextEditingController();
   final TextEditingController _customMessageController = TextEditingController();
   late AnimationController _animController;
+
+  AppLocalizations get _t => AppLocalizations.of(context)!;
 
   bool _testingPopupWindow = false;
   Map<String, dynamic>? _popupWindowTestResult;
@@ -75,6 +78,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
   }
 
   Widget _buildContent() {
+    final t = _t;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -86,11 +90,11 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
           // 开启后显示调试工具
           if (_devMode.developerMode) ...[
             const SizedBox(height: 32),
-            _buildSectionTitle('调试工具'),
+            _buildSectionTitle(t.developerSectionDebugTools),
             const SizedBox(height: 12),
             _buildDebugToolsGrid(),
             const SizedBox(height: 32),
-            _buildSectionTitle('测试工具'),
+            _buildSectionTitle(t.developerSectionTestTools),
             const SizedBox(height: 12),
             _buildTestToolsRow(),
           ],
@@ -113,6 +117,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
 
   /// 开发者模式主开关
   Widget _buildMasterSwitch() {
+    final t = _t;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -148,7 +153,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '开发者模式',
+                  t.settingsDeveloperModeTitle,
                   style: FluentTheme.of(context).typography.body?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textPrimary,
@@ -156,7 +161,9 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  _devMode.developerMode ? '已启用调试功能' : '开启后可使用调试工具',
+                  _devMode.developerMode
+                      ? t.developerModeEnabledSubtitle
+                      : t.developerModeDisabledSubtitle,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
                     color: AppTheme.textSecondary,
                   ),
@@ -172,8 +179,12 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
               _devMode.setDeveloperMode(value);
               if (mounted) {
                 NotificationManager.of(context)?.showSuccess(
-                  value ? '开发者模式已开启' : '开发者模式已关闭',
-                  message: value ? '已启用高级调试功能' : '已禁用高级调试功能',
+                  value
+                      ? t.settingsDeveloperModeEnabledTitle
+                      : t.settingsDeveloperModeDisabledTitle,
+                  message: value
+                      ? t.settingsDeveloperModeEnabledMessage
+                      : t.settingsDeveloperModeDisabledMessage,
                 );
               }
             },
@@ -185,6 +196,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
 
   /// 调试工具网格
   Widget _buildDebugToolsGrid() {
+    final t = _t;
     return Column(
       children: [
         Row(
@@ -192,15 +204,19 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
             Expanded(
               child: _buildToolCard(
                 icon: CustomIcons.FluentIcons.text_document,
-                title: '日志查看器',
-                subtitle: '查看运行日志',
+                title: t.developerToolLogTitle,
+                subtitle: t.developerToolLogSubtitle,
                 isEnabled: _devMode.showLogPage,
                 onChanged: (v) {
                   _devMode.setShowLogPage(v);
                   if (mounted) {
                     NotificationManager.of(context)?.showSuccess(
-                      v ? '日志查看器已显示' : '日志查看器已隐藏',
-                      message: v ? '已在导航栏添加日志页面' : '已从导航栏移除日志页面',
+                      v
+                          ? t.developerToolLogShownTitle
+                          : t.developerToolLogHiddenTitle,
+                      message: v
+                          ? t.developerToolLogShownMessage
+                          : t.developerToolLogHiddenMessage,
                     );
                   }
                 },
@@ -210,15 +226,19 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
             Expanded(
               child: _buildToolCard(
                 icon: CustomIcons.FluentIcons.health,
-                title: '系统状态',
-                subtitle: '内核与扩展',
+                title: t.developerToolStatusTitle,
+                subtitle: t.developerToolStatusSubtitle,
                 isEnabled: _devMode.showStatusPage,
                 onChanged: (v) {
                   _devMode.setShowStatusPage(v);
                   if (mounted) {
                     NotificationManager.of(context)?.showSuccess(
-                      v ? '系统状态已显示' : '系统状态已隐藏',
-                      message: v ? '已在导航栏添加状态页面' : '已从导航栏移除状态页面',
+                      v
+                          ? t.developerToolStatusShownTitle
+                          : t.developerToolStatusHiddenTitle,
+                      message: v
+                          ? t.developerToolStatusShownMessage
+                          : t.developerToolStatusHiddenMessage,
                     );
                   }
                 },
@@ -232,15 +252,19 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
             Expanded(
               child: _buildToolCard(
                 icon: CustomIcons.FluentIcons.people,
-                title: '在线统计',
-                subtitle: '用户数据',
+                title: t.developerToolOnlineStatsTitle,
+                subtitle: t.developerToolOnlineStatsSubtitle,
                 isEnabled: _devMode.showOnlineStatsPage,
                 onChanged: (v) {
                   _devMode.setShowOnlineStatsPage(v);
                   if (mounted) {
                     NotificationManager.of(context)?.showSuccess(
-                      v ? '在线统计已显示' : '在线统计已隐藏',
-                      message: v ? '已在导航栏添加在线统计页面' : '已从导航栏移除在线统计页面',
+                      v
+                          ? t.developerToolOnlineStatsShownTitle
+                          : t.developerToolOnlineStatsHiddenTitle,
+                      message: v
+                          ? t.developerToolOnlineStatsShownMessage
+                          : t.developerToolOnlineStatsHiddenMessage,
                     );
                   }
                 },
@@ -250,15 +274,19 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
             Expanded(
               child: _buildToolCard(
                 icon: CustomIcons.FluentIcons.globe,
-                title: 'Web 检测',
-                subtitle: '网站诊断',
+                title: t.developerToolWebCheckTitle,
+                subtitle: t.developerToolWebCheckSubtitle,
                 isEnabled: _devMode.showWebCheckPage,
                 onChanged: (v) {
                   _devMode.setShowWebCheckPage(v);
                   if (mounted) {
                     NotificationManager.of(context)?.showSuccess(
-                      v ? 'Web 检测已显示' : 'Web 检测已隐藏',
-                      message: v ? '已在导航栏添加 Web 检测页面' : '已从导航栏移除 Web 检测页面',
+                      v
+                          ? t.developerToolWebCheckShownTitle
+                          : t.developerToolWebCheckHiddenTitle,
+                      message: v
+                          ? t.developerToolWebCheckShownMessage
+                          : t.developerToolWebCheckHiddenMessage,
                     );
                   }
                 },
@@ -272,15 +300,19 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
             Expanded(
               child: _buildToolCard(
                 icon: CustomIcons.FluentIcons.speed_high,
-                title: '性能监控',
-                subtitle: '帧率与渲染',
+                title: t.developerToolPerformanceTitle,
+                subtitle: t.developerToolPerformanceSubtitle,
                 isEnabled: _devMode.showPerformanceMonitorPage,
                 onChanged: (v) {
                   _devMode.setShowPerformanceMonitorPage(v);
                   if (mounted) {
                     NotificationManager.of(context)?.showSuccess(
-                      v ? '性能监控已显示' : '性能监控已隐藏',
-                      message: v ? '已在导航栏添加性能监控页面' : '已从导航栏移除性能监控页面',
+                      v
+                          ? t.developerToolPerformanceShownTitle
+                          : t.developerToolPerformanceHiddenTitle,
+                      message: v
+                          ? t.developerToolPerformanceShownMessage
+                          : t.developerToolPerformanceHiddenMessage,
                     );
                   }
                 },
@@ -391,6 +423,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
 
   /// 通知测试卡片
   Widget _buildNotificationTestCard() {
+    final t = _t;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -411,7 +444,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
               ),
               const SizedBox(width: 8),
               Text(
-                '通知测试',
+                t.developerTestNotificationTitle,
                 style: FluentTheme.of(context).typography.body?.copyWith(
                   fontWeight: FontWeight.w500,
                   fontSize: 13,
@@ -424,13 +457,13 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
           // 输入框
           TextBox(
             controller: _customTitleController,
-            placeholder: '标题',
+            placeholder: t.developerTestNotificationTitlePlaceholder,
             style: const TextStyle(fontSize: 13),
           ),
           const SizedBox(height: 8),
           TextBox(
             controller: _customMessageController,
-            placeholder: '内容（可选）',
+            placeholder: t.developerTestNotificationMessagePlaceholder,
             style: const TextStyle(fontSize: 13),
           ),
           const SizedBox(height: 12),
@@ -438,13 +471,29 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
           // 按钮组
           Row(
             children: [
-              _buildTypeButton('成功', AppTheme.statusSuccess, NotificationType.success),
+              _buildTypeButton(
+                t.developerTestNotificationTypeSuccess,
+                AppTheme.statusSuccess,
+                NotificationType.success,
+              ),
               const SizedBox(width: 6),
-              _buildTypeButton('警告', AppTheme.statusWarning, NotificationType.warning),
+              _buildTypeButton(
+                t.developerTestNotificationTypeWarning,
+                AppTheme.statusWarning,
+                NotificationType.warning,
+              ),
               const SizedBox(width: 6),
-              _buildTypeButton('错误', AppTheme.statusError, NotificationType.error),
+              _buildTypeButton(
+                t.developerTestNotificationTypeError,
+                AppTheme.statusError,
+                NotificationType.error,
+              ),
               const SizedBox(width: 6),
-              _buildTypeButton('信息', AppTheme.accentPrimary, NotificationType.info),
+              _buildTypeButton(
+                t.developerTestNotificationTypeInfo,
+                AppTheme.accentPrimary,
+                NotificationType.info,
+              ),
             ],
           ),
         ],
@@ -458,7 +507,9 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
         onPressed: () {
           final title = _customTitleController.text.trim();
           if (title.isEmpty) {
-            NotificationManager.of(context)?.showWarning('请输入标题');
+            NotificationManager.of(context)?.showWarning(
+              _t.developerTestNotificationTitleRequired,
+            );
             return;
           }
           final message = _customMessageController.text.trim();
@@ -497,6 +548,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
 
   /// 弹窗测试卡片
   Widget _buildPopupTestCard() {
+    final t = _t;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -517,7 +569,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
               ),
               const SizedBox(width: 8),
               Text(
-                '弹窗测试',
+                t.developerTestPopupTitle,
                 style: FluentTheme.of(context).typography.body?.copyWith(
                   fontWeight: FontWeight.w500,
                   fontSize: 13,
@@ -557,7 +609,9 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
                         const Icon(FluentIcons.open_pane, size: 14),
                       const SizedBox(width: 6),
                       Text(
-                        _testingPopupWindow ? '测试中' : '独立弹窗',
+                        _testingPopupWindow
+                            ? t.developerTestPopupTestingLabel
+                            : t.developerTestPopupButton,
                         style: const TextStyle(fontSize: 12),
                       ),
                     ],
@@ -590,7 +644,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
 
           // 说明
           Text(
-            '独立弹窗使用 Tauri，Dialog 需要主窗口',
+            t.developerTestPopupHint,
             style: FluentTheme.of(context).typography.caption?.copyWith(
               color: AppTheme.textTertiary,
               fontSize: 11,
@@ -602,6 +656,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
   }
 
   Widget _buildTestResult() {
+    final t = _t;
     final success = _popupWindowTestResult!['success'] == true;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -620,7 +675,9 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
           ),
           const SizedBox(width: 8),
           Text(
-            success ? '成功 · ${_popupWindowTestResult!['time']}ms' : '失败',
+            success
+                ? t.developerTestPopupResultSuccess(_popupWindowTestResult!['time'])
+                : t.developerTestPopupResultFailed,
             style: TextStyle(
               color: success ? AppTheme.statusSuccess : AppTheme.statusError,
               fontSize: 12,

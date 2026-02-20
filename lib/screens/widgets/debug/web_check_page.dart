@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../services/kernel_service.dart';
 import '../../../services/kernel/kernel_manager.dart';
 import '../../../services/client_config_service.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 
 import '../../../widgets/animated_notifications.dart';
@@ -22,6 +23,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
   bool _isScanning = false;
   Map<String, dynamic>? _scanResult;
   bool _autoScanEnabled = false;
+  AppLocalizations get t => AppLocalizations.of(context)!;
 
   @override
   void initState() {
@@ -43,7 +45,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
   Future<void> _checkUrl() async {
     var url = _urlController.text.trim();
     if (url.isEmpty) {
-      _showError('请输入 URL');
+      _showError(t.webCheckErrorEmptyUrl);
       return;
     }
 
@@ -51,7 +53,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
     final config = context.read<ClientConfigService>();
     final useNewKernel = config.getBool('kernel.use_new_kernel', defaultValue: true);
     if (useNewKernel) {
-      _showError('Web 检测功能暂不支持新版内核，请在设置中切换到旧版内核');
+      _showError(t.webCheckErrorUnsupportedKernel);
       return;
     }
 
@@ -64,7 +66,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
     // 基本URL验证
     final uri = Uri.tryParse(url);
     if (uri == null || uri.host.isEmpty) {
-      _showError('URL 格式无效');
+      _showError(t.webCheckErrorInvalidUrl);
       return;
     }
 
@@ -86,7 +88,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
     } catch (e) {
       if (mounted) {
         setState(() => _isChecking = false);
-        _showError('检测失败: $e');
+        _showError(t.webCheckErrorCheckFailed(e));
       }
     }
   }
@@ -96,7 +98,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
     final config = context.read<ClientConfigService>();
     final useNewKernel = config.getBool('kernel.use_new_kernel', defaultValue: true);
     if (useNewKernel) {
-      _showError('局域网扫描功能暂不支持新版内核，请在设置中切换到旧版内核');
+      _showError(t.webCheckErrorLanUnsupportedKernel);
       return;
     }
 
@@ -118,7 +120,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
     } catch (e) {
       if (mounted) {
         setState(() => _isScanning = false);
-        _showError('扫描失败: $e');
+        _showError(t.webCheckErrorScanFailed(e));
       }
     }
   }
@@ -182,7 +184,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
           ),
           const SizedBox(width: 10),
           Text(
-            'Web 状态检测',
+            t.webCheckHeaderTitle,
             style: FluentTheme.of(context).typography.body?.copyWith(
               fontWeight: FontWeight.w600,
               color: AppTheme.textPrimary,
@@ -207,7 +209,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '输入 URL',
+            t.webCheckInputTitle,
             style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
               color: AppTheme.textPrimary,
             ),
@@ -215,7 +217,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
           const SizedBox(height: 12),
           TextBox(
             controller: _urlController,
-            placeholder: 'example.com 或 https://example.com',
+            placeholder: t.webCheckInputPlaceholder,
             prefix: const Padding(
               padding: EdgeInsets.only(left: 12),
               child: Icon(FluentIcons.link, size: 16),
@@ -224,7 +226,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            '提示：可以直接输入域名，会自动添加 https:// 前缀',
+            t.webCheckInputHint,
             style: FluentTheme.of(context).typography.caption?.copyWith(
               color: AppTheme.textTertiary,
               fontSize: 11,
@@ -234,19 +236,19 @@ class _WebCheckPageState extends State<WebCheckPage> {
           FilledButton(
             onPressed: _isChecking ? null : _checkUrl,
             child: _isChecking
-                ? const Row(
+                ? Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      SizedBox(
+                      const SizedBox(
                         width: 16,
                         height: 16,
                         child: ProgressRing(strokeWidth: 2),
                       ),
-                      SizedBox(width: 8),
-                      Text('检测中...'),
+                      const SizedBox(width: 8),
+                      Text(t.webCheckChecking),
                     ],
                   )
-                : const Text('开始检测'),
+                : Text(t.webCheckStartButton),
           ),
         ],
       ),
@@ -305,7 +307,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '检测失败',
+                  t.webCheckErrorCardTitle,
                   style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
                     color: AppTheme.statusError,
                   ),
@@ -394,7 +396,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
                     const Icon(FluentIcons.server, size: 16, color: AppTheme.accentLight),
                     const SizedBox(width: 8),
                     Text(
-                      'DNS: ${dnsTime}ms',
+                      t.webCheckDnsTime(dnsTime),
                       style: FluentTheme.of(context).typography.caption?.copyWith(
                         color: AppTheme.textSecondary,
                         fontWeight: FontWeight.w600,
@@ -406,7 +408,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
                     const Icon(FluentIcons.lightning_bolt, size: 16, color: AppTheme.accentLight),
                     const SizedBox(width: 8),
                     Text(
-                      '响应: ${responseTime}ms',
+                      t.webCheckResponseTime(responseTime),
                       style: FluentTheme.of(context).typography.caption?.copyWith(
                         color: AppTheme.textSecondary,
                         fontWeight: FontWeight.w600,
@@ -420,14 +422,14 @@ class _WebCheckPageState extends State<WebCheckPage> {
           ],
           
           // 连接信息
-          if (hostname.isNotEmpty) _buildInfoRow('主机名', hostname),
-          if (ipAddress.isNotEmpty) _buildInfoRow('IP 地址', ipAddress),
-          if (port != null) _buildInfoRow('端口', '$port'),
-          if (protocol.isNotEmpty) _buildInfoRow('协议', protocol.toUpperCase()),
-          _buildInfoRow('最终 URL', finalUrl),
-          if (contentType.isNotEmpty) _buildInfoRow('Content-Type', contentType),
-          if (contentLength.isNotEmpty) _buildInfoRow('Content-Length', _formatBytes(contentLength)),
-          if (server.isNotEmpty) _buildInfoRow('Server', server),
+          if (hostname.isNotEmpty) _buildInfoRow(t.webCheckInfoHostname, hostname),
+          if (ipAddress.isNotEmpty) _buildInfoRow(t.webCheckInfoIpAddress, ipAddress),
+          if (port != null) _buildInfoRow(t.webCheckInfoPort, '$port'),
+          if (protocol.isNotEmpty) _buildInfoRow(t.webCheckInfoProtocol, protocol.toUpperCase()),
+          _buildInfoRow(t.webCheckInfoFinalUrl, finalUrl),
+          if (contentType.isNotEmpty) _buildInfoRow(t.webCheckInfoContentType, contentType),
+          if (contentLength.isNotEmpty) _buildInfoRow(t.webCheckInfoContentLength, _formatBytes(contentLength)),
+          if (server.isNotEmpty) _buildInfoRow(t.webCheckInfoServer, server),
         ],
       ),
     );
@@ -457,7 +459,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
               ),
               const SizedBox(width: 8),
               Text(
-                '重定向历史 (${redirects.length})',
+                t.webCheckRedirectHistoryTitle(redirects.length),
                 style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
                   color: AppTheme.textPrimary,
                 ),
@@ -531,7 +533,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              '从: $url',
+              t.webCheckRedirectFrom(url),
               style: FluentTheme.of(context).typography.caption?.copyWith(
                 color: AppTheme.textTertiary,
               ),
@@ -539,7 +541,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
             if (location.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(
-                '到: $location',
+                t.webCheckRedirectTo(location),
                 style: FluentTheme.of(context).typography.caption?.copyWith(
                   color: AppTheme.textSecondary,
                 ),
@@ -567,7 +569,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '响应头',
+            t.webCheckHeadersTitle,
             style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
               color: AppTheme.textPrimary,
             ),
@@ -602,7 +604,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
               const Icon(FluentIcons.lock, size: 16, color: AppTheme.statusSuccess),
               const SizedBox(width: 8),
               Text(
-                'SSL/TLS 信息',
+                t.webCheckSslTitle,
                 style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
                   color: AppTheme.textPrimary,
                 ),
@@ -612,20 +614,20 @@ class _WebCheckPageState extends State<WebCheckPage> {
           const SizedBox(height: 16),
           if (sslInfo['error'] != null)
             Text(
-              'SSL 错误: ${sslInfo['error']}',
+              t.webCheckSslError(sslInfo['error']),
               style: FluentTheme.of(context).typography.caption?.copyWith(
                 color: AppTheme.statusError,
               ),
             )
           else ...[
-            if (sslInfo['version'] != null) _buildInfoRow('版本', sslInfo['version']),
-            if (sslInfo['cipher'] != null) _buildInfoRow('加密套件', sslInfo['cipher']),
+            if (sslInfo['version'] != null) _buildInfoRow(t.webCheckSslVersion, sslInfo['version']),
+            if (sslInfo['cipher'] != null) _buildInfoRow(t.webCheckSslCipher, sslInfo['cipher']),
             if (sslInfo['subject'] != null && sslInfo['subject']['commonName'] != null)
-              _buildInfoRow('证书主体', sslInfo['subject']['commonName']),
+              _buildInfoRow(t.webCheckSslSubject, sslInfo['subject']['commonName']),
             if (sslInfo['issuer'] != null && sslInfo['issuer']['commonName'] != null)
-              _buildInfoRow('证书颁发者', sslInfo['issuer']['commonName']),
-            if (sslInfo['not_before'] != null) _buildInfoRow('有效期开始', sslInfo['not_before']),
-            if (sslInfo['not_after'] != null) _buildInfoRow('有效期结束', sslInfo['not_after']),
+              _buildInfoRow(t.webCheckSslIssuer, sslInfo['issuer']['commonName']),
+            if (sslInfo['not_before'] != null) _buildInfoRow(t.webCheckSslNotBefore, sslInfo['not_before']),
+            if (sslInfo['not_after'] != null) _buildInfoRow(t.webCheckSslNotAfter, sslInfo['not_after']),
           ],
         ],
       ),
@@ -653,7 +655,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
               const Icon(FluentIcons.database, size: 16, color: AppTheme.statusWarning),
               const SizedBox(width: 8),
               Text(
-                'Cookies (${cookies.length})',
+                t.webCheckCookiesTitle(cookies.length),
                 style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
                   color: AppTheme.textPrimary,
                 ),
@@ -692,7 +694,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
                     if (cookie['domain'] != null && cookie['domain'].toString().isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
-                        'Domain: ${cookie['domain']}',
+                        t.webCheckCookieDomain(cookie['domain']),
                         style: FluentTheme.of(context).typography.caption?.copyWith(
                           color: AppTheme.textTertiary,
                           fontSize: 11,
@@ -727,7 +729,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
               const Icon(FluentIcons.network_tower, size: 16, color: AppTheme.accentLight),
               const SizedBox(width: 8),
               Text(
-                '局域网扫描',
+                t.webCheckLanScanTitle,
                 style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
                   color: AppTheme.textPrimary,
                 ),
@@ -741,13 +743,13 @@ class _WebCheckPageState extends State<WebCheckPage> {
                     _scanLan();
                   }
                 },
-                content: const Text('自动扫描'),
+                content: Text(t.webCheckAutoScan),
               ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
-            '扫描当前局域网中的所有在线设备',
+            t.webCheckLanScanSubtitle,
             style: FluentTheme.of(context).typography.caption?.copyWith(
               color: AppTheme.textTertiary,
             ),
@@ -756,24 +758,24 @@ class _WebCheckPageState extends State<WebCheckPage> {
           FilledButton(
             onPressed: _isScanning ? null : _scanLan,
             child: _isScanning
-                ? const Row(
+                ? Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      SizedBox(
+                      const SizedBox(
                         width: 16,
                         height: 16,
                         child: ProgressRing(strokeWidth: 2),
                       ),
-                      SizedBox(width: 8),
-                      Text('扫描中...'),
+                      const SizedBox(width: 8),
+                      Text(t.webCheckScanning),
                     ],
                   )
-                : const Row(
+                : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(FluentIcons.search, size: 16),
-                      SizedBox(width: 8),
-                      Text('开始扫描'),
+                      const Icon(FluentIcons.search, size: 16),
+                      const SizedBox(width: 8),
+                      Text(t.webCheckScanStart),
                     ],
                   ),
           ),
@@ -807,7 +809,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
               const Icon(FluentIcons.devices3, size: 16, color: AppTheme.statusSuccess),
               const SizedBox(width: 8),
               Text(
-                '发现 $total 台设备',
+                t.webCheckLanDevicesTitle(total),
                 style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
                   color: AppTheme.textPrimary,
                 ),
@@ -816,13 +818,13 @@ class _WebCheckPageState extends State<WebCheckPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            '网段: $network',
+            t.webCheckLanNetworkLabel(network),
             style: FluentTheme.of(context).typography.caption?.copyWith(
               color: AppTheme.textTertiary,
             ),
           ),
           Text(
-            '本机 IP: $localIp',
+            t.webCheckLanLocalIpLabel(localIp),
             style: FluentTheme.of(context).typography.caption?.copyWith(
               color: AppTheme.textTertiary,
             ),
@@ -877,7 +879,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
                     borderRadius: BorderRadius.circular(AppTheme.radiusRound),
                   ),
                   child: Text(
-                    '本机',
+                    t.webCheckLanLocalBadge,
                     style: FluentTheme.of(context).typography.caption?.copyWith(
                       color: AppTheme.accentLight,
                       fontSize: 10,
@@ -949,19 +951,19 @@ class _WebCheckPageState extends State<WebCheckPage> {
   }
 
   String _getStatusText(int? statusCode) {
-    if (statusCode == null) return 'Unknown';
-    if (statusCode == 200) return 'OK';
-    if (statusCode == 301) return 'Moved Permanently';
-    if (statusCode == 302) return 'Found';
-    if (statusCode == 304) return 'Not Modified';
-    if (statusCode == 400) return 'Bad Request';
-    if (statusCode == 401) return 'Unauthorized';
-    if (statusCode == 403) return 'Forbidden';
-    if (statusCode == 404) return 'Not Found';
-    if (statusCode == 500) return 'Internal Server Error';
-    if (statusCode == 502) return 'Bad Gateway';
-    if (statusCode == 503) return 'Service Unavailable';
-    return 'Status $statusCode';
+    if (statusCode == null) return t.webCheckStatusUnknown;
+    if (statusCode == 200) return t.webCheckStatusOk;
+    if (statusCode == 301) return t.webCheckStatusMovedPermanently;
+    if (statusCode == 302) return t.webCheckStatusFound;
+    if (statusCode == 304) return t.webCheckStatusNotModified;
+    if (statusCode == 400) return t.webCheckStatusBadRequest;
+    if (statusCode == 401) return t.webCheckStatusUnauthorized;
+    if (statusCode == 403) return t.webCheckStatusForbidden;
+    if (statusCode == 404) return t.webCheckStatusNotFound;
+    if (statusCode == 500) return t.webCheckStatusInternalServerError;
+    if (statusCode == 502) return t.webCheckStatusBadGateway;
+    if (statusCode == 503) return t.webCheckStatusServiceUnavailable;
+    return t.webCheckStatusWithCode(statusCode);
   }
 
   String _formatBytes(String bytes) {

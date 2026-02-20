@@ -1,0 +1,1844 @@
+{
+  "appTitle": "Hanabi 下载管理器 X",
+  "aboutEasterEggCongrats": "恭喜你发现了这个彩蛋！",
+  "aboutEasterEggTitle": "这个彩蛋没什么用",
+  "aboutEasterEggMessage": "但是感谢你使用 {appName}！\\n感谢你的支持\\n希望你可以给他一个 Star",
+  "@aboutEasterEggMessage": {
+    "placeholders": {
+      "appName": {}
+    }
+  },
+  "aboutEasterEggDismiss": "假装不知道",
+  "aboutMadeBy": "作者 {developer}",
+  "@aboutMadeBy": {
+    "placeholders": {
+      "developer": {}
+    }
+  },
+  "aboutEasterEggDialogTitle": "嘿！",
+  "aboutPageTitle": "关于",
+  "aboutSectionAppInfo": "应用信息",
+  "aboutTapHintRemaining": "再点 {count} 次...",
+  "@aboutTapHintRemaining": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "aboutVersionLabel": "v{version}",
+  "@aboutVersionLabel": {
+    "placeholders": {
+      "version": {}
+    }
+  },
+  "aboutSectionDetails": "详细信息",
+  "aboutDetailDeveloperLabel": "开发者",
+  "aboutDetailKernelLabel": "下载核心",
+  "aboutDetailUiFrameworkLabel": "UI 框架",
+  "aboutDetailUiFrameworkValue": "Fluent UI for Flutter",
+  "aboutSectionLinks": "链接",
+  "aboutLinkOfficialTitle": "官方网站",
+  "aboutLinkOfficialSubtitle": "访问项目主页",
+  "aboutLinkGithubTitle": "GitHub",
+  "aboutLinkGithubSubtitle": "查看源代码和贡献",
+  "aboutLinkContactTitle": "联系我们",
+  "aboutCopyrightMessage": "© {year} {developer}。保留所有权利。",
+  "@aboutCopyrightMessage": {
+    "placeholders": {
+      "year": {},
+      "developer": {}
+    }
+  },
+  "aboutOpenLinkErrorTitle": "错误",
+  "aboutOpenLinkErrorMessage": "打开链接失败: {error}",
+  "@aboutOpenLinkErrorMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "settingsTitle": "设置",
+  "settingsTabGeneral": "常规",
+  "settingsTabDownload": "下载",
+  "settingsTabAppearance": "界面",
+  "settingsTabUpdate": "更新",
+  "settingsTabAdvanced": "高级",
+  "settingsTabDeveloper": "开发者",
+  "appearanceSectionLanguage": "语言",
+  "appearanceLanguageTitle": "界面语言",
+  "appearanceLanguageSubtitle": "默认跟随系统：系统将自动为您选择合适的界面语言",
+  "appearanceLanguageSystem": "跟随系统",
+  "appearanceLanguageChinese": "中文",
+  "appearanceLanguageEnglish": "English",
+  "appearanceLanguageSwitchedTitle": "语言已切换",
+  "appearanceLanguageSwitchedSystem": "将根据系统语言自动选择",
+  "appearanceLanguageSwitchedTo": "已切换为 {language}",
+  "@appearanceLanguageSwitchedTo": {
+    "placeholders": {
+      "language": {}
+    }
+  },
+  "appearanceLanguagePacksTitle": "语言包",
+  "appearanceLanguagePacksSubtitle": "把 .json/.arb 放到 {path} 后点击刷新",
+  "@appearanceLanguagePacksSubtitle": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "appearanceLanguagePacksRefreshedTitle": "已刷新语言包",
+  "appearanceLanguagePacksRefreshedMessage": "发现 {count} 个语言包",
+  "@appearanceLanguagePacksRefreshedMessage": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "appearanceLanguageRefreshButton": "刷新语言包",
+  "trayMenuShowWindowTitle": "显示窗口",
+  "trayMenuShowWindowSubtitle": "打开主界面",
+  "trayMenuKernelTitle": "下载内核",
+  "trayMenuKernelSubtitleRunning": "运行中",
+  "trayMenuKernelSubtitleStopped": "已停止",
+  "trayMenuExitTitle": "退出应用",
+  "trayMenuExitSubtitle": "关闭所有窗口",
+  "tempFilesDialogTitle": "清理临时文件",
+  "tempFilesDialogScanPath": "扫描路径: {path}",
+  "@tempFilesDialogScanPath": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "tempFilesStatFiles": "文件数",
+  "tempFilesStatTotalSize": "总大小",
+  "tempFilesStatSelected": "已选",
+  "tempFilesSupportedFormats": "支持格式: .temp, .tmp, .download, .partN (分段), .crdownload, .partial, .!ut",
+  "tempFilesSelectAll": "全选",
+  "tempFilesIncludeTempDirs": "包含临时目录",
+  "tempFilesSortLabel": "排序:",
+  "tempFilesSortName": "名称",
+  "tempFilesSortSize": "大小",
+  "tempFilesSortTime": "时间",
+  "tempFilesEmpty": "没有找到临时文件",
+  "tempFilesCloseButton": "关闭",
+  "tempFilesDeleteSelected": "删除选中 ({count})",
+  "@tempFilesDeleteSelected": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tempFilesDeleteConfirmTitle": "确认删除",
+  "tempFilesDeleteConfirmMessage": "确定要删除 {count} 个临时文件吗？",
+  "@tempFilesDeleteConfirmMessage": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "tempFilesDeleteTotalSize": "总大小: {size}",
+  "@tempFilesDeleteTotalSize": {
+    "placeholders": {
+      "size": {}
+    }
+  },
+  "tempFilesDeleteWarning": "此操作不可恢复",
+  "tempFilesCancelButton": "取消",
+  "tempFilesDeleteButton": "删除",
+  "tempFilesDeleteDoneTitle": "删除完成",
+  "tempFilesDeleteDoneWithFailures": "成功删除 {success} 个，失败 {failed} 个",
+  "@tempFilesDeleteDoneWithFailures": {
+    "placeholders": {
+      "success": {},
+      "failed": {}
+    }
+  },
+  "tempFilesDeleteDoneSuccess": "成功删除 {success} 个临时文件",
+  "@tempFilesDeleteDoneSuccess": {
+    "placeholders": {
+      "success": {}
+    }
+  },
+  "homeNavDownloading": "下载中",
+  "homeNavCompleted": "已完成",
+  "homeNavLog": "日志",
+  "homeNavStatus": "状态",
+  "homeNavWebCheck": "Web检测",
+  "homeNavOnlineStats": "在线统计",
+  "homeNavPerformance": "性能监控",
+  "homeNavSettings": "设置",
+  "homeNavAbout": "关于",
+  "homeUpdateFoundTitle": "检测到了新版本",
+  "homeUpdateFoundMessage": "本次更新为 {currentVersion} -> {newVersion}\\n快去设置页面更新吧！",
+  "@homeUpdateFoundMessage": {
+    "placeholders": {
+      "currentVersion": {},
+      "newVersion": {}
+    }
+  },
+  "homeKernelStartingTitle": "正在启动下载内核...",
+  "homeKernelStartingHint": "请稍候，这可能需要几秒钟",
+  "homeViewLog": "查看日志",
+  "homeRetry": "重试",
+  "homeNewTask": "新建",
+  "fileName": "文件名",
+  "id": "ID",
+  "name": "名称",
+  "segments": "分段",
+  "speed": "速度",
+  "status": "状态",
+  "url": "URL",
+  "settingsSectionSystem": "系统设置",
+  "settingsAutoStartTitle": "开机自启",
+  "settingsAutoStartSubtitle": "系统启动时自动运行应用程序",
+  "settingsAutoStartEnabledTitle": "开机自启已开启",
+  "settingsAutoStartEnabledMessage": "软件将随系统启动自动运行",
+  "settingsAutoStartDisabledTitle": "开机自启已关闭",
+  "settingsAutoStartDisabledMessage": "软件将不会自动运行",
+  "settingsAutoStartEnableFailed": "无法开启开机自启",
+  "settingsAutoStartDisableFailed": "无法关闭开机自启",
+  "settingsAutoStartFixedTitle": "自启动已修复",
+  "settingsAutoStartFixedMessage": "检测到旧版本的自启动注册，已自动更新为当前版本",
+  "settingsSectionBehavior": "行为设置",
+  "settingsAutoDownloadTitle": "自动开始下载",
+  "settingsAutoDownloadSubtitle": "新任务将自动开始下载",
+  "settingsAutoDownloadEnabledTitle": "自动开始下载已开启",
+  "settingsAutoDownloadEnabledMessage": "新任务将自动开始下载",
+  "settingsAutoDownloadDisabledTitle": "自动下载已关闭",
+  "settingsAutoDownloadDisabledMessage": "新任务将等待手动开始",
+  "settingsPopupWindowTitle": "浏览器下载弹窗",
+  "settingsPopupWindowSubtitle": "显示下载弹窗",
+  "settingsPopupEnabledTitle": "弹窗已开启",
+  "settingsPopupEnabledMessage": "浏览器下载将弹出小窗确认",
+  "settingsPopupDisabledTitle": "弹窗已关闭",
+  "settingsPopupDisabledMessage": "弹窗已关闭",
+  "settingsCompleteNotifyTitle": "完成通知",
+  "settingsCompleteNotifySubtitle": "下载完成时通知",
+  "settingsCompleteNotifyEnabledTitle": "完成通知已开启",
+  "settingsCompleteNotifyEnabledMessage": "下载完成时将发送通知",
+  "settingsCompleteNotifyDisabledTitle": "完成通知已关闭",
+  "settingsCompleteNotifyDisabledMessage": "下载完成时不再通知",
+  "settingsOnlineStatsTitle": "参与在线统计",
+  "settingsOnlineStatsSubtitle": "参与在线用户统计",
+  "settingsOnlineStatsEnabledTitle": "在线统计已启用",
+  "settingsOnlineStatsEnabledMessage": "您的设备将参与在线用户统计，帮助我们了解软件使用情况",
+  "settingsOnlineStatsDisabledTitle": "在线统计已禁用",
+  "settingsOnlineStatsDisabledMessage": "您的设备将不再发送统计信息",
+  "settingsTrayHintTitle": "托盘提示",
+  "settingsTrayHintSubtitle": "托盘提示显示运行状态",
+  "settingsTrayHintEnabledTitle": "已开启后台运行提示",
+  "settingsTrayHintEnabledMessage": "当窗口隐藏时，托盘图标将显示\"正在后台运行\"",
+  "settingsTrayHintDisabledTitle": "后台运行提示已关闭",
+  "settingsTrayHintDisabledMessage": "托盘图标将始终只显示应用名称",
+  "settingsCloseBehaviorTitle": "关闭按钮行为",
+  "settingsCloseBehaviorMinimizeLabel": "minimize_to_tray",
+  "settingsCloseBehaviorExitLabel": "退出应用",
+  "settingsCloseBehaviorMinimize": "最小化到系统托盘，保持后台运行",
+  "settingsCloseBehaviorExit": "完全退出应用程序",
+  "settingsCloseBehaviorUnknown": "未知行为",
+  "settingsCloseBehaviorSavedMessage": "关闭按钮行为已设为{behavior}",
+  "settingsSaveSuccessTitle": "设置已保存",
+  "settingsSaveFailedTitle": "设置失败",
+  "settingsSaveFailedMessage": "无法保存设置: {error}",
+  "@settingsCloseBehaviorSavedMessage": {
+    "placeholders": {
+      "behavior": {}
+    }
+  },
+  "@settingsSaveFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "settingsDownloadPathSection": "下载路径",
+  "settingsDownloadPathTitle": "保存位置",
+  "settingsDownloadPathChangeButton": "更改",
+  "settingsDownloadPathDialogTitle": "设置下载路径",
+  "settingsDownloadPathDialogPrompt": "请输入或浏览选择下载保存路径:",
+  "settingsDownloadPathPlaceholder": "C:\\\\Downloads",
+  "settingsBrowseButton": "浏览",
+  "settingsDownloadPathHintTitle": "提示:",
+  "settingsDownloadPathHintBody": "• 可以直接输入完整的文件夹路径\\n• 点击\"浏览\"按钮可视化选择文件夹\\n• 示例: C:\\\\Users\\\\用户名\\\\Downloads",
+  "settingsCancelButton": "取消",
+  "settingsConfirmButton": "确定",
+  "settingsDownloadPathChangedMessage": "下载路径已更改为: {path}",
+  "settingsDownloadPathChangeFailedMessage": "无法更改下载路径，请检查路径是否有效",
+  "settingsDownloadConfigSection": "下载配置",
+  "settingsDownloadModeTitle": "下载模式",
+  "settingsDownloadModeAuto": "auto",
+  "settingsDownloadModeThreadsOnly": "仅线程",
+  "settingsDownloadModeSegmentsOnly": "仅分段",
+  "settingsDownloadModeManual": "手动",
+  "settingsThreadsTitle": "线程数",
+  "settingsThreadsSubtitle": "下载线程数量",
+  "settingsSegmentsTitle": "分段数",
+  "settingsSegmentsSubtitle": "每个任务的分段数量",
+  "settingsDynamicSegmentsTitle": "动态分段",
+  "settingsDynamicSegmentsSubtitle": "根据文件大小自动调整分段",
+  "settingsDynamicSegmentsEnabledTitle": "动态分段已开启",
+  "settingsDynamicSegmentsEnabledMessage": "分段数将自动调整",
+  "settingsDynamicSegmentsDisabledTitle": "动态分段已关闭",
+  "settingsDynamicSegmentsDisabledMessage": "分段数将保持固定",
+  "settingsMaxConcurrentTitle": "最大同时下载任务数",
+  "settingsMaxConcurrentSubtitle": "限制并发下载任务数量",
+  "settingsSegmentSpeedLimitTitle": "分段限速",
+  "settingsSegmentSpeedLimitSubtitle": "限制单分段速度",
+  "settingsSpeedUnlimited": "不限速",
+  "settingsSpeedTotal": "总: {speed} KB/s",
+  "@settingsDownloadPathChangedMessage": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "@settingsSpeedTotal": {
+    "placeholders": {
+      "speed": {}
+    }
+  },
+  "settingsPopupSaveFailedMessage": "无法保存弹窗设置: {error}",
+  "settingsProxySection": "代理设置",
+  "settingsProxyEnableTitle": "使用代理",
+  "settingsProxyEnableSubtitle": "为下载启用代理",
+  "settingsProxySavedTitle": "代理设置已保存",
+  "settingsProxyEnabledMessage": "已启用代理: {host}:{port}",
+  "settingsProxyDisabledMessage": "已禁用代理",
+  "settingsProxyTypeTitle": "代理类型",
+  "settingsProxyTypeSubtitle": "选择代理协议",
+  "settingsProxyTypeSystem": "system",
+  "settingsProxyTypeHttp": "HTTP",
+  "settingsProxyTypeSocks5": "SOCKS5",
+  "settingsProxyServerTitle": "代理服务器",
+  "settingsProxyServerSubtitle": "服务器地址和端口",
+  "settingsProxyHostPlaceholder": "代理地址 (如: 127.0.0.1)",
+  "settingsProxyAuthTitle": "代理认证",
+  "settingsProxyAuthSubtitle": "需要用户名和密码",
+  "settingsProxyUsernameTitle": "用户名",
+  "settingsProxyUsernameSubtitle": "代理账号用户名",
+  "settingsProxyUsernamePlaceholder": "用户名",
+  "settingsProxyPasswordTitle": "密码",
+  "settingsProxyPasswordSubtitle": "代理账号密码",
+  "settingsProxyPasswordPlaceholder": "密码",
+  "settingsProxyTipsTitle": "代理配置提示",
+  "settingsProxyTipsSystem": "• 自动使用系统配置的代理设置\\n• 支持 Windows、macOS 和 Linux 系统代理\\n• 配置后将应用到所有新的下载任务\\n• 正在进行的下载不会受到影响",
+  "settingsProxyTipsHttp": "• 使用 HTTP/HTTPS 代理协议\\n• 配置后将应用到所有新的下载任务\\n• 正在进行的下载不会受到影响\\n• 支持用户名密码认证",
+  "settingsProxyTipsSocks5": "• 使用 SOCKS5 代理协议\\n• 需要安装 aiohttp-socks 库支持\\n• 配置后将应用到所有新的下载任务\\n• 正在进行的下载不会受到影响",
+  "settingsProxyTipsDefault": "• 支持系统代理、HTTP/HTTPS 和 SOCKS5 代理\\n• 配置后将应用到所有新的下载任务\\n• 正在进行的下载不会受到影响",
+  "settingsProxyTestButton": "测试连接",
+  "settingsProxyTestingTitle": "正在测试...",
+  "settingsProxyTestingMessage": "请稍候",
+  "settingsProxyTestSuccessTitle": "连接成功",
+  "settingsProxyTestSuccessMessage": "代理服务器连接正常，可以正常使用",
+  "settingsProxyTestFailedTitle": "连接失败",
+  "settingsProxyTestFailedMessage": "无法连接到代理服务器，请检查配置",
+  "settingsProxyTestErrorTitle": "测试失败",
+  "settingsProxyTestErrorMessage": "代理连接测试失败: {error}",
+  "settingsProxyErrorTitle": "配置错误",
+  "settingsProxyErrorMessage": "请先输入代理服务器地址",
+  "settingsKernelSection": "下载内核",
+  "settingsKernelCurrentTitle": "当前内核",
+  "settingsKernelOnline": "在线",
+  "settingsKernelOffline": "离线",
+  "settingsKernelNsfxTitle": "NSFX",
+  "settingsKernelNsfxSubtitle": "切换到新内核",
+  "settingsKernelNsfxHint": "NSFX Kernel: 高效 | 简洁 | 新思路",
+  "settingsKernelSodaHint": "旧内核用于兼容性",
+  "settingsKernelSwitchedTitle": "内核已切换",
+  "settingsKernelSwitchedMessage": "当前使用: {kernelName}",
+  "settingsKernelSwitchedLegacyMessage": "已切换到旧内核",
+  "settingsKernelSwitchFailedTitle": "切换失败",
+  "settingsKernelSwitchFailedNewMessage": "无法启动新内核，请稍后重试",
+  "settingsKernelSwitchFailedLegacyMessage": "无法启动旧内核，请稍后重试",
+  "settingsStatusTitle": "系统状态",
+  "settingsStatusKernelNsfx": "NSFX Kernel",
+  "settingsStatusKernelSoda": "Soda 内核（旧版）",
+  "settingsStatusBrowserExtension": "Browser Extension",
+  "settingsModeDescriptionAuto": "智能动态分段，根据文件大小自动优化 (推荐)",
+  "settingsModeDescriptionThreadsOnly": "手动设置线程数，分段数自动计算",
+  "settingsModeDescriptionSegmentsOnly": "手动设置分段数，线程数自动计算",
+  "settingsModeDescriptionManual": "完全手动控制，适合高级用户",
+  "settingsModeDescriptionUnknown": "未知模式",
+  "settingsDeveloperSection": "开发者选项",
+  "settingsDeveloperModeTitle": "开发者模式",
+  "settingsDeveloperModeSubtitle": "启用调试和诊断功能",
+  "settingsDeveloperModeHint": "开发者模式已启用，请切换到\"开发者\"标签页进行详细配置",
+  "settingsDeveloperModeEnabledTitle": "开发者模式已开启",
+  "settingsDeveloperModeEnabledMessage": "已启用高级调试功能",
+  "settingsDeveloperModeDisabledTitle": "开发者模式已关闭",
+  "settingsDeveloperModeDisabledMessage": "已禁用高级调试功能",
+  "settingsDeveloperPageVisibilityTitle": "调试页面显示设置",
+  "settingsDeveloperShowLogTitle": "显示日志页面",
+  "settingsDeveloperShowLogSubtitle": "在导航栏显示日志查看器",
+  "settingsDeveloperShowStatusTitle": "显示状态页面",
+  "settingsDeveloperShowStatusSubtitle": "在导航栏显示系统状态监控",
+  "settingsDeveloperShowOnlineStatsTitle": "显示在线统计页面",
+  "settingsDeveloperShowOnlineStatsSubtitle": "在导航栏显示在线用户统计",
+  "settingsDeveloperShowWebCheckTitle": "显示 Web 检测页面",
+  "settingsDeveloperShowWebCheckSubtitle": "在导航栏显示网站状态检测工具",
+  "settingsDeveloperPageHint": "调试页面会占用系统资源，建议仅在需要时启用",
+  "settingsDangerCleanTempTitle": "清理临时文件",
+  "settingsDangerCleanTempSubtitle": "扫描并删除下载目录中的 .temp 临时文件",
+  "settingsDangerCleanTempButton": "清理临时文件",
+  "settingsDangerClearDataTitle": "清除所有数据",
+  "settingsDangerClearDataSubtitle": "删除所有下载任务和历史记录",
+  "settingsDangerClearDataButton": "清除数据",
+  "settingsDangerConfirmTitle": "确认清除",
+  "settingsDangerConfirmMessage": "确定要清除所有下载任务和历史记录吗？此操作不可恢复。",
+  "settingsDangerConfirmButton": "确认清除",
+  "settingsDangerClearingTitle": "正在清除...",
+  "settingsDangerClearingMessage": "请稍候",
+  "settingsDangerClearedTitle": "已清除",
+  "settingsDangerClearedMessage": "所有下载任务和历史记录已清除",
+  "settingsDangerClearFailedTitle": "清除失败",
+  "settingsDangerClearFailedMessage": "无法清除数据，请确保下载核心正在运行",
+  "settingsUserLoading": "获取中...",
+  "settingsUserLoadFailed": "获取失败",
+  "settingsUserUnknown": "未知用户",
+  "@settingsPopupSaveFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@settingsProxyEnabledMessage": {
+    "placeholders": {
+      "host": {},
+      "port": {}
+    }
+  },
+  "@settingsProxyTestErrorMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@settingsKernelSwitchedMessage": {
+    "placeholders": {
+      "kernelName": {}
+    }
+  },
+  "appearanceWindowSizeSection": "窗口大小",
+  "appearanceWindowRememberTitle": "记忆窗口大小",
+  "appearanceWindowRememberSubtitleOn": "启动时使用上次关闭时的窗口大小",
+  "appearanceWindowRememberSubtitleOff": "启动时使用默认窗口大小",
+  "appearanceWindowDefaultWidthTitle": "默认窗口宽度",
+  "appearanceWindowDefaultWidthSubtitle": "启动默认宽度 (600-{max})",
+  "appearanceWindowDefaultHeightTitle": "默认窗口高度",
+  "appearanceWindowDefaultHeightSubtitle": "启动默认高度 (400-{max})",
+  "appearanceWindowSaveTitle": "已保存",
+  "appearanceWindowSaveMessage": "已将当前窗口大小设为默认 ({width}×{height})",
+  "appearanceWindowSaveButton": "使用当前大小 ({width}×{height})",
+  "appearanceWindowResetTitle": "已重置",
+  "appearanceWindowResetMessage": "已重置默认窗口大小为 889×586",
+  "appearanceWindowResetButton": "重置为默认",
+  "appearanceWindowApplyTitle": "已应用",
+  "appearanceWindowApplyMessage": "窗口大小已调整为 {width}×{height}",
+  "appearanceWindowApplyButton": "立即应用默认大小 ({width}×{height})",
+  "appearanceWindowRememberHintOn": "当前启用记忆模式，应用会记住上次关闭时的窗口大小",
+  "appearanceWindowRememberHintOff": "已启用默认大小模式，应用将使用设定尺寸",
+  "appearanceUiScaleSection": "UI 缩放",
+  "appearanceUiScaleTitle": "界面缩放比例",
+  "appearanceUiScaleSubtitle": "调整高分屏 UI 缩放比例 (50%-200%)",
+  "appearanceUiScaleResetTitle": "已重置",
+  "appearanceUiScaleResetMessage": "UI 缩放已重置为 100%",
+  "appearanceUiScaleResetButton": "重置为100%",
+  "appearanceUiScaleApplyTitle": "已应用",
+  "appearanceUiScaleApplyMessage": "UI 缩放已设置为 125%（4K 推荐）",
+  "appearanceUiScale4kButton": "4K推荐 (125%)",
+  "appearanceUiScaleHint": "调整此设置可以让应用在高分辨率屏幕上显示更清晰。4K屏幕推荐125%-150%",
+  "@appearanceWindowDefaultWidthSubtitle": {
+    "placeholders": {
+      "max": {}
+    }
+  },
+  "@appearanceWindowDefaultHeightSubtitle": {
+    "placeholders": {
+      "max": {}
+    }
+  },
+  "@appearanceWindowSaveMessage": {
+    "placeholders": {
+      "width": {},
+      "height": {}
+    }
+  },
+  "@appearanceWindowSaveButton": {
+    "placeholders": {
+      "width": {},
+      "height": {}
+    }
+  },
+  "@appearanceWindowApplyMessage": {
+    "placeholders": {
+      "width": {},
+      "height": {}
+    }
+  },
+  "@appearanceWindowApplyButton": {
+    "placeholders": {
+      "width": {},
+      "height": {}
+    }
+  },
+  "appearanceFontSection": "字体",
+  "appearanceFontTitle": "应用字体",
+  "appearanceFontSystemSubtitle": "使用系统默认字体",
+  "appearanceFontCurrentSubtitle": "当前字体: {font}",
+  "appearanceFontSystemLabel": "system",
+  "appearanceFontImportButton": "导入字体",
+  "appearanceFontDeleteButton": "删除当前字体",
+  "appearanceFontHint": "支持导入 .ttf 和 .otf 格式的字体文件",
+  "appearanceFontChangedTitle": "字体已更改",
+  "appearanceFontChangedMessage": "字体已应用",
+  "appearanceFontImportDialogTitle": "选择字体文件",
+  "appearanceFontImportingTitle": "正在导入字体...",
+  "appearanceFontImportingMessage": "请稍候",
+  "appearanceFontImportSuccessTitle": "导入成功",
+  "appearanceFontImportSuccessMessage": "字体导入成功",
+  "appearanceFontImportFailedTitle": "导入失败",
+  "appearanceFontImportFailedMessage": "无法导入字体文件，请检查格式",
+  "appearanceFontImportFailedWithErrorMessage": "导入失败: {error}",
+  "appearanceFontDeleteConfirmTitle": "确认删除",
+  "appearanceFontDeleteConfirmMessage": "确定删除字体 \"{fontName}\" 吗？",
+  "appearanceFontDeleteCancelButton": "取消",
+  "appearanceFontDeleteConfirmButton": "删除",
+  "appearanceFontDeleteSuccessTitle": "删除成功",
+  "appearanceFontDeleteSuccessMessage": "字体已删除",
+  "appearanceFontDeleteFailedTitle": "删除失败",
+  "appearanceFontDeleteFailedMessage": "无法删除字体",
+  "appearanceFontPickerTitle": "选择字体",
+  "appearanceFontPickerSearchPlaceholder": "搜索字体...",
+  "appearanceFontPickerCount": "共 {count} 个字体",
+  "appearanceFontPickerFilteredLabel": "(已过滤)",
+  "appearanceFontPickerEmpty": "没有找到匹配的字体",
+  "appearanceFontPickerRecommended": "推荐",
+  "appearanceFontPickerCancel": "取消",
+  "@appearanceFontCurrentSubtitle": {
+    "placeholders": {
+      "font": {}
+    }
+  },
+  "@appearanceFontDeleteConfirmMessage": {
+    "placeholders": {
+      "fontName": {}
+    }
+  },
+  "@appearanceFontImportFailedWithErrorMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@appearanceFontPickerCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "appearanceWindowEffectsSection": "窗口效果",
+  "appearanceWindowEffectsEnableTitle": "启用窗口特效",
+  "appearanceWindowEffectsEnabledSubtitle": "已启用窗口特效",
+  "appearanceWindowEffectsDisabledSubtitle": "窗口特效已关闭（性能模式）",
+  "appearanceWindowEffectsEnabledTitle": "窗口特效已启用",
+  "appearanceWindowEffectsDisabledTitle": "窗口特效已关闭",
+  "appearanceWindowEffectsEnabledMessage": "窗口效果已开启",
+  "appearanceWindowEffectsDisabledMessage": "已切换为纯色背景以提升性能",
+  "appearanceWindowEffectsTypeTitle": "效果类型",
+  "appearanceWindowEffectSwitchedTitle": "效果已切换",
+  "appearanceWindowEffectAcrylic": "acrylic",
+  "appearanceWindowEffectBlur": "模糊",
+  "appearanceWindowEffectMica": "mica_main",
+  "appearanceWindowEffectMicaAlt": "Mica Alt",
+  "appearanceWindowEffectsAcrylicOpacityTitle": "亚克力透明度",
+  "appearanceWindowEffectsAcrylicOpacityHint": "调整背景不透明度 (0-255，越小越透明)",
+  "appearanceWindowEffectsAcrylicOpacityMicaHint": "Mica 效果不支持调整透明度",
+  "appearanceWindowEffectsDragSuspendTitle": "拖动时禁用特效",
+  "appearanceWindowEffectsDragSuspendEnabledSubtitle": "拖动窗口时临时禁用特效，确保流畅拖动",
+  "appearanceWindowEffectsDragSuspendDisabledSubtitle": "拖动时保持特效（Win10 可能卡顿）",
+  "appearanceWindowEffectsMicaHint": "Mica 效果仅在 Windows 11 上可用，会自动采用系统主题色",
+  "appearanceWindowEffectsAcrylicHint": "亚克力效果会消耗额外的GPU资源，如果感觉卡顿可以关闭此选项",
+  "appearanceWindowEffectsDisabledHint": "为获得最佳性能已关闭特效",
+  "appearanceEffectNone": "无效果",
+  "appearanceEffectBlur": "模糊效果 - 简单的背景模糊",
+  "appearanceEffectAcrylic": "亚克力效果 - 半透明模糊背景",
+  "appearanceEffectMica": "Mica 效果 - Windows 11 原生云母效果",
+  "appearanceEffectMicaAlt": "Mica Alt 效果 - Windows 11 临时窗口云母效果",
+  "appearanceEffectUnknown": "未知效果",
+  "appearanceSidebarSection": "侧边栏",
+  "appearanceSidebarDefaultTitle": "默认展开状态",
+  "appearanceSidebarDefaultSubtitle": "启动时侧边栏默认状态",
+  "appearanceSidebarExpandedLabel": "展开",
+  "appearanceSidebarCollapsedLabel": "收起",
+  "appearanceSidebarSavedTitle": "已保存",
+  "appearanceSidebarSavedMessage": "侧边栏默认状态已设为 {state}",
+  "@appearanceSidebarSavedMessage": {
+    "placeholders": {
+      "state": {}
+    }
+  },
+  "appearanceNotificationSection": "通知",
+  "appearanceNotificationEnableTitle": "启用通知",
+  "appearanceNotificationEnableSubtitle": "显示下载完成和错误通知",
+  "appearanceNotificationSchemeTitle": "配色方案",
+  "appearanceNotificationSchemeSystem": "跟随主题",
+  "appearanceNotificationSchemeLight": "浅色系",
+  "appearanceNotificationSchemeDark": "深色系",
+  "appearanceNotificationSchemeFluent2": "Fluent 2 色系（推荐）",
+  "appearanceNotificationSchemeUnknown": "未知",
+  "appearanceNotificationSchemeDefaultOption": "dark",
+  "appearanceNotificationSchemeLightOption": "浅色",
+  "appearanceNotificationSchemeDarkOption": "深色",
+  "appearanceNotificationSchemeFluent2Option": "Fluent 2",
+  "appearanceNotificationPositionTitle": "显示位置",
+  "appearanceNotificationPositionTopRight": "右上角（标题栏下方）",
+  "appearanceNotificationPositionBottomRight": "右下角",
+  "appearanceNotificationPositionUnknown": "未知",
+  "appearanceNotificationPositionTopRightOption": "topRight",
+  "appearanceNotificationPositionBottomRightOption": "右下角",
+  "appearanceNotificationPerformanceTitle": "渲染性能模式",
+  "appearanceNotificationPerformanceOptionPerformance": "balanced",
+  "appearanceNotificationPerformanceOptionBalanced": "平衡",
+  "appearanceNotificationPerformanceOptionQuality": "高质量",
+  "appearanceNotificationPerformanceHint": "毛玻璃效果会影响动画流畅度。如果感觉卡顿，建议选择\"性能优先\"模式",
+  "appearanceNotificationPreviewButtonTitle": "预览通知",
+  "appearanceNotificationPreviewButtonSubtitle": "点击预览当前配色",
+  "appearanceNotificationPreviewButton": "预览",
+  "appearanceNotificationPreviewTitle": "配色预览",
+  "appearanceNotificationPreviewSuccessTitle": "成功通知",
+  "appearanceNotificationPreviewSuccessMessage": "操作成功完成",
+  "appearanceNotificationPreviewWarningTitle": "警告通知",
+  "appearanceNotificationPreviewWarningMessage": "请注意此操作的影响",
+  "appearanceNotificationPreviewErrorTitle": "错误通知",
+  "appearanceNotificationPreviewErrorMessage": "操作失败，请重试",
+  "appearanceNotificationPreviewInfoTitle": "信息通知",
+  "appearanceNotificationPreviewInfoMessage": "这是一条提示信息",
+  "appearanceNotificationTestTitle": "测试通知",
+  "appearanceNotificationTestMessage": "这是一条测试通知",
+  "appearancePerformanceModePerformance": "性能优先（无毛玻璃，推荐）",
+  "appearancePerformanceModeBalanced": "平衡（轻度毛玻璃）",
+  "appearancePerformanceModeQuality": "高质量（完整毛玻璃效果）",
+  "appearancePerformanceModeUnknown": "未知",
+  "appearanceSegmentsModeTitle": "分段进度显示模式",
+  "appearanceSegmentsModeNoneOption": "merged",
+  "appearanceSegmentsModeMergedOption": "合并条",
+  "appearanceSegmentsModeListOption": "分段列表",
+  "appearanceSegmentsModeNoneDescription": "简洁模式：不显示分段信息",
+  "appearanceSegmentsModeMergedDescription": "合并模式：所有分段合并在一个进度条中显示",
+  "appearanceSegmentsModeListDescription": "列表模式：每个分段单独一行显示",
+  "appearanceSegmentsDefaultExpandedTitle": "默认展开分段信息",
+  "appearanceSegmentsDefaultExpandedSubtitle": "默认展开显示分段详情",
+  "appearanceSegmentsMaxVisibleTitle": "默认显示分段数量",
+  "appearanceSegmentsMaxVisibleSubtitle": "展开时显示分段数量 (1-32)",
+  "appearanceDownloadListSection": "下载列表显示",
+  "developerSectionDebugTools": "调试工具",
+  "developerSectionTestTools": "测试工具",
+  "developerModeEnabledSubtitle": "已启用调试功能",
+  "developerModeDisabledSubtitle": "启用后可访问调试工具",
+  "developerToolLogTitle": "日志查看器",
+  "developerToolLogSubtitle": "查看运行日志",
+  "developerToolLogShownTitle": "日志查看器已显示",
+  "developerToolLogShownMessage": "已在导航栏显示日志页面",
+  "developerToolLogHiddenTitle": "日志页面已隐藏",
+  "developerToolLogHiddenMessage": "已从导航栏移除日志页面",
+  "developerToolStatusTitle": "系统状态",
+  "developerToolStatusSubtitle": "内核与扩展状态",
+  "developerToolStatusShownTitle": "系统状态已显示",
+  "developerToolStatusShownMessage": "已在导航栏显示状态页面",
+  "developerToolStatusHiddenTitle": "系统状态已隐藏",
+  "developerToolStatusHiddenMessage": "已从导航栏移除状态页面",
+  "developerToolOnlineStatsTitle": "在线统计",
+  "developerToolOnlineStatsSubtitle": "在线用户数据",
+  "developerToolOnlineStatsShownTitle": "在线统计已显示",
+  "developerToolOnlineStatsShownMessage": "已在导航栏显示在线统计页面",
+  "developerToolOnlineStatsHiddenTitle": "在线统计已隐藏",
+  "developerToolOnlineStatsHiddenMessage": "已从导航栏移除在线统计页面",
+  "developerToolWebCheckTitle": "Web 检测",
+  "developerToolWebCheckSubtitle": "网站诊断",
+  "developerToolWebCheckShownTitle": "Web 检测已显示",
+  "developerToolWebCheckShownMessage": "已在导航栏显示 Web 检测页面",
+  "developerToolWebCheckHiddenTitle": "Web 检测已隐藏",
+  "developerToolWebCheckHiddenMessage": "已从导航栏移除 Web 检测页面",
+  "developerToolPerformanceTitle": "性能监控",
+  "developerToolPerformanceSubtitle": "FPS 与渲染",
+  "developerToolPerformanceShownTitle": "性能监控已显示",
+  "developerToolPerformanceShownMessage": "已在导航栏显示性能监控页面",
+  "developerToolPerformanceHiddenTitle": "性能监控已隐藏",
+  "developerToolPerformanceHiddenMessage": "已从导航栏移除性能监控页面",
+  "developerTestNotificationTitle": "通知测试",
+  "developerTestNotificationTitlePlaceholder": "标题",
+  "developerTestNotificationMessagePlaceholder": "内容（可选）",
+  "developerTestNotificationTypeSuccess": "成功",
+  "developerTestNotificationTypeWarning": "警告",
+  "developerTestNotificationTypeError": "错误",
+  "developerTestNotificationTypeInfo": "信息",
+  "developerTestNotificationTitleRequired": "请输入标题",
+  "developerTestPopupTitle": "弹窗测试",
+  "developerTestPopupButton": "弹窗",
+  "developerTestPopupTestingLabel": "测试中",
+  "developerTestPopupHint": "独立弹窗使用 Tauri，Dialog 需要主窗口",
+  "developerTestPopupResultSuccess": "成功 · {time}![",
+  "developerTestPopupResultFailed": "失败",
+  "@developerTestPopupResultSuccess": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "updateCurrentVersionTitle": "当前版本",
+  "updateChangelogTitle": "更新日志",
+  "updateChangelogViewFullButton": "查看完整更新日志",
+  "updateChangelogDialogTitle": "v{version} 更新日志",
+  "updateCheckTitle": "检查更新",
+  "updateStartButton": "开始更新",
+  "updateCheckAgainButton": "重新检查",
+  "updateCheckingStatus": "正在检查更新...",
+  "updateCheckFailedTitle": "检查更新失败",
+  "updateLatestTitle": "已是最新版本",
+  "updateLatestSubtitle": "当前已是最新版本",
+  "updateInitialHint": "点击\"重新检查\"按钮检查最新版本",
+  "updateUnreleasedTitle": "未发布的版本",
+  "updateUnreleasedSubtitle": "当前版本 v{version} | 当前版本号不存在,或许为特殊版本或开发版",
+  "updateConfirmTitle": "确认更新",
+  "updateConfirmMessage": "新版本已经准备好啦，为保障安装过程可以正常进行，本应用将会关闭！",
+  "updateConfirmDetails": "新版本: {newVersion}\\n当前版本: {currentVersion}\\n变更: {change}\\n渠道: {currentChannel} -> {targetChannel}\\n准备更新？",
+  "updateConfirmCancelButton": "取消",
+  "updateConfirmProceedButton": "确认更新",
+  "updateUnknownVersion": "未知",
+  "updateUnknownChannel": "未知",
+  "updateLauncherFailedTitle": "启动更新器失败",
+  "updateLauncherFailedMessage": "无法启动 Update.exe\\n排查步骤:\\n • 检查 Update.exe 是否被删除或移动\\n • 确认已安装 .NET 8\\n • 确认安装包完整\\n如果仍失败，请手动下载安装。",
+  "updateLauncherFailedCloseButton": "关闭",
+  "updateLauncherFailedManualDownloadButton": "手动下载",
+  "updateAvailableTitle": "发现更新",
+  "updateAvailableChangelogTitle": "更新内容",
+  "updateSettingsTitle": "更新设置",
+  "updateDotNetMissingSubtitle": "未安装 - 推荐安装以使用自动更新器",
+  "updateDotNetDownloadButton": "下载",
+  "updateDotNetInstalledSubtitle": "已安装 - 可使用更新器",
+  "updateDotNetRecheckButton": "重新检测",
+  "updateDotNetRecommendTitle": "推荐安装 .NET 8",
+  "updateDotNetRecommendSubtitle": "安装 .NET 8 Desktop Runtime 后可使用更新器自动更新",
+  "updateDotNetRecommendButton": "下载 .NET 8",
+  "updateChannelTitle": "当前通道",
+  "updateChannelAlpha": "Alpha（预览版）",
+  "updateChannelBeta": "Beta（公测版）",
+  "updateChannelRelease": "Release（稳定版）",
+  "updateIntervalTitle": "自动检查更新",
+  "updateIntervalSubtitle": "设置检查更新的频率",
+  "updateIntervalStartup": "仅启动时",
+  "updateIntervalHourly": "每小时",
+  "updateIntervalDaily": "每天",
+  "updateIntervalWeekly": "每周",
+  "updateIntervalNever": "从不",
+  "updateAllowBetaTitle": "接收 Beta 更新",
+  "updateAllowBetaSubtitle": "允许接收稳定的 Beta 版本",
+  "updateAllowAlphaTitle": "接收 Alpha 更新",
+  "updateAllowAlphaSubtitle": "允许接收最新的测试构建（可能不稳定）",
+  "updateLastCheckLabel": "上次检查: {time}",
+  "updateTimeJustNow": "刚刚",
+  "updateTimeMinutesAgo": "{minutes} 分钟前",
+  "updateTimeHoursAgo": "{hours} 小时前",
+  "@updateConfirmDetails": {
+    "placeholders": {
+      "newVersion": {},
+      "currentVersion": {},
+      "change": {},
+      "currentChannel": {},
+      "targetChannel": {}
+    }
+  },
+  "@updateChangelogDialogTitle": {
+    "placeholders": {
+      "version": {}
+    }
+  },
+  "@updateLastCheckLabel": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "@updateTimeMinutesAgo": {
+    "placeholders": {
+      "minutes": {}
+    }
+  },
+  "@updateTimeHoursAgo": {
+    "placeholders": {
+      "hours": {}
+    }
+  },
+  "@updateUnreleasedSubtitle": {
+    "placeholders": {
+      "version": {}
+    }
+  },
+  "updateDialogCloseButton": "关闭",
+  "statusOnline": "在线",
+  "statusOffline": "离线",
+  "settingsDangerZoneTitle": "危险区域",
+  "popupDownloadTitle": "新建下载",
+  "popupDownloadLinkLabel": "下载链接",
+  "popupDownloadLinkPlaceholder": "HTTP/HTTPS 链接",
+  "popupDownloadFileNameLabel": "文件名",
+  "popupDownloadFileNamePlaceholder": "保存为文件名",
+  "popupDownloadAutoStart": "立即开始下载",
+  "popupDownloadFeatureHint": "支持多线程、断点续传和限速",
+  "popupDownloadCancel": "取消",
+  "popupDownloadAdding": "添加中...",
+  "popupDownloadStart": "开始下载",
+  "popupDownloadErrorMissingInfo": "请填写完整信息",
+  "popupDownloadErrorInvalidUrl": "请输入有效的 HTTP/HTTPS 链接",
+  "popupDownloadErrorAddFailed": "添加任务失败: {error}",
+  "popupDownloadErrorTitle": "错误",
+  "popupDownloadErrorConfirm": "确定",
+  "popupDownloadDefaultFileName": "download",
+  "addDownloadTitle": "新建下载",
+  "addDownloadSubtitle": "支持多线程下载和断点续传",
+  "addDownloadUrlLabel": "下载链接",
+  "addDownloadRequiredBadge": "必填",
+  "addDownloadUrlPlaceholder": "https://example.com/file.zip",
+  "addDownloadParsedFileNameTitle": "已解析文件名",
+  "addDownloadAdvancedToggle": "高级选项",
+  "addDownloadAdvancedCollapsedHint": "自定义文件名",
+  "addDownloadAdvancedExpandedHint": "收起",
+  "addDownloadFileNameLabel": "自定义文件名",
+  "addDownloadOptionalBadge": "可选",
+  "addDownloadFileNamePlaceholder": "留空则使用解析到的名称",
+  "addDownloadFeatureTitle": "智能下载特性",
+  "addDownloadFeature1Title": "多线程分段",
+  "addDownloadFeature1Desc": "最大化下载速度",
+  "addDownloadFeature2Title": "自动续传",
+  "addDownloadFeature2Desc": "网络中断后恢复",
+  "addDownloadFeature3Title": "动态分段",
+  "addDownloadFeature3Desc": "自适应下载策略",
+  "addDownloadCancelButton": "取消",
+  "addDownloadAdding": "添加中...",
+  "addDownloadStart": "开始下载",
+  "addDownloadErrorMissingUrl": "请输入下载链接",
+  "addDownloadErrorInvalidUrl": "请输入有效的 HTTP/HTTPS 链接",
+  "addDownloadErrorAddFailed": "添加任务失败: {error}",
+  "addDownloadErrorTitle": "错误",
+  "addDownloadErrorConfirm": "确定",
+  "addDownloadSuccessTitle": "任务已添加",
+  "addDownloadSuccessMessage": "正在下载：{fileName}",
+  "folderPickerErrorPathNotFound": "路径不存在",
+  "folderPickerErrorAccessDenied": "无法访问该路径（权限不足）",
+  "folderPickerErrorAccessFailed": "无法访问该路径：{error}",
+  "folderPickerCreateTitle": "创建文件夹",
+  "folderPickerCreatePrompt": "在以下位置创建文件夹：",
+  "folderPickerCreatePlaceholder": "文件夹名称",
+  "folderPickerCancelButton": "取消",
+  "folderPickerCreateButton": "创建",
+  "folderPickerConfirmButton": "确定",
+  "folderPickerCreateExistsTitle": "创建已取消",
+  "folderPickerCreateExistsMessage": "文件夹 \"{name}\" 已存在。\n已选中该文件夹。",
+  "folderPickerCreateSuccessTitle": "创建成功",
+  "folderPickerCreateSuccessMessage": "已创建并选中 \"{name}\" 文件夹",
+  "folderPickerCreateFailedTitle": "创建失败",
+  "folderPickerCreateFailedMessage": "创建文件夹失败：{error}",
+  "folderPickerQuickPathAddTitle": "添加快捷路径",
+  "folderPickerQuickPathAddPrompt": "将当前路径添加到快捷路径：",
+  "folderPickerQuickPathAddNameLabel": "自定义名称（可选）：",
+  "folderPickerQuickPathAddNamePlaceholder": "例如：我的项目",
+  "folderPickerQuickPathAddButton": "添加",
+  "folderPickerQuickPathAddSuccessTitle": "添加成功",
+  "folderPickerQuickPathAddFailedTitle": "添加失败",
+  "folderPickerQuickPathAddSuccessMessage": "快捷路径已添加",
+  "folderPickerQuickPathAddFailedMessage": "路径已存在或无效",
+  "folderPickerQuickPathRemoveTitle": "移除快捷路径",
+  "folderPickerQuickPathRemoveMessage": "确定移除该快捷路径？\n\n{path}",
+  "folderPickerQuickPathRemoveButton": "移除",
+  "folderPickerTitle": "选择文件夹",
+  "folderPickerNavUpTooltip": "上级文件夹",
+  "folderPickerPathPlaceholder": "输入路径或在下方选择",
+  "folderPickerRefreshTooltip": "刷新",
+  "folderPickerNewFolderTooltip": "新建文件夹",
+  "folderPickerAddQuickPathTooltip": "将当前路径添加到快捷路径",
+  "folderPickerEmptyMessage": "此文件夹为空",
+  "folderPickerSelectButton": "选择",
+  "updateLatestVersionLabel": "最新版本",
+  "updateDialogLaterButton": "稍后",
+  "updateDialogDownloadNowButton": "立即下载",
+  "updateDialogCurrentInfoTitle": "当前版本信息",
+  "@popupDownloadErrorAddFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@addDownloadErrorAddFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@addDownloadSuccessMessage": {
+    "placeholders": {
+      "fileName": {}
+    }
+  },
+  "@folderPickerErrorAccessFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@folderPickerCreateExistsMessage": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "@folderPickerCreateSuccessMessage": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "@folderPickerCreateFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@folderPickerQuickPathRemoveMessage": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "downloadStatusDownloading": "下载中",
+  "downloadStatusPaused": "已暂停",
+  "downloadStatusPending": "等待中",
+  "downloadStatusFailed": "失败",
+  "downloadStatusMerging": "合并中",
+  "downloadStatusCompleted": "已完成",
+  "downloadFilterTitle": "筛选",
+  "downloadFilterSubtitle": "按状态筛选下载任务",
+  "downloadFilterAll": "全部",
+  "downloadDialogCloseButton": "关闭",
+  "downloadSortTitle": "排序",
+  "downloadSortSubtitle": "选择下载任务的排序方式",
+  "downloadSortNewest": "最新",
+  "downloadSortOldest": "最旧",
+  "downloadSortNewestDesc": "按创建时间从新到旧",
+  "downloadSortOldestDesc": "按创建时间从旧到新",
+  "downloadSearchPlaceholder": "搜索下载任务...",
+  "downloadNoResultsTitle": "未找到匹配的任务",
+  "downloadNoResultsSubtitle": "尝试修改搜索条件",
+  "downloadStatsActiveLabel": "活动",
+  "downloadStatsSpeedLabel": "速度",
+  "downloadStatsSegmentsLabel": "分段",
+  "downloadEmptyTitle": "暂无下载任务",
+  "downloadEmptySubtitle": "点击“新建”按钮添加下载任务",
+  "downloadCopySuccessTitle": "复制成功",
+  "downloadCopySuccessMessage": "下载链接已复制",
+  "downloadCopyFailedTitle": "复制失败",
+  "downloadCopyFailedMessage": "复制失败: {error}",
+  "downloadCopyTooltip": "复制链接",
+  "downloadActionStart": "开始",
+  "downloadActionPause": "暂停",
+  "downloadActionRetrySegments": "重试失败分段",
+  "downloadActionRetryAll": "全部重试",
+  "downloadActionDelete": "删除",
+  "downloadMergingStatus": "下载完成，正在合并",
+  "downloadCalculatingSize": "正在计算大小...",
+  "downloadCalculating": "计算中",
+  "downloadSegmentsTitleWithCount": "分段 ({count})",
+  "downloadSegmentsTitle": "分段",
+  "downloadSegmentsStatusCompleted": "完成",
+  "downloadSegmentsStatusDownloading": "下载中",
+  "downloadSegmentsStatusFailed": "失败",
+  "downloadSegmentsSummary": "共 {total} 段 · 已完成 {completed} · 下载中 {downloading}",
+  "downloadSegmentsSummaryWithFailed": "共 {total} 段 · 已完成 {completed} · 下载中 {downloading} · 失败 {failed}",
+  "downloadRetryButton": "重试",
+  "downloadSegmentLabel": "分段 {index}",
+  "downloadSegmentRetryCount": "重试{count}次",
+  "downloadSegmentsCollapse": "收起",
+  "downloadSegmentsShowAll": "查看全部 {count} 个",
+  "downloadSizeUnknown": "{downloaded} / 未知",
+  "downloadFailedTitle": "下载失败",
+  "downloadFailedSegmentsHint": "{count} 个分段失败，可重试",
+  "downloadConfirmDeleteTitle": "确认删除",
+  "downloadConfirmDeleteMessage": "确定要删除任务 \"{fileName}\" 吗？",
+  "downloadDeleteButton": "删除",
+  "@downloadCopyFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "@downloadSegmentsTitleWithCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "@downloadSegmentsSummary": {
+    "placeholders": {
+      "total": {},
+      "completed": {},
+      "downloading": {}
+    }
+  },
+  "@downloadSegmentsSummaryWithFailed": {
+    "placeholders": {
+      "total": {},
+      "completed": {},
+      "downloading": {},
+      "failed": {}
+    }
+  },
+  "@downloadSegmentLabel": {
+    "placeholders": {
+      "index": {}
+    }
+  },
+  "@downloadSegmentRetryCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "@downloadSegmentsShowAll": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "@downloadSizeUnknown": {
+    "placeholders": {
+      "downloaded": {}
+    }
+  },
+  "@downloadFailedSegmentsHint": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "@downloadConfirmDeleteMessage": {
+    "placeholders": {
+      "fileName": {}
+    }
+  },
+  "completedCategoryAll": "所有下载",
+  "completedCategoryVideo": "视频",
+  "completedCategoryAudio": "音频",
+  "completedCategoryArchive": "压缩包",
+  "completedCategoryDocument": "文档",
+  "completedCategoryProgram": "程序",
+  "completedCategoryOther": "杂项",
+  "completedSearchPlaceholder": "搜索已完成的文件...",
+  "completedNoResultsTitle": "未找到匹配的文件",
+  "completedNoResultsSubtitle": "尝试修改搜索条件",
+  "completedHeaderTitle": "已完成",
+  "completedOpenFolderButton": "打开文件夹",
+  "completedEmptyTitle": "暂无已完成任务",
+  "completedEmptySubtitle": "完成的下载任务将显示在这里",
+  "completedStatsTitle": "下载统计",
+  "completedStatsPeakSpeed": "峰值速度",
+  "completedStatsAverageSpeed": "平均速度",
+  "completedStatsDuration": "用时",
+  "completedStatsSegments": "分段数",
+  "completedStatsThreads": "线程数",
+  "completedStatsCore": "下载核心",
+  "completedActionRun": "运行",
+  "completedActionLocation": "位置",
+  "completedTimeJustNow": "刚刚",
+  "completedTimeMinutesAgo": "{minutes}分钟前",
+  "@completedTimeMinutesAgo": {
+    "placeholders": {
+      "minutes": {}
+    }
+  },
+  "completedTimeHoursAgo": "{hours}小时前",
+  "@completedTimeHoursAgo": {
+    "placeholders": {
+      "hours": {}
+    }
+  },
+  "completedTimeDaysAgo": "{days}天前",
+  "@completedTimeDaysAgo": {
+    "placeholders": {
+      "days": {}
+    }
+  },
+  "completedTimeMonthDay": "{month}月{day}日",
+  "@completedTimeMonthDay": {
+    "placeholders": {
+      "month": {},
+      "day": {}
+    }
+  },
+  "completedFilePathMissingMessage": "文件路径不存在",
+  "completedFileNotFoundMessage": "文件不存在",
+  "completedRunFileFailedMessage": "运行文件失败: {error}",
+  "@completedRunFileFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "completedOpenFileLocationFailedMessage": "打开文件位置失败: {error}",
+  "@completedOpenFileLocationFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "completedHintTitle": "提示",
+  "completedConfirmDeleteTitle": "确认删除",
+  "completedDeleteTaskMessage": "确定要删除 \"{fileName}\" 吗？",
+  "@completedDeleteTaskMessage": {
+    "placeholders": {
+      "fileName": {}
+    }
+  },
+  "completedRemoveSuccessTitle": "删除成功",
+  "completedRemoveSuccessMessage": "已从列表中移除任务",
+  "completedDeleteSuccessTitle": "删除成功",
+  "completedDeleteFileSuccessMessage": "已删除文件：{fileName}",
+  "@completedDeleteFileSuccessMessage": {
+    "placeholders": {
+      "fileName": {}
+    }
+  },
+  "completedFileNotFoundTitle": "文件不存在",
+  "completedFileNotFoundMessage": "文件可能已被移动或删除",
+  "completedDeleteFailedTitle": "删除失败",
+  "completedDeleteFailedMessage": "无法删除文件：{error}",
+  "@completedDeleteFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "completedCancelButton": "取消",
+  "completedRemoveButton": "移除",
+  "completedDeleteButton": "删除",
+  "completedCreateButton": "创建",
+  "completedCreateCategoryTitle": "创建自定义分类",
+  "completedCreateCategoryNameLabel": "分类名称",
+  "completedCreateCategoryNamePlaceholder": "例如：图片",
+  "completedCreateCategoryExtensionsLabel": "文件扩展名",
+  "completedCreateCategoryExtensionsPlaceholder": "例如：.jpg,.png,.gif（用逗号分隔）",
+  "completedCreateCategoryHint": "提示：扩展名需要包含点号，多个扩展名用逗号分隔",
+  "completedCreateCategoryInputErrorTitle": "输入错误",
+  "completedCreateCategoryInputErrorMessage": "请填写完整信息",
+  "completedCreateCategoryInvalidExtMessage": "请输入有效的扩展名",
+  "completedCreateCategorySuccessTitle": "创建成功",
+  "completedCreateCategorySuccessMessage": "已创建分类：{name}",
+  "@completedCreateCategorySuccessMessage": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "completedDeleteCategoryMessage": "确定要删除自定义分类 \"{name}\" 吗？",
+  "@completedDeleteCategoryMessage": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "completedDeleteCategorySuccessTitle": "删除成功",
+  "completedDeleteCategorySuccessMessage": "已删除分类：{name}",
+  "@completedDeleteCategorySuccessMessage": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "webCheckHeaderTitle": "Web 状态检测",
+  "webCheckInputTitle": "输入 URL",
+  "webCheckInputPlaceholder": "example.com 或 https://example.com",
+  "webCheckInputHint": "提示：可以直接输入域名，会自动添加 https:// 前缀",
+  "webCheckStartButton": "开始检测",
+  "webCheckChecking": "检测中...",
+  "webCheckErrorEmptyUrl": "请输入 URL",
+  "webCheckErrorUnsupportedKernel": "Web 检测功能暂不支持新版内核，请在设置中切换到旧版内核",
+  "webCheckErrorInvalidUrl": "URL 格式无效",
+  "webCheckErrorCheckFailed": "检测失败: {error}",
+  "@webCheckErrorCheckFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "webCheckErrorLanUnsupportedKernel": "局域网扫描功能暂不支持新版内核，请在设置中切换到旧版内核",
+  "webCheckErrorScanFailed": "扫描失败: {error}",
+  "@webCheckErrorScanFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "webCheckErrorCardTitle": "检测失败",
+  "webCheckDnsTime": "DNS: {ms}ms",
+  "@webCheckDnsTime": {
+    "placeholders": {
+      "ms": {}
+    }
+  },
+  "webCheckResponseTime": "响应: {ms}ms",
+  "@webCheckResponseTime": {
+    "placeholders": {
+      "ms": {}
+    }
+  },
+  "webCheckInfoHostname": "主机名",
+  "webCheckInfoIpAddress": "IP 地址",
+  "webCheckInfoPort": "端口",
+  "webCheckInfoProtocol": "协议",
+  "webCheckInfoFinalUrl": "最终 URL",
+  "webCheckInfoContentType": "Content-Type",
+  "webCheckInfoContentLength": "Content-Length",
+  "webCheckInfoServer": "Server",
+  "webCheckRedirectHistoryTitle": "重定向历史 ({count})",
+  "@webCheckRedirectHistoryTitle": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "webCheckRedirectFrom": "从: {url}",
+  "@webCheckRedirectFrom": {
+    "placeholders": {
+      "url": {}
+    }
+  },
+  "webCheckRedirectTo": "到: {url}",
+  "@webCheckRedirectTo": {
+    "placeholders": {
+      "url": {}
+    }
+  },
+  "webCheckHeadersTitle": "响应头",
+  "webCheckSslTitle": "SSL/TLS 信息",
+  "webCheckSslError": "SSL 错误: {error}",
+  "@webCheckSslError": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "webCheckSslVersion": "版本",
+  "webCheckSslCipher": "加密套件",
+  "webCheckSslSubject": "证书主体",
+  "webCheckSslIssuer": "证书颁发者",
+  "webCheckSslNotBefore": "有效期开始",
+  "webCheckSslNotAfter": "有效期结束",
+  "webCheckCookiesTitle": "Cookies ({count})",
+  "@webCheckCookiesTitle": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "webCheckCookieDomain": "Domain: {domain}",
+  "@webCheckCookieDomain": {
+    "placeholders": {
+      "domain": {}
+    }
+  },
+  "webCheckLanScanTitle": "局域网扫描",
+  "webCheckAutoScan": "自动扫描",
+  "webCheckLanScanSubtitle": "扫描当前局域网中的所有在线设备",
+  "webCheckScanning": "扫描中...",
+  "webCheckScanStart": "开始扫描",
+  "webCheckLanDevicesTitle": "发现 {count} 台设备",
+  "@webCheckLanDevicesTitle": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "webCheckLanNetworkLabel": "网段: {network}",
+  "@webCheckLanNetworkLabel": {
+    "placeholders": {
+      "network": {}
+    }
+  },
+  "webCheckLanLocalIpLabel": "本机 IP: {ip}",
+  "@webCheckLanLocalIpLabel": {
+    "placeholders": {
+      "ip": {}
+    }
+  },
+  "webCheckLanLocalBadge": "本机",
+  "webCheckStatusUnknown": "未知",
+  "webCheckStatusOk": "OK",
+  "webCheckStatusMovedPermanently": "永久重定向",
+  "webCheckStatusFound": "已找到",
+  "webCheckStatusNotModified": "未修改",
+  "webCheckStatusBadRequest": "错误请求",
+  "webCheckStatusUnauthorized": "未授权",
+  "webCheckStatusForbidden": "禁止访问",
+  "webCheckStatusNotFound": "未找到",
+  "webCheckStatusInternalServerError": "服务器内部错误",
+  "webCheckStatusBadGateway": "错误网关",
+  "webCheckStatusServiceUnavailable": "服务不可用",
+  "webCheckStatusWithCode": "状态 {code}",
+  "@webCheckStatusWithCode": {
+    "placeholders": {
+      "code": {}
+    }
+  },
+  "statusPageTitle": "系统状态",
+  "statusPageRefresh": "刷新",
+  "statusPageTestApi": "测试 API",
+  "statusPageClearLogs": "清空日志",
+  "statusSectionKernel": "下载核心状态",
+  "statusItemKernelService": "核心服务",
+  "statusValueRunning": "运行中",
+  "statusValueStopped": "已停止",
+  "statusItemKernelCurrent": "当前内核",
+  "statusKernelLegacyName": "Soda Kernel（旧版）",
+  "statusItemHttpService": "HTTP 服务",
+  "statusValueHealthy": "正常",
+  "statusValueBuiltIn": "内置",
+  "statusValueUnhealthy": "异常",
+  "statusItemServiceAddress": "服务地址",
+  "statusItemKernelVersion": "核心版本",
+  "statusSectionNetwork": "网络状态",
+  "statusItemLocalNetwork": "本地网络",
+  "statusValueConnected": "已连接",
+  "statusValueDisconnected": "未连接",
+  "statusItemInternet": "互联网",
+  "statusValueReachable": "可访问",
+  "statusValueUnreachable": "不可访问",
+  "statusItemLocalIp": "本地 IP",
+  "statusItemNetworkLatency": "网络延迟",
+  "statusNetworkLatencyMs": "{ms} ms",
+  "@statusNetworkLatencyMs": {
+    "placeholders": {
+      "ms": {}
+    }
+  },
+  "statusItemConnectionType": "连接类型",
+  "statusSectionApiTests": "API 测试结果",
+  "statusValueFailed": "失败",
+  "statusSectionSystemInfo": "系统信息",
+  "statusItemOs": "操作系统",
+  "statusValueUnknown": "未知",
+  "statusItemOsVersion": "系统版本",
+  "statusItemCpuCores": "CPU 核心数",
+  "statusSystemCpuCores": "{count} 核",
+  "@statusSystemCpuCores": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "statusItemDartVersion": "Dart 版本",
+  "statusSectionDownloadStats": "下载统计",
+  "statusItemTotalDownloads": "总下载数",
+  "statusItemActiveTasks": "活跃任务",
+  "statusItemCompletedTasks": "已完成",
+  "statusItemFailedTasks": "失败任务",
+  "statusItemTotalDownloaded": "总下载量",
+  "statusSectionLogStats": "日志统计",
+  "statusItemLogCount": "日志条数",
+  "statusItemErrorCount": "错误数",
+  "statusItemWarningCount": "警告数",
+  "statusSectionExtension": "浏览器扩展",
+  "statusItemTip": "提示",
+  "statusExtensionTip": "感谢使用，现已支持软件内下载插件以及跳转至网页",
+  "statusExtensionDownloadButton": "下载扩展插件",
+  "statusExtensionOpenStoreButton": "打开商店页面",
+  "statusSectionAutoStart": "开机自启动",
+  "statusItemPlatformSupport": "平台支持",
+  "statusAutoStartWindowsOnly": "仅支持 Windows 平台",
+  "statusItemAutoStartStatus": "自启动状态",
+  "statusValueEnabled": "已启用",
+  "statusValueDisabled": "未启用",
+  "statusItemRegistryPath": "注册路径",
+  "statusValueCorrect": "正确",
+  "statusValueNeedsUpdate": "需要更新",
+  "statusItemCurrentRegistry": "当前注册",
+  "statusItemCurrentPath": "当前路径",
+  "statusAutoStartOldRegistryTitle": "检测到旧版本的自启动注册",
+  "statusAutoStartOldRegistryMessage": "注册的路径与当前可执行文件不匹配，可能是因为应用更新或移动了位置。点击下方按钮自动修复。",
+  "statusAutoStartFixButton": "自动修复注册",
+  "statusSectionPopupTest": "弹窗窗口测试",
+  "statusItemDescription": "说明",
+  "statusPopupTestDescription": "测试独立弹窗窗口功能（类似 IDM 风格）",
+  "statusItemTestResult": "测试结果",
+  "statusPopupTestResultSuccess": "成功 ({time}ms)",
+  "@statusPopupTestResultSuccess": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "statusPopupTestResultFailed": "失败: {error}",
+  "@statusPopupTestResultFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "statusPopupTesting": "创建中...",
+  "statusPopupTestButton": "测试独立弹窗",
+  "statusPopupDialogTestButton": "测试 Dialog 弹窗",
+  "statusPopupTestInfoTitle": "测试说明",
+  "statusPopupTestInfoBody": "• 独立弹窗：使用 Tauri 创建独立窗口，不需要拉起主窗口\\n• Dialog 弹窗：传统方式，需要主窗口显示后才能弹出对话框\\n• 测试结果和耗时会记录到日志中",
+  "statusExtensionDownloadAddedTitle": "下载已添加",
+  "statusExtensionDownloadAddedMessage": "浏览器扩展插件已添加到下载列表",
+  "statusExtensionDownloadFailedTitle": "下载失败",
+  "statusExtensionDownloadFailedMessage": "无法添加下载任务: {error}",
+  "@statusExtensionDownloadFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "statusExtensionOpenLinkFailed": "无法打开链接",
+  "statusExtensionOpenFailedTitle": "打开失败",
+  "statusExtensionOpenFailedMessage": "无法打开浏览器: {error}",
+  "@statusExtensionOpenFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "statusAutoStartFixSuccessTitle": "修复成功",
+  "statusAutoStartFixSuccessMessage": "自启动注册已更新为当前版本",
+  "statusAutoStartFixFailedTitle": "修复失败",
+  "statusAutoStartFixFailedMessage": "无法更新自启动注册，请检查权限",
+  "statusAutoStartFixErrorMessage": "发生错误: {error}",
+  "@statusAutoStartFixErrorMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "statusPopupTestCreating": "正在创建窗口...",
+  "statusPopupTestStartLog": "开始测试弹窗窗口...",
+  "statusPopupTestSuccessLog": "弹窗窗口创建成功，耗时: {time}ms",
+  "@statusPopupTestSuccessLog": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "statusPopupTestSuccessMessage": "窗口创建成功",
+  "statusPopupTestSuccessTitle": "测试成功",
+  "statusPopupTestSuccessToast": "弹窗窗口创建成功，耗时 {time}ms",
+  "@statusPopupTestSuccessToast": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "statusPopupTestFailedLog": "弹窗窗口创建失败: {error}",
+  "@statusPopupTestFailedLog": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "statusPopupTestFailedTitle": "测试失败",
+  "statusPopupTestFailedToast": "弹窗窗口创建失败: {error}",
+  "@statusPopupTestFailedToast": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "statusPopupDialogTestStartLog": "开始测试 Dialog 弹窗...",
+  "statusPopupDialogTestCloseLog": "Dialog 弹窗关闭，总耗时: {time}ms",
+  "@statusPopupDialogTestCloseLog": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "statusPopupDialogTestFailedLog": "Dialog 弹窗失败: {error}",
+  "@statusPopupDialogTestFailedLog": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "statusApiTestHealthCheck": "健康检查",
+  "statusApiTestGetTasks": "获取任务",
+  "statusApiTestGetStatistics": "获取统计",
+  "statusApiTestGetConfig": "获取配置",
+  "onlineStatsPageTitle": "当前与你同行的人",
+  "onlineStatsCountUnit": "位",
+  "onlineStatsAloneMessage": "暂时只有你在使用 Hanabi",
+  "onlineStatsOthersMessage": "除了你，还有 {count} 位用户正在使用 Hanabi",
+  "@onlineStatsOthersMessage": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "onlineStatsTotalMessage": "（包括你在内共 {count} 位）",
+  "@onlineStatsTotalMessage": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "onlineStatsMyStatusTitle": "当前我的状态",
+  "onlineStatsDeviceIdLabel": "设备 ID",
+  "onlineStatsNotInitialized": "未初始化",
+  "onlineStatsAppVersionLabel": "应用版本",
+  "onlineStatsHeartbeatLabel": "心跳间隔",
+  "onlineStatsHeartbeatValue": "每 5 分钟自动发送",
+  "onlineStatsServerLabel": "统计服务器",
+  "onlineStatsSending": "发送中...",
+  "onlineStatsSendSignalButton": "向服务器发送我的信号",
+  "onlineStatsPrivacyPolicy": "隐私条款",
+  "onlineStatsTermsOfService": "服务条款",
+  "onlineStatsOfficialSite": "官网地址",
+  "onlineStatsSendSuccessTitle": "发送成功",
+  "onlineStatsSendSuccessMessage": "您的信号已成功发送到服务器",
+  "onlineStatsCooldownTitle": "服务器已标记在线",
+  "onlineStatsCooldownMessage": "您的在线状态已被服务器记录，请在 {minutes} 分钟后再试",
+  "@onlineStatsCooldownMessage": {
+    "placeholders": {
+      "minutes": {}
+    }
+  },
+  "onlineStatsSendFailedTitle": "发送失败",
+  "onlineStatsSendFailedMessage": "无法连接到统计服务器，请检查网络连接",
+  "onlineStatsOpenLinkFailedTitle": "无法打开链接",
+  "onlineStatsOpenLinkFailedMessage": "请手动在浏览器中访问：\\n{url}",
+  "@onlineStatsOpenLinkFailedMessage": {
+    "placeholders": {
+      "url": {}
+    }
+  },
+  "onlineStatsOpenFailedTitle": "打开失败",
+  "onlineStatsOpenFailedMessage": "错误：{error}\\n\\n请手动在浏览器中访问：\\n{url}",
+  "@onlineStatsOpenFailedMessage": {
+    "placeholders": {
+      "error": {},
+      "url": {}
+    }
+  },
+  "onlineStatsDialogOk": "确定",
+  "logPageTitle": "日志",
+  "logFilterLevelLabel": "级别",
+  "logFilterTagCount": "{count} 个标签",
+  "@logFilterTagCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logFilterSourceLabel": "来源",
+  "logFilterTimeSelectedLabel": "时间 ✓",
+  "logFilterTimeLabel": "时间",
+  "logRegexRulesButton": "正则规则",
+  "logAutoScrollOn": "自动滚动: 开",
+  "logAutoScrollOff": "自动滚动: 关",
+  "logStatsShow": "统计: 显示",
+  "logStatsHide": "统计: 隐藏",
+  "logFailureStatsShow": "失败统计: 显示",
+  "logFailureStatsHide": "失败统计: 隐藏",
+  "logExportLogsButton": "导出日志",
+  "logExportDiagnosticsButton": "导出诊断包",
+  "logArchiveButton": "归档日志",
+  "logClearButton": "清空日志",
+  "logSearchPlaceholderRegex": "输入正则表达式...",
+  "logSearchPlaceholder": "搜索日志...",
+  "logEmptyTitle": "暂无日志",
+  "logEmptySubtitle": "日志将在此处显示",
+  "logStatTotal": "总计",
+  "logGroupedCount": "{count} 组",
+  "@logGroupedCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logClearFiltersButton": "清除",
+  "logFailureStatsTitle": "下载失败统计",
+  "logFailureStatsTotal": "总计 {count} 次",
+  "@logFailureStatsTotal": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logFailureStatsEmpty": "暂无下载失败记录",
+  "logFailureReasonUnknown": "未知错误",
+  "logFailureReasonAuth": "鉴权失败（{code}）",
+  "@logFailureReasonAuth": {
+    "placeholders": {
+      "code": {}
+    }
+  },
+  "logFailureReasonNotFound": "资源不存在（{code}）",
+  "@logFailureReasonNotFound": {
+    "placeholders": {
+      "code": {}
+    }
+  },
+  "logFailureReasonRange": "Range 不支持",
+  "logFailureReasonRangeWithCode": "Range 不支持（{code}）",
+  "@logFailureReasonRangeWithCode": {
+    "placeholders": {
+      "code": {}
+    }
+  },
+  "logFailureReasonTooManyRequests": "请求过快（{code}）",
+  "@logFailureReasonTooManyRequests": {
+    "placeholders": {
+      "code": {}
+    }
+  },
+  "logFailureReasonServerError": "服务器错误（{code}）",
+  "@logFailureReasonServerError": {
+    "placeholders": {
+      "code": {}
+    }
+  },
+  "logFailureReasonHttpError": "HTTP {code}",
+  "@logFailureReasonHttpError": {
+    "placeholders": {
+      "code": {}
+    }
+  },
+  "logFailureReasonTimeout": "连接超时",
+  "logFailureReasonConnection": "连接中断",
+  "logFailureReasonDns": "DNS 解析失败",
+  "logFailureReasonSsl": "SSL/证书错误",
+  "logFailureReasonChecksum": "文件校验失败",
+  "logFailureReasonDisk": "磁盘/权限错误",
+  "logFailureReasonOther": "其他错误",
+  "logTimeRangeRecentMinutes": "最近 {minutes} 分钟",
+  "@logTimeRangeRecentMinutes": {
+    "placeholders": {
+      "minutes": {}
+    }
+  },
+  "logTimeRangeRecentHours": "最近 {hours} 小时",
+  "@logTimeRangeRecentHours": {
+    "placeholders": {
+      "hours": {}
+    }
+  },
+  "logTimeRangeLabel": "时间范围",
+  "logStatCountUnit": "条",
+  "logRepeatedCount": "重复 {count} 次",
+  "@logRepeatedCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logRepeatedMore": "... 还有 {count} 条",
+  "@logRepeatedMore": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logContextCopy": "复制日志",
+  "logContextRepeated": "(重复 {count} 次)",
+  "@logContextRepeated": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logContextRemoveBookmark": "取消书签",
+  "logContextAddBookmark": "添加书签",
+  "logContextFilterLevel": "筛选: {level}",
+  "@logContextFilterLevel": {
+    "placeholders": {
+      "level": {}
+    }
+  },
+  "logContextFilterSource": "筛选: {source}",
+  "@logContextFilterSource": {
+    "placeholders": {
+      "source": {}
+    }
+  },
+  "logContextCopySingle": "复制此条",
+  "logFilterLevelTitle": "筛选日志级别",
+  "logFilterAllLabel": "全部",
+  "logDialogClose": "关闭",
+  "logSourceFilterTitle": "筛选日志来源",
+  "logSourceTotalCount": "{count} 条",
+  "@logSourceTotalCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logSourceCategoryKernel": "Kernel",
+  "logSourceKernelSubtitle": "下载核心 · {count} 个标签",
+  "@logSourceKernelSubtitle": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logSourceCategoryApp": "App",
+  "logSourceAppSubtitle": "应用程序 · {count} 个标签",
+  "@logSourceAppSubtitle": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logSourceCategorySystem": "System",
+  "logSourceSystemSubtitle": "系统 / 框架 · {count} 个标签",
+  "@logSourceSystemSubtitle": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logDialogOk": "确定",
+  "logDialogCancel": "取消",
+  "logTimeRangeTitle": "时间范围筛选",
+  "logTimeRangeQuickSelectLabel": "快捷选择:",
+  "logTimeRangePreset1Hour": "最近1小时",
+  "logTimeRangePreset30Min": "最近30分钟",
+  "logTimeRangePreset10Min": "最近10分钟",
+  "logTimeRangePreset5Min": "最近5分钟",
+  "logTimeRangeStartLabel": "开始时间:",
+  "logTimeRangeEndLabel": "结束时间:",
+  "logTimeRangeNotSet": "未设置",
+  "logTimeRangeNow": "现在",
+  "logDialogClear": "清除",
+  "logDialogApply": "应用",
+  "logRulesDialogTitle": "高亮规则管理",
+  "logRulesBuiltinTitle": "内置规则",
+  "logRulesCustomTitle": "自定义规则",
+  "logRulesAddButton": "添加",
+  "logRulesCustomEmpty": "暂无自定义规则",
+  "logRulesLegendTitle": "颜色图例",
+  "logRulesLegendUrl": "URL",
+  "logRulesLegendPath": "路径",
+  "logRulesLegendIp": "IP",
+  "logRulesLegendNumber": "数值",
+  "logRulesLegendError": "错误",
+  "logRulesLegendSuccess": "成功",
+  "logRulesLegendWarning": "警告",
+  "logRulesLegendHttp": "HTTP",
+  "logRulesLegendStep": "步骤",
+  "logRulesLegendPid": "PID",
+  "logRulesLegendKeyValue": "键值",
+  "logAddRuleTitle": "添加自定义规则",
+  "logAddRuleNameLabel": "规则名称",
+  "logAddRuleNamePlaceholder": "例如: 任务ID",
+  "logAddRulePatternLabel": "正则表达式",
+  "logAddRulePatternPlaceholder": "例如: \\b[a-f0-9]+\\b（16位）",
+  "logAddRuleColorLabel": "高亮颜色",
+  "logAddRuleInvalidTitle": "正则表达式无效",
+  "logAddRuleInvalidMessage": "错误: {error}",
+  "@logAddRuleInvalidMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "logArchiveTitle": "归档日志",
+  "logArchivePrompt": "选择归档选项:",
+  "logArchiveExportAll": "导出全部日志",
+  "logArchiveExportFiltered": "导出当前筛选结果",
+  "logArchiveExportBookmarked": "导出书签日志 ({count})",
+  "@logArchiveExportBookmarked": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logClearConfirmTitle": "确认清空",
+  "logClearConfirmMessage": "确定要清空所有日志吗？此操作不可撤销。",
+  "logClearConfirmButton": "清空",
+  "logExportSuccessTitle": "导出成功",
+  "logExportSavedMessage": "日志已保存至:\\n{path}",
+  "@logExportSavedMessage": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "logExportFailedTitle": "导出失败",
+  "logExportFailedMessage": "无法保存日志: {error}",
+  "@logExportFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "logDiagnosticsSavedMessage": "诊断包已保存至:\\n{path}",
+  "@logDiagnosticsSavedMessage": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "logDiagnosticsExportFailedMessage": "无法导出诊断包: {error}",
+  "@logDiagnosticsExportFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "logExportFileHeader": "# 日志导出 - {time}",
+  "@logExportFileHeader": {
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "logExportFileTotal": "# 总计: {count} 条",
+  "@logExportFileTotal": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "logExportSavedCountMessage": "已保存 {count} 条日志至:\\n{path}",
+  "@logExportSavedCountMessage": {
+    "placeholders": {
+      "count": {},
+      "path": {}
+    }
+  },
+  "logExportErrorMessage": "错误: {error}",
+  "@logExportErrorMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "logRuleUrl": "URL",
+  "logRuleFilePath": "文件路径",
+  "logRuleIpAddress": "IP地址",
+  "logRuleNumber": "数值",
+  "logRuleIdHash": "ID/Hash",
+  "logRuleError": "错误",
+  "logRuleSuccess": "成功",
+  "logRuleWarning": "警告",
+  "logRuleHttpMethod": "HTTP方法",
+  "logRuleHttpStatus": "HTTP状态码",
+  "logRuleTime": "时间",
+  "logRuleStep": "步骤",
+  "logRulePid": "PID",
+  "logRuleKeyValue": "键值对",
+  "performanceMonitorTitle": "性能监控",
+  "performanceMonitorStatusRunning": "正在监控中...",
+  "performanceMonitorStatusIdle": "点击开始监控以收集性能数据",
+  "performanceMonitorButtonStop": "停止监控",
+  "performanceMonitorButtonStart": "开始监控",
+  "performanceMonitorRealtimeTitle": "实时数据",
+  "performanceMonitorJankBadge": "JANK",
+  "performanceMonitorMetricFps": "FPS",
+  "performanceMonitorMetricBuild": "Build",
+  "performanceMonitorMetricRaster": "Raster",
+  "performanceMonitorMetricTotal": "Total",
+  "performanceMonitorStatsTitle": "统计摘要",
+  "performanceMonitorStatTotalFrames": "总帧数",
+  "performanceMonitorStatJankFrames": "卡顿帧数",
+  "performanceMonitorStatJankRate": "卡顿率",
+  "performanceMonitorStatAvgBuildTime": "平均 Build 时间",
+  "performanceMonitorStatAvgRasterTime": "平均 Raster 时间",
+  "performanceMonitorStatAvgTotalTime": "平均 Total 时间",
+  "performanceMonitorStatMaxBuildTime": "最大 Build 时间",
+  "performanceMonitorStatMaxRasterTime": "最大 Raster 时间",
+  "performanceMonitorStatMaxTotalTime": "最大 Total 时间",
+  "performanceMonitorRebuildTitle": "Widget 重建统计",
+  "performanceMonitorRebuildTotal": "总重建次数",
+  "performanceMonitorRebuildTracked": "追踪的 Widget 数",
+  "performanceMonitorRebuildTopTitle": "重建次数最多的 Widget",
+  "performanceMonitorRebuildEmpty": "暂无重建数据\\n在代码中调用 trackRebuild() 来追踪",
+  "performanceMonitorFrameChartTitle": "帧时间图表（最近 {count} 帧）",
+  "@performanceMonitorFrameChartTitle": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "performanceMonitorFrameChartEmpty": "暂无数据，请开始监控",
+  "performanceMonitorLegendNormal": "正常帧",
+  "performanceMonitorLegendJankMs": "卡顿帧 (> {ms} ms)",
+  "@performanceMonitorLegendJankMs": {
+    "placeholders": {
+      "ms": {}
+    }
+  },
+  "performanceMonitorLegendFpsThreshold": "60fps 阈值",
+  "performanceMonitorSettingsTitle": "当前渲染设置",
+  "performanceMonitorSettingsModeLabel": "性能模式",
+  "performanceMonitorSettingsBlurLabel": "模糊效果",
+  "performanceMonitorSettingsBlurStrengthLabel": "模糊强度",
+  "performanceMonitorSettingsWindowEffectLabel": "窗口特效",
+  "performanceMonitorSettingsAcrylicOpacityLabel": "亚克力透明度",
+  "performanceMonitorValueEnabled": "启用",
+  "performanceMonitorValueDisabled": "禁用",
+  "performanceMonitorWindowEffectEnabled": "启用（{mode}）",
+  "@performanceMonitorWindowEffectEnabled": {
+    "placeholders": {
+      "mode": {}
+    }
+  },
+  "performanceMonitorWindowEffectHintEnabled": "窗口特效已启用，可能影响性能。如果卡顿率较高，建议在“设置 → 界面 → 窗口效果”中关闭",
+  "performanceMonitorWindowEffectHintDisabled": "窗口特效已禁用，性能最佳。如需视觉效果可在“设置 → 界面 → 窗口效果”中开启",
+  "performanceMonitorActionExport": "导出日志",
+  "performanceMonitorActionCopy": "复制到剪贴板",
+  "performanceMonitorActionClear": "清空数据",
+  "performanceMonitorToastClearedTitle": "已清空",
+  "performanceMonitorToastClearedMessage": "历史数据已清空",
+  "performanceMonitorToastExportSuccessTitle": "导出成功",
+  "performanceMonitorToastExportSuccessMessage": "日志已保存到: {path}",
+  "@performanceMonitorToastExportSuccessMessage": {
+    "placeholders": {
+      "path": {}
+    }
+  },
+  "performanceMonitorToastExportFailedTitle": "导出失败",
+  "performanceMonitorToastExportFailedMessage": "{error}",
+  "@performanceMonitorToastExportFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "performanceMonitorToastCopiedTitle": "已复制",
+  "performanceMonitorToastCopiedMessage": "性能日志已复制到剪贴板",
+  "performanceMonitorModeQuality": "高质量",
+  "performanceMonitorModeBalanced": "平衡",
+  "performanceMonitorModePerformance": "性能优先"
+}

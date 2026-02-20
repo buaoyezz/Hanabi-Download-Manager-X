@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui';
 import 'package:fluent_ui/fluent_ui.dart';
+import '../../l10n/app_localizations.dart';
 import '../../utils/constants.dart';
 import '../../theme/app_theme.dart';
 import '../../services/performance_monitor_service.dart';
@@ -19,6 +20,7 @@ class _AboutPageState extends State<AboutPage> with SingleTickerProviderStateMix
   bool _easterEggActivated = false;
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;
+  AppLocalizations get t => AppLocalizations.of(context)!;
 
   @override
   void initState() {
@@ -55,144 +57,145 @@ class _AboutPageState extends State<AboutPage> with SingleTickerProviderStateMix
   void _showEasterEgg() {
     showDialog(
       context: context,
-      builder: (ctx) => ContentDialog(
-        title: const Row(
-          children: [
-            Icon(FluentIcons.emoji2, size: 24, color: Color(0xFFFFB900)),
-            SizedBox(width: 12),
-            Text('Hey！'),
-          ],
-        ),
-        content: Container(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+      builder: (ctx) {
+        final t = AppLocalizations.of(ctx)!;
+        return ContentDialog(
+          title: Row(
             children: [
-              // 动画 Logo
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: 1),
-                duration: const Duration(milliseconds: 800),
-                builder: (context, value, child) {
-                  return Transform.scale(
-                    scale: value,
-                    child: Transform.rotate(
-                      angle: value * 6.28, // 360度旋转
-                      child: Container(
-                        width: 100,
-                        height: 100,
+              const Icon(FluentIcons.emoji2, size: 24, color: Color(0xFFFFB900)),
+              const SizedBox(width: 12),
+              Text(t.aboutEasterEggDialogTitle),
+            ],
+          ),
+          content: Container(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 动画 Logo
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: 1),
+                  duration: const Duration(milliseconds: 800),
+                  builder: (context, value, child) {
+                    return Transform.scale(
+                      scale: value,
+                      child: Transform.rotate(
+                        angle: value * 6.28, // 360度旋转
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.accentPrimary.withValues(alpha: 0.5),
+                                blurRadius: 30,
+                                spreadRadius: 5,
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: Image.asset(
+                              'assets/logo/logo.png',
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  t.aboutEasterEggCongrats,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppTheme.accentPrimary.withValues(alpha: 0.2),
+                        AppTheme.accentPrimary.withValues(alpha: 0.1),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    border: Border.all(
+                      color: AppTheme.accentPrimary.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        t.aboutEasterEggTitle,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.accentLight,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        t.aboutEasterEggMessage(t.appTitle),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary,
+                          height: 1.5,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.accentPrimary.withValues(alpha: 0.5),
-                              blurRadius: 30,
-                              spreadRadius: 5,
+                          color: AppTheme.statusSuccess.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(AppTheme.radiusRound),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(FluentIcons.heart_fill, size: 14, color: Color(0xFFFF6B6B)),
+                            const SizedBox(width: 6),
+                            Text(
+                              t.aboutMadeBy(AppConstants.developer),
+                              style: const TextStyle(fontSize: 11),
                             ),
                           ],
                         ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: Image.asset(
-                            'assets/logo/logo.png',
-                            fit: BoxFit.cover,
-                          ),
-                        ),
                       ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                '恭喜你发现了这个彩蛋！',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppTheme.accentPrimary.withValues(alpha: 0.2),
-                      AppTheme.accentPrimary.withValues(alpha: 0.1),
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                  border: Border.all(
-                    color: AppTheme.accentPrimary.withValues(alpha: 0.3),
-                  ),
                 ),
-                child: Column(
-                  children: [
-                    const Text(
-                      '这个彩蛋没什么用',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.accentLight,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '但是感谢你使用 ${AppConstants.appName}！\n'
-                      '感谢你的支持\n'
-                      '希望你可以给他一个Star',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textSecondary,
-                        height: 1.5,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppTheme.statusSuccess.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(AppTheme.radiusRound),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(FluentIcons.heart_fill, size: 14, color: Color(0xFFFF6B6B)),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Made by ${AppConstants.developer}',
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: 16),
+                // 统计信息
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  // children: [
+                  //   _buildStatItem('版本', AppConstants.version, FluentIcons.code),
+                  //   _buildStatItem('点击', '$_logoTapCount', FluentIcons.touch),
+                  //   _buildStatItem('内核', 'NSFX', FluentIcons.processing),
+                  // ],
                 ),
-              ),
-              const SizedBox(height: 16),
-              // 统计信息
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                // children: [
-                //   _buildStatItem('版本', AppConstants.version, FluentIcons.code),
-                //   _buildStatItem('点击', '$_logoTapCount', FluentIcons.touch),
-                //   _buildStatItem('内核', 'NSFX', FluentIcons.processing),
-                // ],
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              setState(() {
-                _logoTapCount = 0;
-                _easterEggActivated = false;
-              });
-            },
-            child: const Text('假装不知道'),
-          ),
-        ],
-      ),
+          actions: [
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                setState(() {
+                  _logoTapCount = 0;
+                  _easterEggActivated = false;
+                });
+              },
+              child: Text(t.aboutEasterEggDismiss),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -233,7 +236,11 @@ class _AboutPageState extends State<AboutPage> with SingleTickerProviderStateMix
       await Process.start('cmd', ['/c', 'start', '', url], runInShell: true);
     } catch (e) {
       if (context.mounted) {
-        NotificationManager.of(context)?.showError('错误', message: '打开链接失败: $e');
+        final t = AppLocalizations.of(context)!;
+        NotificationManager.of(context)?.showError(
+          t.aboutOpenLinkErrorTitle,
+          message: t.aboutOpenLinkErrorMessage(e),
+        );
       }
     }
   }
@@ -267,6 +274,7 @@ class _AboutPageState extends State<AboutPage> with SingleTickerProviderStateMix
   }
 
   Widget _buildHeader(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return PageHeader(
       title: Row(
         children: [
@@ -294,15 +302,16 @@ class _AboutPageState extends State<AboutPage> with SingleTickerProviderStateMix
             ),
           ),
           const SizedBox(width: 14),
-          const Text('关于'),
+          Text(t.aboutPageTitle),
         ],
       ),
     );
   }
 
   Widget _buildAppInfoSection(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return _SectionCard(
-      title: '应用信息',
+      title: t.aboutSectionAppInfo,
       icon: FluentIcons.app_icon_default,
       child: Center(
         child: Column(
@@ -416,7 +425,7 @@ class _AboutPageState extends State<AboutPage> with SingleTickerProviderStateMix
                           ),
                         ),
                         child: Text(
-                          '再点 ${10 - _logoTapCount} 次...',
+                          t.aboutTapHintRemaining(10 - _logoTapCount),
                           style: const TextStyle(
                             fontSize: 10,
                             color: AppTheme.statusWarning,
@@ -430,7 +439,7 @@ class _AboutPageState extends State<AboutPage> with SingleTickerProviderStateMix
               ),
             const SizedBox(height: 20),
             Text(
-              AppConstants.appName,
+              t.appTitle,
               style: FluentTheme.of(context).typography.subtitle?.copyWith(
                 fontWeight: FontWeight.w700,
                 fontSize: 22,
@@ -453,7 +462,7 @@ class _AboutPageState extends State<AboutPage> with SingleTickerProviderStateMix
                 ),
               ),
               child: Text(
-                'v${AppConstants.version}',
+                t.aboutVersionLabel(AppConstants.version),
                 style: FluentTheme.of(context).typography.body?.copyWith(
                   color: AppTheme.accentLight,
                   fontWeight: FontWeight.w600,
@@ -468,44 +477,46 @@ class _AboutPageState extends State<AboutPage> with SingleTickerProviderStateMix
   }
 
   Widget _buildDetailsSection(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return _SectionCard(
-      title: '详细信息',
+      title: t.aboutSectionDetails,
       icon: FluentIcons.info,
       child: Column(
         children: [
-          _InfoRow(label: '开发者', value: AppConstants.developer),
+          _InfoRow(label: t.aboutDetailDeveloperLabel, value: AppConstants.developer),
           const SizedBox(height: 10),
-          _InfoRow(label: '下载核心', value: AppConstants.kernelName),
+          _InfoRow(label: t.aboutDetailKernelLabel, value: AppConstants.kernelName),
           const SizedBox(height: 10),
-          _InfoRow(label: 'UI 框架', value: 'Fluent UI for Flutter'),
+          _InfoRow(label: t.aboutDetailUiFrameworkLabel, value: t.aboutDetailUiFrameworkValue),
         ],
       ),
     );
   }
 
   Widget _buildLinksSection(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return _SectionCard(
-      title: '链接',
+      title: t.aboutSectionLinks,
       icon: FluentIcons.link,
       child: Column(
         children: [
           _LinkButton(
             icon: FluentIcons.globe,
-            title: '官方网站',
-            subtitle: '访问项目主页',
+            title: t.aboutLinkOfficialTitle,
+            subtitle: t.aboutLinkOfficialSubtitle,
             onPressed: () => _launchUrl(context, AppConstants.officialUrl),
           ),
           const SizedBox(height: 10),
           _LinkButton(
             icon: FluentIcons.open_source,
-            title: 'GitHub',
-            subtitle: '查看源代码和贡献',
+            title: t.aboutLinkGithubTitle,
+            subtitle: t.aboutLinkGithubSubtitle,
             onPressed: () => _launchUrl(context, AppConstants.githubUrl),
           ),
           const SizedBox(height: 10),
           _LinkButton(
             icon: FluentIcons.mail,
-            title: '联系我们',
+            title: t.aboutLinkContactTitle,
             subtitle: AppConstants.contactEmail,
             onPressed: () => _launchUrl(context, 'mailto:${AppConstants.contactEmail}'),
           ),
@@ -515,6 +526,7 @@ class _AboutPageState extends State<AboutPage> with SingleTickerProviderStateMix
   }
 
   Widget _buildCopyrightSection(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(14),
@@ -525,7 +537,7 @@ class _AboutPageState extends State<AboutPage> with SingleTickerProviderStateMix
       ),
       child: Center(
         child: Text(
-          '© ${DateTime.now().year} ${AppConstants.developer}. All rights reserved.',
+          t.aboutCopyrightMessage(DateTime.now().year, AppConstants.developer),
           style: FluentTheme.of(context).typography.caption?.copyWith(
             color: AppTheme.textTertiary,
             fontSize: 11,

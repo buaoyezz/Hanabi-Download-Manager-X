@@ -12,6 +12,7 @@ import '../../widgets/animated_card.dart';
 import '../../widgets/smooth_scroll_wrapper.dart';
 import '../../utils/fluent_icons.dart' as CustomIcons;
 import '../../widgets/animated_notifications.dart';
+import '../../l10n/app_localizations.dart';
 
 class DownloadList extends StatefulWidget {
   const DownloadList({super.key});
@@ -26,6 +27,8 @@ class _DownloadListState extends State<DownloadList> {
   String _searchQuery = '';
   DownloadStatus? _filterStatus;
   String _sortOrder = 'newest'; // 'newest' 或 'oldest'
+
+  AppLocalizations get t => AppLocalizations.of(context)!;
 
   @override
   void initState() {
@@ -290,45 +293,47 @@ class _DownloadListState extends State<DownloadList> {
   }
 
   String _getStatusFilterText(DownloadStatus status) {
+    final t = AppLocalizations.of(context)!;
     switch (status) {
       case DownloadStatus.downloading:
-        return '下载中';
+        return t.downloadStatusDownloading;
       case DownloadStatus.paused:
-        return '已暂停';
+        return t.downloadStatusPaused;
       case DownloadStatus.pending:
-        return '等待中';
+        return t.downloadStatusPending;
       case DownloadStatus.failed:
-        return '失败';
+        return t.downloadStatusFailed;
       case DownloadStatus.merging:
-        return '合并中';
+        return t.downloadStatusMerging;
       default:
-        return '全部';
+        return t.downloadFilterAll;
     }
   }
 
   void _showFilterDialog(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (context) => ContentDialog(
-        title: const Text('筛选下载任务'),
+        title: Text(t.downloadFilterTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('选择要显示的任务状态：'),
+            Text(t.downloadFilterSubtitle),
             const SizedBox(height: 16),
-            _buildFilterOption(context, null, '全部状态', CustomIcons.FluentIcons.list),
-            _buildFilterOption(context, DownloadStatus.downloading, '下载中', CustomIcons.FluentIcons.download),
-            _buildFilterOption(context, DownloadStatus.paused, '已暂停', CustomIcons.FluentIcons.pause),
-            _buildFilterOption(context, DownloadStatus.pending, '等待中', CustomIcons.FluentIcons.clock),
-            _buildFilterOption(context, DownloadStatus.failed, '失败', CustomIcons.FluentIcons.error_badge),
-            _buildFilterOption(context, DownloadStatus.merging, '合并中', CustomIcons.FluentIcons.processing),
+            _buildFilterOption(context, null, t.downloadFilterAll, CustomIcons.FluentIcons.list),
+            _buildFilterOption(context, DownloadStatus.downloading, t.downloadStatusDownloading, CustomIcons.FluentIcons.download),
+            _buildFilterOption(context, DownloadStatus.paused, t.downloadStatusPaused, CustomIcons.FluentIcons.pause),
+            _buildFilterOption(context, DownloadStatus.pending, t.downloadStatusPending, CustomIcons.FluentIcons.clock),
+            _buildFilterOption(context, DownloadStatus.failed, t.downloadStatusFailed, CustomIcons.FluentIcons.error_badge),
+            _buildFilterOption(context, DownloadStatus.merging, t.downloadStatusMerging, CustomIcons.FluentIcons.processing),
           ],
         ),
         actions: [
           Button(
             onPressed: () => Navigator.pop(context),
-            child: const Text('关闭'),
+            child: Text(t.downloadDialogCloseButton),
           ),
         ],
       ),
@@ -336,24 +341,25 @@ class _DownloadListState extends State<DownloadList> {
   }
 
   void _showSortDialog(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (context) => ContentDialog(
-        title: const Text('排序方式'),
+        title: Text(t.downloadSortTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('选择任务排列顺序：'),
+            Text(t.downloadSortSubtitle),
             const SizedBox(height: 16),
-            _buildSortOption(context, 'newest', '最新在前', CustomIcons.FluentIcons.sort_down, '新添加的任务显示在最上面'),
-            _buildSortOption(context, 'oldest', '最旧在前', CustomIcons.FluentIcons.sort_up, '最早添加的任务显示在最上面'),
+            _buildSortOption(context, 'newest', t.downloadSortNewest, CustomIcons.FluentIcons.sort_down, t.downloadSortNewestDesc),
+            _buildSortOption(context, 'oldest', t.downloadSortOldest, CustomIcons.FluentIcons.sort_up, t.downloadSortOldestDesc),
           ],
         ),
         actions: [
           Button(
             onPressed: () => Navigator.pop(context),
-            child: const Text('关闭'),
+            child: Text(t.downloadDialogCloseButton),
           ),
         ],
       ),
@@ -500,7 +506,7 @@ class _DownloadListState extends State<DownloadList> {
           Expanded(
             child: TextBox(
               controller: _searchController,
-              placeholder: '搜索文件名或链接...',
+              placeholder: t.downloadSearchPlaceholder,
               onChanged: (value) => setState(() => _searchQuery = value),
               decoration: WidgetStateProperty.all(const BoxDecoration()),
               style: FluentTheme.of(context).typography.body?.copyWith(fontSize: 13),
@@ -535,14 +541,14 @@ class _DownloadListState extends State<DownloadList> {
           ),
           const SizedBox(height: 16),
           Text(
-            '未找到匹配的下载任务',
+            t.downloadNoResultsTitle,
             style: FluentTheme.of(context).typography.subtitle?.copyWith(
               color: AppTheme.textSecondary,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            '尝试修改搜索条件或筛选器',
+            t.downloadNoResultsSubtitle,
             style: FluentTheme.of(context).typography.caption?.copyWith(
               color: AppTheme.textTertiary,
             ),
@@ -570,7 +576,7 @@ class _DownloadListState extends State<DownloadList> {
           _buildStatItem(
             context,
             icon: CustomIcons.FluentIcons.download,
-            label: '下载中',
+            label: t.downloadStatsActiveLabel,
             value: '$activeCount',
             color: AppTheme.accentPrimary,
           ),
@@ -579,7 +585,7 @@ class _DownloadListState extends State<DownloadList> {
           _buildStatItem(
             context,
             icon: CustomIcons.FluentIcons.speed_high,
-            label: '总速度',
+            label: t.downloadStatsSpeedLabel,
             value: _formatSpeed(totalSpeed),
             color: AppTheme.accentLight,
           ),
@@ -588,7 +594,7 @@ class _DownloadListState extends State<DownloadList> {
           _buildStatItem(
             context,
             icon: CustomIcons.FluentIcons.split_object,
-            label: '活跃分段',
+            label: t.downloadStatsSegmentsLabel,
             value: '$totalSegments',
             color: AppTheme.statusSuccess,
           ),
@@ -694,7 +700,7 @@ class _DownloadListState extends State<DownloadList> {
                   child: Opacity(
                     opacity: value,
                     child: Text(
-                      '暂无下载任务',
+                      t.downloadEmptyTitle,
                       style: FluentTheme.of(context).typography.subtitle?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: AppTheme.textPrimary,
@@ -715,7 +721,7 @@ class _DownloadListState extends State<DownloadList> {
                   child: Opacity(
                     opacity: value,
                     child: Text(
-                      '点击右上角"新建"按钮开始下载',
+                      t.downloadEmptySubtitle,
                       style: FluentTheme.of(context).typography.body?.copyWith(
                         color: AppTheme.textTertiary,
                       ),
@@ -744,6 +750,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
   bool _showAllSegments = false;
   int _maxVisibleSegments = 5;
   String _segmentsDisplayMode = 'merged'; // 'merged' (合并) 或 'list' (列表)
+
+  AppLocalizations get t => AppLocalizations.of(context)!;
 
   @override
   void initState() {
@@ -905,11 +913,17 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
       await Clipboard.setData(ClipboardData(text: widget.task.url));
       if (mounted) {
         // 显示复制成功的提示
-        NotificationManager.of(context)?.showSuccess('复制成功', message: '链接已复制到剪贴板');
+        NotificationManager.of(context)?.showSuccess(
+          t.downloadCopySuccessTitle,
+          message: t.downloadCopySuccessMessage,
+        );
       }
     } catch (e) {
       if (mounted) {
-        NotificationManager.of(context)?.showError('复制失败', message: '无法复制链接: $e');
+        NotificationManager.of(context)?.showError(
+          t.downloadCopyFailedTitle,
+          message: t.downloadCopyFailedMessage(e.toString()),
+        );
       }
     }
   }
@@ -951,14 +965,14 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             icon: CustomIcons.FluentIcons.play,
             color: AppTheme.statusSuccess,
             onPressed: () => service.startTask(widget.task.id),
-            tooltip: '开始',
+            tooltip: t.downloadActionStart,
           ),
         if (!isMerging && widget.task.status == DownloadStatus.downloading)
           _ActionButton(
             icon: CustomIcons.FluentIcons.pause,
             color: AppTheme.statusWarning,
             onPressed: () => service.pauseTask(widget.task.id),
-            tooltip: '暂停',
+            tooltip: t.downloadActionPause,
           ),
         // 添加间距
         if (!isMerging && (widget.task.status == DownloadStatus.pending ||
@@ -971,7 +985,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             icon: CustomIcons.FluentIcons.refresh,
             color: AppTheme.accentLight,
             onPressed: () => service.retryFailedSegments(widget.task.id),
-            tooltip: hasRetryableSegments ? '重试失败分段' : '重新下载',
+            tooltip: hasRetryableSegments ? t.downloadActionRetrySegments : t.downloadActionRetryAll,
           ),
           const SizedBox(width: 6),
         ],
@@ -980,7 +994,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             icon: CustomIcons.FluentIcons.delete,
             color: AppTheme.statusError,
             onPressed: () => _confirmDelete(service),
-            tooltip: '删除',
+            tooltip: t.downloadActionDelete,
           ),
       ],
     );
@@ -1005,7 +1019,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
           const SizedBox(width: 8),
           // 文字
           Text(
-            '正在校验和合并数据',
+            t.downloadMergingStatus,
             style: FluentTheme.of(context).typography.caption?.copyWith(
               fontWeight: FontWeight.w600,
               color: AppTheme.accentPrimary,
@@ -1056,7 +1070,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
               )
             else
               Text(
-                '计算文件大小中...',
+                t.downloadCalculatingSize,
                 style: FluentTheme.of(context).typography.caption?.copyWith(
                   color: AppTheme.textTertiary,
                   fontSize: 11,
@@ -1072,7 +1086,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
               ),
               child: Text(
                 isUnknownSize
-                    ? '计算中'
+                    ? t.downloadCalculating
                     : '${(progress * 100).toStringAsFixed(1)}%',
                 style: FluentTheme.of(context).typography.caption?.copyWith(
                   fontWeight: FontWeight.w700,
@@ -1171,7 +1185,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  '分段下载 (${segments.length})',
+                  t.downloadSegmentsTitleWithCount(segments.length),
                   style: FluentTheme.of(context).typography.caption?.copyWith(
                     color: AppTheme.textSecondary,
                     fontSize: 11,
@@ -1226,7 +1240,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             ),
             const SizedBox(width: 6),
             Text(
-              '分段下载',
+              t.downloadSegmentsTitle,
               style: FluentTheme.of(context).typography.caption?.copyWith(
                 color: AppTheme.textSecondary,
                 fontSize: 11,
@@ -1234,12 +1248,12 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             ),
             const SizedBox(width: 8),
             // 分段状态统计
-            _buildSegmentStatusBadge(completedCount, AppTheme.statusSuccess, '完成'),
+            _buildSegmentStatusBadge(completedCount, AppTheme.statusSuccess, t.downloadSegmentsStatusCompleted),
             const SizedBox(width: 4),
-            _buildSegmentStatusBadge(downloadingCount, AppTheme.accentPrimary, '下载'),
+            _buildSegmentStatusBadge(downloadingCount, AppTheme.accentPrimary, t.downloadSegmentsStatusDownloading),
             if (failedCount > 0) ...[
               const SizedBox(width: 4),
-              _buildSegmentStatusBadge(failedCount, AppTheme.statusError, '失败'),
+              _buildSegmentStatusBadge(failedCount, AppTheme.statusError, t.downloadSegmentsStatusFailed),
             ],
           ],
         ),
@@ -1268,8 +1282,9 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
           children: [
             Expanded(
               child: Text(
-                '${segments.length} 个分段 · $completedCount 完成 · $downloadingCount 下载中' +
-                (failedCount > 0 ? ' · $failedCount 失败' : ''),
+                failedCount > 0
+                    ? t.downloadSegmentsSummaryWithFailed(segments.length, completedCount, downloadingCount, failedCount)
+                    : t.downloadSegmentsSummary(segments.length, completedCount, downloadingCount),
                 style: FluentTheme.of(context).typography.caption?.copyWith(
                   color: AppTheme.textTertiary,
                   fontSize: 10,
@@ -1301,7 +1316,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                       ),
                       const SizedBox(width: 3),
                       Text(
-                        '重试',
+                        t.downloadRetryButton,
                         style: FluentTheme.of(context).typography.caption?.copyWith(
                           color: AppTheme.accentLight,
                           fontSize: 9,
@@ -1327,7 +1342,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
-        '$count$label',
+        '$count $label',
         style: FluentTheme.of(context).typography.caption?.copyWith(
           color: color,
           fontSize: 9,
@@ -1396,7 +1411,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
               ),
               const SizedBox(width: 4),
               Text(
-                '分段 ${segment.index + 1}',
+                t.downloadSegmentLabel(segment.index + 1),
                 style: FluentTheme.of(context).typography.caption?.copyWith(
                   color: AppTheme.textTertiary,
                   fontSize: 10,
@@ -1460,7 +1475,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
               borderRadius: BorderRadius.circular(3),
             ),
             child: Text(
-              '重试${segment.retryCount}',
+              t.downloadSegmentRetryCount(segment.retryCount),
               style: FluentTheme.of(context).typography.caption?.copyWith(
                 color: AppTheme.statusWarning,
                 fontSize: 8,
@@ -1521,8 +1536,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             const SizedBox(width: 6),
             Text(
               _showAllSegments 
-                  ? '收起'
-                  : '显示全部 ${totalCount - _maxVisibleSegments} 个',
+                  ? t.downloadSegmentsCollapse
+                  : t.downloadSegmentsShowAll(totalCount - _maxVisibleSegments),
               style: FluentTheme.of(context).typography.caption?.copyWith(
                 color: AppTheme.accentLight,
                 fontSize: 11,
@@ -1661,7 +1676,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
           Expanded(
             child: Text(
               isUnknownSize
-                  ? '${widget.task.formattedDownloadedSize} / 未知'
+                  ? t.downloadSizeUnknown(widget.task.formattedDownloadedSize)
                   : '${widget.task.formattedDownloadedSize} / ${widget.task.formattedFileSize}',
               style: FluentTheme.of(context).typography.caption?.copyWith(
                 color: AppTheme.textSecondary,
@@ -1707,7 +1722,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '下载失败',
+                      t.downloadFailedTitle,
                       style: FluentTheme.of(context).typography.caption?.copyWith(
                         color: AppTheme.statusError,
                         fontWeight: FontWeight.w600,
@@ -1751,7 +1766,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      '$failedCount 个分段失败，可以尝试重新下载',
+                      t.downloadFailedSegmentsHint(failedCount),
                       style: FluentTheme.of(context).typography.caption?.copyWith(
                         color: AppTheme.accentLight,
                         fontSize: 10,
@@ -1781,7 +1796,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '重试',
+                            t.downloadRetryButton,
                             style: FluentTheme.of(context).typography.caption?.copyWith(
                               color: AppTheme.accentLight,
                               fontSize: 10,
@@ -1805,12 +1820,12 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
     showDialog(
       context: context,
       builder: (context) => ContentDialog(
-        title: const Text('确认删除'),
-        content: Text('确定要删除任务 "${widget.task.fileName}" 吗？'),
+        title: Text(t.downloadConfirmDeleteTitle),
+        content: Text(t.downloadConfirmDeleteMessage(widget.task.fileName)),
         actions: [
           Button(
             onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
+            child: Text(t.settingsCancelButton),
           ),
           FilledButton(
             style: ButtonStyle(
@@ -1820,7 +1835,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
               service.removeTask(widget.task.id);
               Navigator.pop(context);
             },
-            child: const Text('删除'),
+            child: Text(t.downloadDeleteButton),
           ),
         ],
       ),
@@ -1846,17 +1861,17 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
   String _getStatusText() {
     switch (widget.task.status) {
       case DownloadStatus.pending:
-        return '等待中';
+        return t.downloadStatusPending;
       case DownloadStatus.downloading:
-        return '下载中';
+        return t.downloadStatusDownloading;
       case DownloadStatus.paused:
-        return '已暂停';
+        return t.downloadStatusPaused;
       case DownloadStatus.completed:
-        return '已完成';
+        return t.downloadStatusCompleted;
       case DownloadStatus.failed:
-        return '失败';
+        return t.downloadStatusFailed;
       case DownloadStatus.merging:
-        return '合并中';
+        return t.downloadStatusMerging;
     }
   }
 }
@@ -2287,7 +2302,7 @@ class _HoverableUrlState extends State<_HoverableUrl> {
       child: GestureDetector(
         onTap: widget.onTap,
         child: Tooltip(
-          message: '点击复制链接',
+          message: AppLocalizations.of(context)!.downloadCopyTooltip,
           child: Text(
             widget.url,
             maxLines: 1,
