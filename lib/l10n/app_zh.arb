@@ -1,5 +1,5 @@
 {
-  "appTitle": "Hanabi 下载管理器 X",
+  "appTitle": "Hanabi Download Manager X",
   "aboutEasterEggCongrats": "恭喜你发现了这个彩蛋！",
   "aboutEasterEggTitle": "这个彩蛋没什么用",
   "aboutEasterEggMessage": "但是感谢你使用 {appName}！\\n感谢你的支持\\n希望你可以给他一个 Star",
@@ -1258,7 +1258,7 @@
   "statusValueRunning": "运行中",
   "statusValueStopped": "已停止",
   "statusItemKernelCurrent": "当前内核",
-  "statusKernelLegacyName": "Soda Kernel（旧版）",
+  "statusKernelLegacyName": "旧版内核",
   "statusItemHttpService": "HTTP 服务",
   "statusValueHealthy": "正常",
   "statusValueBuiltIn": "内置",

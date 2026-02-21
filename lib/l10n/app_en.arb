@@ -1258,7 +1258,7 @@
   "statusValueRunning": "Running",
   "statusValueStopped": "Stopped",
   "statusItemKernelCurrent": "Current kernel",
-  "statusKernelLegacyName": "Soda Kernel (Legacy)",
+  "statusKernelLegacyName": "Legacy Kernel",
   "statusItemHttpService": "HTTP service",
   "statusValueHealthy": "Healthy",
   "statusValueBuiltIn": "Built-in",

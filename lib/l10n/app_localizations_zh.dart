@@ -9,7 +9,7 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
-  String get appTitle => 'Hanabi 下载管理器 X';
+  String get appTitle => 'Hanabi Download Manager X';
 
   @override
   String get aboutEasterEggCongrats => '恭喜你发现了这个彩蛋！';

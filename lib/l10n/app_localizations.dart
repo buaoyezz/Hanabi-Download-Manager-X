@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In zh, this message translates to:
-  /// **'Hanabi 下载管理器 X'**
+  /// **'Hanabi Download Manager X'**
   String get appTitle;
 
   /// No description provided for @aboutEasterEggCongrats.
