@@ -158,11 +158,20 @@ class DownloadEngine {
 
   /// 使用 Isolate 的多线程下载
   Future<void> _isolateMultiThreadDownload(Task task, Map<String, String> headers, int fileSize) async {
-    final (threads, segmentCount) = DynamicSegmentConfig.calculate(fileSize, config);
-    final actualThreads = threads.clamp(1, segmentCount);
+    final (calculatedThreads, segmentCount) = DynamicSegmentConfig.calculate(fileSize, config);
+    // IDM-style: start all segments concurrently (avoid sequential segment starts)
+    final actualThreads = segmentCount.clamp(1, 256);
     task.threadCount = actualThreads;
-    _logger.info('NSFX-Engine', 'Using $actualThreads concurrent isolates, $segmentCount segments');
-    final semaphore = _taskSemaphores[task.id] = _Semaphore(actualThreads);
+    _logger.info('NSFX-Engine', '========================================');
+    _logger.info('NSFX-Engine', 'Multi-thread download configuration:');
+    _logger.info('NSFX-Engine', '  File: ${task.filename}');
+    _logger.info('NSFX-Engine', '  Size: ${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB');
+    _logger.info('NSFX-Engine', '  Threads: $actualThreads (all segments, calc=$calculatedThreads)');
+    _logger.info('NSFX-Engine', '  Segments: $segmentCount');
+    _logger.info('NSFX-Engine', '  Config mode: ${config.mode}');
+    _logger.info('NSFX-Engine', '  Config threads: ${config.threads}');
+    _logger.info('NSFX-Engine', '========================================');
+    final semaphore = _taskSemaphores[task.id] = _Semaphore(actualThreads, 'Task-${task.id.substring(0, 8)}');
 
     final tempDir = await _getTempDir(task);
     await tempDir.create(recursive: true);
@@ -318,14 +327,17 @@ class DownloadEngine {
 
         final futures = <Future<bool>>[];
 
+        // 立即为所有待处理的分段创建下载任务
         for (final segment in pendingSegments) {
           final tempFile = '${tempDir.path}/${task.filename}.part${segment.index}';
 
+          // 立即添加到 futures 列表，不要在循环中等待
           futures.add(semaphore.run(() async {
             if (_cancelledTasks[task.id] == true) return false;
             if (_pausedTasks[task.id] == true) return false;
 
             segment.status = SegmentStatus.downloading;
+            _logger.debug('NSFX-Engine', 'Starting segment ${segment.index} download');
 
             return await _downloadSegmentInIsolate(
               task: task,
@@ -336,6 +348,9 @@ class DownloadEngine {
           }));
         }
 
+        _logger.info('NSFX-Engine', 'Started ${futures.length} segment downloads concurrently (max $actualThreads threads)');
+
+        // 等待所有分段完成
         await Future.wait(futures);
 
         // 检查是否全部完成
@@ -1435,8 +1450,9 @@ class _Semaphore {
   final int maxConcurrent;
   int _current = 0;
   final _queue = <Completer<void>>[];
+  final String _debugName;
 
-  _Semaphore(this.maxConcurrent);
+  _Semaphore(this.maxConcurrent, [this._debugName = 'Semaphore']);
 
   Future<T> run<T>(Future<T> Function() task) async {
     await _acquire();
@@ -1450,19 +1466,25 @@ class _Semaphore {
   Future<void> _acquire() async {
     if (_current < maxConcurrent) {
       _current++;
+      print('[$_debugName] Acquired slot: $_current/$maxConcurrent (queue: ${_queue.length})');
       return;
     }
+    // 需要等待，添加到队列
     final completer = Completer<void>();
     _queue.add(completer);
+    print('[$_debugName] Waiting in queue: $_current/$maxConcurrent (queue: ${_queue.length})');
     await completer.future;
+    print('[$_debugName] Woken from queue: $_current/$maxConcurrent (queue: ${_queue.length})');
   }
 
   void _release() {
     if (_queue.isNotEmpty) {
       final completer = _queue.removeAt(0);
+      print('[$_debugName] Releasing to queued task: $_current/$maxConcurrent (queue: ${_queue.length})');
       completer.complete();
     } else {
       _current--;
+      print('[$_debugName] Released slot: $_current/$maxConcurrent (queue: ${_queue.length})');
     }
   }
 }
