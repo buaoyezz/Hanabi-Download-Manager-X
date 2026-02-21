@@ -2630,7 +2630,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get statusItemKernelCurrent => '当前内核';
 
   @override
-  String get statusKernelLegacyName => 'Soda Kernel（旧版）';
+  String get statusKernelLegacyName => '旧版内核';
 
   @override
   String get statusItemHttpService => 'HTTP 服务';

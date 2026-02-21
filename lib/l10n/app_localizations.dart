@@ -4964,7 +4964,7 @@ abstract class AppLocalizations {
   /// No description provided for @statusKernelLegacyName.
   ///
   /// In zh, this message translates to:
-  /// **'Soda Kernel（旧版）'**
+  /// **'旧版内核'**
   String get statusKernelLegacyName;
 
   /// No description provided for @statusItemHttpService.

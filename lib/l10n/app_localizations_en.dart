@@ -2732,7 +2732,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statusItemKernelCurrent => 'Current kernel';
 
   @override
-  String get statusKernelLegacyName => 'Soda Kernel (Legacy)';
+  String get statusKernelLegacyName => 'Legacy Kernel';
 
   @override
   String get statusItemHttpService => 'HTTP service';
