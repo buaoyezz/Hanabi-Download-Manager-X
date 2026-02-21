@@ -25,9 +25,9 @@ This time I have completely migrated HDMX from the Python + Flet technology stac
 
 <a name="brand-new-download-core"></a>
 ## Brand New Download Core
-**NSF** → **NSFX [Soda Kernel]**
+**NSF** → **NSFX Download Kernel**
 
-The new Soda Kernel brings more powerful download performance and stability.
+The NSFX download kernel brings more powerful download performance and stability.
 
 <a name="brand-new-experience"></a>
 ## Brand New Experience
@@ -47,18 +47,7 @@ This complete refactoring solves many legacy issues, bringing you an unprecedent
 ---
 
 <a name="x-version-comparison-improvements"></a>
-## X Version Comparison Improvements
 
-| Comparison Item | HDMX | HDM | X Functionality | Improvement | 
-|---------|------|-----| ----- | ----- |
-| **Client Running Speed** | Faster | Slower | Better | Significant Improvement
-| **Interface Aesthetics** | Flutter | Python | Better | Significant Improvement
-| **Internal Architecture** | Modular | Semi-Modular | Better | Moderate Improvement 
-| **Scheduling Performance** | Excellent | Average | Slightly Better | Slight Improvement
-| **Download Core Used** | NSFX/Soda | NSF | Better | Significant Improvement
-| **Release Time** | 2026 | 2023 | ---------- | ----------
-
-> Current HDMX client is very incomplete and does not participate in feature ranking
 
 ---
 
@@ -67,7 +56,7 @@ This complete refactoring solves many legacy issues, bringing you an unprecedent
 
 ### Environment Requirements
 - Flutter SDK (3.0.0 or higher)
-- Python 3.12.6 (for Soda Kernel)
+- Python 3.12.6 (for NSFX download kernel)
 - Windows 10/11 (primary platform)
 
 ### Installation Steps
