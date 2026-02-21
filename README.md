@@ -1,104 +1,119 @@
-# Hanabi Download Manager
-#### Code : X
-[English](README.md) | [中文](README_CN.md)
+# Hanabi Download Manager X
 
-![Promotional Image](readme_assets/image1.png)
+English | [中文](README_CN.md)
 
----
+![Preview](readme_assets/image1.png)
 
 ## Table of Contents
-- [Brand New Design](#brand-new-design)
-- [Brand New Download Core](#brand-new-download-core)
-- [Brand New Experience](#brand-new-experience)
-- [Core Improvements](#core-improvements)
-- [X Version Comparison Improvements](#x-version-comparison-improvements)
-- [UI Design Attribution](#ui-design-attribution)
+
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Features](#features)
 - [Quick Start](#quick-start)
 - [License](#license)
----
-
-<a name="brand-new-design"></a>
-## Brand New Design
-This time I have completely migrated HDMX from the Python + Flet technology stack to **Flutter** + **Python**
-- **Flutter** as the frontend, providing smooth cross-platform experience
-- **Python** as the backend, powerful download engine support
-
-<a name="brand-new-download-core"></a>
-## Brand New Download Core
-**NSF** → **NSFX Download Kernel**
-
-The NSFX download kernel brings more powerful download performance and stability.
-
-<a name="brand-new-experience"></a>
-## Brand New Experience
-This complete refactoring solves many legacy issues, bringing you an unprecedented smooth experience.
-
----
-## Still Continuing!
-
-<a name="core-improvements"></a>
-### Core Improvements
-- More comprehensive kernel
-- Refactored plugin code, more reliable and intelligent
-- Solved communication instability issues
-- Used HTTP client to protect client stability
-- Fast connections won't cause excessive overhead
 
 ---
 
-<a name="x-version-comparison-improvements"></a>
+## Overview
 
+Hanabi Download Manager X is a cross-platform download manager built with Flutter, powered by the NSFX download engine. It provides multi-threaded concurrent downloads, resume capability, and efficient download management.
+
+### Technology Migration
+
+Migrated from Python + Flet architecture to Flutter for improved cross-platform compatibility and user experience.
 
 ---
 
-<a name="quick-start"></a>
+## Architecture
+
+### Frontend
+- Flutter 3.0+ - Cross-platform UI framework
+- Fluent Design - Modern design language
+- Responsive layout - Adapts to various screen sizes
+
+### Download Engine
+- NSFX kernel - Custom-built download core
+- HTTP Range support - Enables resume capability
+- Dynamic segmentation - Optimizes download efficiency
+
+---
+
+## Features
+
+### Download Management
+- Multi-threaded concurrent downloads (up to 8 threads)
+- Resume capability support
+- Dynamic segmentation technology
+- Intelligent retry mechanism
+- Real-time progress tracking
+
+### User Interface
+- Smooth scroll animations (powered by scroll_animator)
+- Dark/light theme switching
+- Real-time speed and progress display
+- Clean and intuitive interface
+
+### Performance Optimization
+- Memory counter optimization
+- Concurrent control algorithm
+- Network connection reuse
+- File integrity verification
+
+---
+
 ## Quick Start
 
-### Environment Requirements
-- Flutter SDK (3.0.0 or higher)
-- Python 3.12.6 (for NSFX download kernel)
-- Windows 10/11 (primary platform)
+### System Requirements
 
-### Installation Steps
+- Flutter SDK 3.0.0+
+- Python 3.12.6+
+- Windows 10/11
+
+### Development Setup
 
 1. Clone the repository
-   ```bash
-   git clone https://github.com/zzbuaoye/hanabi-download-manager-x.git
-   cd hanabi-download-manager-x
-   ```
 
-2. Install Flutter dependencies
-   ```bash
-   flutter pub get
-   ```
-
-3. Run the application
-   ```bash
-   flutter run
-   ```
-
-### Building for Production
-
-Use the quick build script (Windows):
 ```bash
-quick_build.bat
+git clone https://github.com/buaoyezz/hanabi-download-manager-x.git
+cd hanabi-download-manager-x
 ```
 
-Or build manually:
+2. Install dependencies
+
+```bash
+flutter pub get
+```
+
+3. Run the application
+
+```bash
+flutter run
+```
+
+### Building for Release
+
+Quick build for Windows:
+
+```bash
+build_release.bat
+```
+
+Manual build:
+
 ```bash
 flutter build windows --release
 ```
 
-The executable will be in `build/windows/x64/runner/Release/`
-
-<a name="license"></a>
-## License
-##### GNU General Public License version 3<br>Copyright © ZZBuAoYe 2026
-#### Other Legal
-##### >[Privacy Policy](https://x.zzbuaoye.top/privacy)<br>>[Terms of Service](https://x.zzbuaoye.top/terms)
+Build output is located in `build/windows/x64/runner/Release/` directory.
 
 ---
 
-### If you like it, please give me a Star
+## License
 
-[Chinese](./README_CN.md)
+This project is licensed under the GNU General Public License v3.0.
+
+Copyright © 2026 ZZBuAoYe
+
+Related documentation:
+- [Privacy Policy](https://x.zzbuaoye.top/privacy)
+- [Terms of Service](https://x.zzbuaoye.top/terms)

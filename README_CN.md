@@ -1,134 +1,119 @@
-# Hanabi Download Manager
-#### Code : X
-[English](README.md) | [中文](README_CN.md)
+# Hanabi Download Manager X
 
-![宣传图](readme_assets/image1.png)
+[English](README.md) | 中文
 
----
+![Preview](readme_assets/image1.png)
 
 ## 目录
-- [全新的设计](#全新的设计)
-- [全新的下载核心](#全新的下载核心)
-- [全新的体验](#全新的体验)
-- [核心改进](#核心改进)
-- [X版本对比改进](#x版本对比改进)
-- [UI 设计归属](#ui-设计归属)
+
+- [项目简介](#项目简介)
+- [技术架构](#技术架构)
+- [核心特性](#核心特性)
 - [快速开始](#快速开始)
 - [许可证](#许可证)
 
 ---
 
-<a name="全新的设计"></a>
-## 全新的设计
-这次我给 HDMX 全面从 Python + Flet 的技术栈完整的迁移到了 **Flutter** + **Python** (现已基本不在有Python，老内核已被停更)
-- **Flutter** 作为前端，提供流畅的跨平台体验
-- **Python** 为后端，强大的下载引擎支持
+## 项目简介
 
-<a name="全新的下载核心"></a>
-## 全新的下载核心
-**NSF** → **NSFX 下载内核**
+Hanabi Download Manager X 是一个基于 Flutter 开发的跨平台下载管理器，采用 NSFX 下载内核，提供多线程并发下载、断点续传等功能。
 
-NSFX 下载内核带来更强大的下载性能和稳定性。
+### 技术栈迁移
 
-<a name="全新的体验"></a>
-## 全新的体验
-本次的完全重构解决了诸多历史遗留问题，为您带来前所未有的流畅体验。
-
-### 最新功能亮点
-- **平滑滚动动画** - 采用 `scroll_animator` 包，提供 Chromium 和 Edge 风格的曲线滚动动画，让界面滚动更加自然流畅
-- **智能多线程下载** - 改进的并发控制算法，支持动态分段分割，自动优化下载速度
-- **内存计数器优化** - 解决进度回退问题，提供更准确的下载进度显示
-- **增强的错误恢复** - 智能重试机制，在网络不稳定的情况下也能保持下载稳定性
-- **动态分段技术** - 自动检测慢速分段并进行分割，充分利用带宽资源
-
----
-## 正在继续！
-
-<a name="核心改进"></a>
-### 核心改进
-- **更加完善的内核** - NSFX 下载内核持续优化
-- **重构了插件代码** - 更加可靠智能的插件系统
-- **解决了通讯不稳定的问题** - 增强的网络连接稳定性
-- **使用 HTTP 客户端保护了客户端的稳定性** - 防止客户端崩溃
-- **快速链接不会带来过多的损耗** - 优化资源使用
-- **平滑滚动动画** - 使用 `scroll_animator` 包实现 Chromium/Edge 风格的曲线滚动动画
-- **多线程下载优化** - 改进的并发控制，支持动态分段和智能重试机制
-- **内存计数器优化** - 更准确的下载进度跟踪，避免进度回退问题
+从 Python + Flet 架构迁移至 Flutter，提升了跨平台兼容性和用户体验。
 
 ---
 
-<a name="技术特性"></a>
-## 技术特性
+## 技术架构
+
+### 前端框架
+- Flutter 3.0+ - 跨平台 UI 框架
+- Fluent Design - 现代化设计语言
+- 响应式布局 - 适配多种屏幕尺寸
 
 ### 下载引擎
-- **NSFX 下载内核** - 全新设计的下载核心
-- **多线程并发** - 支持最多 8 个线程同时下载
-- **动态分段** - 自动分割慢速分段，优化下载效率
-- **断点续传** - 支持 HTTP Range 请求，下载中断后可继续
-- **智能重试** - 网络不稳定时的自动重试机制
+- NSFX 内核 - 自研下载核心
+- HTTP Range 支持 - 实现断点续传
+- 动态分段算法 - 优化下载效率
+
+---
+
+## 核心特性
+
+### 下载管理
+- 多线程并发下载（最多 8 线程）
+- 断点续传支持
+- 动态分段技术
+- 智能重试机制
+- 实时进度跟踪
 
 ### 用户界面
-- **平滑滚动动画** - Chromium/Edge 风格的曲线滚动
-- **现代化设计** - 基于 Fluent UI 的设计语言
-- **响应式布局** - 适配不同屏幕尺寸
-- **深色/浅色模式** - 支持系统主题切换
-- **实时进度显示** - 准确的下载速度和剩余时间计算
+- 平滑滚动动画（基于 scroll_animator）
+- 深色/浅色主题切换
+- 实时速度和进度显示
+- 简洁直观的操作界面
 
 ### 性能优化
-- **内存计数器** - 避免进度回退问题
-- **并发控制** - 智能的线程管理和资源分配
-- **网络优化** - 连接复用和超时控制
-- **文件验证** - 下载完成后自动验证文件完整性
+- 内存计数器优化
+- 并发控制算法
+- 网络连接复用
+- 文件完整性验证
 
 ---
 
-<a name="快速开始"></a>
 ## 快速开始
 
-### 环境要求
-- Flutter SDK (3.0.0 或更高版本)
-- Python 3.12.6 (用于 NSFX 下载内核)
-- Windows 10/11 (主要平台)
+### 系统要求
 
-### 安装步骤
+- Flutter SDK 3.0.0+
+- Python 3.12.6+
+- Windows 10/11
+
+### 开发环境配置
 
 1. 克隆仓库
-   ```bash
-   git clone https://github.com/zzbuaoye/hanabi-download-manager-x.git
-   cd hanabi-download-manager-x
-   ```
 
-2. 安装 Flutter 依赖
-   ```bash
-   flutter pub get
-   ```
+```bash
+git clone https://github.com/buaoyezz/hanabi-download-manager-x.git
+cd hanabi-download-manager-x
+```
+
+2. 安装依赖
+
+```bash
+flutter pub get
+```
 
 3. 运行应用
-   ```bash
-   flutter run
-   ```
 
-### 生产环境构建
-
-使用快速构建脚本 (Windows):
 ```bash
-quick_build.bat
+flutter run
 ```
 
-或手动构建:
+### 构建发布版本
+
+Windows 平台快速构建：
+
 ```bash
-flutter build windows --release`
+build_release.bat
 ```
 
-可执行文件将在 `build/windows/x64/runner/Release/` 目录中
-<a name="许可证"></a>
-## 许可证
-##### GNU General Public License version 3<br>Copyright © ZZBuAoYe 2026
-#### 其他许可证
-##### >[隐私政策](https://x.zzbuaoye.top/privacy)
-##### >[服务条款](https://x.zzbuaoye.top/terms)
-如果你访问不了他们，那就是服务器死了
+手动构建：
+
+```bash
+flutter build windows --release
+```
+
+构建产物位于 `build/windows/x64/runner/Release/` 目录。
 
 ---
 
-### 若喜欢请给我一个Star
+## 许可证
+
+本项目采用 GNU General Public License v3.0 开源协议。
+
+Copyright © 2026 ZZBuAoYe
+
+相关文档：
+- [隐私政策](https://x.zzbuaoye.top/privacy)
+- [服务条款](https://x.zzbuaoye.top/terms)
