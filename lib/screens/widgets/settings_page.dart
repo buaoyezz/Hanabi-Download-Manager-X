@@ -210,6 +210,7 @@ class _SettingsPageState extends State<SettingsPage> {
       final config = Provider.of<ClientConfigService>(context, listen: false);
       final kernelManager = Provider.of<KernelManager>(context, listen: false);
       final kernelService = Provider.of<KernelService>(context, listen: false);
+      final downloadService = Provider.of<IntegratedDownloadService>(context, listen: false);
       
       if (useNew) {
         // 切换到新内核：先停止旧内核，再启动新内核
@@ -218,6 +219,7 @@ class _SettingsPageState extends State<SettingsPage> {
         
         if (success) {
           await config.setBool('kernel.use_new_kernel', true);
+          await downloadService.resetTasksAndReload();
           
           if (mounted) {
             setState(() {
@@ -245,6 +247,7 @@ class _SettingsPageState extends State<SettingsPage> {
         
         if (success) {
           await config.setBool('kernel.use_new_kernel', false);
+          await downloadService.resetTasksAndReload();
           
           if (mounted) {
             setState(() {

@@ -646,7 +646,11 @@ class IntegratedDownloadService extends ChangeNotifier {
   }
 
   Future<void> pauseTask(String id) async {
-    final task = _tasks.firstWhere((t) => t.id == id, orElse: () => _tasks.first);
+    final task = _tasks.firstWhereOrNull((t) => t.id == id);
+    if (task == null) {
+      _appLogger.warning('App', 'Pause ignored: task not found (ID: $id)');
+      return;
+    }
     _appLogger.info('App', 'Pausing task: ${task.fileName} (ID: $id)');
     
     bool success;
@@ -665,7 +669,11 @@ class IntegratedDownloadService extends ChangeNotifier {
   }
 
   Future<void> resumeTask(String id) async {
-    final task = _tasks.firstWhere((t) => t.id == id, orElse: () => _tasks.first);
+    final task = _tasks.firstWhereOrNull((t) => t.id == id);
+    if (task == null) {
+      _appLogger.warning('App', 'Resume ignored: task not found (ID: $id)');
+      return;
+    }
     _appLogger.info('App', 'Resuming task: ${task.fileName} (ID: $id)');
     
     bool success;
@@ -711,6 +719,17 @@ class IntegratedDownloadService extends ChangeNotifier {
 
   Future<void> startTask(String id) async {
     await resumeTask(id);
+  }
+
+  /// 切换内核后：清空任务缓存并重新拉取
+  Future<void> resetTasksAndReload() async {
+    _tasks.clear();
+    _hasActiveDownloads = false;
+    notifyNow();
+
+    // 重新订阅/取消订阅内核流（新内核才有）
+    _subscribeToKernelStreams();
+    await _updateTasks();
   }
 
   Future<Map<String, dynamic>?> getDownloadConfig() async {
