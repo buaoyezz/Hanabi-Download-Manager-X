@@ -2077,28 +2077,32 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
   }
 
   void _confirmDelete(IntegratedDownloadService service) {
+    if (!mounted) return;
     showDialog(
       context: context,
-      builder: (context) => ContentDialog(
-        title: Text(t.downloadConfirmDeleteTitle),
-        content: Text(t.downloadConfirmDeleteMessage(widget.task.fileName)),
-        actions: [
-          Button(
-            onPressed: () => Navigator.pop(context),
-            child: Text(t.settingsCancelButton),
-          ),
-          FilledButton(
-            style: ButtonStyle(
-              backgroundColor: WidgetStateProperty.all(AppTheme.statusError),
+      builder: (dialogContext) {
+        final t = AppLocalizations.of(dialogContext)!;
+        return ContentDialog(
+          title: Text(t.downloadConfirmDeleteTitle),
+          content: Text(t.downloadConfirmDeleteMessage(widget.task.fileName)),
+          actions: [
+            Button(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(t.settingsCancelButton),
             ),
-            onPressed: () {
-              service.removeTask(widget.task.id);
-              Navigator.pop(context);
-            },
-            child: Text(t.downloadDeleteButton),
-          ),
-        ],
-      ),
+            FilledButton(
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.all(AppTheme.statusError),
+              ),
+              onPressed: () {
+                service.removeTask(widget.task.id);
+                Navigator.pop(dialogContext);
+              },
+              child: Text(t.downloadDeleteButton),
+            ),
+          ],
+        );
+      },
     );
   }
   Color _getStatusColor() {

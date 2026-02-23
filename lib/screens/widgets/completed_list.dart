@@ -1356,66 +1356,72 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
   }
 
   void _confirmDelete(IntegratedDownloadService service) {
+    if (!mounted) return;
     showDialog(
       context: context,
-      builder: (context) => ContentDialog(
-        title: Row(
-          children: [
-            Icon(CustomIcons.FluentIcons.delete, size: 18, color: AppTheme.statusError),
-            const SizedBox(width: 8),
-            Text(t.completedConfirmDeleteTitle),
+      builder: (dialogContext) {
+        final t = AppLocalizations.of(dialogContext)!;
+        return ContentDialog(
+          title: Row(
+            children: [
+              Icon(CustomIcons.FluentIcons.delete, size: 18, color: AppTheme.statusError),
+              const SizedBox(width: 8),
+              Text(t.completedConfirmDeleteTitle),
+            ],
+          ),
+          content: Text(t.completedDeleteTaskMessage(widget.task.fileName)),
+          actions: [
+            Button(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(CustomIcons.FluentIcons.chrome_close, size: 12),
+                  const SizedBox(width: 6),
+                  Text(t.completedCancelButton),
+                ],
+              ),
+            ),
+            Button(
+              onPressed: () {
+                service.removeTask(widget.task.id);
+                Navigator.pop(dialogContext);
+                if (!mounted) return;
+                NotificationManager.of(this.context)?.showSuccess(
+                  t.completedRemoveSuccessTitle,
+                  message: t.completedRemoveSuccessMessage,
+                );
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(CustomIcons.FluentIcons.list, size: 12),
+                  const SizedBox(width: 6),
+                  Text(t.completedRemoveButton),
+                ],
+              ),
+            ),
+            FilledButton(
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.all(AppTheme.statusError),
+              ),
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+                if (!mounted) return;
+                await _deleteWithFile(service);
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(CustomIcons.FluentIcons.delete, size: 12, color: Colors.white),
+                  const SizedBox(width: 6),
+                  Text(t.completedDeleteButton),
+                ],
+              ),
+            ),
           ],
-        ),
-        content: Text(t.completedDeleteTaskMessage(widget.task.fileName)),
-        actions: [
-          Button(
-            onPressed: () => Navigator.pop(context),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(CustomIcons.FluentIcons.chrome_close, size: 12),
-                const SizedBox(width: 6),
-                Text(t.completedCancelButton),
-              ],
-            ),
-          ),
-          Button(
-            onPressed: () {
-              service.removeTask(widget.task.id);
-              Navigator.pop(context);
-              NotificationManager.of(this.context)?.showSuccess(
-                t.completedRemoveSuccessTitle,
-                message: t.completedRemoveSuccessMessage,
-              );
-            },
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(CustomIcons.FluentIcons.list, size: 12),
-                const SizedBox(width: 6),
-                Text(t.completedRemoveButton),
-              ],
-            ),
-          ),
-          FilledButton(
-            style: ButtonStyle(
-              backgroundColor: WidgetStateProperty.all(AppTheme.statusError),
-            ),
-            onPressed: () async {
-              Navigator.pop(context);
-              await _deleteWithFile(service);
-            },
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(CustomIcons.FluentIcons.delete, size: 12, color: Colors.white),
-                const SizedBox(width: 6),
-                Text(t.completedDeleteButton),
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
