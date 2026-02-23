@@ -3,14 +3,29 @@ import 'package:flutter/material.dart';
 import 'package:fluent_ui/fluent_ui.dart' as fluent;
 import 'package:flutter/services.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'package:provider/provider.dart';
 import '../widgets/popup_download_dialog.dart';
 import 'logger_service.dart';
+import 'localization_service.dart';
 import '../main.dart';
 
 // 弹窗管理服务 - 用于显示下载弹窗
 class PopupWindowService {
   static const platform = MethodChannel('com.hanabi.download/window');
   static final _logger = LoggerService();
+
+  static String _localeToTag(Locale locale) {
+    final buffer = StringBuffer(locale.languageCode);
+    final script = locale.scriptCode;
+    final country = locale.countryCode;
+    if (script != null && script.isNotEmpty) {
+      buffer.write('-$script');
+    }
+    if (country != null && country.isNotEmpty) {
+      buffer.write('-$country');
+    }
+    return buffer.toString();
+  }
 
   /// 获取 hanabi-popup.exe 的路径
   static String? _getPopupExePath() {
@@ -58,6 +73,15 @@ class PopupWindowService {
         }
         if (suggestedFilename != null && suggestedFilename.isNotEmpty) {
           args.addAll(['--filename', suggestedFilename]);
+        }
+
+        final ctx = navigatorKey.currentContext;
+        if (ctx != null) {
+          final locale = ctx.read<LocalizationService>().effectiveLocale;
+          final localeTag = _localeToTag(locale);
+          if (localeTag.isNotEmpty) {
+            args.addAll(['--locale', localeTag]);
+          }
         }
 
         await Process.start(popupExePath, args, mode: ProcessStartMode.detached);

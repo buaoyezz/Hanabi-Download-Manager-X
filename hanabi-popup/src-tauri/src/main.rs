@@ -18,9 +18,13 @@ struct Args {
     /// Save path (optional)
     #[arg(short, long)]
     path: Option<String>,
+
+    /// Locale tag (optional, e.g. en, zh, en-US)
+    #[arg(short, long)]
+    locale: Option<String>,
 }
 
 fn main() {
     let args = Args::parse();
-    app_lib::run(args.url, args.filename, args.path);
+    app_lib::run(args.url, args.filename, args.path, args.locale);
 }

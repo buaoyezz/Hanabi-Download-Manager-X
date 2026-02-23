@@ -10,6 +10,7 @@ pub struct AppState {
     pub initial_url: Mutex<Option<String>>,
     pub initial_filename: Mutex<Option<String>>,
     pub initial_path: Mutex<Option<String>>,
+    pub initial_locale: Mutex<Option<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -24,6 +25,7 @@ pub struct InitialData {
     pub url: Option<String>,
     pub filename: Option<String>,
     pub path: Option<String>,
+    pub locale: Option<String>,
 }
 
 // Get initial data from CLI arguments
@@ -33,6 +35,7 @@ fn get_initial_data(state: State<AppState>) -> InitialData {
         url: state.initial_url.lock().unwrap().clone(),
         filename: state.initial_filename.lock().unwrap().clone(),
         path: state.initial_path.lock().unwrap().clone(),
+        locale: state.initial_locale.lock().unwrap().clone(),
     }
 }
 
@@ -284,11 +287,17 @@ fn open_folder(path: String) -> Result<(), String> {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run(initial_url: Option<String>, initial_filename: Option<String>, initial_path: Option<String>) {
+pub fn run(
+    initial_url: Option<String>,
+    initial_filename: Option<String>,
+    initial_path: Option<String>,
+    initial_locale: Option<String>,
+) {
     let app_state = AppState {
         initial_url: Mutex::new(initial_url),
         initial_filename: Mutex::new(initial_filename),
         initial_path: Mutex::new(initial_path),
+        initial_locale: Mutex::new(initial_locale),
     };
 
     tauri::Builder::default()

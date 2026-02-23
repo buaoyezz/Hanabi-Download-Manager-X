@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import './App.css';
 import logoImg from './assets/logo.png';
+import { t, setLocale } from './i18n';
 
 // ============================================
 // Types for Progress Data
@@ -243,6 +244,7 @@ interface InitialData {
   url: string | null;
   filename: string | null;
   path: string | null;
+  locale?: string | null;
 }
 
 // WebSocket progress service URL
@@ -256,6 +258,7 @@ function App() {
   const [savePath, setSavePath] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [, setLocaleVersion] = useState(0);
 
   // Progress state
   const [viewState, setViewState] = useState<ViewState>('form');
@@ -269,6 +272,10 @@ function App() {
     (async () => {
       try {
         const data = await invoke<InitialData>('get_initial_data');
+        if (data.locale) {
+          setLocale(data.locale);
+          setLocaleVersion(v => v + 1);
+        }
         if (data.url) setUrl(data.url);
         if (data.filename) setFilename(data.filename);
         if (data.path) {
@@ -323,7 +330,7 @@ function App() {
             setViewState('completed');
           } else if (data.status === 'failed' || data.error) {
             setViewState('error');
-            setError(data.error || '下载失败');
+            setError(data.error || t('downloadFailed'));
           } else if (data.status === 'downloading' || data.status === 'pending') {
             setViewState('downloading');
           }
@@ -447,7 +454,7 @@ function App() {
       setIsSubmitting(false);
     } catch (e) {
       console.error('Failed to send download request:', e);
-      setError(typeof e === 'string' ? e : '无法连接到主程序，请确保 Hanabi 下载管理器正在运行');
+      setError(typeof e === 'string' ? e : t('errorConnectMainApp'));
       setIsSubmitting(false);
     }
   }, [url, filename, savePath, isSubmitting]);
@@ -459,7 +466,7 @@ function App() {
         directory: true,
         multiple: false,
         defaultPath: savePath || undefined,
-        title: '选择保存位置',
+        title: t('selectSavePathTitle'),
       });
       if (selected && typeof selected === 'string') {
         setSavePath(selected);
@@ -564,10 +571,10 @@ function App() {
 
       {/* 下载链接 */}
       <div className="input-group">
-        <label className="input-label">下载链接</label>
+        <label className="input-label">{t('labelDownloadLink')}</label>
         <input
           className="input"
-          placeholder="输入或粘贴下载链接..."
+          placeholder={t('placeholderDownloadLink')}
           value={url}
           onChange={e => {
             setUrl(e.target.value);
@@ -580,10 +587,10 @@ function App() {
 
       {/* 文件名 */}
       <div className="input-group">
-        <label className="input-label">文件名</label>
+        <label className="input-label">{t('labelFileName')}</label>
         <input
           className="input"
-          placeholder="文件名将自动解析..."
+          placeholder={t('placeholderFileName')}
           value={filename}
           onChange={e => {
             setFilename(e.target.value);
@@ -595,7 +602,7 @@ function App() {
 
       {/* 保存路径 */}
       <div className="input-group">
-        <label className="input-label">保存到</label>
+        <label className="input-label">{t('labelSaveTo')}</label>
         <div className="input-row">
           <input
             className="input"
@@ -606,7 +613,7 @@ function App() {
           <button
             className="icon-btn"
             onClick={handleSelectFolder}
-            aria-label="选择文件夹"
+            aria-label={t('ariaSelectFolder')}
             disabled={isSubmitting}
           >
             {Icons.folder}
@@ -628,7 +635,7 @@ function App() {
           onClick={handleClose}
           disabled={isSubmitting}
         >
-          取消
+          {t('actionCancel')}
         </button>
         <button
           className="btn btn-primary"
@@ -638,12 +645,12 @@ function App() {
           {isSubmitting ? (
             <>
               <span className="btn-spinner">{Icons.spinner}</span>
-              <span>发送中...</span>
+              <span>{t('actionSending')}</span>
             </>
           ) : (
             <>
               {Icons.download}
-              <span>开始下载</span>
+              <span>{t('actionStartDownload')}</span>
             </>
           )}
         </button>
@@ -671,19 +678,19 @@ function App() {
       <div className="stats-row">
         <div className="stat-box">
           <div className="stat-value highlight">{formatSpeed(displaySpeed)}</div>
-          <div className="stat-label">速度</div>
+          <div className="stat-label">{t('statSpeed')}</div>
         </div>
         <div className="stat-box">
           <div className="stat-value">{formatBytes(displayDownloaded)}</div>
-          <div className="stat-label">已下载</div>
+          <div className="stat-label">{t('statDownloaded')}</div>
         </div>
         <div className="stat-box">
           <div className="stat-value">{formatBytes(displayTotal)}</div>
-          <div className="stat-label">总大小</div>
+          <div className="stat-label">{t('statTotal')}</div>
         </div>
         <div className="stat-box">
           <div className="stat-value">{formatTime(displayRemaining)}</div>
-          <div className="stat-label">剩余</div>
+          <div className="stat-label">{t('statRemaining')}</div>
         </div>
       </div>
 
@@ -692,7 +699,7 @@ function App() {
         <div className="progress-header">
           <div className="progress-status">
             <span className={`status-dot ${isPaused ? 'paused' : 'downloading'}`}></span>
-            <span>{isPaused ? '已暂停' : '下载中...'}</span>
+            <span>{isPaused ? t('statusPaused') : t('statusDownloading')}</span>
           </div>
           <span className="progress-percent">{(displayProgress * 100).toFixed(1)}%</span>
         </div>
@@ -712,7 +719,7 @@ function App() {
               <div
                 key={idx}
                 className={`segment ${seg.status}`}
-                title={`分段 ${idx + 1}: ${(seg.progress * 100).toFixed(0)}%`}
+                title={t('segmentTooltip', { index: idx + 1, percent: (seg.progress * 100).toFixed(0) })}
               >
                 <div
                   className="segment-fill"
@@ -722,9 +729,9 @@ function App() {
             ))}
           </div>
           <div className="segment-info">
-            <span className="segment-text">{displaySegments.length} 个分段</span>
+            <span className="segment-text">{t('segmentCount', { count: displaySegments.length })}</span>
             <span className="segment-text">
-              {displaySegments.filter(s => s.status === 'completed').length} 已完成
+              {t('segmentCompletedCount', { count: displaySegments.filter(s => s.status === 'completed').length })}
             </span>
           </div>
         </div>
@@ -734,20 +741,20 @@ function App() {
       <div className="actions">
         <button className="btn btn-ghost" onClick={handleOpenMainApp}>
           {Icons.openFolder}
-          <span>打开主程序</span>
+          <span>{t('actionOpenMainApp')}</span>
         </button>
         <button className="btn btn-ghost" onClick={handleClose}>
-          后台下载
+          {t('actionBackgroundDownload')}
         </button>
         {isPaused ? (
           <button className="btn btn-primary" onClick={handleResume}>
             {Icons.play}
-            <span>继续</span>
+            <span>{t('actionResume')}</span>
           </button>
         ) : (
           <button className="btn btn-ghost" onClick={handlePause}>
             {Icons.pause}
-            <span>暂停</span>
+            <span>{t('actionPause')}</span>
           </button>
         )}
       </div>
@@ -768,7 +775,7 @@ function App() {
         <div className="completed-info">
           <div className="completed-title-row">
             <span className="completed-check">{Icons.check}</span>
-            <span className="completed-title">下载完成</span>
+            <span className="completed-title">{t('completedTitle')}</span>
           </div>
           <div className="completed-filename">{progressData?.filename || filename}</div>
         </div>
@@ -778,26 +785,26 @@ function App() {
       <div className="completed-stats">
         <div className="completed-stat">
           <div className="completed-stat-value">{formatBytes(displayTotal)}</div>
-          <div className="completed-stat-label">文件大小</div>
+          <div className="completed-stat-label">{t('completedFileSize')}</div>
         </div>
         <div className="completed-stat">
           <div className="completed-stat-value">{savePath}</div>
-          <div className="completed-stat-label">保存位置</div>
+          <div className="completed-stat-label">{t('completedSavePath')}</div>
         </div>
       </div>
 
       {/* 操作按钮 */}
       <div className="actions">
         <button className="btn btn-ghost" onClick={handleClose}>
-          关闭
+          {t('actionClose')}
         </button>
         <button className="btn btn-ghost" onClick={handleOpenFolder}>
           {Icons.openFolder}
-          <span>打开文件夹</span>
+          <span>{t('actionOpenFolder')}</span>
         </button>
         <button className="btn btn-success" onClick={handleOpenFile}>
           {Icons.openFile}
-          <span>打开文件</span>
+          <span>{t('actionOpenFile')}</span>
         </button>
       </div>
     </div>
@@ -814,24 +821,24 @@ function App() {
         <div className="file-details">
           <div className="file-name">{progressData?.filename || filename}</div>
           <div className="file-url" style={{ color: 'var(--system-fill-critical)' }}>
-            下载失败
+            {t('downloadFailed')}
           </div>
         </div>
       </div>
 
       {/* 错误信息 */}
       <div className="error-message">
-        {error || progressData?.error || '未知错误'}
+        {error || progressData?.error || t('errorUnknown')}
       </div>
 
       {/* 操作按钮 */}
       <div className="actions">
         <button className="btn btn-ghost" onClick={handleClose}>
-          关闭
+          {t('actionClose')}
         </button>
         <button className="btn btn-primary" onClick={handleRetry}>
           {Icons.retry}
-          <span>重试</span>
+          <span>{t('actionRetry')}</span>
         </button>
       </div>
     </div>
@@ -840,7 +847,7 @@ function App() {
   // 生成标题栏文字
   const getTitleText = () => {
     if (viewState === 'form') {
-      return 'Hanabi Download Pop';
+      return t('appTitle');
     }
     if (viewState === 'downloading' || viewState === 'error') {
       const name = progressData?.filename || filename;
@@ -850,9 +857,9 @@ function App() {
       return `${shortName} | ${speed} | ${percent}`;
     }
     if (viewState === 'completed') {
-      return '下载完成';
+      return t('titleCompleted');
     }
-    return 'Hanabi Download Pop';
+    return t('appTitle');
   };
 
   return (
@@ -864,10 +871,10 @@ function App() {
           <span className="titlebar-text">{getTitleText()}</span>
         </div>
         <div className="titlebar-btns">
-          <button className="titlebar-btn" onClick={handleMinimize} aria-label="最小化">
+          <button className="titlebar-btn" onClick={handleMinimize} aria-label={t('titlebarMinimize')}>
             {Icons.minimize}
           </button>
-          <button className="titlebar-btn close" onClick={handleClose} aria-label="关闭">
+          <button className="titlebar-btn close" onClick={handleClose} aria-label={t('titlebarClose')}>
             {Icons.close}
           </button>
         </div>
