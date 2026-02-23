@@ -9,9 +9,7 @@ cd ..
 
 :: Tauri 弹窗编译
 echo 编译 Hanabi Popup...
-cd hanabi-popup
-call npm run tauri:build
-cd ..
+call build_popup.bat --build-only --no-pause
 
 :: Flutter 编译
 flutter build windows --release

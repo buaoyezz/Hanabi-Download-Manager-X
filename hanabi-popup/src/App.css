@@ -5,9 +5,9 @@
 
 :root {
   /* Fluent 2 Color Tokens - Dark Theme */
-  --fill-color-accent-default: #60cdff;
-  --fill-color-accent-secondary: #60cdff99;
-  --fill-color-accent-tertiary: #60cdff80;
+  --fill-color-accent-default: #5fd0ff;
+  --fill-color-accent-secondary: #5fd0ffb3;
+  --fill-color-accent-tertiary: #5fd0ff80;
   --fill-color-accent-disabled: #ffffff28;
 
   --fill-color-text-primary: #ffffff;
@@ -16,26 +16,26 @@
   --fill-color-text-disabled: #ffffff5c;
   --fill-color-accent-text: #99ebff;
 
-  --fill-color-control-default: #ffffff0f;
-  --fill-color-control-secondary: #ffffff14;
-  --fill-color-control-tertiary: #ffffff08;
-  --fill-color-control-input-active: #1e1e1e;
+  --fill-color-control-default: #ffffff12;
+  --fill-color-control-secondary: #ffffff18;
+  --fill-color-control-tertiary: #ffffff0a;
+  --fill-color-control-input-active: #1a1d22;
 
   --fill-color-subtle-transparent: transparent;
   --fill-color-subtle-secondary: #ffffff0f;
   --fill-color-subtle-tertiary: #ffffff08;
 
-  --background-fill-mica-base: rgba(32, 32, 32, 0.96);
-  --background-fill-acrylic-default: rgba(44, 44, 44, 0.90);
-  --background-fill-acrylic-base: rgba(32, 32, 32, 0.80);
-  --background-fill-layer-default: rgba(58, 58, 58, 0.30);
-  --background-fill-layer-alt: rgba(255, 255, 255, 0.05);
-  --background-fill-solid-base: #202020;
-  --background-fill-solid-secondary: #1c1c1c;
-  --background-fill-solid-tertiary: #282828;
+  --background-fill-mica-base: #1f2024;
+  --background-fill-acrylic-default: #24262b;
+  --background-fill-acrylic-base: #1f2024;
+  --background-fill-layer-default: #26282e;
+  --background-fill-layer-alt: #2b2e35;
+  --background-fill-solid-base: #1f2024;
+  --background-fill-solid-secondary: #1c1e22;
+  --background-fill-solid-tertiary: #26282e;
 
-  --stroke-color-control-default: #ffffff14;
-  --stroke-color-control-secondary: #ffffff12;
+  --stroke-color-control-default: #ffffff18;
+  --stroke-color-control-secondary: #ffffff14;
   --stroke-color-control-strong: #ffffff9a;
   --stroke-color-divider: #ffffff14;
   --stroke-color-focus-outer: #ffffff;
@@ -46,6 +46,13 @@
   --system-fill-caution: #fce100;
   --system-fill-critical: #ff99a4;
   --system-fill-attention: #60cdff;
+
+  /* Minimal Solid Surface Tokens */
+  --surface-0: #1f2024;
+  --surface-1: #24262b;
+  --surface-2: #2a2d34;
+  --surface-3: #2f333b;
+  --surface-border: rgba(255, 255, 255, 0.08);
 
   /* Elevation & Shadows */
   --elevation-shadow-card: 0 2px 4px rgba(0, 0, 0, 0.14), 0 0 2px rgba(0, 0, 0, 0.12);
@@ -129,8 +136,8 @@ body {
   font-family: var(--font-family-text);
   font-size: var(--font-size-body);
   color: var(--fill-color-text-primary);
-  /* 使用半透明背景作为 Mica 效果的回退方案 */
-  background: rgba(32, 32, 32, 0.85);
+  /* Minimal solid background */
+  background: var(--surface-0);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   user-select: none;
@@ -164,12 +171,24 @@ body {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--background-fill-mica-base);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--stroke-color-surface);
-  box-shadow: var(--elevation-shadow-dialog);
+  position: relative;
+  isolation: isolate;
+  background: var(--surface-1);
+  border-radius: 12px;
+  border: 1px solid var(--surface-border);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
   overflow: hidden;
   backdrop-filter: blur(60px) saturate(125%);
+}
+
+.app::before {
+  content: none;
+}
+
+.content,
+.titlebar {
+  position: relative;
+  z-index: 1;
 }
 
 /* ============================================
@@ -181,7 +200,8 @@ body {
   justify-content: space-between;
   height: 32px;
   padding: 0 var(--spacing-sm) 0 var(--spacing-md);
-  background: transparent;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--surface-border);
   -webkit-app-region: drag;
   flex-shrink: 0;
 }
@@ -232,12 +252,12 @@ body {
 }
 
 .titlebar-btn:hover {
-  background: var(--fill-color-subtle-secondary);
+  background: rgba(255, 255, 255, 0.06);
   color: var(--fill-color-text-primary);
 }
 
 .titlebar-btn:active {
-  background: var(--fill-color-subtle-tertiary);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .titlebar-btn.close:hover {
@@ -277,9 +297,10 @@ body {
   align-items: center;
   gap: var(--spacing-md);
   padding: var(--spacing-md);
-  background: var(--background-fill-layer-default);
+  background: var(--surface-2);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--stroke-color-control-default);
+  border: 1px solid var(--surface-border);
+  box-shadow: none;
   margin-bottom: var(--spacing-xs);
 }
 
@@ -326,11 +347,12 @@ body {
 .error-message {
   padding: var(--spacing-sm) var(--spacing-md);
   background: rgba(255, 153, 164, 0.12);
-  border: 1px solid rgba(255, 153, 164, 0.3);
+  border: 1px solid rgba(255, 153, 164, 0.35);
   border-radius: var(--radius-sm);
   color: var(--system-fill-critical);
   font-size: var(--font-size-caption);
   line-height: var(--line-height-caption);
+  box-shadow: none;
 }
 
 /* Button Spinner */
@@ -360,7 +382,7 @@ body {
 }
 
 .btn-ghost:disabled:hover {
-  background: var(--fill-color-control-default);
+  background: var(--surface-2);
 }
 
 @keyframes fadeSlideIn {
@@ -397,25 +419,25 @@ body {
   flex: 1;
   height: 32px;
   padding: 0 var(--spacing-md);
-  background: var(--fill-color-control-default);
-  border: 1px solid var(--stroke-color-control-default);
-  border-bottom: 1px solid var(--stroke-color-control-strong);
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
   color: var(--fill-color-text-primary);
   font-family: var(--font-family-text);
   font-size: var(--font-size-body);
+  box-shadow: none;
   transition: background var(--duration-fast) var(--easing-standard),
               border-color var(--duration-fast) var(--easing-standard);
 }
 
 .input:hover {
-  background: var(--fill-color-control-secondary);
+  background: var(--surface-2);
 }
 
 .input:focus {
-  background: var(--fill-color-control-input-active);
-  border-color: var(--stroke-color-control-default);
-  border-bottom: 2px solid var(--fill-color-accent-default);
+  background: var(--surface-2);
+  border-color: rgba(95, 208, 255, 0.6);
+  box-shadow: 0 0 0 2px rgba(95, 208, 255, 0.25);
 }
 
 .input::placeholder {
@@ -433,21 +455,22 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--fill-color-control-default);
-  border: 1px solid var(--stroke-color-control-default);
+  background: var(--surface-1);
+  border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
   color: var(--fill-color-text-secondary);
   cursor: pointer;
+  box-shadow: none;
   transition: all var(--duration-fast) var(--easing-standard);
 }
 
 .icon-btn:hover {
-  background: var(--fill-color-control-secondary);
+  background: var(--surface-2);
   color: var(--fill-color-text-primary);
 }
 
 .icon-btn:active {
-  background: var(--fill-color-control-tertiary);
+  background: var(--surface-1);
   transform: scale(0.96);
 }
 
@@ -473,9 +496,10 @@ body {
   align-items: center;
   gap: var(--spacing-md);
   padding: var(--spacing-md);
-  background: var(--background-fill-layer-default);
+  background: var(--surface-2);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--stroke-color-control-default);
+  border: 1px solid var(--surface-border);
+  box-shadow: none;
 }
 
 .file-icon {
@@ -487,6 +511,7 @@ body {
   border-radius: var(--radius-md);
   flex-shrink: 0;
   transition: transform var(--duration-fast) var(--easing-standard);
+  box-shadow: none;
 }
 
 .file-icon:hover {
@@ -533,15 +558,16 @@ body {
 
 .stat-box {
   padding: var(--spacing-sm) var(--spacing-md);
-  background: var(--background-fill-layer-default);
+  background: var(--surface-2);
   border-radius: var(--radius-md);
-  border: 1px solid var(--stroke-color-control-default);
+  border: 1px solid var(--surface-border);
+  box-shadow: none;
   text-align: center;
   transition: background var(--duration-fast) var(--easing-standard);
 }
 
 .stat-box:hover {
-  background: var(--background-fill-layer-alt);
+  background: var(--surface-3);
 }
 
 .stat-value {
@@ -559,8 +585,7 @@ body {
   font-size: 10px;
   color: var(--fill-color-text-tertiary);
   margin-top: var(--spacing-xxs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
 }
 
 /* ============================================
@@ -630,11 +655,12 @@ body {
 
 /* Main Progress Bar - Fluent 2 Style */
 .progress-bar-wrap {
-  height: 4px;
-  background: var(--fill-color-control-default);
+  height: 6px;
+  background: var(--surface-2);
   border-radius: var(--radius-full);
   overflow: hidden;
   position: relative;
+  box-shadow: none;
 }
 
 .progress-bar-fill {
@@ -646,6 +672,7 @@ body {
   border-radius: var(--radius-full);
   transition: width var(--duration-normal) var(--easing-standard);
   position: relative;
+  box-shadow: none;
 }
 
 .progress-bar-fill::after {
@@ -672,18 +699,19 @@ body {
 /* Segment Progress Bar */
 .segment-bar {
   height: 20px;
-  background: var(--background-fill-layer-default);
+  background: var(--surface-2);
   border-radius: var(--radius-sm);
   display: flex;
   overflow: hidden;
-  border: 1px solid var(--stroke-color-control-default);
+  border: 1px solid var(--surface-border);
+  box-shadow: none;
   gap: 1px;
 }
 
 .segment {
   flex: 1;
   position: relative;
-  background: var(--fill-color-control-tertiary);
+  background: var(--surface-1);
   overflow: hidden;
 }
 
@@ -764,12 +792,16 @@ body {
   transition: all var(--duration-fast) var(--easing-standard);
   position: relative;
   overflow: hidden;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-2);
+  box-shadow: none;
 }
 
 /* 按钮光泽效果已移除，保持简洁的 Fluent 2 风格 */
 
 .btn:active {
   transform: scale(0.98);
+  box-shadow: none;
 }
 
 .btn svg {
@@ -780,25 +812,23 @@ body {
 
 /* Ghost Button */
 .btn-ghost {
-  background: var(--fill-color-control-default);
-  border: 1px solid var(--stroke-color-control-default);
   color: var(--fill-color-text-primary);
 }
 
 .btn-ghost:hover {
-  background: var(--fill-color-control-secondary);
-  border-color: var(--stroke-color-control-secondary);
+  background: var(--surface-3);
 }
 
 .btn-ghost:active {
-  background: var(--fill-color-control-tertiary);
+  background: var(--surface-2);
 }
 
 /* Primary Button - Accent */
 .btn-primary {
   background: var(--fill-color-accent-default);
-  border: none;
+  border: 1px solid rgba(95, 208, 255, 0.5);
   color: #000000;
+  box-shadow: none;
 }
 
 .btn-primary:hover {
@@ -820,8 +850,9 @@ body {
 /* Success Button */
 .btn-success {
   background: var(--system-fill-success);
-  border: none;
+  border: 1px solid rgba(108, 203, 95, 0.45);
   color: #000000;
+  box-shadow: none;
 }
 
 .btn-success:hover {
@@ -848,9 +879,10 @@ body {
   align-items: center;
   gap: var(--spacing-md);
   padding: var(--spacing-md);
-  background: var(--background-fill-layer-default);
+  background: var(--surface-2);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--stroke-color-control-default);
+  border: 1px solid var(--surface-border);
+  box-shadow: none;
 }
 
 .completed-icon-wrap {
@@ -931,14 +963,15 @@ body {
 .completed-stat {
   flex: 1;
   padding: var(--spacing-sm) var(--spacing-md);
-  background: var(--background-fill-layer-default);
+  background: var(--surface-2);
   border-radius: var(--radius-md);
-  border: 1px solid var(--stroke-color-control-default);
+  border: 1px solid var(--surface-border);
+  box-shadow: none;
   transition: background var(--duration-fast) var(--easing-standard);
 }
 
 .completed-stat:hover {
-  background: var(--background-fill-layer-alt);
+  background: var(--surface-3);
 }
 
 .completed-stat-value {
@@ -952,8 +985,7 @@ body {
   font-size: 10px;
   color: var(--fill-color-text-tertiary);
   margin-top: var(--spacing-xxs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
 }
 
 /* ============================================

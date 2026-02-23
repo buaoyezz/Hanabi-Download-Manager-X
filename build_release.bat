@@ -53,15 +53,12 @@ echo.
 :: ========== Tauri Popup Build ==========
 if %SKIP_POPUP%==0 (
     echo %ESC%[97m[2/4] Building Hanabi Popup...%ESC%[0m
-    cd hanabi-popup
-    call npm run tauri build
+    call build_popup.bat --build-only --no-pause
     if errorlevel 1 (
         echo %ESC%[91m[ERROR] Popup build failed!%ESC%[0m
-        cd ..
         pause
         exit /b 1
     )
-    cd ..
     echo %ESC%[93m[OK] Popup build done%ESC%[0m
 ) else (
     echo %ESC%[90m[SKIP] Popup build%ESC%[0m
