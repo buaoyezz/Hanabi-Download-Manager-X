@@ -37,6 +37,7 @@ import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
 import 'widgets/animated_notifications.dart';
 import 'utils/fluent_icons.dart';
+import 'utils/constants.dart';
 
 final systemTrayService = SystemTrayService();
 final navigatorKey = GlobalKey<NavigatorState>();
@@ -192,6 +193,7 @@ void main(List<String> args) async {
 
   await LogCapture.runZoned(appLogger, () async {
     WidgetsFlutterBinding.ensureInitialized();
+    await AppConstants.initialize();
     // 以下是主窗口的初始化代码
 
     // 捕获 Flutter 框架错误，防止 Windows 消息队列错误导致崩溃
