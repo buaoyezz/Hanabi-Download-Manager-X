@@ -527,46 +527,53 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           // 中间：Logo + 标题 + 可拖动区域
           Expanded(
             child: MoveWindow(
-              child: Row(
-                children: [
-                  SizedBox(width: logoSpacing),
-                  Container(
-                    width: logoSize,
-                    height: logoSize,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(4),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.accentPrimary.withValues(alpha: 0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final showLogo = constraints.maxWidth >= 140;
+                  return Row(
+                    children: [
+                      if (showLogo) ...[
+                        SizedBox(width: logoSpacing),
+                        Container(
+                          width: logoSize,
+                          height: logoSize,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(4),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.accentPrimary.withValues(alpha: 0.2),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: Image.asset(
+                              'assets/logo/logo.png',
+                              width: logoSize,
+                              height: logoSize,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
                         ),
+                        SizedBox(width: logoSpacing),
                       ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: Image.asset(
-                        'assets/logo/logo.png',
-                        width: logoSize,
-                        height: logoSize,
-                        fit: BoxFit.cover,
+                      Expanded(
+                        child: Text(
+                          AppLocalizations.of(context)!.appTitle,
+                          style: FluentTheme.of(context).typography.caption?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            letterSpacing: 0.3,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
                       ),
-                    ),
-                  ),
-                  SizedBox(width: logoSpacing),
-                  Expanded(
-                    child: Text(
-                      AppLocalizations.of(context)!.appTitle,
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                        letterSpacing: 0.3,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                ],
+                    ],
+                  );
+                },
               ),
             ),
           ),
