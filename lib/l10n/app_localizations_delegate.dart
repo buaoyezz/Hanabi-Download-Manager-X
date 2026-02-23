@@ -3469,4 +3469,172 @@ class PluginAppLocalizations extends AppLocalizations {
   @override
   String get performanceMonitorModePerformance => _string('performanceMonitorModePerformance', _fallback.performanceMonitorModePerformance);
 
+  @override
+  String get tagActionLabel => _string('tagActionLabel', _fallback.tagActionLabel);
+
+  @override
+  String get tagEditTitle => _string('tagEditTitle', _fallback.tagEditTitle);
+
+  @override
+  String get tagEditSubtitle => _string('tagEditSubtitle', _fallback.tagEditSubtitle);
+
+  @override
+  String get tagEditPlaceholder => _string('tagEditPlaceholder', _fallback.tagEditPlaceholder);
+
+  @override
+  String get tagFilterTitle => _string('tagFilterTitle', _fallback.tagFilterTitle);
+
+  @override
+  String get tagFilterEmpty => _string('tagFilterEmpty', _fallback.tagFilterEmpty);
+
+  @override
+  String get tagFilterSubtitle => _string('tagFilterSubtitle', _fallback.tagFilterSubtitle);
+
+  @override
+  String get tagFilterClearButton => _string('tagFilterClearButton', _fallback.tagFilterClearButton);
+
+  @override
+  String completedBatchActionsLabel(Object count) => _format('completedBatchActionsLabel', {'count': count}, _fallback.completedBatchActionsLabel(count));
+
+  @override
+  String get completedBatchRenameButton => _string('completedBatchRenameButton', _fallback.completedBatchRenameButton);
+
+  @override
+  String get completedBatchMoveButton => _string('completedBatchMoveButton', _fallback.completedBatchMoveButton);
+
+  @override
+  String get completedBatchMoveUnavailableTitle => _string('completedBatchMoveUnavailableTitle', _fallback.completedBatchMoveUnavailableTitle);
+
+  @override
+  String get completedBatchMoveUnavailableMessage => _string('completedBatchMoveUnavailableMessage', _fallback.completedBatchMoveUnavailableMessage);
+
+  @override
+  String get completedBatchMoveSuccessTitle => _string('completedBatchMoveSuccessTitle', _fallback.completedBatchMoveSuccessTitle);
+
+  @override
+  String completedBatchMoveSuccessMessage(Object count) => _format('completedBatchMoveSuccessMessage', {'count': count}, _fallback.completedBatchMoveSuccessMessage(count));
+
+  @override
+  String completedBatchMovePartialMessage(Object success, Object failed) => _format('completedBatchMovePartialMessage', {'success': success, 'failed': failed}, _fallback.completedBatchMovePartialMessage(success, failed));
+
+  @override
+  String get completedBatchRenameUnavailableTitle => _string('completedBatchRenameUnavailableTitle', _fallback.completedBatchRenameUnavailableTitle);
+
+  @override
+  String get completedBatchRenameUnavailableMessage => _string('completedBatchRenameUnavailableMessage', _fallback.completedBatchRenameUnavailableMessage);
+
+  @override
+  String get completedBatchRenameTitle => _string('completedBatchRenameTitle', _fallback.completedBatchRenameTitle);
+
+  @override
+  String get completedBatchRenameHint => _string('completedBatchRenameHint', _fallback.completedBatchRenameHint);
+
+  @override
+  String get completedBatchRenamePrefixLabel => _string('completedBatchRenamePrefixLabel', _fallback.completedBatchRenamePrefixLabel);
+
+  @override
+  String get completedBatchRenamePrefixPlaceholder => _string('completedBatchRenamePrefixPlaceholder', _fallback.completedBatchRenamePrefixPlaceholder);
+
+  @override
+  String get completedBatchRenameSuffixLabel => _string('completedBatchRenameSuffixLabel', _fallback.completedBatchRenameSuffixLabel);
+
+  @override
+  String get completedBatchRenameSuffixPlaceholder => _string('completedBatchRenameSuffixPlaceholder', _fallback.completedBatchRenameSuffixPlaceholder);
+
+  @override
+  String get completedBatchRenameEmptyWarningMessage => _string('completedBatchRenameEmptyWarningMessage', _fallback.completedBatchRenameEmptyWarningMessage);
+
+  @override
+  String get completedBatchRenameSuccessTitle => _string('completedBatchRenameSuccessTitle', _fallback.completedBatchRenameSuccessTitle);
+
+  @override
+  String completedBatchRenameSuccessMessage(Object count) => _format('completedBatchRenameSuccessMessage', {'count': count}, _fallback.completedBatchRenameSuccessMessage(count));
+
+  @override
+  String completedBatchRenamePartialMessage(Object success, Object failed) => _format('completedBatchRenamePartialMessage', {'success': success, 'failed': failed}, _fallback.completedBatchRenamePartialMessage(success, failed));
+
+  @override
+  String get settingsClipboardListenerTitle => _string('settingsClipboardListenerTitle', _fallback.settingsClipboardListenerTitle);
+
+  @override
+  String get settingsClipboardListenerSubtitle => _string('settingsClipboardListenerSubtitle', _fallback.settingsClipboardListenerSubtitle);
+
+  @override
+  String get settingsClipboardListenerEnabledTitle => _string('settingsClipboardListenerEnabledTitle', _fallback.settingsClipboardListenerEnabledTitle);
+
+  @override
+  String get settingsClipboardListenerEnabledMessage => _string('settingsClipboardListenerEnabledMessage', _fallback.settingsClipboardListenerEnabledMessage);
+
+  @override
+  String get settingsClipboardListenerDisabledTitle => _string('settingsClipboardListenerDisabledTitle', _fallback.settingsClipboardListenerDisabledTitle);
+
+  @override
+  String get settingsClipboardListenerDisabledMessage => _string('settingsClipboardListenerDisabledMessage', _fallback.settingsClipboardListenerDisabledMessage);
+
+  @override
+  String get downloadDuplicateTitle => _string('downloadDuplicateTitle', _fallback.downloadDuplicateTitle);
+
+  @override
+  String downloadDuplicateMessage(Object fileName, Object status) => _format('downloadDuplicateMessage', {'fileName': fileName, 'status': status}, _fallback.downloadDuplicateMessage(fileName, status));
+
+  @override
+  String get downloadDuplicateUseExistingButton => _string('downloadDuplicateUseExistingButton', _fallback.downloadDuplicateUseExistingButton);
+
+  @override
+  String get downloadDuplicateAddNewButton => _string('downloadDuplicateAddNewButton', _fallback.downloadDuplicateAddNewButton);
+
+  @override
+  String get downloadDuplicateCancelButton => _string('downloadDuplicateCancelButton', _fallback.downloadDuplicateCancelButton);
+
+  @override
+  String get downloadFailureHintAuth => _string('downloadFailureHintAuth', _fallback.downloadFailureHintAuth);
+
+  @override
+  String get downloadFailureHintNotFound => _string('downloadFailureHintNotFound', _fallback.downloadFailureHintNotFound);
+
+  @override
+  String get downloadFailureHintRange => _string('downloadFailureHintRange', _fallback.downloadFailureHintRange);
+
+  @override
+  String get downloadFailureHintRateLimit => _string('downloadFailureHintRateLimit', _fallback.downloadFailureHintRateLimit);
+
+  @override
+  String get downloadFailureHintServer => _string('downloadFailureHintServer', _fallback.downloadFailureHintServer);
+
+  @override
+  String get downloadFailureHintHttp => _string('downloadFailureHintHttp', _fallback.downloadFailureHintHttp);
+
+  @override
+  String get downloadFailureHintTimeout => _string('downloadFailureHintTimeout', _fallback.downloadFailureHintTimeout);
+
+  @override
+  String get downloadFailureHintConnection => _string('downloadFailureHintConnection', _fallback.downloadFailureHintConnection);
+
+  @override
+  String get downloadFailureHintDns => _string('downloadFailureHintDns', _fallback.downloadFailureHintDns);
+
+  @override
+  String get downloadFailureHintSsl => _string('downloadFailureHintSsl', _fallback.downloadFailureHintSsl);
+
+  @override
+  String get downloadFailureHintChecksum => _string('downloadFailureHintChecksum', _fallback.downloadFailureHintChecksum);
+
+  @override
+  String get downloadFailureHintDisk => _string('downloadFailureHintDisk', _fallback.downloadFailureHintDisk);
+
+  @override
+  String get settingsConflictStrategyTitle => _string('settingsConflictStrategyTitle', _fallback.settingsConflictStrategyTitle);
+
+  @override
+  String get settingsConflictStrategySubtitle => _string('settingsConflictStrategySubtitle', _fallback.settingsConflictStrategySubtitle);
+
+  @override
+  String get settingsConflictStrategyIncrement => _string('settingsConflictStrategyIncrement', _fallback.settingsConflictStrategyIncrement);
+
+  @override
+  String get settingsConflictStrategyTimestamp => _string('settingsConflictStrategyTimestamp', _fallback.settingsConflictStrategyTimestamp);
+
+  @override
+  String get settingsConflictStrategyOverwrite => _string('settingsConflictStrategyOverwrite', _fallback.settingsConflictStrategyOverwrite);
+
 }

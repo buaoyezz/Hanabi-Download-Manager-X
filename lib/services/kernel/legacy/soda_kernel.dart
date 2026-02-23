@@ -314,6 +314,18 @@ class SodaKernel implements KernelInterface {
   }
 
   @override
+  Future<bool> renameTask(String taskId, String newFileName) async {
+    // Legacy kernel does not support rename yet.
+    return false;
+  }
+
+  @override
+  Future<bool> moveTask(String taskId, String targetDir) async {
+    // Legacy kernel does not support move yet.
+    return false;
+  }
+
+  @override
   Future<DownloadConfig?> getConfig() async {
     if (!_isRunning) return null;
 

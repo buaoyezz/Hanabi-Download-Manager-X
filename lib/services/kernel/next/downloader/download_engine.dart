@@ -8,6 +8,9 @@ import 'http_client.dart';
 import '../../../app_logger_service.dart';
 
 class DownloadEngine {
+  static const String _rangeNotSupportedError = 'RANGE_NOT_SUPPORTED';
+  static const String _rangeNotSatisfiableError = 'RANGE_NOT_SATISFIABLE';
+
   final NsfxConfig config;
   final NsfxHttpClient httpClient;
   final void Function(Task) onProgress;
@@ -261,6 +264,20 @@ class DownloadEngine {
     }
     onProgress(task);
 
+    if (restoredBytes > 0) {
+      final supportsResume = await _probeResumeRangeSupport(task, headers, fileSize);
+      if (!supportsResume) {
+        await _fallbackToSingleThread(
+          task,
+          headers,
+          fileSize,
+          tempDir,
+          reason: 'range not supported',
+        );
+        return;
+      }
+    }
+
     // 进度更新定时器（仅用于速度计算和 ETA，不再读取文件）
     final progressTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (task.status == TaskStatus.downloading) {
@@ -352,6 +369,19 @@ class DownloadEngine {
 
         // 等待所有分段完成
         await Future.wait(futures);
+
+        if (_shouldFallbackToSingleThread(task)) {
+          progressTimer.cancel();
+          dynamicSegmentTimer.cancel();
+          await _fallbackToSingleThread(
+            task,
+            headers,
+            fileSize,
+            tempDir,
+            reason: 'resume failed',
+          );
+          return;
+        }
 
         // 检查是否全部完成
         final allCompleted = task.segments.every((s) => s.status == SegmentStatus.completed);
@@ -693,9 +723,21 @@ class DownloadEngine {
         }
 
       } catch (e) {
+        final errorText = e.toString();
+        if (errorText.contains(_rangeNotSupportedError)) {
+          segment.lastError = _rangeNotSupportedError;
+          segment.status = SegmentStatus.failed;
+          return false;
+        }
+        if (errorText.contains(_rangeNotSatisfiableError) || errorText.contains('HTTP 416')) {
+          segment.lastError = _rangeNotSatisfiableError;
+          segment.status = SegmentStatus.failed;
+          return false;
+        }
+
         retryCount++;
         segment.retryCount = retryCount;
-        segment.lastError = e.toString();
+        segment.lastError = errorText;
 
         // 只在每10次重试时打印日志，避免日志刷屏
         if (retryCount % 10 == 1 || retryCount >= config.maxRetries) {
@@ -763,6 +805,28 @@ class DownloadEngine {
       request.headers.set('Range', 'bytes=${params.startByte}-${params.endByte - 1}');
 
       final response = await request.close();
+
+      if (response.statusCode == 200 && params.startByte > 0) {
+        await response.drain();
+        client.close();
+        params.sendPort.send(_IsolateResult(
+          success: false,
+          error: _rangeNotSupportedError,
+          downloadedBytes: params.alreadyDownloaded,
+        ));
+        return;
+      }
+
+      if (response.statusCode == 416) {
+        await response.drain();
+        client.close();
+        params.sendPort.send(_IsolateResult(
+          success: false,
+          error: _rangeNotSatisfiableError,
+          downloadedBytes: params.alreadyDownloaded,
+        ));
+        return;
+      }
 
       if (response.statusCode != 206 && response.statusCode != 200) {
         await response.drain();
@@ -950,6 +1014,65 @@ class DownloadEngine {
       }
     }
     // ---------------------------------------------------------
+  }
+
+  Future<bool> _probeResumeRangeSupport(
+    Task task,
+    Map<String, String> headers,
+    int fileSize,
+  ) async {
+    try {
+      final start = fileSize > 2 ? 1 : 0;
+      final end = start + 1;
+      final response = await httpClient.getRange(task.url, headers, start, end);
+      final status = response.statusCode;
+      await response.drain();
+      if (status == 206) return true;
+      if (status == 200 || status == 416) return false;
+    } catch (e) {
+      _logger.debug('NSFX-Engine', 'Resume range probe failed: $e');
+    }
+    return true;
+  }
+
+  bool _shouldFallbackToSingleThread(Task task) {
+    for (final segment in task.segments) {
+      if (segment.lastError == _rangeNotSupportedError ||
+          segment.lastError == _rangeNotSatisfiableError) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Future<void> _fallbackToSingleThread(
+    Task task,
+    Map<String, String> headers,
+    int fileSize,
+    Directory tempDir, {
+    String? reason,
+  }) async {
+    _logger.warning(
+      'NSFX-Engine',
+      'Resume failed${reason != null ? ' ($reason)' : ''}, falling back to single thread',
+    );
+
+    try {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    } catch (_) {}
+
+    task.segments.clear();
+    task.downloadedSize = 0;
+    task.progress = 0;
+    task.threadCount = 1;
+    await _singleThreadDownload(
+      task,
+      headers,
+      supportsRange: false,
+      totalSizeHint: fileSize,
+    );
   }
 
   Future<void> _singleThreadDownload(

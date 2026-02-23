@@ -3,8 +3,8 @@ import 'segment.dart';
 class Task {
   final String id;
   final String url;
-  final String filename;
-  final String filepath;
+  String filename;
+  String filepath;
   TaskStatus status;
   int totalSize;
   int downloadedSize;

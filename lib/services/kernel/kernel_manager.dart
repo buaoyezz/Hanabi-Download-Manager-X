@@ -149,6 +149,14 @@ class KernelManager extends ChangeNotifier {
     return await _kernel?.getStatistics();
   }
 
+  Future<bool> renameTask(String taskId, String newFileName) async {
+    return await _kernel?.renameTask(taskId, newFileName) ?? false;
+  }
+
+  Future<bool> moveTask(String taskId, String targetDir) async {
+    return await _kernel?.moveTask(taskId, targetDir) ?? false;
+  }
+
   Future<DownloadConfig?> getConfig() async {
     return await _kernel?.getConfig();
   }

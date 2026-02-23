@@ -5,12 +5,15 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/integrated_download_service.dart';
 import '../../services/performance_monitor_service.dart';
+import '../../services/download_failure_stats_service.dart';
+import '../../services/client_config_service.dart';
 import '../../models/download_task.dart' show DownloadTask, DownloadStatus, SegmentInfo;
 import '../../theme/app_theme.dart';
 import '../../widgets/file_icon_widget.dart';
 import '../../widgets/animated_card.dart';
 import '../../widgets/smooth_scroll_wrapper.dart';
 import '../../utils/fluent_icons.dart' as CustomIcons;
+import '../../utils/failure_reason_localizer.dart';
 import '../../widgets/animated_notifications.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -26,6 +29,7 @@ class _DownloadListState extends State<DownloadList> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
   DownloadStatus? _filterStatus;
+  String? _filterTag;
   String _sortOrder = 'newest'; // 'newest' 或 'oldest'
 
   AppLocalizations get t => AppLocalizations.of(context)!;
@@ -102,6 +106,7 @@ class _DownloadListState extends State<DownloadList> {
         },
         builder: (context, tasks, child) {
           final downloadService = context.read<IntegratedDownloadService>();
+          final tagMap = context.watch<ClientConfigService>().getTaskTagsMap();
 
           var activeTasks = tasks
               .where((t) => t.status != DownloadStatus.completed)
@@ -119,6 +124,14 @@ class _DownloadListState extends State<DownloadList> {
           if (_filterStatus != null) {
             activeTasks = activeTasks.where((t) => t.status == _filterStatus).toList();
           }
+
+          // 应用标签过滤
+          if (_filterTag != null && _filterTag!.isNotEmpty) {
+            activeTasks = activeTasks.where((t) {
+              final tags = tagMap[t.id] ?? const [];
+              return tags.contains(_filterTag);
+            }).toList();
+          }
           
           // 应用排序 - 直接使用 createdAt 字段
           activeTasks.sort((a, b) {
@@ -129,7 +142,7 @@ class _DownloadListState extends State<DownloadList> {
             }
           });
 
-          if (activeTasks.isEmpty && _searchQuery.isNotEmpty || _filterStatus != null) {
+          if (activeTasks.isEmpty && (_searchQuery.isNotEmpty || _filterStatus != null || _filterTag != null)) {
             return _buildNoResultsState(context);
           }
           
@@ -235,6 +248,28 @@ class _DownloadListState extends State<DownloadList> {
             ),
           ),
           const SizedBox(width: 8),
+          // 标签筛选按钮
+          IconButton(
+            icon: Icon(
+              CustomIcons.FluentIcons.tag,
+              size: 14,
+              color: _filterTag != null ? AppTheme.accentLight : AppTheme.textSecondary,
+            ),
+            onPressed: () => _showTagFilterDialog(context),
+            style: ButtonStyle(
+              padding: WidgetStateProperty.all(const EdgeInsets.all(8)),
+              backgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (_filterTag != null) {
+                  return AppTheme.accentPrimary.withValues(alpha: 0.1);
+                }
+                if (states.isHovered) {
+                  return AppTheme.bgLayer2.withValues(alpha: 0.5);
+                }
+                return Colors.transparent;
+              }),
+            ),
+          ),
+          const SizedBox(width: 8),
           // 排序按钮
           IconButton(
             icon: Icon(
@@ -287,6 +322,40 @@ class _DownloadListState extends State<DownloadList> {
                 ],
               ),
             ),
+          if (_filterTag != null) ...[
+            if (_filterStatus != null) const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppTheme.accentPrimary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppTheme.radiusRound),
+                border: Border.all(
+                  color: AppTheme.accentPrimary.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _filterTag!,
+                    style: FluentTheme.of(context).typography.caption?.copyWith(
+                      color: AppTheme.accentLight,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  GestureDetector(
+                    onTap: () => setState(() => _filterTag = null),
+                    child: Icon(CustomIcons.FluentIcons.chrome_close,
+                      size: 10,
+                      color: AppTheme.accentLight,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -331,6 +400,78 @@ class _DownloadListState extends State<DownloadList> {
           ],
         ),
         actions: [
+          Button(
+            onPressed: () => Navigator.pop(context),
+            child: Text(t.downloadDialogCloseButton),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTagFilterDialog(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    final config = context.read<ClientConfigService>();
+    final tags = config.getAllTaskTags();
+
+    showDialog(
+      context: context,
+      builder: (context) => ContentDialog(
+        title: Text(t.tagFilterTitle),
+        content: tags.isEmpty
+            ? Text(t.tagFilterEmpty)
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(t.tagFilterSubtitle),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: tags.map((tag) {
+                      final isSelected = _filterTag == tag;
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() => _filterTag = tag);
+                          Navigator.pop(context);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppTheme.accentPrimary.withValues(alpha: 0.2)
+                                : AppTheme.bgLayer2,
+                            borderRadius: BorderRadius.circular(AppTheme.radiusRound),
+                            border: Border.all(
+                              color: isSelected
+                                  ? AppTheme.accentPrimary.withValues(alpha: 0.4)
+                                  : AppTheme.borderSubtle,
+                            ),
+                          ),
+                          child: Text(
+                            tag,
+                            style: FluentTheme.of(context).typography.caption?.copyWith(
+                              color: isSelected ? AppTheme.accentLight : AppTheme.textSecondary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+        actions: [
+          if (_filterTag != null)
+            Button(
+              onPressed: () {
+                setState(() => _filterTag = null);
+                Navigator.pop(context);
+              },
+              child: Text(t.tagFilterClearButton),
+            ),
           Button(
             onPressed: () => Navigator.pop(context),
             child: Text(t.downloadDialogCloseButton),
@@ -798,6 +939,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
         children: [
           _buildHeader(downloadService),
           const SizedBox(height: 16),
+          _buildTagsRow(),
           _buildProgressSection(),
           if (widget.task.status == DownloadStatus.downloading) ...[
             const SizedBox(height: 14),
@@ -882,6 +1024,39 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
       ],
     );
   }
+
+  Widget _buildTagsRow() {
+    final tags = context.watch<ClientConfigService>().getTaskTags(widget.task.id);
+    if (tags.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: tags.map((tag) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: AppTheme.accentPrimary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppTheme.radiusRound),
+              border: Border.all(
+                color: AppTheme.accentPrimary.withValues(alpha: 0.25),
+              ),
+            ),
+            child: Text(
+              tag,
+              style: FluentTheme.of(context).typography.caption?.copyWith(
+                color: AppTheme.accentLight,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
   
   // 状态指示器（简化版，无动画）
   Widget _buildStatusIndicator() {
@@ -925,6 +1100,53 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
           message: t.downloadCopyFailedMessage(e.toString()),
         );
       }
+    }
+  }
+
+  Future<void> _editTags() async {
+    final config = context.read<ClientConfigService>();
+    final existing = config.getTaskTags(widget.task.id);
+    final controller = TextEditingController(text: existing.join(', '));
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => ContentDialog(
+        title: Text(t.tagEditTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(t.tagEditSubtitle),
+            const SizedBox(height: 8),
+            TextBox(
+              controller: controller,
+              placeholder: t.tagEditPlaceholder,
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          Button(
+            onPressed: () => Navigator.pop(context),
+            child: Text(t.folderPickerCancelButton),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: Text(t.folderPickerConfirmButton),
+          ),
+        ],
+      ),
+    );
+
+    controller.dispose();
+
+    if (result != null) {
+      final tags = result
+          .split(',')
+          .map((t) => t.trim())
+          .where((t) => t.isNotEmpty)
+          .toList();
+      await config.setTaskTags(widget.task.id, tags);
     }
   }
 
@@ -986,6 +1208,15 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             color: AppTheme.accentLight,
             onPressed: () => service.retryFailedSegments(widget.task.id),
             tooltip: hasRetryableSegments ? t.downloadActionRetrySegments : t.downloadActionRetryAll,
+          ),
+          const SizedBox(width: 6),
+        ],
+        if (!isMerging) ...[
+          _ActionButton(
+            icon: CustomIcons.FluentIcons.tag,
+            color: AppTheme.accentLight,
+            onPressed: _editTags,
+            tooltip: t.tagActionLabel,
           ),
           const SizedBox(width: 6),
         ],
@@ -1693,8 +1924,13 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
 
   Widget _buildErrorInfo() {
     final downloadService = context.read<IntegratedDownloadService>();
+    final failureStats = context.read<DownloadFailureStatsService>();
     final hasRetryableSegments = widget.task.hasRetryableSegments;
     final failedCount = widget.task.failedSegments.length;
+    final reasonKey = failureStats.classifyReasonKey(widget.task.error);
+    final reasonLabel = FailureReasonLocalizer.localized(t, reasonKey);
+    final suggestion = FailureReasonLocalizer.suggestion(t, reasonKey);
+    final rawError = widget.task.error ?? '';
     
     return Container(
       padding: const EdgeInsets.all(12),
@@ -1730,14 +1966,38 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      widget.task.error!,
+                      reasonLabel,
                       style: FluentTheme.of(context).typography.caption?.copyWith(
                         color: AppTheme.statusError.withValues(alpha: 0.8),
                         fontSize: 11,
                       ),
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (rawError.isNotEmpty && rawError != reasonLabel) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        rawError,
+                        style: FluentTheme.of(context).typography.caption?.copyWith(
+                          color: AppTheme.textTertiary,
+                          fontSize: 10,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    if (suggestion != null && suggestion.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        suggestion,
+                        style: FluentTheme.of(context).typography.caption?.copyWith(
+                          color: AppTheme.textSecondary,
+                          fontSize: 10,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ],
                 ),
               ),

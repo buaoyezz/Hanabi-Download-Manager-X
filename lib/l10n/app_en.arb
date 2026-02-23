@@ -1840,5 +1840,94 @@
   "performanceMonitorToastCopiedMessage": "Performance log copied to clipboard",
   "performanceMonitorModeQuality": "Quality",
   "performanceMonitorModeBalanced": "Balanced",
-  "performanceMonitorModePerformance": "Performance"
+  "performanceMonitorModePerformance": "Performance",
+  "tagActionLabel": "Tag",
+  "tagEditTitle": "Edit tags",
+  "tagEditSubtitle": "Separate tags with commas",
+  "tagEditPlaceholder": "tag1, tag2",
+  "tagFilterTitle": "Tag filter",
+  "tagFilterEmpty": "No tags available",
+  "tagFilterSubtitle": "Select a tag to filter:",
+  "tagFilterClearButton": "Clear tag filter",
+  "completedBatchActionsLabel": "Batch actions ({count})",
+  "@completedBatchActionsLabel": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "completedBatchRenameButton": "Batch rename",
+  "completedBatchMoveButton": "Batch move",
+  "completedBatchMoveUnavailableTitle": "Batch move unavailable",
+  "completedBatchMoveUnavailableMessage": "Legacy kernel does not support batch move yet",
+  "completedBatchMoveSuccessTitle": "Batch move complete",
+  "completedBatchMoveSuccessMessage": "Moved {count} files",
+  "@completedBatchMoveSuccessMessage": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "completedBatchMovePartialMessage": "Success {success}, failed {failed}",
+  "@completedBatchMovePartialMessage": {
+    "placeholders": {
+      "success": {},
+      "failed": {}
+    }
+  },
+  "completedBatchRenameUnavailableTitle": "Batch rename unavailable",
+  "completedBatchRenameUnavailableMessage": "Legacy kernel does not support batch rename yet",
+  "completedBatchRenameTitle": "Batch rename",
+  "completedBatchRenameHint": "Apply prefix/suffix to file names in the current list",
+  "completedBatchRenamePrefixLabel": "Prefix",
+  "completedBatchRenamePrefixPlaceholder": "prefix_",
+  "completedBatchRenameSuffixLabel": "Suffix",
+  "completedBatchRenameSuffixPlaceholder": "_suffix",
+  "completedBatchRenameEmptyWarningMessage": "Please enter a prefix or suffix",
+  "completedBatchRenameSuccessTitle": "Batch rename complete",
+  "completedBatchRenameSuccessMessage": "Renamed {count} files",
+  "@completedBatchRenameSuccessMessage": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "completedBatchRenamePartialMessage": "Success {success}, failed {failed}",
+  "@completedBatchRenamePartialMessage": {
+    "placeholders": {
+      "success": {},
+      "failed": {}
+    }
+  },
+  "settingsClipboardListenerTitle": "Clipboard listener",
+  "settingsClipboardListenerSubtitle": "Detect URLs from clipboard and show the add-download dialog",
+  "settingsClipboardListenerEnabledTitle": "Clipboard listener enabled",
+  "settingsClipboardListenerEnabledMessage": "URLs copied to clipboard will trigger a download prompt",
+  "settingsClipboardListenerDisabledTitle": "Clipboard listener disabled",
+  "settingsClipboardListenerDisabledMessage": "Clipboard URLs will no longer trigger a prompt",
+  "downloadDuplicateTitle": "Duplicate download detected",
+  "downloadDuplicateMessage": "A task with the same URL already exists: {fileName} ({status}). What would you like to do?",
+  "@downloadDuplicateMessage": {
+    "placeholders": {
+      "fileName": {},
+      "status": {}
+    }
+  },
+  "downloadDuplicateUseExistingButton": "Use existing",
+  "downloadDuplicateAddNewButton": "Add new",
+  "downloadDuplicateCancelButton": "Cancel",
+  "downloadFailureHintAuth": "Check login or add Referer/Cookie; the link may have expired.",
+  "downloadFailureHintNotFound": "The file may be removed or the link is invalid.",
+  "downloadFailureHintRange": "Server may not support resume; try single-thread or restart.",
+  "downloadFailureHintRateLimit": "Too many requests. Try again later.",
+  "downloadFailureHintServer": "Server error. Try again later.",
+  "downloadFailureHintHttp": "HTTP error. Check the URL or permissions.",
+  "downloadFailureHintTimeout": "Connection timed out. Check network or retry.",
+  "downloadFailureHintConnection": "Connection dropped. Check network or proxy.",
+  "downloadFailureHintDns": "DNS lookup failed. Check network or DNS settings.",
+  "downloadFailureHintSsl": "SSL error. Try another source or adjust certificate settings.",
+  "downloadFailureHintChecksum": "File may be corrupted. Try re-downloading.",
+  "downloadFailureHintDisk": "Disk full or permission issue. Check the save location.",
+  "settingsConflictStrategyTitle": "Name conflict strategy",
+  "settingsConflictStrategySubtitle": "How to handle existing files with the same name",
+  "settingsConflictStrategyIncrement": "Add (1), (2)...",
+  "settingsConflictStrategyTimestamp": "Append timestamp",
+  "settingsConflictStrategyOverwrite": "Overwrite existing"
 }

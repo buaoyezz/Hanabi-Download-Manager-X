@@ -31,6 +31,10 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
   @override
   void initState() {
     super.initState();
+    _currentPath = widget.initialPath.isNotEmpty
+        ? widget.initialPath
+        : _getDefaultPath();
+    _pathController.text = _currentPath;
     _initializePath();
   }
 
@@ -48,6 +52,7 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
       }
     }
     
+    if (!mounted) return;
     _currentPath = pathToLoad;
     _pathController.text = _currentPath;
     _loadDirectory(_currentPath);

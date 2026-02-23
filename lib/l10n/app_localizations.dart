@@ -6856,6 +6856,342 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'性能优先'**
   String get performanceMonitorModePerformance;
+
+  /// No description provided for @tagActionLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'标签'**
+  String get tagActionLabel;
+
+  /// No description provided for @tagEditTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'编辑标签'**
+  String get tagEditTitle;
+
+  /// No description provided for @tagEditSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'用逗号分隔标签'**
+  String get tagEditSubtitle;
+
+  /// No description provided for @tagEditPlaceholder.
+  ///
+  /// In zh, this message translates to:
+  /// **'标签1, 标签2'**
+  String get tagEditPlaceholder;
+
+  /// No description provided for @tagFilterTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'标签筛选'**
+  String get tagFilterTitle;
+
+  /// No description provided for @tagFilterEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无可用标签'**
+  String get tagFilterEmpty;
+
+  /// No description provided for @tagFilterSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择一个标签进行筛选：'**
+  String get tagFilterSubtitle;
+
+  /// No description provided for @tagFilterClearButton.
+  ///
+  /// In zh, this message translates to:
+  /// **'清除标签筛选'**
+  String get tagFilterClearButton;
+
+  /// No description provided for @completedBatchActionsLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'批量操作（{count} 项）'**
+  String completedBatchActionsLabel(Object count);
+
+  /// No description provided for @completedBatchRenameButton.
+  ///
+  /// In zh, this message translates to:
+  /// **'批量重命名'**
+  String get completedBatchRenameButton;
+
+  /// No description provided for @completedBatchMoveButton.
+  ///
+  /// In zh, this message translates to:
+  /// **'批量移动'**
+  String get completedBatchMoveButton;
+
+  /// No description provided for @completedBatchMoveUnavailableTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'批量移动不可用'**
+  String get completedBatchMoveUnavailableTitle;
+
+  /// No description provided for @completedBatchMoveUnavailableMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'旧内核暂不支持批量移动'**
+  String get completedBatchMoveUnavailableMessage;
+
+  /// No description provided for @completedBatchMoveSuccessTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'批量移动完成'**
+  String get completedBatchMoveSuccessTitle;
+
+  /// No description provided for @completedBatchMoveSuccessMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'已移动 {count} 个文件'**
+  String completedBatchMoveSuccessMessage(Object count);
+
+  /// No description provided for @completedBatchMovePartialMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'成功 {success} 个，失败 {failed} 个'**
+  String completedBatchMovePartialMessage(Object success, Object failed);
+
+  /// No description provided for @completedBatchRenameUnavailableTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'批量重命名不可用'**
+  String get completedBatchRenameUnavailableTitle;
+
+  /// No description provided for @completedBatchRenameUnavailableMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'旧内核暂不支持批量重命名'**
+  String get completedBatchRenameUnavailableMessage;
+
+  /// No description provided for @completedBatchRenameTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'批量重命名'**
+  String get completedBatchRenameTitle;
+
+  /// No description provided for @completedBatchRenameHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'将前缀/后缀应用到当前列表中的文件名'**
+  String get completedBatchRenameHint;
+
+  /// No description provided for @completedBatchRenamePrefixLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'前缀'**
+  String get completedBatchRenamePrefixLabel;
+
+  /// No description provided for @completedBatchRenamePrefixPlaceholder.
+  ///
+  /// In zh, this message translates to:
+  /// **'prefix_'**
+  String get completedBatchRenamePrefixPlaceholder;
+
+  /// No description provided for @completedBatchRenameSuffixLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'后缀'**
+  String get completedBatchRenameSuffixLabel;
+
+  /// No description provided for @completedBatchRenameSuffixPlaceholder.
+  ///
+  /// In zh, this message translates to:
+  /// **'_suffix'**
+  String get completedBatchRenameSuffixPlaceholder;
+
+  /// No description provided for @completedBatchRenameEmptyWarningMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'请至少填写前缀或后缀'**
+  String get completedBatchRenameEmptyWarningMessage;
+
+  /// No description provided for @completedBatchRenameSuccessTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'批量重命名完成'**
+  String get completedBatchRenameSuccessTitle;
+
+  /// No description provided for @completedBatchRenameSuccessMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'已重命名 {count} 个文件'**
+  String completedBatchRenameSuccessMessage(Object count);
+
+  /// No description provided for @completedBatchRenamePartialMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'成功 {success} 个，失败 {failed} 个'**
+  String completedBatchRenamePartialMessage(Object success, Object failed);
+
+  /// No description provided for @settingsClipboardListenerTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'剪贴板监听'**
+  String get settingsClipboardListenerTitle;
+
+  /// No description provided for @settingsClipboardListenerSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'检测剪贴板中的链接并弹出新建下载'**
+  String get settingsClipboardListenerSubtitle;
+
+  /// No description provided for @settingsClipboardListenerEnabledTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'剪贴板监听已开启'**
+  String get settingsClipboardListenerEnabledTitle;
+
+  /// No description provided for @settingsClipboardListenerEnabledMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'复制链接后会弹出新建下载窗口'**
+  String get settingsClipboardListenerEnabledMessage;
+
+  /// No description provided for @settingsClipboardListenerDisabledTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'剪贴板监听已关闭'**
+  String get settingsClipboardListenerDisabledTitle;
+
+  /// No description provided for @settingsClipboardListenerDisabledMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'复制链接将不再弹窗提示'**
+  String get settingsClipboardListenerDisabledMessage;
+
+  /// No description provided for @downloadDuplicateTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'发现重复下载'**
+  String get downloadDuplicateTitle;
+
+  /// No description provided for @downloadDuplicateMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'已存在相同链接的任务：{fileName}（{status}）。要如何处理？'**
+  String downloadDuplicateMessage(Object fileName, Object status);
+
+  /// No description provided for @downloadDuplicateUseExistingButton.
+  ///
+  /// In zh, this message translates to:
+  /// **'使用已有'**
+  String get downloadDuplicateUseExistingButton;
+
+  /// No description provided for @downloadDuplicateAddNewButton.
+  ///
+  /// In zh, this message translates to:
+  /// **'仍然新建'**
+  String get downloadDuplicateAddNewButton;
+
+  /// No description provided for @downloadDuplicateCancelButton.
+  ///
+  /// In zh, this message translates to:
+  /// **'取消'**
+  String get downloadDuplicateCancelButton;
+
+  /// No description provided for @downloadFailureHintAuth.
+  ///
+  /// In zh, this message translates to:
+  /// **'可能需要登录或补充 Referer/Cookie，链接可能已过期。'**
+  String get downloadFailureHintAuth;
+
+  /// No description provided for @downloadFailureHintNotFound.
+  ///
+  /// In zh, this message translates to:
+  /// **'资源不存在或已过期，尝试更新链接。'**
+  String get downloadFailureHintNotFound;
+
+  /// No description provided for @downloadFailureHintRange.
+  ///
+  /// In zh, this message translates to:
+  /// **'服务器不支持断点续传，建议单线程或重新下载。'**
+  String get downloadFailureHintRange;
+
+  /// No description provided for @downloadFailureHintRateLimit.
+  ///
+  /// In zh, this message translates to:
+  /// **'请求过于频繁，请稍后重试。'**
+  String get downloadFailureHintRateLimit;
+
+  /// No description provided for @downloadFailureHintServer.
+  ///
+  /// In zh, this message translates to:
+  /// **'服务器错误，请稍后重试。'**
+  String get downloadFailureHintServer;
+
+  /// No description provided for @downloadFailureHintHttp.
+  ///
+  /// In zh, this message translates to:
+  /// **'HTTP 错误，请检查链接或权限。'**
+  String get downloadFailureHintHttp;
+
+  /// No description provided for @downloadFailureHintTimeout.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接超时，检查网络后重试。'**
+  String get downloadFailureHintTimeout;
+
+  /// No description provided for @downloadFailureHintConnection.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接中断，检查网络或代理设置。'**
+  String get downloadFailureHintConnection;
+
+  /// No description provided for @downloadFailureHintDns.
+  ///
+  /// In zh, this message translates to:
+  /// **'域名解析失败，检查网络或 DNS。'**
+  String get downloadFailureHintDns;
+
+  /// No description provided for @downloadFailureHintSsl.
+  ///
+  /// In zh, this message translates to:
+  /// **'SSL 证书错误，尝试更换来源。'**
+  String get downloadFailureHintSsl;
+
+  /// No description provided for @downloadFailureHintChecksum.
+  ///
+  /// In zh, this message translates to:
+  /// **'文件可能损坏，建议重新下载。'**
+  String get downloadFailureHintChecksum;
+
+  /// No description provided for @downloadFailureHintDisk.
+  ///
+  /// In zh, this message translates to:
+  /// **'磁盘空间不足或权限不足，请检查保存目录。'**
+  String get downloadFailureHintDisk;
+
+  /// No description provided for @settingsConflictStrategyTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'重名冲突策略'**
+  String get settingsConflictStrategyTitle;
+
+  /// No description provided for @settingsConflictStrategySubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'当文件已存在时的处理方式'**
+  String get settingsConflictStrategySubtitle;
+
+  /// No description provided for @settingsConflictStrategyIncrement.
+  ///
+  /// In zh, this message translates to:
+  /// **'自动加 (1)(2)'**
+  String get settingsConflictStrategyIncrement;
+
+  /// No description provided for @settingsConflictStrategyTimestamp.
+  ///
+  /// In zh, this message translates to:
+  /// **'追加时间戳'**
+  String get settingsConflictStrategyTimestamp;
+
+  /// No description provided for @settingsConflictStrategyOverwrite.
+  ///
+  /// In zh, this message translates to:
+  /// **'覆盖原文件'**
+  String get settingsConflictStrategyOverwrite;
 }
 
 class _AppLocalizationsDelegate

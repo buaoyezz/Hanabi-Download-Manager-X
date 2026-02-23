@@ -3687,4 +3687,184 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get performanceMonitorModePerformance => '性能优先';
+
+  @override
+  String get tagActionLabel => '标签';
+
+  @override
+  String get tagEditTitle => '编辑标签';
+
+  @override
+  String get tagEditSubtitle => '用逗号分隔标签';
+
+  @override
+  String get tagEditPlaceholder => '标签1, 标签2';
+
+  @override
+  String get tagFilterTitle => '标签筛选';
+
+  @override
+  String get tagFilterEmpty => '暂无可用标签';
+
+  @override
+  String get tagFilterSubtitle => '选择一个标签进行筛选：';
+
+  @override
+  String get tagFilterClearButton => '清除标签筛选';
+
+  @override
+  String completedBatchActionsLabel(Object count) {
+    return '批量操作（$count 项）';
+  }
+
+  @override
+  String get completedBatchRenameButton => '批量重命名';
+
+  @override
+  String get completedBatchMoveButton => '批量移动';
+
+  @override
+  String get completedBatchMoveUnavailableTitle => '批量移动不可用';
+
+  @override
+  String get completedBatchMoveUnavailableMessage => '旧内核暂不支持批量移动';
+
+  @override
+  String get completedBatchMoveSuccessTitle => '批量移动完成';
+
+  @override
+  String completedBatchMoveSuccessMessage(Object count) {
+    return '已移动 $count 个文件';
+  }
+
+  @override
+  String completedBatchMovePartialMessage(Object success, Object failed) {
+    return '成功 $success 个，失败 $failed 个';
+  }
+
+  @override
+  String get completedBatchRenameUnavailableTitle => '批量重命名不可用';
+
+  @override
+  String get completedBatchRenameUnavailableMessage => '旧内核暂不支持批量重命名';
+
+  @override
+  String get completedBatchRenameTitle => '批量重命名';
+
+  @override
+  String get completedBatchRenameHint => '将前缀/后缀应用到当前列表中的文件名';
+
+  @override
+  String get completedBatchRenamePrefixLabel => '前缀';
+
+  @override
+  String get completedBatchRenamePrefixPlaceholder => 'prefix_';
+
+  @override
+  String get completedBatchRenameSuffixLabel => '后缀';
+
+  @override
+  String get completedBatchRenameSuffixPlaceholder => '_suffix';
+
+  @override
+  String get completedBatchRenameEmptyWarningMessage => '请至少填写前缀或后缀';
+
+  @override
+  String get completedBatchRenameSuccessTitle => '批量重命名完成';
+
+  @override
+  String completedBatchRenameSuccessMessage(Object count) {
+    return '已重命名 $count 个文件';
+  }
+
+  @override
+  String completedBatchRenamePartialMessage(Object success, Object failed) {
+    return '成功 $success 个，失败 $failed 个';
+  }
+
+  @override
+  String get settingsClipboardListenerTitle => '剪贴板监听';
+
+  @override
+  String get settingsClipboardListenerSubtitle => '检测剪贴板中的链接并弹出新建下载';
+
+  @override
+  String get settingsClipboardListenerEnabledTitle => '剪贴板监听已开启';
+
+  @override
+  String get settingsClipboardListenerEnabledMessage => '复制链接后会弹出新建下载窗口';
+
+  @override
+  String get settingsClipboardListenerDisabledTitle => '剪贴板监听已关闭';
+
+  @override
+  String get settingsClipboardListenerDisabledMessage => '复制链接将不再弹窗提示';
+
+  @override
+  String get downloadDuplicateTitle => '发现重复下载';
+
+  @override
+  String downloadDuplicateMessage(Object fileName, Object status) {
+    return '已存在相同链接的任务：$fileName（$status）。要如何处理？';
+  }
+
+  @override
+  String get downloadDuplicateUseExistingButton => '使用已有';
+
+  @override
+  String get downloadDuplicateAddNewButton => '仍然新建';
+
+  @override
+  String get downloadDuplicateCancelButton => '取消';
+
+  @override
+  String get downloadFailureHintAuth => '可能需要登录或补充 Referer/Cookie，链接可能已过期。';
+
+  @override
+  String get downloadFailureHintNotFound => '资源不存在或已过期，尝试更新链接。';
+
+  @override
+  String get downloadFailureHintRange => '服务器不支持断点续传，建议单线程或重新下载。';
+
+  @override
+  String get downloadFailureHintRateLimit => '请求过于频繁，请稍后重试。';
+
+  @override
+  String get downloadFailureHintServer => '服务器错误，请稍后重试。';
+
+  @override
+  String get downloadFailureHintHttp => 'HTTP 错误，请检查链接或权限。';
+
+  @override
+  String get downloadFailureHintTimeout => '连接超时，检查网络后重试。';
+
+  @override
+  String get downloadFailureHintConnection => '连接中断，检查网络或代理设置。';
+
+  @override
+  String get downloadFailureHintDns => '域名解析失败，检查网络或 DNS。';
+
+  @override
+  String get downloadFailureHintSsl => 'SSL 证书错误，尝试更换来源。';
+
+  @override
+  String get downloadFailureHintChecksum => '文件可能损坏，建议重新下载。';
+
+  @override
+  String get downloadFailureHintDisk => '磁盘空间不足或权限不足，请检查保存目录。';
+
+  @override
+  String get settingsConflictStrategyTitle => '重名冲突策略';
+
+  @override
+  String get settingsConflictStrategySubtitle => '当文件已存在时的处理方式';
+
+  @override
+  String get settingsConflictStrategyIncrement => '自动加 (1)(2)';
+
+  @override
+  String get settingsConflictStrategyTimestamp => '追加时间戳';
+
+  @override
+  String get settingsConflictStrategyOverwrite => '覆盖原文件';
 }

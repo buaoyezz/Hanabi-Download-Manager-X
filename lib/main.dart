@@ -16,6 +16,7 @@ import 'services/integrated_download_service.dart';
 import 'services/kernel_service.dart';
 import 'services/kernel/kernel_manager.dart';
 import 'services/download_listener_service.dart';
+import 'services/clipboard_listener_service.dart';
 import 'services/system_tray_service.dart';
 import 'services/app_logger_service.dart';
 import 'services/log_capture.dart';
@@ -404,6 +405,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   DownloadListenerService? _downloadListener;
+  ClipboardListenerService? _clipboardListener;
   PipeListenerService? _pipeListener;
   PopupProgressService? _popupProgressService;
 
@@ -415,6 +417,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       _initSystemTray();
       _initKernel();  // 异步启动，不阻塞 UI
       _initDownloadListener();
+      _initClipboardListener();
       _initPipeListener();  // 初始化管道监听
       _initPopupProgressService();  // 初始化弹窗进度推送服务
     });
@@ -513,6 +516,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     // 访问 https://online.zzbuaoye.top 查看统计数据
   }
 
+  void _initClipboardListener() {
+    _clipboardListener = ClipboardListenerService(context);
+    _clipboardListener!.start();
+  }
+
   /// 初始化管道监听服务，接收来自 Hanabi Popup 的下载请求
   void _initPipeListener() {
     if (!Platform.isWindows) return;
@@ -583,6 +591,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
 
     _downloadListener?.stopListening();
+    _clipboardListener?.stop();
 
     // 停止管道监听
     _pipeListener?.stop();
@@ -614,6 +623,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     // 同步清理，不等待异步操作
     _downloadListener?.stopListening();
+    _clipboardListener?.stop();
     systemTrayService.dispose();
     
     // 异步清理新内核（不等待）

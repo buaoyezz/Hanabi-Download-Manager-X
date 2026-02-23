@@ -2,13 +2,27 @@ import 'dart:ui';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import '../../services/integrated_download_service.dart';
+import '../../models/download_task.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
 import '../../widgets/animated_notifications.dart';
 
+enum _DuplicateAction {
+  useExisting,
+  addNew,
+  cancel,
+}
+
 class AddDownloadDialog extends StatefulWidget {
-  const AddDownloadDialog({super.key});
+  final String? initialUrl;
+  final String? initialFileName;
+
+  const AddDownloadDialog({
+    super.key,
+    this.initialUrl,
+    this.initialFileName,
+  });
 
   @override
   State<AddDownloadDialog> createState() => _AddDownloadDialogState();
@@ -29,8 +43,17 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
   @override
   void initState() {
     super.initState();
+    if (widget.initialUrl != null && widget.initialUrl!.trim().isNotEmpty) {
+      _urlController.text = widget.initialUrl!.trim();
+    }
+    if (widget.initialFileName != null && widget.initialFileName!.trim().isNotEmpty) {
+      _fileNameController.text = widget.initialFileName!.trim();
+    }
     // 监听 URL 变化，自动解析文件名
     _urlController.addListener(_onUrlChanged);
+    if (_urlController.text.trim().isNotEmpty) {
+      _onUrlChanged();
+    }
     
     // 初始化动画
     _animationController = AnimationController(
@@ -625,6 +648,50 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
     ];
   }
 
+  String _getStatusLabel(DownloadStatus status) {
+    switch (status) {
+      case DownloadStatus.downloading:
+        return t.downloadStatusDownloading;
+      case DownloadStatus.paused:
+        return t.downloadStatusPaused;
+      case DownloadStatus.completed:
+        return t.downloadStatusCompleted;
+      case DownloadStatus.failed:
+        return t.downloadStatusFailed;
+      case DownloadStatus.merging:
+        return t.downloadStatusMerging;
+      case DownloadStatus.pending:
+      default:
+        return t.downloadStatusPending;
+    }
+  }
+
+  Future<_DuplicateAction> _showDuplicateDialog(DownloadTask task) async {
+    final statusLabel = _getStatusLabel(task.status);
+    final result = await showDialog<_DuplicateAction>(
+      context: context,
+      builder: (context) => ContentDialog(
+        title: Text(t.downloadDuplicateTitle),
+        content: Text(t.downloadDuplicateMessage(task.fileName, statusLabel)),
+        actions: [
+          Button(
+            onPressed: () => Navigator.pop(context, _DuplicateAction.cancel),
+            child: Text(t.downloadDuplicateCancelButton),
+          ),
+          Button(
+            onPressed: () => Navigator.pop(context, _DuplicateAction.addNew),
+            child: Text(t.downloadDuplicateAddNewButton),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, _DuplicateAction.useExisting),
+            child: Text(t.downloadDuplicateUseExistingButton),
+          ),
+        ],
+      ),
+    );
+    return result ?? _DuplicateAction.cancel;
+  }
+
   Future<void> _handleSubmit() async {
     // 验证 URL
     if (_urlController.text.trim().isEmpty) {
@@ -647,10 +714,31 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
       fileName = _parsedFileName ?? 'download_${DateTime.now().millisecondsSinceEpoch}';
     }
 
+    final downloadService = context.read<IntegratedDownloadService>();
+    final duplicate = downloadService.findDuplicateTask(url);
+    if (duplicate != null) {
+      final action = await _showDuplicateDialog(duplicate);
+      if (!mounted) return;
+      if (action == _DuplicateAction.cancel) {
+        return;
+      }
+      if (action == _DuplicateAction.useExisting) {
+        if (duplicate.status == DownloadStatus.paused ||
+            duplicate.status == DownloadStatus.failed ||
+            duplicate.status == DownloadStatus.pending) {
+          await downloadService.resumeTask(duplicate.id);
+        }
+        if (mounted) {
+          Navigator.pop(context);
+        }
+        return;
+      }
+    }
+
     setState(() => _isLoading = true);
 
     try {
-      context.read<IntegratedDownloadService>().addTask(url, fileName);
+      downloadService.addTask(url, fileName);
       
       if (mounted) {
         Navigator.pop(context);

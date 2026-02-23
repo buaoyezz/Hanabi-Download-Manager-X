@@ -9,6 +9,7 @@ class TaskStorage {
   late final Directory _storageDir;
   late final Directory _oldStorageDir;
   bool _initialized = false;
+  Future<void> _writeQueue = Future.value();
 
   Future<void> init() async {
     if (_initialized) return;
@@ -30,6 +31,10 @@ class TaskStorage {
     if (!await _storageDir.exists()) {
       await _storageDir.create(recursive: true);
     }
+
+    // 进行崩溃恢复与残留文件清理
+    await _recoverJsonFile(_tasksFile, label: 'tasks');
+    await _recoverJsonFile(_configFile, label: 'config');
     
     _initialized = true;
   }
@@ -100,13 +105,11 @@ class TaskStorage {
 
   Future<Map<String, Task>> loadTasks() async {
     await init();
-    
-    if (!await _tasksFile.exists()) return {};
+
+    final json = await _readJsonMapWithRecovery(_tasksFile, label: 'tasks');
+    if (json == null) return {};
 
     try {
-      final content = await _tasksFile.readAsString();
-      final json = jsonDecode(content) as Map<String, dynamic>;
-      
       final tasks = <String, Task>{};
       for (final entry in json.entries) {
         tasks[entry.key] = _taskFromJson(entry.value);
@@ -118,24 +121,24 @@ class TaskStorage {
   }
 
   Future<void> saveTasks(Map<String, Task> tasks) async {
-    await init();
+    await _enqueueWrite(() async {
+      await init();
 
-    final json = <String, dynamic>{};
-    for (final entry in tasks.entries) {
-      json[entry.key] = _taskToJson(entry.value);
-    }
+      final json = <String, dynamic>{};
+      for (final entry in tasks.entries) {
+        json[entry.key] = _taskToJson(entry.value);
+      }
 
-    await _tasksFile.writeAsString(jsonEncode(json));
+      await _writeJsonAtomic(_tasksFile, json);
+    });
   }
 
   Future<NsfxConfig> loadConfig() async {
     await init();
-
-    if (!await _configFile.exists()) return NsfxConfig();
+    final json = await _readJsonMapWithRecovery(_configFile, label: 'config');
+    if (json == null) return NsfxConfig();
 
     try {
-      final content = await _configFile.readAsString();
-      final json = jsonDecode(content) as Map<String, dynamic>;
       final config = NsfxConfig.fromJson(json);
 
       // 确保 maxRetries 至少为 200（IDM 风格）
@@ -151,8 +154,10 @@ class TaskStorage {
   }
 
   Future<void> saveConfig(NsfxConfig config) async {
-    await init();
-    await _configFile.writeAsString(jsonEncode(config.toJson()));
+    await _enqueueWrite(() async {
+      await init();
+      await _writeJsonAtomic(_configFile, config.toJson());
+    });
   }
 
   Future<void> clearAll() async {
@@ -161,6 +166,142 @@ class TaskStorage {
     if (await _tasksFile.exists()) {
       await _tasksFile.delete();
     }
+    await _deleteIfExists(File('${_tasksFile.path}.tmp'));
+    await _deleteIfExists(File('${_tasksFile.path}.bak'));
+  }
+
+  Future<void> _enqueueWrite(Future<void> Function() action) {
+    _writeQueue = _writeQueue.then((_) => action()).catchError((_) {});
+    return _writeQueue;
+  }
+
+  Future<void> _writeJsonAtomic(File target, Map<String, dynamic> json) async {
+    final content = jsonEncode(json);
+    await _writeFileAtomically(target, content);
+  }
+
+  Future<Map<String, dynamic>?> _readJsonMapWithRecovery(File target, {required String label}) async {
+    final direct = await _tryReadJsonMap(target);
+    if (direct != null) return direct;
+
+    await _recoverJsonFile(target, label: label);
+    return _tryReadJsonMap(target);
+  }
+
+  Future<Map<String, dynamic>?> _tryReadJsonMap(File file) async {
+    try {
+      if (!await file.exists()) return null;
+      final content = await file.readAsString();
+      final json = jsonDecode(content);
+      if (json is Map<String, dynamic>) return json;
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _recoverJsonFile(File target, {required String label}) async {
+    final tmp = File('${target.path}.tmp');
+    final bak = File('${target.path}.bak');
+
+    final targetJson = await _tryReadJsonMap(target);
+    if (targetJson != null) {
+      // 如果主文件有效，清理残留 tmp
+      await _deleteIfExists(tmp);
+      return;
+    }
+
+    // 主文件无效或不存在，尝试使用 tmp
+    final tmpJson = await _tryReadJsonMap(tmp);
+    if (tmpJson != null) {
+      await _replaceFile(tmp, target);
+      print('[TaskStorage] Recovered $label from tmp');
+      return;
+    }
+
+    // 尝试使用 bak
+    final bakJson = await _tryReadJsonMap(bak);
+    if (bakJson != null) {
+      await _replaceFile(bak, target);
+      print('[TaskStorage] Recovered $label from backup');
+      return;
+    }
+
+    // 如果主文件存在但不可读，保留为 .corrupt
+    if (await target.exists()) {
+      final corruptPath = '${target.path}.corrupt';
+      try {
+        await target.rename(corruptPath);
+        print('[TaskStorage] Moved corrupt $label to $corruptPath');
+      } catch (_) {}
+    }
+
+    // 清理无效的 tmp
+    await _deleteIfExists(tmp);
+  }
+
+  Future<void> _writeFileAtomically(File target, String content) async {
+    final tmp = File('${target.path}.tmp');
+    final bak = File('${target.path}.bak');
+
+    if (!await target.parent.exists()) {
+      await target.parent.create(recursive: true);
+    }
+
+    await tmp.writeAsString(content, flush: true);
+
+    // 尝试备份现有文件
+    if (await target.exists()) {
+      try {
+        await _deleteIfExists(bak);
+        await target.rename(bak.path);
+      } catch (_) {
+        try {
+          await target.copy(bak.path);
+        } catch (_) {}
+      }
+    }
+
+    // 用临时文件替换
+    try {
+      await tmp.rename(target.path);
+      return;
+    } catch (_) {
+      try {
+        await tmp.copy(target.path);
+        await _deleteIfExists(tmp);
+        return;
+      } catch (e) {
+        // 如果写入失败且主文件不存在，尝试恢复备份
+        if (!await target.exists() && await bak.exists()) {
+          try {
+            await bak.rename(target.path);
+          } catch (_) {}
+        }
+        print('[TaskStorage] Failed to write file: $e');
+      }
+    }
+  }
+
+  Future<void> _replaceFile(File source, File target) async {
+    try {
+      await _deleteIfExists(target);
+      await source.rename(target.path);
+    } catch (_) {
+      try {
+        await source.copy(target.path);
+      } finally {
+        await _deleteIfExists(source);
+      }
+    }
+  }
+
+  Future<void> _deleteIfExists(File file) async {
+    try {
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (_) {}
   }
 
   Map<String, dynamic> _taskToJson(Task task) => {

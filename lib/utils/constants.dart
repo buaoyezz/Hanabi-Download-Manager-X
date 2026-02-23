@@ -29,10 +29,10 @@ class AppConstants {
   static const String kernelName = 'NextSpeedForceXKernel';
   static const String kernelName2 = 'SodaDownloadKernel';
     // Kernel -Version
-  static const String newKernelVersion = '2.2.0';
+  static const String newKernelVersion = '2.2.1';
   static const String kernelVersion = '1.5.9';
     // Kernel -BuildNumber
-  static const String newKernelBuildNumber = 'b260223-nsfx-r';
+  static const String newKernelBuildNumber = 'b260223-2-nsfx-r';
   static const String kernelBuildNumber = 'b260110-soda-r';
     // Kernel - FullName
   static const String newKernelFullName = 'NSFX (Next Speed Force X)';

@@ -33,8 +33,12 @@ class DownloadFailureStatsService extends ChangeNotifier {
 
   List<DownloadFailureRecord> get recentFailures =>
       List.unmodifiable(_records.take(10));
+  List<DownloadFailureRecord> get records =>
+      List.unmodifiable(_records);
   Map<String, int> get reasonCounts => Map.unmodifiable(_reasonCounts);
   int get totalFailures => _records.length;
+
+  String classifyReasonKey(String? error) => _classifyReason(error);
 
   void recordFailure(DownloadTask task) {
     final now = DateTime.now();

@@ -44,6 +44,26 @@ class IntegratedDownloadService extends ChangeNotifier {
 
   List<DownloadTask> get tasks => List.unmodifiable(_tasks);
 
+  DownloadTask? findDuplicateTask(String url) {
+    final normalized = _normalizeUrl(url);
+    return _tasks.firstWhereOrNull((t) => _normalizeUrl(t.url) == normalized);
+  }
+
+  String _normalizeUrl(String url) {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return trimmed;
+    try {
+      final uri = Uri.parse(trimmed);
+      final normalized = uri.replace(fragment: '').toString();
+      if (normalized.endsWith('/') && uri.path == '/' && (uri.query.isEmpty)) {
+        return normalized.substring(0, normalized.length - 1);
+      }
+      return normalized;
+    } catch (_) {
+      return trimmed;
+    }
+  }
+
   void _startPolling() {
     _scheduleNextPoll();
   }
@@ -710,11 +730,54 @@ class IntegratedDownloadService extends ChangeNotifier {
     
     if (success) {
       _tasks.removeWhere((task) => task.id == id);
+      _clientConfig.setTaskTags(id, []);
       _appLogger.info('App', 'Task removed successfully: ${task.fileName}');
       notifyNow();
     } else {
       _appLogger.error('App', 'Failed to remove task: ${task.fileName} (ID: $id)');
     }
+  }
+
+  Future<bool> renameTaskFile(String id, String newFileName) async {
+    final task = _tasks.firstWhereOrNull((t) => t.id == id);
+    if (task == null) {
+      _appLogger.warning('App', 'Rename ignored: task not found (ID: $id)');
+      return false;
+    }
+    if (!_useNewKernel) {
+      _appLogger.warning('App', 'Rename not supported in legacy kernel');
+      return false;
+    }
+
+    final success = await _kernelManager.renameTask(id, newFileName);
+    if (success) {
+      _appLogger.info('App', 'Task renamed: ${task.fileName} -> $newFileName');
+      await _updateTasks();
+    } else {
+      _appLogger.error('App', 'Failed to rename task: ${task.fileName}');
+    }
+    return success;
+  }
+
+  Future<bool> moveTaskFile(String id, String targetDir) async {
+    final task = _tasks.firstWhereOrNull((t) => t.id == id);
+    if (task == null) {
+      _appLogger.warning('App', 'Move ignored: task not found (ID: $id)');
+      return false;
+    }
+    if (!_useNewKernel) {
+      _appLogger.warning('App', 'Move not supported in legacy kernel');
+      return false;
+    }
+
+    final success = await _kernelManager.moveTask(id, targetDir);
+    if (success) {
+      _appLogger.info('App', 'Task moved: ${task.fileName} -> $targetDir');
+      await _updateTasks();
+    } else {
+      _appLogger.error('App', 'Failed to move task: ${task.fileName}');
+    }
+    return success;
   }
 
   Future<void> startTask(String id) async {
@@ -743,6 +806,7 @@ class IntegratedDownloadService extends ChangeNotifier {
         'max_concurrent_tasks': config.maxConcurrentTasks,
         'segment_speed_limit': config.segmentSpeedLimit,
         'enable_dynamic_segments': config.enableDynamicSegments,
+        'conflict_strategy': config.conflictStrategy,
         'proxy': config.proxy != null ? {
           'enabled': config.proxy!.enabled,
           'type': config.proxy!.type,
@@ -764,11 +828,20 @@ class IntegratedDownloadService extends ChangeNotifier {
     int? maxConcurrentTasks,
     int? segmentSpeedLimit,
     bool? enableDynamicSegments,
+    String? conflictStrategy,
     Map<String, dynamic>? proxyConfig,
   }) async {
     bool success;
     
     if (_useNewKernel) {
+      String effectiveConflictStrategy = conflictStrategy ?? 'increment';
+      if (conflictStrategy == null) {
+        final existing = await _kernelManager.getConfig();
+        if (existing != null) {
+          effectiveConflictStrategy = existing.conflictStrategy;
+        }
+      }
+
       kernel.ProxyConfig? proxy;
       if (proxyConfig != null) {
         proxy = kernel.ProxyConfig(
@@ -789,6 +862,7 @@ class IntegratedDownloadService extends ChangeNotifier {
         maxConcurrentTasks: maxConcurrentTasks ?? 3,
         segmentSpeedLimit: segmentSpeedLimit ?? 0,
         enableDynamicSegments: enableDynamicSegments ?? true,
+        conflictStrategy: effectiveConflictStrategy,
         proxy: proxy,
       );
       success = await _kernelManager.setConfig(config);

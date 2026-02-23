@@ -10,13 +10,16 @@ English | [中文](README_CN.md)
 - [Architecture](#architecture)
 - [Features](#features)
 - [Quick Start](#quick-start)
+- [Architecture Design](#architecture-design)
+- [Kernel Protocol](#kernel-protocol)
+- [Contributing](#contributing)
 - [License](#license)
 
 ---
 
 ## Overview
 
-Hanabi Download Manager X is a cross-platform download manager built with Flutter, powered by the NSFX download engine. It provides multi-threaded concurrent downloads, resume capability, and efficient download management.
+Hanabi Download Manager X is a cross-platform download manager built with Flutter, featuring dual-kernel architecture (NSFX and Soda) with multi-threaded concurrent downloads and resume capability.
 
 ### Technology Migration
 
@@ -31,8 +34,9 @@ Migrated from Python + Flet architecture to Flutter for improved cross-platform 
 - Fluent Design - Modern design language
 - Responsive layout - Adapts to various screen sizes
 
-### Download Engine
-- NSFX kernel - Custom-built download core
+### Dual-Kernel Architecture
+- **NSFX (Next Speed Force X)** - Next-generation high-performance download kernel (v2.2.0)
+- **Soda Download Kernel** - Stable Python-based download kernel (v1.5.9)
 - HTTP Range support - Enables resume capability
 - Dynamic segmentation - Optimizes download efficiency
 
@@ -105,6 +109,67 @@ flutter build windows --release
 ```
 
 Build output is located in `build/windows/x64/runner/Release/` directory.
+
+---
+
+## Architecture Design
+
+See [ARCHITECTURE_CN.md](ARCHITECTURE_CN.md) for detailed architecture documentation (Chinese).
+
+### System Overview
+
+```
+UI Layer (Flutter) 
+    ↓
+Service Layer (IntegratedDownloadService)
+    ↓
+Kernel Manager (Dual-kernel support)
+    ├─→ Soda Kernel (Python, Legacy)
+    └─→ NSFX Kernel (Next-gen, WebSocket)
+    ↓
+Network Layer (HTTP/HTTPS)
+```
+
+### Key Components
+
+- **IntegratedDownloadService**: Unified download task management
+- **KernelManager**: Dual-kernel manager with dynamic switching
+- **SodaKernel**: Legacy Python kernel implementation
+- **NsfxKernel**: Next-generation kernel with WebSocket support
+
+---
+
+## Kernel Protocol
+
+### Communication Protocol
+
+Both kernels share the same REST API design (port 9710):
+
+- `POST /download/add` - Add download task
+- `POST /download/pause` - Pause task
+- `POST /download/resume` - Resume task
+- `POST /download/cancel` - Cancel task
+- `GET /download/tasks` - Get task list
+- `GET /settings/download-config` - Get configuration
+- `POST /settings/download-config` - Update configuration
+
+### NSFX Kernel Features
+
+- WebSocket real-time progress updates
+- Lower latency and higher performance
+- Intelligent segment optimization
+- Memory optimization
+
+---
+
+## Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+Quick links:
+- [Report Bug](https://github.com/buaoyezz/hanabi-download-manager-x/issues)
+- [Request Feature](https://github.com/buaoyezz/hanabi-download-manager-x/issues)
+- [Submit Pull Request](https://github.com/buaoyezz/hanabi-download-manager-x/pulls)
 
 ---
 

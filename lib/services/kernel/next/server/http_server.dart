@@ -287,6 +287,7 @@ class NsfxHttpServer {
         'mode': config.mode,
         'max_concurrent_tasks': config.maxConcurrentTasks,
         'segment_speed_limit': config.segmentSpeedLimit,
+        'conflict_strategy': config.conflictStrategy,
         'proxy': config.proxy != null ? {
           'enabled': config.proxy!.enabled,
           'type': config.proxy!.type,
@@ -324,6 +325,7 @@ class NsfxHttpServer {
       mode: body['mode'] ?? 'auto',
       maxConcurrentTasks: body['max_concurrent_tasks'] ?? 3,
       segmentSpeedLimit: body['segment_speed_limit'] ?? 0,
+      conflictStrategy: body['conflict_strategy'] ?? 'increment',
       proxy: proxy,
     );
 

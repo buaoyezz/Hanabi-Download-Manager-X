@@ -156,6 +156,7 @@ class DownloadConfig {
   int maxConcurrentTasks;
   int segmentSpeedLimit;
   bool enableDynamicSegments;
+  String conflictStrategy;
   ProxyConfig? proxy;
 
   DownloadConfig({
@@ -165,6 +166,7 @@ class DownloadConfig {
     this.maxConcurrentTasks = 3,
     this.segmentSpeedLimit = 0,
     this.enableDynamicSegments = true,
+    this.conflictStrategy = 'increment',
     this.proxy,
   });
 
@@ -175,6 +177,7 @@ class DownloadConfig {
     'max_concurrent_tasks': maxConcurrentTasks,
     'segment_speed_limit': segmentSpeedLimit,
     'enable_dynamic_segments': enableDynamicSegments,
+    'conflict_strategy': conflictStrategy,
     'proxy': proxy?.toJson(),
   };
 
@@ -185,6 +188,7 @@ class DownloadConfig {
     maxConcurrentTasks: json['max_concurrent_tasks'] ?? json['maxConcurrentTasks'] ?? 3,
     segmentSpeedLimit: json['segment_speed_limit'] ?? json['segmentSpeedLimit'] ?? 0,
     enableDynamicSegments: json['enable_dynamic_segments'] ?? json['enableDynamicSegments'] ?? true,
+    conflictStrategy: json['conflict_strategy'] ?? json['conflictStrategy'] ?? 'increment',
     proxy: json['proxy'] != null ? ProxyConfig.fromJson(json['proxy']) : null,
   );
 }
@@ -283,6 +287,9 @@ abstract class KernelInterface {
 
   Future<List<DownloadTask>> getTasks();
   Future<DownloadStatistics?> getStatistics();
+
+  Future<bool> renameTask(String taskId, String newFileName);
+  Future<bool> moveTask(String taskId, String targetDir);
 
   Future<DownloadConfig?> getConfig();
   Future<bool> setConfig(DownloadConfig config);

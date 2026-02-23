@@ -138,15 +138,19 @@ class NsfxKernel implements KernelInterface {
     if (!_isRunning) return null;
 
     final id = _generateId();
-    final filepath = p.join(_downloadDir, filename);
+    final resolvedFilename = await _resolveFileNameConflict(filename);
+    final filepath = p.join(_downloadDir, resolvedFilename);
 
-    _logger.info('NSFX', 'Adding download: $filename');
+    if (resolvedFilename != filename) {
+      _logger.info('NSFX', 'Filename conflict resolved: $filename -> $resolvedFilename');
+    }
+    _logger.info('NSFX', 'Adding download: $resolvedFilename');
     _logger.debug('NSFX', 'URL: $url');
 
     final task = Task(
       id: id,
       url: url,
-      filename: filename,
+      filename: resolvedFilename,
       filepath: filepath,
       userAgent: userAgent,
       referer: referer,
@@ -181,6 +185,70 @@ class NsfxKernel implements KernelInterface {
     for (int i = 0; i < slotsAvailable && i < pendingTasks.length; i++) {
       _engine.startDownload(pendingTasks[i]);
     }
+  }
+
+  Future<String> _resolveFileNameConflict(String filename) async {
+    final cleaned = filename.trim();
+    if (cleaned.isEmpty) return filename;
+
+    final originalPath = p.join(_downloadDir, cleaned);
+    final strategy = _config.conflictStrategy;
+
+    final exists = await _conflictExists(originalPath, cleaned);
+    if (!exists) return cleaned;
+
+    if (strategy == 'overwrite') {
+      await _deleteIfExists(originalPath);
+      return cleaned;
+    }
+
+    final baseName = p.basenameWithoutExtension(cleaned);
+    final extension = p.extension(cleaned);
+
+    if (strategy == 'timestamp') {
+      final stamp = _formatTimestamp(DateTime.now());
+      var candidate = '${baseName}_${stamp}${extension}';
+      var candidatePath = p.join(_downloadDir, candidate);
+      if (await _conflictExists(candidatePath, candidate)) {
+        candidate = '${baseName}_${stamp}_${DateTime.now().millisecondsSinceEpoch}${extension}';
+      }
+      return candidate;
+    }
+
+    // 默认：递增序号 (1)(2)...
+    for (int i = 1; i < 10000; i++) {
+      final candidate = '$baseName ($i)$extension';
+      final candidatePath = p.join(_downloadDir, candidate);
+      if (!await _conflictExists(candidatePath, candidate)) {
+        return candidate;
+      }
+    }
+
+    return '${baseName}_${DateTime.now().millisecondsSinceEpoch}$extension';
+  }
+
+  Future<bool> _conflictExists(String filepath, String filename) async {
+    final lower = filename.toLowerCase();
+    final hasTaskConflict = _tasks.values.any((task) {
+      final name = p.basename(task.filepath).toLowerCase();
+      return name == lower;
+    });
+    if (hasTaskConflict) return true;
+    return await File(filepath).exists();
+  }
+
+  Future<void> _deleteIfExists(String filepath) async {
+    try {
+      final file = File(filepath);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (_) {}
+  }
+
+  String _formatTimestamp(DateTime time) {
+    String two(int value) => value.toString().padLeft(2, '0');
+    return '${time.year}${two(time.month)}${two(time.day)}_${two(time.hour)}${two(time.minute)}${two(time.second)}';
   }
 
   @override
@@ -239,6 +307,33 @@ class NsfxKernel implements KernelInterface {
 
     _checkQueue();
     return true;
+  }
+
+  @override
+  Future<bool> renameTask(String taskId, String newFileName) async {
+    final task = _tasks[taskId];
+    if (task == null) return false;
+    if (task.status != TaskStatus.completed) return false;
+    final trimmed = newFileName.trim();
+    if (trimmed.isEmpty) return false;
+
+    final currentPath = task.filepath;
+    final dir = p.dirname(currentPath);
+    final newPath = p.join(dir, trimmed);
+    return _updateTaskFilePath(task, newPath);
+  }
+
+  @override
+  Future<bool> moveTask(String taskId, String targetDir) async {
+    final task = _tasks[taskId];
+    if (task == null) return false;
+    if (task.status != TaskStatus.completed) return false;
+    final trimmed = targetDir.trim();
+    if (trimmed.isEmpty) return false;
+
+    final fileName = p.basename(task.filepath);
+    final newPath = p.join(trimmed, fileName);
+    return _updateTaskFilePath(task, newPath);
   }
 
   @override
@@ -301,6 +396,7 @@ class NsfxKernel implements KernelInterface {
       maxConcurrentTasks: _config.maxConcurrentTasks,
       segmentSpeedLimit: _config.segmentSpeedLimit,
       enableDynamicSegments: _config.enableDynamicSegments,
+      conflictStrategy: _config.conflictStrategy,
       proxy: ProxyConfig(
         enabled: _config.proxy.enabled,
         type: _config.proxy.type,
@@ -321,6 +417,7 @@ class NsfxKernel implements KernelInterface {
     _config.maxConcurrentTasks = config.maxConcurrentTasks;
     _config.segmentSpeedLimit = config.segmentSpeedLimit;
     _config.enableDynamicSegments = config.enableDynamicSegments;
+    _config.conflictStrategy = config.conflictStrategy;
 
     if (config.proxy != null) {
       _config.proxy.enabled = config.proxy!.enabled;
@@ -361,6 +458,52 @@ class NsfxKernel implements KernelInterface {
     _tasks.clear();
     await _storage.clearAll();
     return true;
+  }
+
+  Future<bool> _updateTaskFilePath(Task task, String newPath) async {
+    final currentPath = task.filepath;
+    if (currentPath == newPath) return true;
+
+    final currentFile = File(currentPath);
+    if (!await currentFile.exists()) {
+      _logger.warning('NSFX', 'File not found for task ${task.id}: $currentPath');
+      return false;
+    }
+
+    final newDir = Directory(p.dirname(newPath));
+    if (!await newDir.exists()) {
+      await newDir.create(recursive: true);
+    }
+
+    final moved = await _moveFile(currentPath, newPath);
+    if (!moved) {
+      _logger.warning('NSFX', 'Failed to move file: $currentPath -> $newPath');
+      return false;
+    }
+
+    task.filepath = newPath;
+    task.filename = p.basename(newPath);
+    await _storage.saveTasks(_tasks);
+
+    _progressController.add(_toDownloadTask(task));
+    return true;
+  }
+
+  Future<bool> _moveFile(String fromPath, String toPath) async {
+    final source = File(fromPath);
+    try {
+      await source.rename(toPath);
+      return true;
+    } catch (_) {
+      try {
+        await source.copy(toPath);
+        await source.delete();
+        return true;
+      } catch (e) {
+        _logger.warning('NSFX', 'File move failed: $e');
+        return false;
+      }
+    }
   }
 
   @override

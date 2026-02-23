@@ -99,6 +99,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String _mode = 'auto'; // auto, threads_only, segments_only, manual
   int _maxConcurrentTasks = 3;
   int _segmentSpeedLimit = 0;
+  String _conflictStrategy = 'increment'; // increment | timestamp | overwrite
   bool _enableDynamicSegments = true; // 动态分段开关
   bool _loadingConfig = true;
   
@@ -120,6 +121,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String _closeButtonBehavior = 'minimize_to_tray';
   bool _showTrayRunningStatus = false;
   bool _enablePopupWindow = true;
+  bool _enableClipboardListener = true;
   
   // Status monitoring
   bool _kernelOnline = false;
@@ -298,12 +300,14 @@ class _SettingsPageState extends State<SettingsPage> {
       final closeButtonBehavior = config.getCloseButtonBehavior();
       final showTrayRunningStatus = config.getShowTrayRunningStatus();
       final enablePopupWindow = config.getEnablePopupWindow();
+      final enableClipboardListener = config.getEnableClipboardListener();
       
       if (mounted) {
         setState(() {
           _closeButtonBehavior = closeButtonBehavior;
           _showTrayRunningStatus = showTrayRunningStatus;
           _enablePopupWindow = enablePopupWindow;
+          _enableClipboardListener = enableClipboardListener;
         });
       }
     } catch (e) {
@@ -409,6 +413,35 @@ class _SettingsPageState extends State<SettingsPage> {
         NotificationManager.of(context)?.showError(
           t.settingsSaveFailedTitle,
           message: t.settingsPopupSaveFailedMessage(e.toString()),
+        );
+      }
+    }
+  }
+
+  Future<void> _saveEnableClipboardListener(bool value) async {
+    try {
+      final t = AppLocalizations.of(context)!;
+      final config = Provider.of<ClientConfigService>(context, listen: false);
+      await config.setEnableClipboardListener(value);
+
+      if (mounted) {
+        setState(() {
+          _enableClipboardListener = value;
+        });
+
+        NotificationManager.of(context)?.showSuccess(
+          value ? t.settingsClipboardListenerEnabledTitle : t.settingsClipboardListenerDisabledTitle,
+          message: value
+              ? t.settingsClipboardListenerEnabledMessage
+              : t.settingsClipboardListenerDisabledMessage,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final t = AppLocalizations.of(context)!;
+        NotificationManager.of(context)?.showError(
+          t.settingsSaveFailedTitle,
+          message: t.settingsSaveFailedMessage(e.toString()),
         );
       }
     }
@@ -669,6 +702,7 @@ class _SettingsPageState extends State<SettingsPage> {
           _maxConcurrentTasks = config['max_concurrent_tasks'] ?? 3;
           _segmentSpeedLimit = config['segment_speed_limit'] ?? 0;
           _enableDynamicSegments = config['enable_dynamic_segments'] ?? true;
+          _conflictStrategy = config['conflict_strategy'] ?? 'increment';
           
           // Load proxy configuration
           final proxyConfig = config['proxy'] as Map<String, dynamic>?;
@@ -700,6 +734,7 @@ class _SettingsPageState extends State<SettingsPage> {
     int? maxConcurrentTasks, 
     int? segmentSpeedLimit,
     bool? enableDynamicSegments,
+    String? conflictStrategy,
     Map<String, dynamic>? proxyConfig,
   }) async {
     final service = context.read<IntegratedDownloadService>();
@@ -712,6 +747,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (maxConcurrentTasks != null) _maxConcurrentTasks = maxConcurrentTasks;
       if (segmentSpeedLimit != null) _segmentSpeedLimit = segmentSpeedLimit;
       if (enableDynamicSegments != null) _enableDynamicSegments = enableDynamicSegments;
+      if (conflictStrategy != null) _conflictStrategy = conflictStrategy;
     });
     
     await service.setDownloadConfig(
@@ -721,6 +757,7 @@ class _SettingsPageState extends State<SettingsPage> {
       maxConcurrentTasks: maxConcurrentTasks ?? _maxConcurrentTasks,
       segmentSpeedLimit: segmentSpeedLimit ?? _segmentSpeedLimit,
       enableDynamicSegments: enableDynamicSegments ?? _enableDynamicSegments,
+      conflictStrategy: conflictStrategy ?? _conflictStrategy,
       proxyConfig: proxyConfig,
     );
     
@@ -992,6 +1029,16 @@ class _SettingsPageState extends State<SettingsPage> {
             trailing: ToggleSwitch(
               checked: _enablePopupWindow,
               onChanged: _saveEnablePopupWindow,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildSettingItem(
+            context,
+            title: t.settingsClipboardListenerTitle,
+            subtitle: t.settingsClipboardListenerSubtitle,
+            trailing: ToggleSwitch(
+              checked: _enableClipboardListener,
+              onChanged: _saveEnableClipboardListener,
             ),
           ),
           const SizedBox(height: 12),
@@ -1295,6 +1342,26 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ],
               ),
+            ),
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // 重名冲突策略
+          _buildSettingItem(
+            context,
+            title: t.settingsConflictStrategyTitle,
+            subtitle: t.settingsConflictStrategySubtitle,
+            trailing: ComboBox<String>(
+              value: _conflictStrategy,
+              items: [
+                ComboBoxItem(value: 'increment', child: Text(t.settingsConflictStrategyIncrement)),
+                ComboBoxItem(value: 'timestamp', child: Text(t.settingsConflictStrategyTimestamp)),
+                ComboBoxItem(value: 'overwrite', child: Text(t.settingsConflictStrategyOverwrite)),
+              ],
+              onChanged: (value) {
+                if (value != null) _updateConfig(conflictStrategy: value);
+              },
             ),
           ),
         ],

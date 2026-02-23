@@ -1840,5 +1840,94 @@
   "performanceMonitorToastCopiedMessage": "性能日志已复制到剪贴板",
   "performanceMonitorModeQuality": "高质量",
   "performanceMonitorModeBalanced": "平衡",
-  "performanceMonitorModePerformance": "性能优先"
+  "performanceMonitorModePerformance": "性能优先",
+  "tagActionLabel": "标签",
+  "tagEditTitle": "编辑标签",
+  "tagEditSubtitle": "用逗号分隔标签",
+  "tagEditPlaceholder": "标签1, 标签2",
+  "tagFilterTitle": "标签筛选",
+  "tagFilterEmpty": "暂无可用标签",
+  "tagFilterSubtitle": "选择一个标签进行筛选：",
+  "tagFilterClearButton": "清除标签筛选",
+  "completedBatchActionsLabel": "批量操作（{count} 项）",
+  "@completedBatchActionsLabel": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "completedBatchRenameButton": "批量重命名",
+  "completedBatchMoveButton": "批量移动",
+  "completedBatchMoveUnavailableTitle": "批量移动不可用",
+  "completedBatchMoveUnavailableMessage": "旧内核暂不支持批量移动",
+  "completedBatchMoveSuccessTitle": "批量移动完成",
+  "completedBatchMoveSuccessMessage": "已移动 {count} 个文件",
+  "@completedBatchMoveSuccessMessage": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "completedBatchMovePartialMessage": "成功 {success} 个，失败 {failed} 个",
+  "@completedBatchMovePartialMessage": {
+    "placeholders": {
+      "success": {},
+      "failed": {}
+    }
+  },
+  "completedBatchRenameUnavailableTitle": "批量重命名不可用",
+  "completedBatchRenameUnavailableMessage": "旧内核暂不支持批量重命名",
+  "completedBatchRenameTitle": "批量重命名",
+  "completedBatchRenameHint": "将前缀/后缀应用到当前列表中的文件名",
+  "completedBatchRenamePrefixLabel": "前缀",
+  "completedBatchRenamePrefixPlaceholder": "prefix_",
+  "completedBatchRenameSuffixLabel": "后缀",
+  "completedBatchRenameSuffixPlaceholder": "_suffix",
+  "completedBatchRenameEmptyWarningMessage": "请至少填写前缀或后缀",
+  "completedBatchRenameSuccessTitle": "批量重命名完成",
+  "completedBatchRenameSuccessMessage": "已重命名 {count} 个文件",
+  "@completedBatchRenameSuccessMessage": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "completedBatchRenamePartialMessage": "成功 {success} 个，失败 {failed} 个",
+  "@completedBatchRenamePartialMessage": {
+    "placeholders": {
+      "success": {},
+      "failed": {}
+    }
+  },
+  "settingsClipboardListenerTitle": "剪贴板监听",
+  "settingsClipboardListenerSubtitle": "检测剪贴板中的链接并弹出新建下载",
+  "settingsClipboardListenerEnabledTitle": "剪贴板监听已开启",
+  "settingsClipboardListenerEnabledMessage": "复制链接后会弹出新建下载窗口",
+  "settingsClipboardListenerDisabledTitle": "剪贴板监听已关闭",
+  "settingsClipboardListenerDisabledMessage": "复制链接将不再弹窗提示",
+  "downloadDuplicateTitle": "发现重复下载",
+  "downloadDuplicateMessage": "已存在相同链接的任务：{fileName}（{status}）。要如何处理？",
+  "@downloadDuplicateMessage": {
+    "placeholders": {
+      "fileName": {},
+      "status": {}
+    }
+  },
+  "downloadDuplicateUseExistingButton": "使用已有",
+  "downloadDuplicateAddNewButton": "仍然新建",
+  "downloadDuplicateCancelButton": "取消",
+  "downloadFailureHintAuth": "可能需要登录或补充 Referer/Cookie，链接可能已过期。",
+  "downloadFailureHintNotFound": "资源不存在或已过期，尝试更新链接。",
+  "downloadFailureHintRange": "服务器不支持断点续传，建议单线程或重新下载。",
+  "downloadFailureHintRateLimit": "请求过于频繁，请稍后重试。",
+  "downloadFailureHintServer": "服务器错误，请稍后重试。",
+  "downloadFailureHintHttp": "HTTP 错误，请检查链接或权限。",
+  "downloadFailureHintTimeout": "连接超时，检查网络后重试。",
+  "downloadFailureHintConnection": "连接中断，检查网络或代理设置。",
+  "downloadFailureHintDns": "域名解析失败，检查网络或 DNS。",
+  "downloadFailureHintSsl": "SSL 证书错误，尝试更换来源。",
+  "downloadFailureHintChecksum": "文件可能损坏，建议重新下载。",
+  "downloadFailureHintDisk": "磁盘空间不足或权限不足，请检查保存目录。",
+  "settingsConflictStrategyTitle": "重名冲突策略",
+  "settingsConflictStrategySubtitle": "当文件已存在时的处理方式",
+  "settingsConflictStrategyIncrement": "自动加 (1)(2)",
+  "settingsConflictStrategyTimestamp": "追加时间戳",
+  "settingsConflictStrategyOverwrite": "覆盖原文件"
 }

@@ -1,6 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart' hide FluentIcons;
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
+import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -11,6 +12,7 @@ import '../../../widgets/folder_picker_dialog.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../../utils/fluent_icons.dart';
+import '../../../utils/failure_reason_localizer.dart';
 
 /// 自定义正则规则
 class CustomRegexRule {
@@ -595,8 +597,58 @@ class _LogPageState extends State<LogPage> {
         await placeholder.writeAsString('No log files found.');
       }
 
-      // 生成摘要
+      // 导出运行时日志（内存日志）
+      final appLogger = context.read<AppLoggerService>();
+      final runtimeLogFile = File(p.join(logsDir.path, 'runtime_logs.txt'));
+      if (appLogger.logs.isEmpty) {
+        await runtimeLogFile.writeAsString('No runtime logs found.');
+      } else {
+        final buffer = StringBuffer();
+        for (final log in appLogger.logs) {
+          buffer.writeln(
+            '[${log.formattedTime}] [${log.levelString}] [${log.source}] ${log.message}',
+          );
+        }
+        await runtimeLogFile.writeAsString(buffer.toString());
+      }
+
       final failureStats = context.read<DownloadFailureStatsService>();
+
+      // 导出错误码与失败记录
+      final reasonCounts = failureStats.reasonCounts.entries.map((entry) {
+        return {
+          'reason': entry.key,
+          'label': _localizedReason(entry.key),
+          'code': FailureReasonLocalizer.parseCode(entry.key),
+          'count': entry.value,
+        };
+      }).toList();
+
+      final errorRecords = failureStats.records.map((record) {
+        return {
+          'timestamp': record.timestamp.toIso8601String(),
+          'task_id': record.taskId,
+          'filename': record.filename,
+          'url': record.url,
+          'reason': record.reason,
+          'reason_label': _localizedReason(record.reason),
+          'reason_code': FailureReasonLocalizer.parseCode(record.reason),
+          'raw_error': record.rawError,
+          'download_core': record.downloadCore,
+        };
+      }).toList();
+
+      final errorPayload = {
+        'total_failures': failureStats.totalFailures,
+        'reason_counts': reasonCounts,
+        'records': errorRecords,
+      };
+
+      await File(p.join(exportRoot.path, 'errors.json')).writeAsString(
+        const JsonEncoder.withIndent('  ').convert(errorPayload),
+      );
+
+      // 生成摘要
       final summary = StringBuffer()
         ..writeln('Hanabi Download Manager X Diagnostics')
         ..writeln('Export Time: $timestamp')
@@ -1220,43 +1272,7 @@ class _LogPageState extends State<LogPage> {
   }
 
   String _localizedReason(String reasonKey) {
-    final parts = reasonKey.split(':');
-    final type = parts.isNotEmpty && parts.first.isNotEmpty ? parts.first : 'unknown';
-    final code = parts.length > 1 ? int.tryParse(parts[1]) : null;
-    final displayCode = code ?? '?';
-
-    switch (type) {
-      case 'unknown':
-        return t.logFailureReasonUnknown;
-      case 'auth':
-        return t.logFailureReasonAuth(displayCode);
-      case 'not_found':
-        return t.logFailureReasonNotFound(displayCode);
-      case 'range':
-        return code == null ? t.logFailureReasonRange : t.logFailureReasonRangeWithCode(displayCode);
-      case 'rate_limit':
-        return t.logFailureReasonTooManyRequests(displayCode);
-      case 'server':
-        return t.logFailureReasonServerError(displayCode);
-      case 'http':
-        return t.logFailureReasonHttpError(displayCode);
-      case 'timeout':
-        return t.logFailureReasonTimeout;
-      case 'connection':
-        return t.logFailureReasonConnection;
-      case 'dns':
-        return t.logFailureReasonDns;
-      case 'ssl':
-        return t.logFailureReasonSsl;
-      case 'checksum':
-        return t.logFailureReasonChecksum;
-      case 'disk':
-        return t.logFailureReasonDisk;
-      case 'other':
-        return t.logFailureReasonOther;
-      default:
-        return reasonKey;
-    }
+    return FailureReasonLocalizer.localized(t, reasonKey);
   }
 
   Color _getReasonColor(String reasonKey) {

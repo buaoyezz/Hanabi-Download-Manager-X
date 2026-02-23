@@ -141,12 +141,14 @@ class ClientConfigService extends ChangeNotifier {
     return {
       'version': AppConstants.version,
       'last_updated': DateTime.now().toIso8601String(),
+      'task_tags': <String, dynamic>{},
       'behavior': {
         'auto_start_download': true,
         'notify_on_complete': true,
         'close_button_behavior': 'minimize_to_tray', // 默认最小化到托盘
         'show_tray_running_status': false, // 默认不显示“正在后台运行”提示
         'enable_popup_window': true, // 默认启用浏览器下载弹窗
+        'enable_clipboard_listener': true, // 默认启用剪贴板监听
       },
     };
   }
@@ -550,6 +552,14 @@ class ClientConfigService extends ChangeNotifier {
     await _setToConfig(_appConfig, _appConfigPath, 'behavior.enable_popup_window', value);
   }
 
+  bool getEnableClipboardListener() {
+    return _getFromConfig<bool>(_appConfig, 'behavior.enable_clipboard_listener', defaultValue: true) ?? true;
+  }
+
+  Future<void> setEnableClipboardListener(bool value) async {
+    await _setToConfig(_appConfig, _appConfigPath, 'behavior.enable_clipboard_listener', value);
+  }
+
   // ========== 配置管理 ==========
   
   /// 导出所有配置到目录
@@ -627,4 +637,57 @@ class ClientConfigService extends ChangeNotifier {
   String get appConfigPath => _appConfigPath;
   String get uiConfigPath => _uiConfigPath;
   String get logConfigPath => _logConfigPath;
+
+  // ========== 任务标签 ==========
+
+  Map<String, List<String>> getTaskTagsMap() {
+    final raw = _getFromConfig<Map>(_appConfig, 'task_tags', defaultValue: {}) ?? {};
+    final result = <String, List<String>>{};
+    for (final entry in raw.entries) {
+      final key = entry.key.toString();
+      final value = entry.value;
+      if (value is List) {
+        result[key] = value.map((e) => e.toString()).toList();
+      }
+    }
+    return result;
+  }
+
+  List<String> getTaskTags(String taskId) {
+    final map = getTaskTagsMap();
+    return map[taskId] ?? const [];
+  }
+
+  List<String> getAllTaskTags() {
+    final map = getTaskTagsMap();
+    final set = <String>{};
+    for (final tags in map.values) {
+      for (final tag in tags) {
+        if (tag.trim().isNotEmpty) {
+          set.add(tag.trim());
+        }
+      }
+    }
+    final list = set.toList();
+    list.sort();
+    return list;
+  }
+
+  Future<void> setTaskTags(String taskId, List<String> tags) async {
+    final cleaned = tags
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty)
+        .toSet()
+        .toList();
+    cleaned.sort();
+
+    final raw = _getFromConfig<Map>(_appConfig, 'task_tags', defaultValue: {}) ?? {};
+    final map = Map<String, dynamic>.from(raw);
+    if (cleaned.isEmpty) {
+      map.remove(taskId);
+    } else {
+      map[taskId] = cleaned;
+    }
+    await _setToConfig(_appConfig, _appConfigPath, 'task_tags', map);
+  }
 }

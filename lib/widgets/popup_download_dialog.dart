@@ -1,9 +1,16 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import '../services/integrated_download_service.dart';
+import '../models/download_task.dart';
 import '../theme/app_theme.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/fluent_icons.dart' as CustomIcons;
+
+enum _DuplicateAction {
+  useExisting,
+  addNew,
+  cancel,
+}
 
 // 弹窗下载对话框
 class PopupDownloadDialog extends StatefulWidget {
@@ -336,6 +343,50 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
     );
   }
 
+  String _getStatusLabel(DownloadStatus status) {
+    switch (status) {
+      case DownloadStatus.downloading:
+        return t.downloadStatusDownloading;
+      case DownloadStatus.paused:
+        return t.downloadStatusPaused;
+      case DownloadStatus.completed:
+        return t.downloadStatusCompleted;
+      case DownloadStatus.failed:
+        return t.downloadStatusFailed;
+      case DownloadStatus.merging:
+        return t.downloadStatusMerging;
+      case DownloadStatus.pending:
+      default:
+        return t.downloadStatusPending;
+    }
+  }
+
+  Future<_DuplicateAction> _showDuplicateDialog(DownloadTask task) async {
+    final statusLabel = _getStatusLabel(task.status);
+    final result = await showDialog<_DuplicateAction>(
+      context: context,
+      builder: (context) => ContentDialog(
+        title: Text(t.downloadDuplicateTitle),
+        content: Text(t.downloadDuplicateMessage(task.fileName, statusLabel)),
+        actions: [
+          Button(
+            onPressed: () => Navigator.pop(context, _DuplicateAction.cancel),
+            child: Text(t.downloadDuplicateCancelButton),
+          ),
+          Button(
+            onPressed: () => Navigator.pop(context, _DuplicateAction.addNew),
+            child: Text(t.downloadDuplicateAddNewButton),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, _DuplicateAction.useExisting),
+            child: Text(t.downloadDuplicateUseExistingButton),
+          ),
+        ],
+      ),
+    );
+    return result ?? _DuplicateAction.cancel;
+  }
+
   Future<void> _handleDownload() async {
     final url = _urlController.text.trim();
     final filename = _fileNameController.text.trim();
@@ -350,11 +401,33 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
       return;
     }
 
-    setState(() => _isLoading = true);
-
     try {
+      final downloadService = context.read<IntegratedDownloadService>();
+      final duplicate = downloadService.findDuplicateTask(url);
+      if (duplicate != null) {
+        final action = await _showDuplicateDialog(duplicate);
+        if (!mounted) return;
+        if (action == _DuplicateAction.cancel) {
+          setState(() => _isLoading = false);
+          return;
+        }
+        if (action == _DuplicateAction.useExisting) {
+          if (duplicate.status == DownloadStatus.paused ||
+              duplicate.status == DownloadStatus.failed ||
+              duplicate.status == DownloadStatus.pending) {
+            await downloadService.resumeTask(duplicate.id);
+          }
+          if (mounted) {
+            Navigator.of(context).pop(true);
+          }
+          return;
+        }
+      }
+
+      setState(() => _isLoading = true);
+
       // 传递浏览器的身份验证信息
-      context.read<IntegratedDownloadService>().addTask(
+      downloadService.addTask(
         url, 
         filename,
         referer: widget.referer,

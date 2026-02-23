@@ -13,6 +13,7 @@ import '../../widgets/animated_card.dart';
 import '../../widgets/smooth_scroll_wrapper.dart';
 import '../../utils/fluent_icons.dart' as CustomIcons;
 import '../../widgets/animated_notifications.dart';
+import '../../widgets/folder_picker_dialog.dart';
 
 // 自定义分类
 class CustomCategory {
@@ -251,6 +252,7 @@ class _CompletedListState extends State<CompletedList> {
             children: [
               _buildHeader(context, completedTasks.length),
               _buildTabBar(context, tabs, tasksByCategory, customTasksByIndex, completedTasks.length),
+              _buildBatchActionsBar(context, currentTasks),
               Expanded(
                 child: currentTasks.isEmpty
                     ? _buildNoResultsState(context)
@@ -577,6 +579,226 @@ class _CompletedListState extends State<CompletedList> {
         ],
       ),
     );
+  }
+
+  Widget _buildBatchActionsBar(BuildContext context, List<DownloadTask> tasks) {
+    if (tasks.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppTheme.bgLayer2.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(
+          color: AppTheme.borderSubtle.withValues(alpha: 0.5),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(CustomIcons.FluentIcons.list,
+            size: 14,
+            color: AppTheme.accentLight,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            t.completedBatchActionsLabel(tasks.length),
+            style: FluentTheme.of(context).typography.caption?.copyWith(
+              color: AppTheme.textSecondary,
+              fontSize: 11,
+            ),
+          ),
+          const Spacer(),
+          Button(
+            onPressed: () => _batchRenameTasks(tasks),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(CustomIcons.FluentIcons.getIcon('edit_20'), size: 12),
+                const SizedBox(width: 6),
+                Text(t.completedBatchRenameButton, style: const TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Button(
+            onPressed: () => _batchMoveTasks(tasks),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(CustomIcons.FluentIcons.folder_open, size: 12),
+                const SizedBox(width: 6),
+                Text(t.completedBatchMoveButton, style: const TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _batchMoveTasks(List<DownloadTask> tasks) async {
+    if (tasks.isEmpty) return;
+
+    final useNewKernel = context.read<ClientConfigService>()
+        .getBool('kernel.use_new_kernel', defaultValue: true);
+    if (!useNewKernel) {
+      NotificationManager.of(context)?.showWarning(
+        t.completedBatchMoveUnavailableTitle,
+        message: t.completedBatchMoveUnavailableMessage,
+      );
+      return;
+    }
+
+    String initialPath = 'C:\\';
+    try {
+      initialPath = Directory.current.path;
+    } catch (_) {}
+
+    final selectedPath = await showDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => FolderPickerDialog(
+        initialPath: initialPath,
+      ),
+    );
+
+    if (selectedPath == null || !mounted) return;
+
+    final service = context.read<IntegratedDownloadService>();
+    int success = 0;
+    int failed = 0;
+
+    for (final task in tasks) {
+      final ok = await service.moveTaskFile(task.id, selectedPath);
+      if (ok) {
+        success++;
+      } else {
+        failed++;
+      }
+    }
+
+    if (!mounted) return;
+
+    if (failed == 0) {
+      NotificationManager.of(context)?.showSuccess(
+        t.completedBatchMoveSuccessTitle,
+        message: t.completedBatchMoveSuccessMessage(success),
+      );
+    } else {
+      NotificationManager.of(context)?.showWarning(
+        t.completedBatchMoveSuccessTitle,
+        message: t.completedBatchMovePartialMessage(success, failed),
+      );
+    }
+  }
+
+  Future<void> _batchRenameTasks(List<DownloadTask> tasks) async {
+    if (tasks.isEmpty) return;
+
+    final useNewKernel = context.read<ClientConfigService>()
+        .getBool('kernel.use_new_kernel', defaultValue: true);
+    if (!useNewKernel) {
+      NotificationManager.of(context)?.showWarning(
+        t.completedBatchRenameUnavailableTitle,
+        message: t.completedBatchRenameUnavailableMessage,
+      );
+      return;
+    }
+
+    final prefixController = TextEditingController();
+    final suffixController = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => ContentDialog(
+        title: Text(t.completedBatchRenameTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(t.completedBatchRenameHint),
+            const SizedBox(height: 12),
+            Text(t.completedBatchRenamePrefixLabel),
+            const SizedBox(height: 6),
+            TextBox(
+              controller: prefixController,
+              placeholder: t.completedBatchRenamePrefixPlaceholder,
+            ),
+            const SizedBox(height: 12),
+            Text(t.completedBatchRenameSuffixLabel),
+            const SizedBox(height: 6),
+            TextBox(
+              controller: suffixController,
+              placeholder: t.completedBatchRenameSuffixPlaceholder,
+            ),
+          ],
+        ),
+        actions: [
+          Button(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(t.folderPickerCancelButton),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(t.folderPickerConfirmButton),
+          ),
+        ],
+      ),
+    );
+
+    final prefix = prefixController.text.trim();
+    final suffix = suffixController.text.trim();
+    prefixController.dispose();
+    suffixController.dispose();
+
+    if (confirmed != true) return;
+    if (prefix.isEmpty && suffix.isEmpty) {
+      if (mounted) {
+        NotificationManager.of(context)?.showWarning(
+          t.completedBatchRenameTitle,
+          message: t.completedBatchRenameEmptyWarningMessage,
+        );
+      }
+      return;
+    }
+
+    final service = context.read<IntegratedDownloadService>();
+    int success = 0;
+    int failed = 0;
+
+    for (final task in tasks) {
+      final newName = _applyPrefixSuffix(task.fileName, prefix, suffix);
+      final ok = await service.renameTaskFile(task.id, newName);
+      if (ok) {
+        success++;
+      } else {
+        failed++;
+      }
+    }
+
+    if (!mounted) return;
+
+    if (failed == 0) {
+      NotificationManager.of(context)?.showSuccess(
+        t.completedBatchRenameSuccessTitle,
+        message: t.completedBatchRenameSuccessMessage(success),
+      );
+    } else {
+      NotificationManager.of(context)?.showWarning(
+        t.completedBatchRenameSuccessTitle,
+        message: t.completedBatchRenamePartialMessage(success, failed),
+      );
+    }
+  }
+
+  String _applyPrefixSuffix(String fileName, String prefix, String suffix) {
+    final dotIndex = fileName.lastIndexOf('.');
+    final hasExt = dotIndex > 0 && dotIndex < fileName.length - 1;
+    final base = hasExt ? fileName.substring(0, dotIndex) : fileName;
+    final ext = hasExt ? fileName.substring(dotIndex) : '';
+    return '$prefix$base$suffix$ext';
   }
 
   void _deleteCustomCategory(int index) {
@@ -911,6 +1133,7 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
   }
 
   Widget _buildTaskInfo() {
+    final tags = context.watch<ClientConfigService>().getTaskTags(widget.task.id);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -956,6 +1179,33 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
             ],
           ],
         ),
+        if (tags.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: tags.map((tag) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentPrimary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusRound),
+                  border: Border.all(
+                    color: AppTheme.accentPrimary.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Text(
+                  tag,
+                  style: FluentTheme.of(context).typography.caption?.copyWith(
+                    color: AppTheme.accentLight,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
       ],
     );
   }
@@ -979,6 +1229,12 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
         ),
         const SizedBox(width: 6),
         _IconActionButton(
+          icon: CustomIcons.FluentIcons.tag,
+          color: AppTheme.accentLight,
+          onPressed: _editTags,
+        ),
+        const SizedBox(width: 6),
+        _IconActionButton(
           icon: _isExpanded ? CustomIcons.FluentIcons.chevron_up : CustomIcons.FluentIcons.chevron_down,
           color: AppTheme.textSecondary,
           onPressed: () => setState(() => _isExpanded = !_isExpanded),
@@ -991,6 +1247,53 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
         ),
       ],
     );
+  }
+
+  Future<void> _editTags() async {
+    final config = context.read<ClientConfigService>();
+    final existing = config.getTaskTags(widget.task.id);
+    final controller = TextEditingController(text: existing.join(', '));
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => ContentDialog(
+        title: Text(t.tagEditTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(t.tagEditSubtitle),
+            const SizedBox(height: 8),
+            TextBox(
+              controller: controller,
+              placeholder: t.tagEditPlaceholder,
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          Button(
+            onPressed: () => Navigator.pop(context),
+            child: Text(t.folderPickerCancelButton),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: Text(t.folderPickerConfirmButton),
+          ),
+        ],
+      ),
+    );
+
+    controller.dispose();
+
+    if (result != null) {
+      final tags = result
+          .split(',')
+          .map((t) => t.trim())
+          .where((t) => t.isNotEmpty)
+          .toList();
+      await config.setTaskTags(widget.task.id, tags);
+    }
   }
 
   String _formatDate(DateTime date) {

@@ -3803,4 +3803,205 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get performanceMonitorModePerformance => 'Performance';
+
+  @override
+  String get tagActionLabel => 'Tag';
+
+  @override
+  String get tagEditTitle => 'Edit tags';
+
+  @override
+  String get tagEditSubtitle => 'Separate tags with commas';
+
+  @override
+  String get tagEditPlaceholder => 'tag1, tag2';
+
+  @override
+  String get tagFilterTitle => 'Tag filter';
+
+  @override
+  String get tagFilterEmpty => 'No tags available';
+
+  @override
+  String get tagFilterSubtitle => 'Select a tag to filter:';
+
+  @override
+  String get tagFilterClearButton => 'Clear tag filter';
+
+  @override
+  String completedBatchActionsLabel(Object count) {
+    return 'Batch actions ($count)';
+  }
+
+  @override
+  String get completedBatchRenameButton => 'Batch rename';
+
+  @override
+  String get completedBatchMoveButton => 'Batch move';
+
+  @override
+  String get completedBatchMoveUnavailableTitle => 'Batch move unavailable';
+
+  @override
+  String get completedBatchMoveUnavailableMessage =>
+      'Legacy kernel does not support batch move yet';
+
+  @override
+  String get completedBatchMoveSuccessTitle => 'Batch move complete';
+
+  @override
+  String completedBatchMoveSuccessMessage(Object count) {
+    return 'Moved $count files';
+  }
+
+  @override
+  String completedBatchMovePartialMessage(Object success, Object failed) {
+    return 'Success $success, failed $failed';
+  }
+
+  @override
+  String get completedBatchRenameUnavailableTitle => 'Batch rename unavailable';
+
+  @override
+  String get completedBatchRenameUnavailableMessage =>
+      'Legacy kernel does not support batch rename yet';
+
+  @override
+  String get completedBatchRenameTitle => 'Batch rename';
+
+  @override
+  String get completedBatchRenameHint =>
+      'Apply prefix/suffix to file names in the current list';
+
+  @override
+  String get completedBatchRenamePrefixLabel => 'Prefix';
+
+  @override
+  String get completedBatchRenamePrefixPlaceholder => 'prefix_';
+
+  @override
+  String get completedBatchRenameSuffixLabel => 'Suffix';
+
+  @override
+  String get completedBatchRenameSuffixPlaceholder => '_suffix';
+
+  @override
+  String get completedBatchRenameEmptyWarningMessage =>
+      'Please enter a prefix or suffix';
+
+  @override
+  String get completedBatchRenameSuccessTitle => 'Batch rename complete';
+
+  @override
+  String completedBatchRenameSuccessMessage(Object count) {
+    return 'Renamed $count files';
+  }
+
+  @override
+  String completedBatchRenamePartialMessage(Object success, Object failed) {
+    return 'Success $success, failed $failed';
+  }
+
+  @override
+  String get settingsClipboardListenerTitle => 'Clipboard listener';
+
+  @override
+  String get settingsClipboardListenerSubtitle =>
+      'Detect URLs from clipboard and show the add-download dialog';
+
+  @override
+  String get settingsClipboardListenerEnabledTitle =>
+      'Clipboard listener enabled';
+
+  @override
+  String get settingsClipboardListenerEnabledMessage =>
+      'URLs copied to clipboard will trigger a download prompt';
+
+  @override
+  String get settingsClipboardListenerDisabledTitle =>
+      'Clipboard listener disabled';
+
+  @override
+  String get settingsClipboardListenerDisabledMessage =>
+      'Clipboard URLs will no longer trigger a prompt';
+
+  @override
+  String get downloadDuplicateTitle => 'Duplicate download detected';
+
+  @override
+  String downloadDuplicateMessage(Object fileName, Object status) {
+    return 'A task with the same URL already exists: $fileName ($status). What would you like to do?';
+  }
+
+  @override
+  String get downloadDuplicateUseExistingButton => 'Use existing';
+
+  @override
+  String get downloadDuplicateAddNewButton => 'Add new';
+
+  @override
+  String get downloadDuplicateCancelButton => 'Cancel';
+
+  @override
+  String get downloadFailureHintAuth =>
+      'Check login or add Referer/Cookie; the link may have expired.';
+
+  @override
+  String get downloadFailureHintNotFound =>
+      'The file may be removed or the link is invalid.';
+
+  @override
+  String get downloadFailureHintRange =>
+      'Server may not support resume; try single-thread or restart.';
+
+  @override
+  String get downloadFailureHintRateLimit =>
+      'Too many requests. Try again later.';
+
+  @override
+  String get downloadFailureHintServer => 'Server error. Try again later.';
+
+  @override
+  String get downloadFailureHintHttp =>
+      'HTTP error. Check the URL or permissions.';
+
+  @override
+  String get downloadFailureHintTimeout =>
+      'Connection timed out. Check network or retry.';
+
+  @override
+  String get downloadFailureHintConnection =>
+      'Connection dropped. Check network or proxy.';
+
+  @override
+  String get downloadFailureHintDns =>
+      'DNS lookup failed. Check network or DNS settings.';
+
+  @override
+  String get downloadFailureHintSsl =>
+      'SSL error. Try another source or adjust certificate settings.';
+
+  @override
+  String get downloadFailureHintChecksum =>
+      'File may be corrupted. Try re-downloading.';
+
+  @override
+  String get downloadFailureHintDisk =>
+      'Disk full or permission issue. Check the save location.';
+
+  @override
+  String get settingsConflictStrategyTitle => 'Name conflict strategy';
+
+  @override
+  String get settingsConflictStrategySubtitle =>
+      'How to handle existing files with the same name';
+
+  @override
+  String get settingsConflictStrategyIncrement => 'Add (1), (2)...';
+
+  @override
+  String get settingsConflictStrategyTimestamp => 'Append timestamp';
+
+  @override
+  String get settingsConflictStrategyOverwrite => 'Overwrite existing';
 }

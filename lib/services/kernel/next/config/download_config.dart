@@ -4,6 +4,7 @@ class NsfxConfig {
   String mode;
   int maxConcurrentTasks;
   int segmentSpeedLimit;
+  String conflictStrategy;
   NsfxProxyConfig proxy;
 
   // 高级配置
@@ -19,6 +20,7 @@ class NsfxConfig {
     this.mode = 'auto',
     this.maxConcurrentTasks = 3,
     this.segmentSpeedLimit = 0,
+    this.conflictStrategy = 'increment',
     NsfxProxyConfig? proxy,
     this.chunkSize = 1024 * 1024,
     this.connectionTimeout = 30,
@@ -33,6 +35,7 @@ class NsfxConfig {
     'mode': mode,
     'max_concurrent_tasks': maxConcurrentTasks,
     'segment_speed_limit': segmentSpeedLimit,
+    'conflict_strategy': conflictStrategy,
     'proxy': proxy.toJson(),
     'chunk_size': chunkSize,
     'connection_timeout': connectionTimeout,
@@ -47,6 +50,7 @@ class NsfxConfig {
     mode: json['mode'] ?? 'auto',
     maxConcurrentTasks: json['max_concurrent_tasks'] ?? json['maxConcurrentTasks'] ?? 3,
     segmentSpeedLimit: json['segment_speed_limit'] ?? json['segmentSpeedLimit'] ?? 0,
+    conflictStrategy: json['conflict_strategy'] ?? json['conflictStrategy'] ?? 'increment',
     proxy: json['proxy'] != null ? NsfxProxyConfig.fromJson(json['proxy']) : null,
     chunkSize: json['chunk_size'] ?? json['chunkSize'] ?? 1024 * 1024,
     connectionTimeout: json['connection_timeout'] ?? json['connectionTimeout'] ?? 30,
