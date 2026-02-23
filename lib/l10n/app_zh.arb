@@ -225,7 +225,7 @@
   "settingsTrayHintDisabledTitle": "后台运行提示已关闭",
   "settingsTrayHintDisabledMessage": "托盘图标将始终只显示应用名称",
   "settingsCloseBehaviorTitle": "关闭按钮行为",
-  "settingsCloseBehaviorMinimizeLabel": "minimize_to_tray",
+  "settingsCloseBehaviorMinimizeLabel": "最小化到托盘",
   "settingsCloseBehaviorExitLabel": "退出应用",
   "settingsCloseBehaviorMinimize": "最小化到系统托盘，保持后台运行",
   "settingsCloseBehaviorExit": "完全退出应用程序",

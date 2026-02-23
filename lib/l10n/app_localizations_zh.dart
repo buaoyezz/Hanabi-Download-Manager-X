@@ -471,7 +471,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsCloseBehaviorTitle => '关闭按钮行为';
 
   @override
-  String get settingsCloseBehaviorMinimizeLabel => 'minimize_to_tray';
+  String get settingsCloseBehaviorMinimizeLabel => '最小化到托盘';
 
   @override
   String get settingsCloseBehaviorExitLabel => '退出应用';

@@ -959,7 +959,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsCloseBehaviorMinimizeLabel.
   ///
   /// In zh, this message translates to:
-  /// **'minimize_to_tray'**
+  /// **'最小化到托盘'**
   String get settingsCloseBehaviorMinimizeLabel;
 
   /// No description provided for @settingsCloseBehaviorExitLabel.
