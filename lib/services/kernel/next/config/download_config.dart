@@ -4,6 +4,7 @@ class NsfxConfig {
   String mode;
   int maxConcurrentTasks;
   int segmentSpeedLimit;
+  int globalSpeedLimit; // 全局带宽限制（bytes/s），0 = 不限速
   String conflictStrategy;
   NsfxProxyConfig proxy;
 
@@ -20,6 +21,7 @@ class NsfxConfig {
     this.mode = 'auto',
     this.maxConcurrentTasks = 3,
     this.segmentSpeedLimit = 0,
+    this.globalSpeedLimit = 0,
     this.conflictStrategy = 'increment',
     NsfxProxyConfig? proxy,
     this.chunkSize = 1024 * 1024,
@@ -35,6 +37,7 @@ class NsfxConfig {
     'mode': mode,
     'max_concurrent_tasks': maxConcurrentTasks,
     'segment_speed_limit': segmentSpeedLimit,
+    'global_speed_limit': globalSpeedLimit,
     'conflict_strategy': conflictStrategy,
     'proxy': proxy.toJson(),
     'chunk_size': chunkSize,
@@ -50,6 +53,7 @@ class NsfxConfig {
     mode: json['mode'] ?? 'auto',
     maxConcurrentTasks: json['max_concurrent_tasks'] ?? json['maxConcurrentTasks'] ?? 3,
     segmentSpeedLimit: json['segment_speed_limit'] ?? json['segmentSpeedLimit'] ?? 0,
+    globalSpeedLimit: json['global_speed_limit'] ?? json['globalSpeedLimit'] ?? 0,
     conflictStrategy: json['conflict_strategy'] ?? json['conflictStrategy'] ?? 'increment',
     proxy: json['proxy'] != null ? NsfxProxyConfig.fromJson(json['proxy']) : null,
     chunkSize: json['chunk_size'] ?? json['chunkSize'] ?? 1024 * 1024,
@@ -72,8 +76,8 @@ class NsfxProxyConfig {
   NsfxProxyConfig({
     this.enabled = false,
     this.type = 'system',
-    this.host = '',
-    this.port = 8080,
+    this.host = '127.0.0.1',
+    this.port = 7897,
     this.username,
     this.password,
     this.requiresAuth = false,
@@ -93,7 +97,7 @@ class NsfxProxyConfig {
     enabled: json['enabled'] ?? false,
     type: json['type'] ?? 'system',
     host: json['host'] ?? '',
-    port: json['port'] ?? 8080,
+    port: json['port'] ?? 7897,
     username: json['username'],
     password: json['password'],
     requiresAuth: json['requires_auth'] ?? json['requiresAuth'] ?? false,
@@ -111,92 +115,82 @@ class NsfxProxyConfig {
 }
 
 class DynamicSegmentConfig {
-  static const int minSegmentSize = 2 * 1024 * 1024;
-  static const int maxSegmentSize = 100 * 1024 * 1024;
-  static const int idealSegmentSize = 10 * 1024 * 1024;
-  static const int smallFileThreshold = 20 * 1024 * 1024;
-  static const int largeFileThreshold = 1024 * 1024 * 1024;
+  // 保守策略：每个分段至少 5MB，保证稳定性
+  static const int _minSegmentSize = 5 * 1024 * 1024;
+  // 最大分段数上限 32（不再是 64）
+  static const int _maxSegments = 32;
 
+  /// 计算下载分段和线程数
+  ///
+  /// 设计原则：
+  /// - 稳定优先：分段数保守，避免过多连接导致服务器拒绝
+  /// - 线程 ≠ 分段：segments 是文件切割数，threads 是并发连接数
+  /// - threads 由 config.threads 控制上限，不超过 segments
   static (int threads, int segments) calculate(int fileSize, NsfxConfig config) {
-    final mb = 1024 * 1024;
+    const mb = 1024 * 1024;
     final maxThreads = config.threads.clamp(1, 64);
 
+    // ── manual: 用户完全控制 ──
     if (config.mode == 'manual') {
-      return (config.threads, config.segments ?? config.threads);
+      final segs = (config.segments ?? config.threads).clamp(1, 256);
+      return (config.threads.clamp(1, segs), segs);
     }
 
+    // ── threads_only: 用户指定线程，分段 = 线程 ──
     if (config.mode == 'threads_only') {
-      int segs;
-      if (fileSize < 10 * mb) {
-        segs = config.threads.clamp(1, 4);
-      } else if (fileSize < 50 * mb) {
-        segs = config.threads.clamp(1, 8);
-      } else if (fileSize < 200 * mb) {
-        segs = config.threads.clamp(1, 16);
-      } else {
-        segs = config.threads;
-      }
+      final segs = config.threads.clamp(1, _maxSegments);
       return (config.threads, segs);
     }
 
+    // ── segments_only: 用户指定分段，线程自适应 ──
     if (config.mode == 'segments_only') {
-      final segs = config.segments ?? 16;
-      int threads;
-      if (fileSize < 10 * mb) {
-        threads = segs.clamp(1, 4);
-      } else if (fileSize < 50 * mb) {
-        threads = segs.clamp(1, 8);
-      } else {
-        threads = segs;
-      }
-      return (threads, segs);
-    }
-
-    // auto mode
-    if (!config.enableDynamicSegments) {
-      int segs;
-      if (fileSize < 5 * mb) {
-        segs = 1;
-      } else if (fileSize < 10 * mb) {
-        segs = 4;
-      } else if (fileSize < 30 * mb) {
-        segs = 8;
-      } else if (fileSize < 100 * mb) {
-        segs = 16;
-      } else if (fileSize < 300 * mb) {
-        segs = 24;
-      } else {
-        segs = 32;
-      }
+      final segs = (config.segments ?? 16).clamp(1, 256);
       final threads = maxThreads.clamp(1, segs);
       return (threads, segs);
     }
 
-    // dynamic segments
-    if (fileSize < smallFileThreshold) {
-      final segs = (fileSize ~/ (5 * mb)).clamp(1, 8);
-      final threads = maxThreads.clamp(1, segs);
-      return (threads, segs);
+    // ── auto mode: 保守稳定策略 ──
+    int segs;
+
+    if (fileSize <= 0) {
+      // 未知大小，单线程
+      return (1, 1);
+    } else if (fileSize < 5 * mb) {
+      // < 5MB: 小文件，不分段
+      segs = 1;
+    } else if (fileSize < 20 * mb) {
+      // 5-20MB: 轻度分段
+      segs = 2;
+    } else if (fileSize < 50 * mb) {
+      // 20-50MB: 适度分段
+      segs = 4;
+    } else if (fileSize < 200 * mb) {
+      // 50-200MB: 标准分段
+      segs = 8;
+    } else if (fileSize < 500 * mb) {
+      // 200-500MB: 较多分段
+      segs = 12;
+    } else if (fileSize < 1024 * mb) {
+      // 500MB-1GB: 中高分段
+      segs = 16;
+    } else if (fileSize < 2048 * mb) {
+      // 1-2GB: 高分段
+      segs = 20;
+    } else {
+      // ≥ 2GB: 最大分段
+      segs = 24;
     }
 
-    var idealSegs = fileSize ~/ idealSegmentSize;
-    var minSegs = 8;
-    var maxSegs = 64;
-
-    if (fileSize >= largeFileThreshold) {
-      minSegs = 32;
+    // 动态分段开启时，可根据每段大小微调
+    if (config.enableDynamicSegments && segs > 1) {
+      final segSize = fileSize ~/ segs;
+      // 如果每段太小（< 5MB），减少分段数
+      if (segSize < _minSegmentSize) {
+        segs = (fileSize ~/ _minSegmentSize).clamp(1, segs);
+      }
     }
 
-    var segs = idealSegs.clamp(minSegs, maxSegs);
-
-    final segSize = fileSize ~/ segs;
-    if (segSize < minSegmentSize) {
-      segs = (fileSize ~/ minSegmentSize).clamp(1, maxSegs);
-    }
-    if (segSize > maxSegmentSize) {
-      segs = (fileSize ~/ maxSegmentSize).clamp(minSegs, maxSegs);
-    }
-
+    segs = segs.clamp(1, _maxSegments);
     final threads = maxThreads.clamp(1, segs);
     return (threads, segs);
   }

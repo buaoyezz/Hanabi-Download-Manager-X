@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:math';
 import '../models/task.dart';
 import '../models/segment.dart';
 import '../config/download_config.dart';
 import 'http_client.dart';
+import 'bandwidth_limiter.dart';
+import '../../../../services/speed_history_service.dart';
 import '../../../app_logger_service.dart';
 
 class DownloadEngine {
@@ -28,13 +31,22 @@ class DownloadEngine {
   final Map<String, int> _lastDownloaded = {};
   final Map<String, DateTime> _lastUpdateTime = {};
 
+  // 全局带宽限制器
+  late final GlobalBandwidthLimiter _bandwidthLimiter;
+  // 速度历史记录
+  final _speedHistory = SpeedHistoryService();
+
   DownloadEngine({
     required this.config,
     required this.httpClient,
     required this.onProgress,
     required this.onComplete,
     required this.onError,
-  });
+  }) {
+    _bandwidthLimiter = GlobalBandwidthLimiter(
+      bytesPerSecond: config.globalSpeedLimit,
+    );
+  }
 
   Future<void> startDownload(Task task) async {
     _cancelledTasks[task.id] = false;
@@ -111,6 +123,7 @@ class DownloadEngine {
       // 清理速度计算的历史数据
       _lastDownloaded.remove(task.id);
       _lastUpdateTime.remove(task.id);
+      _speedHistory.clear(task.id);
       
       // 关闭进度端口
       final progressPort = _progressPorts.remove(task.id);
@@ -162,14 +175,14 @@ class DownloadEngine {
   /// 使用 Isolate 的多线程下载
   Future<void> _isolateMultiThreadDownload(Task task, Map<String, String> headers, int fileSize) async {
     final (calculatedThreads, segmentCount) = DynamicSegmentConfig.calculate(fileSize, config);
-    // IDM-style: start all segments concurrently (avoid sequential segment starts)
-    final actualThreads = segmentCount.clamp(1, 256);
+    // 线程数 = 计算出的线程数，上限为分段数（不能比分段多）
+    final actualThreads = calculatedThreads.clamp(1, segmentCount);
     task.threadCount = actualThreads;
     _logger.info('NSFX-Engine', '========================================');
     _logger.info('NSFX-Engine', 'Multi-thread download configuration:');
     _logger.info('NSFX-Engine', '  File: ${task.filename}');
     _logger.info('NSFX-Engine', '  Size: ${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB');
-    _logger.info('NSFX-Engine', '  Threads: $actualThreads (all segments, calc=$calculatedThreads)');
+    _logger.info('NSFX-Engine', '  Threads: $actualThreads (calculated=$calculatedThreads)');
     _logger.info('NSFX-Engine', '  Segments: $segmentCount');
     _logger.info('NSFX-Engine', '  Config mode: ${config.mode}');
     _logger.info('NSFX-Engine', '  Config threads: ${config.threads}');
@@ -286,8 +299,13 @@ class DownloadEngine {
       }
     });
 
-    // 动态分段检查定时器（每5秒检查一次）
-    final dynamicSegmentTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    // 动态分段检查定时器（根据文件大小自适应间隔）
+    final dynamicCheckInterval = task.totalSize > 1024 * 1024 * 1024
+        ? const Duration(seconds: 10)  // >1GB: 10秒，避免频繁检查大量分段
+        : task.totalSize > 100 * 1024 * 1024
+            ? const Duration(seconds: 5)   // >100MB: 5秒
+            : const Duration(seconds: 3);  // <100MB: 3秒，小文件需要更快响应
+    final dynamicSegmentTimer = Timer.periodic(dynamicCheckInterval, (_) {
       if (task.status == TaskStatus.downloading) {
         _checkAndSplitSlowSegments(task);
       }
@@ -298,6 +316,8 @@ class DownloadEngine {
       // 无限循环重试失败的分段，直到全部完成或用户取消
       int globalRetryRound = 0;
       const maxGlobalRetryRounds = 9999; // 防止极端情况下的无限循环
+      // 总超时保护：防止服务器彻底不可用时无限卡住
+      final downloadDeadline = DateTime.now().add(const Duration(hours: 24));
 
       while (globalRetryRound < maxGlobalRetryRounds) {
         if (_cancelledTasks[task.id] == true) {
@@ -311,6 +331,17 @@ class DownloadEngine {
           task.status = TaskStatus.paused;
           progressTimer.cancel();
           dynamicSegmentTimer.cancel();
+          return;
+        }
+
+        // 超时检查
+        if (DateTime.now().isAfter(downloadDeadline)) {
+          _logger.error('NSFX-Engine', 'Download timeout after 24 hours: ${task.filename}');
+          task.status = TaskStatus.failed;
+          task.errorMessage = 'Download timeout after 24 hours';
+          progressTimer.cancel();
+          dynamicSegmentTimer.cancel();
+          onError(task);
           return;
         }
 
@@ -689,6 +720,10 @@ class DownloadEngine {
             alreadyDownloaded: alreadyDownloaded,  // 传递已下载字节数
             taskId: task.id,
             segmentIndex: segment.index,
+            proxyString: httpClient.getProxyString(), // 传递代理配置到 Isolate
+            globalSpeedLimit: config.globalSpeedLimit > 0
+                ? (config.globalSpeedLimit ~/ task.threadCount).clamp(1024, config.globalSpeedLimit)
+                : 0, // 全局限速均分到每个分段
           ),
         );
 
@@ -769,6 +804,8 @@ class DownloadEngine {
   }
 
   /// Isolate 入口点 - 下载单个分段
+  /// 注意: Dart Isolate 之间无法共享 HttpClient 实例（Isolate 内存隔离），
+  /// 因此每个 Isolate 必须创建独立的 HttpClient。这是 Dart 语言层面的限制。
   static void _isolateSegmentDownload(_IsolateParams params) async {
     // params.startByte 已经是调整后的起始位置（segment.startByte + alreadyDownloaded）
     // 所以 remainingSize 就是 endByte - startByte，不需要再减 alreadyDownloaded
@@ -781,9 +818,19 @@ class DownloadEngine {
 
     try {
       client = HttpClient();
-      // 更短的超时，快速检测断开并重试
-      client.connectionTimeout = Duration(seconds: params.connectionTimeout.clamp(3, 5));
-      client.idleTimeout = const Duration(seconds: 5);  // 缩短空闲超时
+      // 连接超时：兼顾快速检测和慢服务器（如 Google Drive 需要 SSL + 重定向）
+      client.connectionTimeout = Duration(seconds: params.connectionTimeout.clamp(5, 15));
+      // 连接复用优化：延长空闲超时，让同一服务器的后续请求复用 TCP 连接
+      client.idleTimeout = const Duration(seconds: 30);
+      // 允许同一 host 多个连接（同一 Isolate 内的重试可以复用）
+      client.maxConnectionsPerHost = 4;
+      client.autoUncompress = false;
+      client.badCertificateCallback = (cert, host, port) => true;
+
+      // 应用代理配置（Isolate 内存隔离，必须在每个 Isolate 独立配置）
+      if (params.proxyString != null) {
+        client.findProxy = (_) => 'PROXY ${params.proxyString}';
+      }
 
       final uri = Uri.parse(params.url);
       final request = await client.getUrl(uri);
@@ -849,6 +896,12 @@ class DownloadEngine {
       DateTime lastProgressTime = DateTime.now();
       const progressInterval = Duration(milliseconds: 100);
 
+      // 全局限速：在 Isolate 内实现令牌桶式限速
+      // globalSpeedLimit 是总限速，每个分段分配一份（由主线程传入）
+      final int perSegmentLimit = params.globalSpeedLimit;
+      int bytesThisSecond = 0;
+      DateTime secondStart = DateTime.now();
+
       await for (final chunk in response) {
         // [关键修复] 严格计算剩余量
         final currentRemaining = remainingSize - downloadedBytes;
@@ -861,6 +914,25 @@ class DownloadEngine {
         sink.add(toWrite);
         downloadedBytes += toWrite.length;
         bufferedBytes += toWrite.length;
+
+        // 全局限速逻辑
+        if (perSegmentLimit > 0) {
+          bytesThisSecond += toWrite.length;
+          final elapsed = DateTime.now().difference(secondStart);
+          if (bytesThisSecond >= perSegmentLimit) {
+            // 本秒配额用完，等待到下一秒
+            final sleepMs = 1000 - elapsed.inMilliseconds;
+            if (sleepMs > 10) {
+              await Future.delayed(Duration(milliseconds: sleepMs));
+            }
+            bytesThisSecond = 0;
+            secondStart = DateTime.now();
+          } else if (elapsed.inMilliseconds >= 1000) {
+            // 一秒过去了，重置计数
+            bytesThisSecond = 0;
+            secondStart = DateTime.now();
+          }
+        }
 
         // 达到阈值或时间间隔，发送进度通知
         final now = DateTime.now();
@@ -938,6 +1010,7 @@ class DownloadEngine {
       _lastDownloaded[task.id] = currentDownloaded;
       _lastUpdateTime[task.id] = now;
       task.speed = 0;
+      _speedHistory.record(task.id, 0);
       return;
     }
     
@@ -978,6 +1051,9 @@ class DownloadEngine {
           final remaining = task.totalSize - task.downloadedSize;
           task.eta = (remaining / task.speed).ceil();
         }
+
+        // 记录速度历史（供速度图表使用）
+        _speedHistory.record(task.id, task.speed);
       }
     }
     
@@ -989,9 +1065,10 @@ class DownloadEngine {
       (sum, s) => sum + s.downloadedBytes
     );
     
-    // 如果累加器(task.downloadedSize)与实际总和(realTotalDownloaded)偏差超过 1MB，则强制同步
-    // 这种情况通常发生在动态分段触发后
-    if ((task.downloadedSize - realTotalDownloaded).abs() > 1024 * 1024) {
+    // 如果累加器(task.downloadedSize)与实际总和(realTotalDownloaded)偏差超过阈值，则强制同步
+    // 阈值按文件大小的 0.1% 计算，最小 256KB，避免小文件漏检或大文件误触发
+    final driftThreshold = max(256 * 1024, (task.totalSize * 0.001).toInt());
+    if ((task.downloadedSize - realTotalDownloaded).abs() > driftThreshold) {
       _logger.warning('NSFX-Engine', 
         'Progress drift detected: ${task.downloadedSize} vs ${realTotalDownloaded}, calibrating');
       task.downloadedSize = realTotalDownloaded;
@@ -1354,18 +1431,11 @@ class DownloadEngine {
       for (final segment in sortedSegments) {
         final partFile = File('${tempDir.path}/${task.filename}.part${segment.index}');
         if (await partFile.exists()) {
-          final partSize = await partFile.length();
+          // _verifyAllSegmentsBeforeMerge 已验证分段完整性，此处直接使用 segment.size
           final expectedSize = segment.endByte - segment.startByte;
 
-          // 再次验证分段文件大小
-          if (partSize != expectedSize) {
-            _logger.error('NSFX-Engine',
-              'Segment ${segment.index} size mismatch during merge: $partSize != $expectedSize');
-            throw Exception('Segment ${segment.index} corrupted: size mismatch');
-          }
-
           await sink.addStream(partFile.openRead());
-          totalMergedBytes += partSize;
+          totalMergedBytes += expectedSize;
 
           // 删除临时文件，带重试机制
           await _deleteFileWithRetry(partFile);
@@ -1517,7 +1587,7 @@ class DownloadEngine {
 /// Isolate 参数
 class _IsolateParams {
   final SendPort sendPort;
-  final SendPort? progressPort; // 新增：用于实时汇报进度
+  final SendPort? progressPort;
   final String url;
   final String tempFilePath;
   final int startByte;
@@ -1525,8 +1595,10 @@ class _IsolateParams {
   final Map<String, String> headers;
   final int connectionTimeout;
   final int alreadyDownloaded;
-  final String taskId; // 新增：任务ID
-  final int segmentIndex; // 新增：分段索引
+  final String taskId;
+  final int segmentIndex;
+  final String? proxyString; // 代理地址，格式: "host:port"
+  final int globalSpeedLimit; // 全局限速（bytes/s），0 = 不限
 
   _IsolateParams({
     required this.sendPort,
@@ -1540,6 +1612,8 @@ class _IsolateParams {
     this.alreadyDownloaded = 0,
     required this.taskId,
     required this.segmentIndex,
+    this.proxyString,
+    this.globalSpeedLimit = 0,
   });
 }
 
