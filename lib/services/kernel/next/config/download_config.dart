@@ -74,7 +74,7 @@ class NsfxProxyConfig {
   bool requiresAuth;
 
   NsfxProxyConfig({
-    this.enabled = false,
+    this.enabled = true,
     this.type = 'system',
     this.host = '127.0.0.1',
     this.port = 7897,
