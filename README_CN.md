@@ -412,6 +412,7 @@ NSFX 内核在 Soda 基础上增加了 WebSocket 实时推送功能：
 - [报告 Bug](https://github.com/buaoyezz/hanabi-download-manager-x/issues)
 - [功能建议](https://github.com/buaoyezz/hanabi-download-manager-x/issues)
 - [提交 Pull Request](https://github.com/buaoyezz/hanabi-download-manager-x/pulls)
+- [添加新语言翻译](docs/ADD_NEW_LANGUAGE_CN.md)
 
 ---
 

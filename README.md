@@ -170,6 +170,7 @@ Quick links:
 - [Report Bug](https://github.com/buaoyezz/hanabi-download-manager-x/issues)
 - [Request Feature](https://github.com/buaoyezz/hanabi-download-manager-x/issues)
 - [Submit Pull Request](https://github.com/buaoyezz/hanabi-download-manager-x/pulls)
+- [Add New Language Translation](docs/ADD_NEW_LANGUAGE.md)
 
 ---
 
