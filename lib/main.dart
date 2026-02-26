@@ -23,11 +23,11 @@ import 'services/log_capture.dart';
 import 'services/network_status_service.dart';
 import 'services/developer_mode_service.dart';
 import 'services/client_config_service.dart';
+import 'services/speed_history_service.dart';
 import 'services/quick_path_service.dart';
 import 'services/font_service.dart';
 import 'services/update_service.dart';
 import 'services/window_effect_service.dart';
-import 'services/online_stats_service.dart';
 import 'services/user_profile_service.dart';
 import 'services/notification_settings_service.dart';
 import 'services/pipe_listener_service.dart';
@@ -43,8 +43,13 @@ import 'utils/constants.dart';
 final systemTrayService = SystemTrayService();
 final navigatorKey = GlobalKey<NavigatorState>();
 
-/// 获取当前应用的窗口句柄
+/// 缓存窗口句柄，避免每次都做 FFI 查找
+int _cachedHwnd = 0;
+
+/// 获取当前应用的窗口句柄（带缓存）
 int _getAppWindowHandle() {
+  if (_cachedHwnd != 0) return _cachedHwnd;
+  
   debugPrint('[Window] Attempting to get window handle...');
   
   // 方法1: 尝试通过窗口标题查找
@@ -54,6 +59,7 @@ int _getAppWindowHandle() {
   
   if (hwnd != 0) {
     debugPrint('[Window] Found window by title: $hwnd');
+    _cachedHwnd = hwnd;
     return hwnd;
   }
   debugPrint('[Window] FindWindow by title failed');
@@ -62,6 +68,7 @@ int _getAppWindowHandle() {
   hwnd = GetForegroundWindow();
   if (hwnd != 0) {
     debugPrint('[Window] Found foreground window: $hwnd');
+    _cachedHwnd = hwnd;
     return hwnd;
   }
   debugPrint('[Window] GetForegroundWindow failed');
@@ -69,6 +76,7 @@ int _getAppWindowHandle() {
   // 方法3: 使用活动窗口
   hwnd = GetActiveWindow();
   debugPrint('[Window] GetActiveWindow returned: $hwnd');
+  if (hwnd != 0) _cachedHwnd = hwnd;
   return hwnd;
 }
 
@@ -229,7 +237,6 @@ void main(List<String> args) async {
     final fontService = FontService();
     final updateService = UpdateService(logger: appLogger);
     final windowEffectService = WindowEffectService();
-    final onlineStatsService = OnlineStatsService();
     final userProfileService = UserProfileService();
     final notificationSettings = NotificationSettingsService();
     final localizationService = LocalizationService();
@@ -262,6 +269,11 @@ void main(List<String> args) async {
     
     appLogger.info('App', 'Services initialized');
 
+    // 加载速度历史（异步，不阻塞启动）
+    SpeedHistoryService().load().catchError((e) {
+      debugPrint('Failed to load speed history: $e');
+    });
+
     runApp(
       MultiProvider(
         providers: [
@@ -280,7 +292,6 @@ void main(List<String> args) async {
           ChangeNotifierProvider.value(value: fontService),
           ChangeNotifierProvider.value(value: updateService),
           ChangeNotifierProvider.value(value: windowEffectService),
-          ChangeNotifierProvider.value(value: onlineStatsService),
           ChangeNotifierProvider.value(value: userProfileService),
           ChangeNotifierProvider.value(value: localizationService),
           Provider<bool>.value(value: isAutoStart), // 传递启动模式
@@ -554,14 +565,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   Future<void> _cleanup() async {
-    // 停止在线统计
-    try {
-      final onlineStats = context.read<OnlineStatsService>();
-      onlineStats.stopFetching();
-    } catch (e) {
-      // 忽略错误
-    }
-    
     // 保存窗口状态
     try {
       final win = appWindow;

@@ -12,7 +12,6 @@ import '../services/kernel_service.dart';
 import '../services/kernel/kernel_manager.dart';
 import '../services/window_effect_service.dart';
 import '../services/client_config_service.dart';
-import '../services/user_profile_service.dart';
 import '../services/update_service.dart';
 import '../services/performance_monitor_service.dart';
 import '../models/download_task.dart';
@@ -28,7 +27,7 @@ import 'widgets/about_page.dart';
 import 'widgets/debug/log_page.dart';
 import 'widgets/debug/status_page.dart';
 import 'widgets/debug/web_check_page.dart';
-import 'widgets/debug/online_stats_page.dart';
+import 'widgets/debug/connection_debug_page.dart';
 import 'widgets/performance_monitor_page.dart';
 
 class NavigationItem {
@@ -52,14 +51,14 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
   static const String _pageDownloading = 'downloading';
   static const String _pageCompleted = 'completed';
   static const String _pageLog = 'log';
   static const String _pageStatus = 'status';
   static const String _pageWebCheck = 'web_check';
-  static const String _pageOnlineStats = 'online_stats';
   static const String _pagePerformance = 'performance';
+  static const String _pageConnectionDebug = 'connection_debug';
   static const String _pageSettings = 'settings';
   static const String _pageAbout = 'about';
 
@@ -67,8 +66,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _pageLog,
     _pageStatus,
     _pageWebCheck,
-    _pageOnlineStats,
     _pagePerformance,
+    _pageConnectionDebug,
     _pageSettings,
     _pageAbout,
   };
@@ -77,14 +76,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _pageLog,
     _pageStatus,
     _pageWebCheck,
-    _pageOnlineStats,
     _pagePerformance,
+    _pageConnectionDebug,
     _pageSettings,
     _pageAbout,
   };
 
   int _currentIndex = 0;
   bool _isSidebarExpanded = true;
+  bool _isMaximized = false;
   late AnimationController _sidebarController;
   late Animation<double> _widthAnimation;
 
@@ -102,9 +102,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final showLogPage = context.select<DeveloperModeService, bool>((s) => s.showLogPage);
     final showStatusPage = context.select<DeveloperModeService, bool>((s) => s.showStatusPage);
     final showWebCheckPage = context.select<DeveloperModeService, bool>((s) => s.showWebCheckPage);
-    final showOnlineStatsPage = context.select<DeveloperModeService, bool>((s) => s.showOnlineStatsPage);
     final showPerformanceMonitorPage = context.select<DeveloperModeService, bool>((s) => s.showPerformanceMonitorPage);
-    final statsEnabled = context.select<UserProfileService, bool>((s) => s.statsEnabled);
+    final showConnectionDebugPage = context.select<DeveloperModeService, bool>((s) => s.showConnectionDebugPage);
     
     final items = <NavigationItem>[
       NavigationItem(
@@ -150,16 +149,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         body: const WebCheckPage(key: ValueKey('web_check_page')),
       ));
     }
-    
-    // 在线统计页面（独立开关）
-    if (showOnlineStatsPage && statsEnabled) {
-      bottomItems.add(NavigationItem(
-        id: _pageOnlineStats,
-        icon: CustomIcons.FluentIcons.people,
-        title: t.homeNavOnlineStats,
-        body: const OnlineStatsPage(key: ValueKey('online_stats_page')),
-      ));
-    }
 
     // 性能监控页面
     if (showPerformanceMonitorPage) {
@@ -168,6 +157,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         icon: CustomIcons.FluentIcons.speed_high,
         title: t.homeNavPerformance,
         body: const PerformanceMonitorPage(key: ValueKey('performance_monitor_page')),
+      ));
+    }
+
+    // 连接调试页面
+    if (showConnectionDebugPage) {
+      bottomItems.add(NavigationItem(
+        id: _pageConnectionDebug,
+        icon: CustomIcons.FluentIcons.plug_disconnected,
+        title: t.homeNavConnectionDebug,
+        body: const ConnectionDebugPage(key: ValueKey('connection_debug_page')),
       ));
     }
     
@@ -193,6 +192,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     AppLoggerService().info('App', 'HomeScreen initialized');
+    
+    // 初始化窗口最大化状态（一次性 FFI 调用）
+    _isMaximized = isWindowMaximized();
+    
+    // 监听窗口尺寸变化（OS 级最大化/还原）
+    WidgetsBinding.instance.addObserver(this);
     
     // 侧边栏动画控制器 - 快速响应的展开/收缩
     _sidebarController = AnimationController(
@@ -280,9 +285,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _sidebarController.dispose();
     _windowSizeCheckTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    // 窗口尺寸变化时同步最大化状态（捕获 OS 级操作：双击标题栏、拖到屏幕边缘等）
+    final nowMaximized = isWindowMaximized();
+    if (nowMaximized != _isMaximized) {
+      setState(() => _isMaximized = nowMaximized);
+    }
   }
   
   /// 启动窗口大小监听
@@ -321,9 +336,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       
       final currentWidth = appWindow.size.width;
       final currentHeight = appWindow.size.height;
-      final isMaximized = isWindowMaximized();
 
-      if (isMaximized) return; // 最大化时不保存窗口大小
+      if (_isMaximized) return; // 最大化时不保存窗口大小
       
       // 验证窗口大小是否合理（防止保存异常值）
       // 最小尺寸 600x400，最大尺寸 4096x2160
@@ -367,6 +381,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     // 追踪重建
     PerformanceMonitorService().trackRebuild('HomeScreen');
+
+    // 窗口最小化时 Windows 会给极小尺寸（约 160x28），跳过布局避免溢出
+    final windowSize = MediaQuery.of(context).size;
+    if (windowSize.height < 100) {
+      return const SizedBox.shrink();
+    }
 
     final navItems = _getNavItems(context);
     // 优化：合并多个 select 为一个 tuple，减少独立订阅数量
@@ -689,11 +709,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 color: AppTheme.borderSubtle.withValues(alpha: 0.5),
               ),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const ProgressRing(),
-                const SizedBox(height: 20),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const ProgressRing(),
+                  const SizedBox(height: 20),
                 Text(
                   AppLocalizations.of(context)!.homeKernelStartingTitle,
                   style: const TextStyle(
@@ -819,6 +840,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
               ],
             ),
+            ),
           ),
         );
       },
@@ -829,58 +851,58 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _buildEdgeSidebar(BuildContext context, List<NavigationItem> navItems, double opacity) {
     return RepaintBoundary(
       child: AnimatedBuilder(
-      animation: _widthAnimation,
-      builder: (context, child) {
-        final width = _widthAnimation.value;
-        final isCompact = width < 100;
+        animation: _widthAnimation,
+        builder: (context, child) {
+          final width = _widthAnimation.value;
+          final isCompact = width < 100;
 
-        final sidebarContent = Container(
-          // 不设独立背景色，与标题栏一体
-          child: Column(
-            children: [
-              const SizedBox(height: 8),
+          final sidebarContent = Container(
+            // 不设独立背景色，与标题栏一体
+            child: Column(
+              children: [
+                const SizedBox(height: 8),
 
-              // 主导航项
-              ...navItems.asMap().entries
-                  .where((entry) => !_bottomPageIds.contains(entry.value.id))
-                  .map((entry) => _buildNavItemWidget(context, entry.key, entry.value, isCompact)),
+                // 主导航项
+                ...navItems.asMap().entries
+                    .where((entry) => !_bottomPageIds.contains(entry.value.id))
+                    .map((entry) => _buildNavItemWidget(context, entry.key, entry.value, isCompact)),
 
-              const Spacer(),
+                const Spacer(),
 
-              // 分隔线
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 16, vertical: 8),
-                child: Container(
-                  height: 1,
-                  color: AppTheme.borderSubtle.withValues(alpha: 0.3),
+                // 分隔线
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 16, vertical: 8),
+                  child: Container(
+                    height: 1,
+                    color: AppTheme.borderSubtle.withValues(alpha: 0.3),
+                  ),
                 ),
-              ),
 
-              // 底部导航项
-              ..._buildBottomNavItems(context, navItems, isCompact),
+                // 底部导航项
+                ..._buildBottomNavItems(context, navItems, isCompact),
 
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-
-    return Stack(
-          children: [
-            ClipRect(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                widthFactor: 1.0,
-                child: SizedBox(
-                  width: width,
-                  // 不再单独模糊侧边栏，由外层 shell 统一处理
-                  child: sidebarContent,
-                ),
-              ),
+                const SizedBox(height: 8),
+              ],
             ),
-          ],
-        );
-      },
-    ),
+          );
+
+          return Stack(
+            children: [
+              ClipRect(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: 1.0,
+                  child: SizedBox(
+                    width: width,
+                    // 不再单独模糊侧边栏，由外层 shell 统一处理
+                    child: sidebarContent,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -1118,20 +1140,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     double height,
     double iconSize,
   ) {
-    final isMaximized = isWindowMaximized();
     return _buildWindowButton(
       colors: colors,
-      icon: isMaximized ? CustomIcons.FluentIcons.minimize_20 : CustomIcons.FluentIcons.maximize_20,
+      icon: _isMaximized ? CustomIcons.FluentIcons.minimize_20 : CustomIcons.FluentIcons.maximize_20,
       width: width,
       height: height,
       iconSize: iconSize,
       onPressed: () async {
-        if (isMaximized) {
+        if (_isMaximized) {
           await restoreWindowProperly();
         } else {
           await maximizeWindowProperly();
         }
-        setState(() {});
+        setState(() {
+          _isMaximized = !_isMaximized;
+        });
       },
     );
   }
