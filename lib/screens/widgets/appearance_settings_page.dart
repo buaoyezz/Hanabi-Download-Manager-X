@@ -39,6 +39,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
   bool _segmentsDefaultExpanded = false;
   int _segmentsMaxVisible = 5;
   String _segmentsDisplayMode = 'merged'; // 'merged' (合并) 或 'list' (列表)
+  bool _showSpeedChart = true;
+  bool _showChartFrost = true;
+  String _chartPosition = 'mid'; // 'low' | 'mid' | 'high'
+  String _chartColor = 'blue';
 
   // 通知设置
   bool _notificationEnabled = true;
@@ -90,6 +94,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         _segmentsDefaultExpanded = prefs.getBool('segments_default_expanded') ?? false;
         _segmentsMaxVisible = prefs.getInt('segments_max_visible') ?? 5;
         _segmentsDisplayMode = prefs.getString('segments_display_mode') ?? 'merged';
+        _showSpeedChart = prefs.getBool('show_speed_chart') ?? true;
+        _showChartFrost = prefs.getBool('show_chart_frost') ?? true;
+        _chartPosition = prefs.getString('chart_position') ?? 'mid';
+        _chartColor = prefs.getString('chart_color') ?? 'blue';
 
         // 加载通知设置
         _notificationEnabled = notificationSettings.enabled;
@@ -259,6 +267,30 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('segments_display_mode', value);
     setState(() => _segmentsDisplayMode = value);
+  }
+
+  Future<void> _saveShowSpeedChart(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('show_speed_chart', value);
+    setState(() => _showSpeedChart = value);
+  }
+
+  Future<void> _saveShowChartFrost(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('show_chart_frost', value);
+    setState(() => _showChartFrost = value);
+  }
+
+  Future<void> _saveChartPosition(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('chart_position', value);
+    setState(() => _chartPosition = value);
+  }
+
+  Future<void> _saveChartColor(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('chart_color', value);
+    setState(() => _chartColor = value);
   }
   
   // 通知设置保存方法
@@ -1466,6 +1498,66 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            _buildSettingItem(
+              context,
+              title: t.appearanceSpeedChartTitle,
+              subtitle: t.appearanceSpeedChartSubtitle,
+              trailing: ToggleSwitch(
+                checked: _showSpeedChart,
+                onChanged: (value) => _saveShowSpeedChart(value),
+              ),
+            ),
+            // 速度曲线子设置（仅在开启时显示）
+            if (_showSpeedChart) ...[
+              const SizedBox(height: 12),
+              _buildSettingItem(
+                context,
+                title: t.appearanceChartFrostTitle,
+                subtitle: t.appearanceChartFrostSubtitle,
+                trailing: ToggleSwitch(
+                  checked: _showChartFrost,
+                  onChanged: (value) => _saveShowChartFrost(value),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildSettingItem(
+                context,
+                title: t.appearanceChartPositionTitle,
+                subtitle: t.appearanceChartPositionSubtitle,
+                trailing: ComboBox<String>(
+                  value: _chartPosition,
+                  items: [
+                    ComboBoxItem(value: 'low', child: Text(t.appearanceChartPositionLow)),
+                    ComboBoxItem(value: 'mid', child: Text(t.appearanceChartPositionMid)),
+                    ComboBoxItem(value: 'high', child: Text(t.appearanceChartPositionHigh)),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) _saveChartPosition(value);
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildSettingItem(
+                context,
+                title: t.appearanceChartColorTitle,
+                subtitle: t.appearanceChartColorSubtitle,
+                trailing: ComboBox<String>(
+                  value: _chartColor,
+                  items: [
+                    ComboBoxItem(value: 'blue', child: _buildColorOption(const Color(0xFF0078D4), t.appearanceChartColorBlue)),
+                    ComboBoxItem(value: 'cyan', child: _buildColorOption(const Color(0xFF60CDFF), t.appearanceChartColorCyan)),
+                    ComboBoxItem(value: 'purple', child: _buildColorOption(const Color(0xFF8B5CF6), t.appearanceChartColorPurple)),
+                    ComboBoxItem(value: 'green', child: _buildColorOption(const Color(0xFF10B981), t.appearanceChartColorGreen)),
+                    ComboBoxItem(value: 'pink', child: _buildColorOption(const Color(0xFFEC4899), t.appearanceChartColorPink)),
+                    ComboBoxItem(value: 'orange', child: _buildColorOption(const Color(0xFFF97316), t.appearanceChartColorOrange)),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) _saveChartColor(value);
+                  },
+                ),
+              ),
+            ],
           ],
         ),
       ],
@@ -1769,6 +1861,24 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
       title: title,
       icon: icon,
       children: children,
+    );
+  }
+
+  Widget _buildColorOption(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 14,
+          height: 14,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(label),
+      ],
     );
   }
 
