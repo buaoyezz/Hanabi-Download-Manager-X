@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:fluent_ui/fluent_ui.dart' as fluent;
 import 'package:provider/provider.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
 import 'l10n/app_localizations.dart';
 import 'l10n/app_localizations_delegate.dart';
+import 'l10n/fallback_localizations_delegate.dart';
 import 'dart:io';
 import 'dart:ffi' hide Size;
 import 'package:ffi/ffi.dart';
@@ -662,7 +664,25 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
           localizationsDelegates: [
             AppLocalizationsDelegate(localizationService),
+            const FallbackFluentLocalizationsDelegate(),
+            const FallbackMaterialLocalizationsDelegate(),
+            const FallbackCupertinoLocalizationsDelegate(),
+            GlobalWidgetsLocalizations.delegate,
           ],
+          localeResolutionCallback: (locale, supportedLocales) {
+            // For custom locales (like 'meow'), check if we have a language pack
+            if (locale != null && 
+                locale.languageCode != 'en' && 
+                locale.languageCode != 'zh') {
+              // Check if we have a custom language pack for this locale
+              if (localizationService.isSupported(locale)) {
+                // Return the custom locale, but Flutter's built-in delegates
+                // will fall back to 'en' automatically
+                return locale;
+              }
+            }
+            return locale;
+          },
           supportedLocales: localizationService.supportedLocales,
           debugShowCheckedModeBanner: false,
           theme: baseTheme.copyWith(
