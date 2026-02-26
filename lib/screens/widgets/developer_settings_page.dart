@@ -89,11 +89,11 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
 
           // 开启后显示调试工具
           if (_devMode.developerMode) ...[
-            const SizedBox(height: 32),
+            const SizedBox(height: 28),
             _buildSectionTitle(t.developerSectionDebugTools),
             const SizedBox(height: 12),
             _buildDebugToolsGrid(),
-            const SizedBox(height: 32),
+            const SizedBox(height: 28),
             _buildSectionTitle(t.developerSectionTestTools),
             const SizedBox(height: 12),
             _buildTestToolsRow(),
@@ -105,12 +105,15 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
 
   /// 区块标题
   Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-        color: AppTheme.textSecondary,
-        fontSize: 13,
-        letterSpacing: 0.5,
+    return Padding(
+      padding: const EdgeInsets.only(left: 2),
+      child: Text(
+        title,
+        style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
+          color: AppTheme.textSecondary,
+          fontSize: 13,
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }
@@ -127,7 +130,6 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
       ),
       child: Row(
         children: [
-          // 图标
           Container(
             width: 40,
             height: 40,
@@ -146,8 +148,6 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
             ),
           ),
           const SizedBox(width: 16),
-
-          // 文字
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -171,8 +171,6 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
               ],
             ),
           ),
-
-          // 开关
           ToggleSwitch(
             checked: _devMode.developerMode,
             onChanged: (value) {
@@ -194,136 +192,113 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
     );
   }
 
-  /// 调试工具网格
+  /// 调试工具网格 — 3列自适应布局
   Widget _buildDebugToolsGrid() {
-    final t = _t;
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildToolCard(
-                icon: CustomIcons.FluentIcons.text_document,
-                title: t.developerToolLogTitle,
-                subtitle: t.developerToolLogSubtitle,
-                isEnabled: _devMode.showLogPage,
-                onChanged: (v) {
-                  _devMode.setShowLogPage(v);
-                  if (mounted) {
-                    NotificationManager.of(context)?.showSuccess(
-                      v
-                          ? t.developerToolLogShownTitle
-                          : t.developerToolLogHiddenTitle,
-                      message: v
-                          ? t.developerToolLogShownMessage
-                          : t.developerToolLogHiddenMessage,
-                    );
-                  }
-                },
-              ),
+    final tools = _getDebugTools();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 根据可用宽度决定列数：窄屏2列，宽屏3列
+        final columns = constraints.maxWidth >= 680 ? 3 : 2;
+        final spacing = 10.0;
+        final cardWidth = (constraints.maxWidth - spacing * (columns - 1)) / columns;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: tools.map((tool) => SizedBox(
+            width: cardWidth,
+            child: _buildToolCard(
+              icon: tool.icon,
+              title: tool.title,
+              subtitle: tool.subtitle,
+              isEnabled: tool.isEnabled,
+              onChanged: tool.onChanged,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildToolCard(
-                icon: CustomIcons.FluentIcons.health,
-                title: t.developerToolStatusTitle,
-                subtitle: t.developerToolStatusSubtitle,
-                isEnabled: _devMode.showStatusPage,
-                onChanged: (v) {
-                  _devMode.setShowStatusPage(v);
-                  if (mounted) {
-                    NotificationManager.of(context)?.showSuccess(
-                      v
-                          ? t.developerToolStatusShownTitle
-                          : t.developerToolStatusHiddenTitle,
-                      message: v
-                          ? t.developerToolStatusShownMessage
-                          : t.developerToolStatusHiddenMessage,
-                    );
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildToolCard(
-                icon: CustomIcons.FluentIcons.people,
-                title: t.developerToolOnlineStatsTitle,
-                subtitle: t.developerToolOnlineStatsSubtitle,
-                isEnabled: _devMode.showOnlineStatsPage,
-                onChanged: (v) {
-                  _devMode.setShowOnlineStatsPage(v);
-                  if (mounted) {
-                    NotificationManager.of(context)?.showSuccess(
-                      v
-                          ? t.developerToolOnlineStatsShownTitle
-                          : t.developerToolOnlineStatsHiddenTitle,
-                      message: v
-                          ? t.developerToolOnlineStatsShownMessage
-                          : t.developerToolOnlineStatsHiddenMessage,
-                    );
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildToolCard(
-                icon: CustomIcons.FluentIcons.globe,
-                title: t.developerToolWebCheckTitle,
-                subtitle: t.developerToolWebCheckSubtitle,
-                isEnabled: _devMode.showWebCheckPage,
-                onChanged: (v) {
-                  _devMode.setShowWebCheckPage(v);
-                  if (mounted) {
-                    NotificationManager.of(context)?.showSuccess(
-                      v
-                          ? t.developerToolWebCheckShownTitle
-                          : t.developerToolWebCheckHiddenTitle,
-                      message: v
-                          ? t.developerToolWebCheckShownMessage
-                          : t.developerToolWebCheckHiddenMessage,
-                    );
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildToolCard(
-                icon: CustomIcons.FluentIcons.speed_high,
-                title: t.developerToolPerformanceTitle,
-                subtitle: t.developerToolPerformanceSubtitle,
-                isEnabled: _devMode.showPerformanceMonitorPage,
-                onChanged: (v) {
-                  _devMode.setShowPerformanceMonitorPage(v);
-                  if (mounted) {
-                    NotificationManager.of(context)?.showSuccess(
-                      v
-                          ? t.developerToolPerformanceShownTitle
-                          : t.developerToolPerformanceHiddenTitle,
-                      message: v
-                          ? t.developerToolPerformanceShownMessage
-                          : t.developerToolPerformanceHiddenMessage,
-                    );
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(child: SizedBox()), // 占位
-          ],
-        ),
-      ],
+          )).toList(),
+        );
+      },
     );
+  }
+
+  List<_ToolItem> _getDebugTools() {
+    final t = _t;
+    return [
+      _ToolItem(
+        icon: CustomIcons.FluentIcons.text_document,
+        title: t.developerToolLogTitle,
+        subtitle: t.developerToolLogSubtitle,
+        isEnabled: _devMode.showLogPage,
+        onChanged: (v) {
+          _devMode.setShowLogPage(v);
+          if (mounted) {
+            NotificationManager.of(context)?.showSuccess(
+              v ? t.developerToolLogShownTitle : t.developerToolLogHiddenTitle,
+              message: v ? t.developerToolLogShownMessage : t.developerToolLogHiddenMessage,
+            );
+          }
+        },
+      ),
+      _ToolItem(
+        icon: CustomIcons.FluentIcons.health,
+        title: t.developerToolStatusTitle,
+        subtitle: t.developerToolStatusSubtitle,
+        isEnabled: _devMode.showStatusPage,
+        onChanged: (v) {
+          _devMode.setShowStatusPage(v);
+          if (mounted) {
+            NotificationManager.of(context)?.showSuccess(
+              v ? t.developerToolStatusShownTitle : t.developerToolStatusHiddenTitle,
+              message: v ? t.developerToolStatusShownMessage : t.developerToolStatusHiddenMessage,
+            );
+          }
+        },
+      ),
+      _ToolItem(
+        icon: CustomIcons.FluentIcons.globe,
+        title: t.developerToolWebCheckTitle,
+        subtitle: t.developerToolWebCheckSubtitle,
+        isEnabled: _devMode.showWebCheckPage,
+        onChanged: (v) {
+          _devMode.setShowWebCheckPage(v);
+          if (mounted) {
+            NotificationManager.of(context)?.showSuccess(
+              v ? t.developerToolWebCheckShownTitle : t.developerToolWebCheckHiddenTitle,
+              message: v ? t.developerToolWebCheckShownMessage : t.developerToolWebCheckHiddenMessage,
+            );
+          }
+        },
+      ),
+      _ToolItem(
+        icon: CustomIcons.FluentIcons.speed_high,
+        title: t.developerToolPerformanceTitle,
+        subtitle: t.developerToolPerformanceSubtitle,
+        isEnabled: _devMode.showPerformanceMonitorPage,
+        onChanged: (v) {
+          _devMode.setShowPerformanceMonitorPage(v);
+          if (mounted) {
+            NotificationManager.of(context)?.showSuccess(
+              v ? t.developerToolPerformanceShownTitle : t.developerToolPerformanceHiddenTitle,
+              message: v ? t.developerToolPerformanceShownMessage : t.developerToolPerformanceHiddenMessage,
+            );
+          }
+        },
+      ),
+      _ToolItem(
+        icon: CustomIcons.FluentIcons.plug_disconnected,
+        title: t.developerToolConnectionDebugTitle,
+        subtitle: t.developerToolConnectionDebugSubtitle,
+        isEnabled: _devMode.showConnectionDebugPage,
+        onChanged: (v) {
+          _devMode.setShowConnectionDebugPage(v);
+          if (mounted) {
+            NotificationManager.of(context)?.showSuccess(
+              v ? t.developerToolConnectionDebugShownTitle : t.developerToolConnectionDebugHiddenTitle,
+              message: v ? t.developerToolConnectionDebugShownMessage : t.developerToolConnectionDebugHiddenMessage,
+            );
+          }
+        },
+      ),
+    ];
   }
 
   /// 工具卡片 - Fluent 2 简约风格
@@ -334,76 +309,79 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
     required bool isEnabled,
     required ValueChanged<bool> onChanged,
   }) {
-    return GestureDetector(
-      onTap: () => onChanged(!isEnabled),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isEnabled
-              ? AppTheme.accentPrimary.withValues(alpha: 0.08)
-              : AppTheme.surfaceCard,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => onChanged(!isEnabled),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
             color: isEnabled
-                ? AppTheme.accentPrimary.withValues(alpha: 0.3)
-                : AppTheme.borderSubtle,
+                ? AppTheme.accentPrimary.withValues(alpha: 0.08)
+                : AppTheme.surfaceCard,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isEnabled
+                  ? AppTheme.accentPrimary.withValues(alpha: 0.3)
+                  : AppTheme.borderSubtle,
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            // 图标
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: isEnabled
-                    ? AppTheme.accentPrimary.withValues(alpha: 0.15)
-                    : AppTheme.bgLayer2,
-                borderRadius: BorderRadius.circular(8),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: isEnabled
+                      ? AppTheme.accentPrimary.withValues(alpha: 0.15)
+                      : AppTheme.bgLayer2,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  size: 17,
+                  color: isEnabled ? AppTheme.accentPrimary : AppTheme.textTertiary,
+                ),
               ),
-              child: Icon(
-                icon,
-                size: 18,
-                color: isEnabled ? AppTheme.accentPrimary : AppTheme.textTertiary,
-              ),
-            ),
-            const SizedBox(width: 12),
-
-            // 文字
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: FluentTheme.of(context).typography.body?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: isEnabled ? AppTheme.textPrimary : AppTheme.textSecondary,
-                      fontSize: 13,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: FluentTheme.of(context).typography.body?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: isEnabled ? AppTheme.textPrimary : AppTheme.textSecondary,
+                        fontSize: 13,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: FluentTheme.of(context).typography.caption?.copyWith(
-                      color: AppTheme.textTertiary,
-                      fontSize: 11,
+                    Text(
+                      subtitle,
+                      style: FluentTheme.of(context).typography.caption?.copyWith(
+                        color: AppTheme.textTertiary,
+                        fontSize: 11,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-
-            // 状态点
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isEnabled ? AppTheme.statusSuccess : AppTheme.bgLayer3,
+              const SizedBox(width: 6),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isEnabled ? AppTheme.statusSuccess : AppTheme.bgLayer3,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -415,7 +393,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(child: _buildNotificationTestCard()),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         Expanded(child: _buildPopupTestCard()),
       ],
     );
@@ -434,7 +412,6 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 标题行
           Row(
             children: [
               Icon(
@@ -453,8 +430,6 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
             ],
           ),
           const SizedBox(height: 16),
-
-          // 输入框
           TextBox(
             controller: _customTitleController,
             placeholder: t.developerTestNotificationTitlePlaceholder,
@@ -467,8 +442,6 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
             style: const TextStyle(fontSize: 13),
           ),
           const SizedBox(height: 12),
-
-          // 按钮组
           Row(
             children: [
               _buildTypeButton(
@@ -559,7 +532,6 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 标题行
           Row(
             children: [
               Icon(
@@ -578,14 +550,10 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
             ],
           ),
           const SizedBox(height: 16),
-
-          // 测试结果
           if (_popupWindowTestResult != null) ...[
             _buildTestResult(),
             const SizedBox(height: 12),
           ],
-
-          // 按钮
           Row(
             children: [
               Expanded(
@@ -639,10 +607,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
               ),
             ],
           ),
-
           const SizedBox(height: 12),
-
-          // 说明
           Text(
             t.developerTestPopupHint,
             style: FluentTheme.of(context).typography.caption?.copyWith(
@@ -759,4 +724,21 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
       appLogger.error('PopupTest', 'Dialog 弹窗失败: $e');
     }
   }
+}
+
+/// 工具项数据模型
+class _ToolItem {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool isEnabled;
+  final ValueChanged<bool> onChanged;
+
+  const _ToolItem({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.isEnabled,
+    required this.onChanged,
+  });
 }
