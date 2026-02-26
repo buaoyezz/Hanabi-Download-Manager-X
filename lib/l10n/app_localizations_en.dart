@@ -1772,6 +1772,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get developerTestPopupResultFailed => 'Failed';
 
   @override
+  String get developerOpenL10nFolderTitle => 'Language pack folder';
+
+  @override
+  String get developerOpenL10nFolderSubtitle =>
+      'Open l10n folder in file manager';
+
+  @override
+  String get developerOpenL10nFolderSuccessTitle => 'Folder opened';
+
+  @override
+  String get developerOpenL10nFolderSuccessMessage =>
+      'Language pack folder opened in file manager';
+
+  @override
+  String get developerOpenL10nFolderFailedTitle => 'Failed to open';
+
+  @override
+  String developerOpenL10nFolderFailedMessage(Object error) {
+    return 'Could not open folder: $error';
+  }
+
+  @override
   String get updateCurrentVersionTitle => 'Current version';
 
   @override

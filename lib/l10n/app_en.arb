@@ -717,6 +717,17 @@
   "developerTestPopupHint": "Popup window uses Tauri; Dialog needs the main window",
   "developerTestPopupResultSuccess": "Success ? {time}ms",
   "developerTestPopupResultFailed": "Failed",
+  "developerOpenL10nFolderTitle": "Language pack folder",
+  "developerOpenL10nFolderSubtitle": "Open l10n folder in file manager",
+  "developerOpenL10nFolderSuccessTitle": "Folder opened",
+  "developerOpenL10nFolderSuccessMessage": "Language pack folder opened in file manager",
+  "developerOpenL10nFolderFailedTitle": "Failed to open",
+  "developerOpenL10nFolderFailedMessage": "Could not open folder: {error}",
+  "@developerOpenL10nFolderFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "@developerTestPopupResultSuccess": {
     "placeholders": {
       "time": {}

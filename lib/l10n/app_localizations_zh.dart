@@ -1679,6 +1679,26 @@ class AppLocalizationsZh extends AppLocalizations {
   String get developerTestPopupResultFailed => '失败';
 
   @override
+  String get developerOpenL10nFolderTitle => '语言包文件夹';
+
+  @override
+  String get developerOpenL10nFolderSubtitle => '在文件管理器中打开 l10n 文件夹';
+
+  @override
+  String get developerOpenL10nFolderSuccessTitle => '已打开文件夹';
+
+  @override
+  String get developerOpenL10nFolderSuccessMessage => '已在文件管理器中打开语言包文件夹';
+
+  @override
+  String get developerOpenL10nFolderFailedTitle => '打开失败';
+
+  @override
+  String developerOpenL10nFolderFailedMessage(Object error) {
+    return '无法打开文件夹: $error';
+  }
+
+  @override
   String get updateCurrentVersionTitle => '当前版本';
 
   @override

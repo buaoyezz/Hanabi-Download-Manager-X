@@ -3266,6 +3266,42 @@ abstract class AppLocalizations {
   /// **'失败'**
   String get developerTestPopupResultFailed;
 
+  /// No description provided for @developerOpenL10nFolderTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'语言包文件夹'**
+  String get developerOpenL10nFolderTitle;
+
+  /// No description provided for @developerOpenL10nFolderSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'在文件管理器中打开 l10n 文件夹'**
+  String get developerOpenL10nFolderSubtitle;
+
+  /// No description provided for @developerOpenL10nFolderSuccessTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'已打开文件夹'**
+  String get developerOpenL10nFolderSuccessTitle;
+
+  /// No description provided for @developerOpenL10nFolderSuccessMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'已在文件管理器中打开语言包文件夹'**
+  String get developerOpenL10nFolderSuccessMessage;
+
+  /// No description provided for @developerOpenL10nFolderFailedTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'打开失败'**
+  String get developerOpenL10nFolderFailedTitle;
+
+  /// No description provided for @developerOpenL10nFolderFailedMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法打开文件夹: {error}'**
+  String developerOpenL10nFolderFailedMessage(Object error);
+
   /// No description provided for @updateCurrentVersionTitle.
   ///
   /// In zh, this message translates to:

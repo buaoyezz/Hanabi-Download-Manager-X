@@ -717,6 +717,17 @@
   "developerTestPopupHint": "独立弹窗使用 Tauri，Dialog 需要主窗口",
   "developerTestPopupResultSuccess": "成功 · {time}![",
   "developerTestPopupResultFailed": "失败",
+  "developerOpenL10nFolderTitle": "语言包文件夹",
+  "developerOpenL10nFolderSubtitle": "在文件管理器中打开 l10n 文件夹",
+  "developerOpenL10nFolderSuccessTitle": "已打开文件夹",
+  "developerOpenL10nFolderSuccessMessage": "已在文件管理器中打开语言包文件夹",
+  "developerOpenL10nFolderFailedTitle": "打开失败",
+  "developerOpenL10nFolderFailedMessage": "无法打开文件夹: {error}",
+  "@developerOpenL10nFolderFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "@developerTestPopupResultSuccess": {
     "placeholders": {
       "time": {}

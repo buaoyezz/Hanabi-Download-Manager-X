@@ -1649,6 +1649,24 @@ class PluginAppLocalizations extends AppLocalizations {
   String get developerTestPopupResultFailed => _string('developerTestPopupResultFailed', _fallback.developerTestPopupResultFailed);
 
   @override
+  String get developerOpenL10nFolderTitle => _string('developerOpenL10nFolderTitle', _fallback.developerOpenL10nFolderTitle);
+
+  @override
+  String get developerOpenL10nFolderSubtitle => _string('developerOpenL10nFolderSubtitle', _fallback.developerOpenL10nFolderSubtitle);
+
+  @override
+  String get developerOpenL10nFolderSuccessTitle => _string('developerOpenL10nFolderSuccessTitle', _fallback.developerOpenL10nFolderSuccessTitle);
+
+  @override
+  String get developerOpenL10nFolderSuccessMessage => _string('developerOpenL10nFolderSuccessMessage', _fallback.developerOpenL10nFolderSuccessMessage);
+
+  @override
+  String get developerOpenL10nFolderFailedTitle => _string('developerOpenL10nFolderFailedTitle', _fallback.developerOpenL10nFolderFailedTitle);
+
+  @override
+  String developerOpenL10nFolderFailedMessage(Object error) => _format('developerOpenL10nFolderFailedMessage', {'error': error}, _fallback.developerOpenL10nFolderFailedMessage(error));
+
+  @override
   String get updateCurrentVersionTitle => _string('updateCurrentVersionTitle', _fallback.updateCurrentVersionTitle);
 
   @override
