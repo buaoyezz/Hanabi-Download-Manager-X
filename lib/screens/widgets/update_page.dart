@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:fluent_ui/fluent_ui.dart' hide FluentIcons;
 import 'package:flutter/material.dart' show Material;
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -7,6 +8,7 @@ import '../../services/update_service.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/fluent_icons.dart';
+import '../../widgets/smooth_scroll_wrapper.dart';
 
 class UpdatePage extends StatefulWidget {
   const UpdatePage({super.key});
@@ -169,38 +171,41 @@ class _UpdatePageState extends State<UpdatePage> {
                 ),
               ),
               const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                height: 150, // 固定高度用于预览
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppTheme.bgLayer1,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                  border: Border.all(color: AppTheme.borderSubtle),
-                ),
-                child: Stack(
-                  children: [
-                    SingleChildScrollView(
-                      physics: const NeverScrollableScrollPhysics(), // 禁止内部滚动
-                      child: _buildMarkdownContent(context, updateService.getCurrentChangelog()),
-                    ),
-                    Positioned.fill(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            stops: const [0.0, 0.5, 1.0],
-                            colors: [
-                              Colors.transparent,
-                              Colors.transparent,
-                              AppTheme.bgLayer1,
-                            ],
-                          ),
-                        ),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                  child: Container(
+                    width: double.infinity,
+                    height: 150, // 固定高度用于预览
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppTheme.bgLayer1.withValues(alpha: 0.65),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      border: Border.all(
+                        color: AppTheme.borderSubtle.withValues(alpha: 0.4),
                       ),
                     ),
-                  ],
+                    child: ShaderMask(
+                      shaderCallback: (Rect bounds) {
+                        return LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white,
+                            Colors.white,
+                            Colors.transparent,
+                          ],
+                          stops: const [0.0, 0.6, 1.0],
+                        ).createShader(bounds);
+                      },
+                      blendMode: BlendMode.dstIn,
+                      child: SingleChildScrollView(
+                        physics: const NeverScrollableScrollPhysics(),
+                        child: _buildMarkdownContent(context, updateService.getCurrentChangelog()),
+                      ),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -684,59 +689,80 @@ class _UpdatePageState extends State<UpdatePage> {
   void _showChangelogDialog(BuildContext context, String title, String content) {
     showDialog(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.4),
       builder: (context) {
         final theme = FluentTheme.of(context);
         final t = AppLocalizations.of(context)!;
         return Center(
-          child: Container(
-            width: 585,
-            height: 362,
-            decoration: BoxDecoration(
-              color: theme.micaBackgroundColor,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.borderSubtle),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-                  child: Text(
-                    title,
-                    style: theme.typography.subtitle?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+              child: Container(
+                width: 585,
+                height: 362,
+                decoration: BoxDecoration(
+                  color: AppTheme.bgLayer1.withValues(alpha: 0.5),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.08),
                   ),
                 ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: SingleChildScrollView(
-                      child: _buildMarkdownContent(context, content),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Button(
-                        onPressed: () => Navigator.pop(context),
-                        child: Text(t.updateDialogCloseButton),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+                      child: Text(
+                        title,
+                        style: theme.typography.subtitle?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: ShaderMask(
+                        shaderCallback: (Rect bounds) {
+                          return LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.white,
+                              Colors.white,
+                              Colors.transparent,
+                            ],
+                            stops: const [0.0, 0.03, 0.92, 1.0],
+                          ).createShader(bounds);
+                        },
+                        blendMode: BlendMode.dstIn,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: SmoothSingleChildScrollView(
+                            config: SmoothScrollConfig.fast,
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 4, bottom: 8),
+                              child: _buildMarkdownContent(context, content),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Button(
+                            onPressed: () => Navigator.pop(context),
+                            child: Text(t.updateDialogCloseButton),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         );
@@ -1040,38 +1066,41 @@ class _UpdatePageState extends State<UpdatePage> {
           ),
         ),
         const SizedBox(height: 12),
-        Container(
-          width: double.infinity,
-          height: 150,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppTheme.bgLayer1,
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            border: Border.all(color: AppTheme.borderSubtle),
-          ),
-          child: Stack(
-            children: [
-              SingleChildScrollView(
-                physics: const NeverScrollableScrollPhysics(),
-                child: _buildMarkdownContent(context, updateService.getLatestChangelog()),
-              ),
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      stops: const [0.0, 0.5, 1.0],
-                      colors: [
-                        Colors.transparent,
-                        Colors.transparent,
-                        AppTheme.bgLayer1,
-                      ],
-                    ),
-                  ),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: Container(
+              width: double.infinity,
+              height: 150,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.bgLayer1.withValues(alpha: 0.65),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                border: Border.all(
+                  color: AppTheme.borderSubtle.withValues(alpha: 0.4),
                 ),
               ),
-            ],
+              child: ShaderMask(
+                shaderCallback: (Rect bounds) {
+                  return LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white,
+                      Colors.white,
+                      Colors.transparent,
+                    ],
+                    stops: const [0.0, 0.6, 1.0],
+                  ).createShader(bounds);
+                },
+                blendMode: BlendMode.dstIn,
+                child: SingleChildScrollView(
+                  physics: const NeverScrollableScrollPhysics(),
+                  child: _buildMarkdownContent(context, updateService.getLatestChangelog()),
+                ),
+              ),
+            ),
           ),
         ),
         const SizedBox(height: 12),

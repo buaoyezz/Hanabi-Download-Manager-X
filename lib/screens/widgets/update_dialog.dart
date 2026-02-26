@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/update_service.dart';
@@ -103,18 +104,32 @@ class UpdateDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            Container(
-              constraints: const BoxConstraints(maxHeight: 300),
-              decoration: BoxDecoration(
-                color: AppTheme.bgLayer1,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                border: Border.all(color: AppTheme.borderSubtle),
-              ),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: SelectableText(
-                  updateInfo.changelog,
-                  style: FluentTheme.of(context).typography.body,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 300),
+                  decoration: BoxDecoration(
+                    color: AppTheme.bgLayer1.withValues(alpha: 0.65),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    border: Border.all(
+                      color: AppTheme.borderSubtle.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: ScrollConfiguration(
+                    behavior: ScrollConfiguration.of(context).copyWith(
+                      physics: const BouncingScrollPhysics(),
+                    ),
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      child: SelectableText(
+                        updateInfo.changelog,
+                        style: FluentTheme.of(context).typography.body,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -226,18 +241,32 @@ class CurrentVersionDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            Container(
-              constraints: const BoxConstraints(maxHeight: 300),
-              decoration: BoxDecoration(
-                color: AppTheme.bgLayer1,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                border: Border.all(color: AppTheme.borderSubtle),
-              ),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: SelectableText(
-                  changelog,
-                  style: FluentTheme.of(context).typography.body,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 300),
+                  decoration: BoxDecoration(
+                    color: AppTheme.bgLayer1.withValues(alpha: 0.65),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    border: Border.all(
+                      color: AppTheme.borderSubtle.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: ScrollConfiguration(
+                    behavior: ScrollConfiguration.of(context).copyWith(
+                      physics: const BouncingScrollPhysics(),
+                    ),
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      child: SelectableText(
+                        changelog,
+                        style: FluentTheme.of(context).typography.body,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
