@@ -313,6 +313,16 @@ pub fn run(
                 let _ = apply_mica(&window, Some(true)); // true = dark mode
             }
 
+            // 弹出时拉到最前面，但不永久置顶
+            let _ = window.set_always_on_top(true);
+            let _ = window.set_focus();
+            // 延迟取消置顶，确保窗口已经显示在最前面
+            let win_clone = window.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(500));
+                let _ = win_clone.set_always_on_top(false);
+            });
+
             // Enable devtools in debug mode
             #[cfg(debug_assertions)]
             {

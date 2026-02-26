@@ -392,21 +392,22 @@ function App() {
     };
   }, []);
 
-  // 视图状态变化时调整窗口大小
+  // 自动根据内容高度调整窗口大小
   useEffect(() => {
     const adjustWindowSize = async () => {
+      // 等一帧让 DOM 渲染完成
+      await new Promise(r => setTimeout(r, 50));
       try {
-        if (viewState === 'downloading') {
-          await invoke('resize_window', { width: 500, height: 334 });
-        } else if (viewState === 'completed') {
-          await invoke('resize_window', { width: 494, height: 229 });
-        } else if (viewState === 'form') {
-          await invoke('resize_window', { width: 500, height: 380 });
-        }
+        const root = document.getElementById('root');
+        if (!root) return;
+        // 测量实际内容高度（含 titlebar + content + padding）
+        const contentHeight = root.scrollHeight;
+        const height = Math.max(200, Math.min(contentHeight + 2, 500)); // clamp 200~500
+        await invoke('resize_window', { width: 500, height });
       } catch { /* ignore */ }
     };
     adjustWindowSize();
-  }, [viewState]);
+  }, [viewState, progressData?.segments?.length, error]);
 
   // 关闭窗口
   const handleClose = useCallback(async () => {
