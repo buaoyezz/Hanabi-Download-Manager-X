@@ -295,6 +295,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeNavPerformance => 'Performance';
 
   @override
+  String get homeNavConnectionDebug => 'Connection';
+
+  @override
   String get homeNavSettings => 'Settings';
 
   @override
@@ -626,6 +629,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsSegmentSpeedLimitSubtitle => 'Limit speed per segment';
 
   @override
+  String get settingsGlobalSpeedLimitTitle => 'Global speed limit';
+
+  @override
+  String get settingsGlobalSpeedLimitSubtitle =>
+      'Limit total download bandwidth';
+
+  @override
   String get settingsSpeedUnlimited => 'Unlimited';
 
   @override
@@ -890,6 +900,14 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsDeveloperShowWebCheckSubtitle =>
       'Show web status tools in navigation';
+
+  @override
+  String get settingsDeveloperShowConnectionDebugTitle =>
+      'Show connection debug page';
+
+  @override
+  String get settingsDeveloperShowConnectionDebugSubtitle =>
+      'Show connection diagnostics in navigation';
 
   @override
   String get settingsDeveloperPageHint =>
@@ -1472,6 +1490,60 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appearanceDownloadListSection => 'Download list display';
 
   @override
+  String get appearanceSpeedChartTitle => 'Speed chart background';
+
+  @override
+  String get appearanceSpeedChartSubtitle =>
+      'Show real-time speed curve on download cards';
+
+  @override
+  String get appearanceChartFrostTitle => 'Chart frosted glass';
+
+  @override
+  String get appearanceChartFrostSubtitle =>
+      'Apply frosted glass effect over the chart';
+
+  @override
+  String get appearanceChartPositionTitle => 'Chart position';
+
+  @override
+  String get appearanceChartPositionSubtitle =>
+      'Adjust chart height within the card';
+
+  @override
+  String get appearanceChartPositionLow => 'Low';
+
+  @override
+  String get appearanceChartPositionMid => 'Mid';
+
+  @override
+  String get appearanceChartPositionHigh => 'High';
+
+  @override
+  String get appearanceChartColorTitle => 'Chart color';
+
+  @override
+  String get appearanceChartColorSubtitle => 'Customize speed chart line color';
+
+  @override
+  String get appearanceChartColorBlue => 'Blue';
+
+  @override
+  String get appearanceChartColorCyan => 'Cyan';
+
+  @override
+  String get appearanceChartColorPurple => 'Purple';
+
+  @override
+  String get appearanceChartColorGreen => 'Green';
+
+  @override
+  String get appearanceChartColorPink => 'Pink';
+
+  @override
+  String get appearanceChartColorOrange => 'Orange';
+
+  @override
   String get developerSectionDebugTools => 'Debug tools';
 
   @override
@@ -1582,6 +1654,76 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get developerToolPerformanceHiddenMessage =>
       'Performance monitor page removed from navigation';
+
+  @override
+  String get developerToolConnectionDebugTitle => 'Connection debug';
+
+  @override
+  String get developerToolConnectionDebugSubtitle =>
+      'Network connectivity diagnostics';
+
+  @override
+  String get developerToolConnectionDebugShownTitle => 'Connection debug shown';
+
+  @override
+  String get developerToolConnectionDebugShownMessage =>
+      'Connection debug page added to navigation';
+
+  @override
+  String get developerToolConnectionDebugHiddenTitle =>
+      'Connection debug hidden';
+
+  @override
+  String get developerToolConnectionDebugHiddenMessage =>
+      'Connection debug page removed from navigation';
+
+  @override
+  String get connectionDebugTitle => 'Connection Debug';
+
+  @override
+  String get connectionDebugTestTitle => 'Test Download Connection';
+
+  @override
+  String get connectionDebugTestSubtitle =>
+      'Enter a download URL to test connectivity, proxy status, and transfer capability';
+
+  @override
+  String get connectionDebugTesting => 'Testing...';
+
+  @override
+  String get connectionDebugStartTest => 'Start Test';
+
+  @override
+  String connectionDebugResults(int count) {
+    return 'Test Results ($count)';
+  }
+
+  @override
+  String get connectionDebugSuccess => 'Connected';
+
+  @override
+  String get connectionDebugFailed => 'Connection Failed';
+
+  @override
+  String get connectionDebugLocalHost => 'Local';
+
+  @override
+  String get connectionDebugProxy => 'Proxy';
+
+  @override
+  String get connectionDebugUnknown => 'Unknown';
+
+  @override
+  String get connectionDebugReceived => 'Received';
+
+  @override
+  String get connectionDebugFileSize => 'File Size';
+
+  @override
+  String get connectionDebugRangeSupported => 'Supported';
+
+  @override
+  String get connectionDebugRangeNotSupported => 'Not Supported';
 
   @override
   String get developerTestNotificationTitle => 'Notification test';
@@ -2173,6 +2315,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get downloadCopySuccessTitle => 'Copied';
+
+  @override
+  String get loadingTasks => 'Loading tasks...';
+
+  @override
+  String get loadingTasksHint => 'Connecting to download engine';
 
   @override
   String get downloadCopySuccessMessage => 'Link copied to clipboard';

@@ -317,6 +317,9 @@ class PluginAppLocalizations extends AppLocalizations {
   String get homeNavPerformance => _string('homeNavPerformance', _fallback.homeNavPerformance);
 
   @override
+  String get homeNavConnectionDebug => _string('homeNavConnectionDebug', _fallback.homeNavConnectionDebug);
+
+  @override
   String get homeNavSettings => _string('homeNavSettings', _fallback.homeNavSettings);
 
   @override
@@ -620,6 +623,12 @@ class PluginAppLocalizations extends AppLocalizations {
   String get settingsSegmentSpeedLimitSubtitle => _string('settingsSegmentSpeedLimitSubtitle', _fallback.settingsSegmentSpeedLimitSubtitle);
 
   @override
+  String get settingsGlobalSpeedLimitTitle => _string('settingsGlobalSpeedLimitTitle', _fallback.settingsGlobalSpeedLimitTitle);
+
+  @override
+  String get settingsGlobalSpeedLimitSubtitle => _string('settingsGlobalSpeedLimitSubtitle', _fallback.settingsGlobalSpeedLimitSubtitle);
+
+  @override
   String get settingsSpeedUnlimited => _string('settingsSpeedUnlimited', _fallback.settingsSpeedUnlimited);
 
   @override
@@ -861,6 +870,12 @@ class PluginAppLocalizations extends AppLocalizations {
 
   @override
   String get settingsDeveloperShowWebCheckSubtitle => _string('settingsDeveloperShowWebCheckSubtitle', _fallback.settingsDeveloperShowWebCheckSubtitle);
+
+  @override
+  String get settingsDeveloperShowConnectionDebugTitle => _string('settingsDeveloperShowConnectionDebugTitle', _fallback.settingsDeveloperShowConnectionDebugTitle);
+
+  @override
+  String get settingsDeveloperShowConnectionDebugSubtitle => _string('settingsDeveloperShowConnectionDebugSubtitle', _fallback.settingsDeveloperShowConnectionDebugSubtitle);
 
   @override
   String get settingsDeveloperPageHint => _string('settingsDeveloperPageHint', _fallback.settingsDeveloperPageHint);
@@ -1376,6 +1391,57 @@ class PluginAppLocalizations extends AppLocalizations {
   String get appearanceDownloadListSection => _string('appearanceDownloadListSection', _fallback.appearanceDownloadListSection);
 
   @override
+  String get appearanceSpeedChartTitle => _string('appearanceSpeedChartTitle', _fallback.appearanceSpeedChartTitle);
+
+  @override
+  String get appearanceSpeedChartSubtitle => _string('appearanceSpeedChartSubtitle', _fallback.appearanceSpeedChartSubtitle);
+
+  @override
+  String get appearanceChartFrostTitle => _string('appearanceChartFrostTitle', _fallback.appearanceChartFrostTitle);
+
+  @override
+  String get appearanceChartFrostSubtitle => _string('appearanceChartFrostSubtitle', _fallback.appearanceChartFrostSubtitle);
+
+  @override
+  String get appearanceChartPositionTitle => _string('appearanceChartPositionTitle', _fallback.appearanceChartPositionTitle);
+
+  @override
+  String get appearanceChartPositionSubtitle => _string('appearanceChartPositionSubtitle', _fallback.appearanceChartPositionSubtitle);
+
+  @override
+  String get appearanceChartPositionLow => _string('appearanceChartPositionLow', _fallback.appearanceChartPositionLow);
+
+  @override
+  String get appearanceChartPositionMid => _string('appearanceChartPositionMid', _fallback.appearanceChartPositionMid);
+
+  @override
+  String get appearanceChartPositionHigh => _string('appearanceChartPositionHigh', _fallback.appearanceChartPositionHigh);
+
+  @override
+  String get appearanceChartColorTitle => _string('appearanceChartColorTitle', _fallback.appearanceChartColorTitle);
+
+  @override
+  String get appearanceChartColorSubtitle => _string('appearanceChartColorSubtitle', _fallback.appearanceChartColorSubtitle);
+
+  @override
+  String get appearanceChartColorBlue => _string('appearanceChartColorBlue', _fallback.appearanceChartColorBlue);
+
+  @override
+  String get appearanceChartColorCyan => _string('appearanceChartColorCyan', _fallback.appearanceChartColorCyan);
+
+  @override
+  String get appearanceChartColorPurple => _string('appearanceChartColorPurple', _fallback.appearanceChartColorPurple);
+
+  @override
+  String get appearanceChartColorGreen => _string('appearanceChartColorGreen', _fallback.appearanceChartColorGreen);
+
+  @override
+  String get appearanceChartColorPink => _string('appearanceChartColorPink', _fallback.appearanceChartColorPink);
+
+  @override
+  String get appearanceChartColorOrange => _string('appearanceChartColorOrange', _fallback.appearanceChartColorOrange);
+
+  @override
   String get developerSectionDebugTools => _string('developerSectionDebugTools', _fallback.developerSectionDebugTools);
 
   @override
@@ -1476,6 +1542,69 @@ class PluginAppLocalizations extends AppLocalizations {
 
   @override
   String get developerToolPerformanceHiddenMessage => _string('developerToolPerformanceHiddenMessage', _fallback.developerToolPerformanceHiddenMessage);
+
+  @override
+  String get developerToolConnectionDebugTitle => _string('developerToolConnectionDebugTitle', _fallback.developerToolConnectionDebugTitle);
+
+  @override
+  String get developerToolConnectionDebugSubtitle => _string('developerToolConnectionDebugSubtitle', _fallback.developerToolConnectionDebugSubtitle);
+
+  @override
+  String get developerToolConnectionDebugShownTitle => _string('developerToolConnectionDebugShownTitle', _fallback.developerToolConnectionDebugShownTitle);
+
+  @override
+  String get developerToolConnectionDebugShownMessage => _string('developerToolConnectionDebugShownMessage', _fallback.developerToolConnectionDebugShownMessage);
+
+  @override
+  String get developerToolConnectionDebugHiddenTitle => _string('developerToolConnectionDebugHiddenTitle', _fallback.developerToolConnectionDebugHiddenTitle);
+
+  @override
+  String get developerToolConnectionDebugHiddenMessage => _string('developerToolConnectionDebugHiddenMessage', _fallback.developerToolConnectionDebugHiddenMessage);
+
+  @override
+  String get connectionDebugTitle => _string('connectionDebugTitle', _fallback.connectionDebugTitle);
+
+  @override
+  String get connectionDebugTestTitle => _string('connectionDebugTestTitle', _fallback.connectionDebugTestTitle);
+
+  @override
+  String get connectionDebugTestSubtitle => _string('connectionDebugTestSubtitle', _fallback.connectionDebugTestSubtitle);
+
+  @override
+  String get connectionDebugTesting => _string('connectionDebugTesting', _fallback.connectionDebugTesting);
+
+  @override
+  String get connectionDebugStartTest => _string('connectionDebugStartTest', _fallback.connectionDebugStartTest);
+
+  @override
+  String connectionDebugResults(int count) => _format('connectionDebugResults', {'count': count}, _fallback.connectionDebugResults(count));
+
+  @override
+  String get connectionDebugSuccess => _string('connectionDebugSuccess', _fallback.connectionDebugSuccess);
+
+  @override
+  String get connectionDebugFailed => _string('connectionDebugFailed', _fallback.connectionDebugFailed);
+
+  @override
+  String get connectionDebugLocalHost => _string('connectionDebugLocalHost', _fallback.connectionDebugLocalHost);
+
+  @override
+  String get connectionDebugProxy => _string('connectionDebugProxy', _fallback.connectionDebugProxy);
+
+  @override
+  String get connectionDebugUnknown => _string('connectionDebugUnknown', _fallback.connectionDebugUnknown);
+
+  @override
+  String get connectionDebugReceived => _string('connectionDebugReceived', _fallback.connectionDebugReceived);
+
+  @override
+  String get connectionDebugFileSize => _string('connectionDebugFileSize', _fallback.connectionDebugFileSize);
+
+  @override
+  String get connectionDebugRangeSupported => _string('connectionDebugRangeSupported', _fallback.connectionDebugRangeSupported);
+
+  @override
+  String get connectionDebugRangeNotSupported => _string('connectionDebugRangeNotSupported', _fallback.connectionDebugRangeNotSupported);
 
   @override
   String get developerTestNotificationTitle => _string('developerTestNotificationTitle', _fallback.developerTestNotificationTitle);
@@ -2026,6 +2155,12 @@ class PluginAppLocalizations extends AppLocalizations {
 
   @override
   String get downloadEmptySubtitle => _string('downloadEmptySubtitle', _fallback.downloadEmptySubtitle);
+
+  @override
+  String get loadingTasks => _string('loadingTasks', _fallback.loadingTasks);
+
+  @override
+  String get loadingTasksHint => _string('loadingTasksHint', _fallback.loadingTasksHint);
 
   @override
   String get downloadCopySuccessTitle => _string('downloadCopySuccessTitle', _fallback.downloadCopySuccessTitle);

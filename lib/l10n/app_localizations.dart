@@ -602,6 +602,12 @@ abstract class AppLocalizations {
   /// **'性能监控'**
   String get homeNavPerformance;
 
+  /// No description provided for @homeNavConnectionDebug.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接调试'**
+  String get homeNavConnectionDebug;
+
   /// No description provided for @homeNavSettings.
   ///
   /// In zh, this message translates to:
@@ -1103,7 +1109,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsDownloadModeAuto.
   ///
   /// In zh, this message translates to:
-  /// **'auto'**
+  /// **'自动'**
   String get settingsDownloadModeAuto;
 
   /// No description provided for @settingsDownloadModeThreadsOnly.
@@ -1207,6 +1213,18 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'限制单分段速度'**
   String get settingsSegmentSpeedLimitSubtitle;
+
+  /// No description provided for @settingsGlobalSpeedLimitTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'全局限速'**
+  String get settingsGlobalSpeedLimitTitle;
+
+  /// No description provided for @settingsGlobalSpeedLimitSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'限制总下载带宽'**
+  String get settingsGlobalSpeedLimitSubtitle;
 
   /// No description provided for @settingsSpeedUnlimited.
   ///
@@ -1693,6 +1711,18 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'在导航栏显示网站状态检测工具'**
   String get settingsDeveloperShowWebCheckSubtitle;
+
+  /// No description provided for @settingsDeveloperShowConnectionDebugTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'显示连接调试页面'**
+  String get settingsDeveloperShowConnectionDebugTitle;
+
+  /// No description provided for @settingsDeveloperShowConnectionDebugSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'在导航栏显示连接诊断工具'**
+  String get settingsDeveloperShowConnectionDebugSubtitle;
 
   /// No description provided for @settingsDeveloperPageHint.
   ///
@@ -2501,7 +2531,7 @@ abstract class AppLocalizations {
   /// No description provided for @appearanceNotificationPositionTopRightOption.
   ///
   /// In zh, this message translates to:
-  /// **'topRight'**
+  /// **'右上角'**
   String get appearanceNotificationPositionTopRightOption;
 
   /// No description provided for @appearanceNotificationPositionBottomRightOption.
@@ -2720,6 +2750,108 @@ abstract class AppLocalizations {
   /// **'下载列表显示'**
   String get appearanceDownloadListSection;
 
+  /// No description provided for @appearanceSpeedChartTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'速度曲线背景'**
+  String get appearanceSpeedChartTitle;
+
+  /// No description provided for @appearanceSpeedChartSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'在下载卡片上显示实时速度曲线'**
+  String get appearanceSpeedChartSubtitle;
+
+  /// No description provided for @appearanceChartFrostTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'曲线毛玻璃'**
+  String get appearanceChartFrostTitle;
+
+  /// No description provided for @appearanceChartFrostSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'在曲线上方叠加毛玻璃效果'**
+  String get appearanceChartFrostSubtitle;
+
+  /// No description provided for @appearanceChartPositionTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'曲线位置'**
+  String get appearanceChartPositionTitle;
+
+  /// No description provided for @appearanceChartPositionSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'调整曲线在卡片中的高度'**
+  String get appearanceChartPositionSubtitle;
+
+  /// No description provided for @appearanceChartPositionLow.
+  ///
+  /// In zh, this message translates to:
+  /// **'低'**
+  String get appearanceChartPositionLow;
+
+  /// No description provided for @appearanceChartPositionMid.
+  ///
+  /// In zh, this message translates to:
+  /// **'中'**
+  String get appearanceChartPositionMid;
+
+  /// No description provided for @appearanceChartPositionHigh.
+  ///
+  /// In zh, this message translates to:
+  /// **'高'**
+  String get appearanceChartPositionHigh;
+
+  /// No description provided for @appearanceChartColorTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'曲线颜色'**
+  String get appearanceChartColorTitle;
+
+  /// No description provided for @appearanceChartColorSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'自定义速度曲线的颜色'**
+  String get appearanceChartColorSubtitle;
+
+  /// No description provided for @appearanceChartColorBlue.
+  ///
+  /// In zh, this message translates to:
+  /// **'蓝色'**
+  String get appearanceChartColorBlue;
+
+  /// No description provided for @appearanceChartColorCyan.
+  ///
+  /// In zh, this message translates to:
+  /// **'青色'**
+  String get appearanceChartColorCyan;
+
+  /// No description provided for @appearanceChartColorPurple.
+  ///
+  /// In zh, this message translates to:
+  /// **'紫色'**
+  String get appearanceChartColorPurple;
+
+  /// No description provided for @appearanceChartColorGreen.
+  ///
+  /// In zh, this message translates to:
+  /// **'绿色'**
+  String get appearanceChartColorGreen;
+
+  /// No description provided for @appearanceChartColorPink.
+  ///
+  /// In zh, this message translates to:
+  /// **'粉色'**
+  String get appearanceChartColorPink;
+
+  /// No description provided for @appearanceChartColorOrange.
+  ///
+  /// In zh, this message translates to:
+  /// **'橙色'**
+  String get appearanceChartColorOrange;
+
   /// No description provided for @developerSectionDebugTools.
   ///
   /// In zh, this message translates to:
@@ -2923,6 +3055,132 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'已从导航栏移除性能监控页面'**
   String get developerToolPerformanceHiddenMessage;
+
+  /// No description provided for @developerToolConnectionDebugTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接调试'**
+  String get developerToolConnectionDebugTitle;
+
+  /// No description provided for @developerToolConnectionDebugSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'网络连通性诊断'**
+  String get developerToolConnectionDebugSubtitle;
+
+  /// No description provided for @developerToolConnectionDebugShownTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接调试已显示'**
+  String get developerToolConnectionDebugShownTitle;
+
+  /// No description provided for @developerToolConnectionDebugShownMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'已在导航栏显示连接调试页面'**
+  String get developerToolConnectionDebugShownMessage;
+
+  /// No description provided for @developerToolConnectionDebugHiddenTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接调试已隐藏'**
+  String get developerToolConnectionDebugHiddenTitle;
+
+  /// No description provided for @developerToolConnectionDebugHiddenMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'已从导航栏移除连接调试页面'**
+  String get developerToolConnectionDebugHiddenMessage;
+
+  /// No description provided for @connectionDebugTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接调试'**
+  String get connectionDebugTitle;
+
+  /// No description provided for @connectionDebugTestTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'测试下载连接'**
+  String get connectionDebugTestTitle;
+
+  /// No description provided for @connectionDebugTestSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'输入下载链接，测试本机到服务器的连通性、代理状态和传输能力'**
+  String get connectionDebugTestSubtitle;
+
+  /// No description provided for @connectionDebugTesting.
+  ///
+  /// In zh, this message translates to:
+  /// **'测试中...'**
+  String get connectionDebugTesting;
+
+  /// No description provided for @connectionDebugStartTest.
+  ///
+  /// In zh, this message translates to:
+  /// **'开始测试'**
+  String get connectionDebugStartTest;
+
+  /// No description provided for @connectionDebugResults.
+  ///
+  /// In zh, this message translates to:
+  /// **'测试结果 ({count})'**
+  String connectionDebugResults(int count);
+
+  /// No description provided for @connectionDebugSuccess.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接成功'**
+  String get connectionDebugSuccess;
+
+  /// No description provided for @connectionDebugFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接失败'**
+  String get connectionDebugFailed;
+
+  /// No description provided for @connectionDebugLocalHost.
+  ///
+  /// In zh, this message translates to:
+  /// **'本机'**
+  String get connectionDebugLocalHost;
+
+  /// No description provided for @connectionDebugProxy.
+  ///
+  /// In zh, this message translates to:
+  /// **'代理'**
+  String get connectionDebugProxy;
+
+  /// No description provided for @connectionDebugUnknown.
+  ///
+  /// In zh, this message translates to:
+  /// **'未知'**
+  String get connectionDebugUnknown;
+
+  /// No description provided for @connectionDebugReceived.
+  ///
+  /// In zh, this message translates to:
+  /// **'接收'**
+  String get connectionDebugReceived;
+
+  /// No description provided for @connectionDebugFileSize.
+  ///
+  /// In zh, this message translates to:
+  /// **'文件大小'**
+  String get connectionDebugFileSize;
+
+  /// No description provided for @connectionDebugRangeSupported.
+  ///
+  /// In zh, this message translates to:
+  /// **'支持'**
+  String get connectionDebugRangeSupported;
+
+  /// No description provided for @connectionDebugRangeNotSupported.
+  ///
+  /// In zh, this message translates to:
+  /// **'不支持'**
+  String get connectionDebugRangeNotSupported;
 
   /// No description provided for @developerTestNotificationTitle.
   ///
@@ -4010,6 +4268,18 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'复制成功'**
   String get downloadCopySuccessTitle;
+
+  /// No description provided for @loadingTasks.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在加载任务列表...'**
+  String get loadingTasks;
+
+  /// No description provided for @loadingTasksHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在连接下载引擎'**
+  String get loadingTasksHint;
 
   /// No description provided for @downloadCopySuccessMessage.
   ///

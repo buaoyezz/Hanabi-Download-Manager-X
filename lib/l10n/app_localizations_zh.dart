@@ -292,6 +292,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get homeNavPerformance => '性能监控';
 
   @override
+  String get homeNavConnectionDebug => '连接调试';
+
+  @override
   String get homeNavSettings => '设置';
 
   @override
@@ -550,7 +553,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsDownloadModeTitle => '下载模式';
 
   @override
-  String get settingsDownloadModeAuto => 'auto';
+  String get settingsDownloadModeAuto => '自动';
 
   @override
   String get settingsDownloadModeThreadsOnly => '仅线程';
@@ -602,6 +605,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsSegmentSpeedLimitSubtitle => '限制单分段速度';
+
+  @override
+  String get settingsGlobalSpeedLimitTitle => '全局限速';
+
+  @override
+  String get settingsGlobalSpeedLimitSubtitle => '限制总下载带宽';
 
   @override
   String get settingsSpeedUnlimited => '不限速';
@@ -859,6 +868,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsDeveloperShowWebCheckSubtitle => '在导航栏显示网站状态检测工具';
+
+  @override
+  String get settingsDeveloperShowConnectionDebugTitle => '显示连接调试页面';
+
+  @override
+  String get settingsDeveloperShowConnectionDebugSubtitle => '在导航栏显示连接诊断工具';
 
   @override
   String get settingsDeveloperPageHint => '调试页面会占用系统资源，建议仅在需要时启用';
@@ -1290,7 +1305,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appearanceNotificationPositionUnknown => '未知';
 
   @override
-  String get appearanceNotificationPositionTopRightOption => 'topRight';
+  String get appearanceNotificationPositionTopRightOption => '右上角';
 
   @override
   String get appearanceNotificationPositionBottomRightOption => '右下角';
@@ -1402,6 +1417,57 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appearanceDownloadListSection => '下载列表显示';
 
   @override
+  String get appearanceSpeedChartTitle => '速度曲线背景';
+
+  @override
+  String get appearanceSpeedChartSubtitle => '在下载卡片上显示实时速度曲线';
+
+  @override
+  String get appearanceChartFrostTitle => '曲线毛玻璃';
+
+  @override
+  String get appearanceChartFrostSubtitle => '在曲线上方叠加毛玻璃效果';
+
+  @override
+  String get appearanceChartPositionTitle => '曲线位置';
+
+  @override
+  String get appearanceChartPositionSubtitle => '调整曲线在卡片中的高度';
+
+  @override
+  String get appearanceChartPositionLow => '低';
+
+  @override
+  String get appearanceChartPositionMid => '中';
+
+  @override
+  String get appearanceChartPositionHigh => '高';
+
+  @override
+  String get appearanceChartColorTitle => '曲线颜色';
+
+  @override
+  String get appearanceChartColorSubtitle => '自定义速度曲线的颜色';
+
+  @override
+  String get appearanceChartColorBlue => '蓝色';
+
+  @override
+  String get appearanceChartColorCyan => '青色';
+
+  @override
+  String get appearanceChartColorPurple => '紫色';
+
+  @override
+  String get appearanceChartColorGreen => '绿色';
+
+  @override
+  String get appearanceChartColorPink => '粉色';
+
+  @override
+  String get appearanceChartColorOrange => '橙色';
+
+  @override
   String get developerSectionDebugTools => '调试工具';
 
   @override
@@ -1502,6 +1568,71 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get developerToolPerformanceHiddenMessage => '已从导航栏移除性能监控页面';
+
+  @override
+  String get developerToolConnectionDebugTitle => '连接调试';
+
+  @override
+  String get developerToolConnectionDebugSubtitle => '网络连通性诊断';
+
+  @override
+  String get developerToolConnectionDebugShownTitle => '连接调试已显示';
+
+  @override
+  String get developerToolConnectionDebugShownMessage => '已在导航栏显示连接调试页面';
+
+  @override
+  String get developerToolConnectionDebugHiddenTitle => '连接调试已隐藏';
+
+  @override
+  String get developerToolConnectionDebugHiddenMessage => '已从导航栏移除连接调试页面';
+
+  @override
+  String get connectionDebugTitle => '连接调试';
+
+  @override
+  String get connectionDebugTestTitle => '测试下载连接';
+
+  @override
+  String get connectionDebugTestSubtitle => '输入下载链接，测试本机到服务器的连通性、代理状态和传输能力';
+
+  @override
+  String get connectionDebugTesting => '测试中...';
+
+  @override
+  String get connectionDebugStartTest => '开始测试';
+
+  @override
+  String connectionDebugResults(int count) {
+    return '测试结果 ($count)';
+  }
+
+  @override
+  String get connectionDebugSuccess => '连接成功';
+
+  @override
+  String get connectionDebugFailed => '连接失败';
+
+  @override
+  String get connectionDebugLocalHost => '本机';
+
+  @override
+  String get connectionDebugProxy => '代理';
+
+  @override
+  String get connectionDebugUnknown => '未知';
+
+  @override
+  String get connectionDebugReceived => '接收';
+
+  @override
+  String get connectionDebugFileSize => '文件大小';
+
+  @override
+  String get connectionDebugRangeSupported => '支持';
+
+  @override
+  String get connectionDebugRangeNotSupported => '不支持';
 
   @override
   String get developerTestNotificationTitle => '通知测试';
@@ -2078,6 +2209,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get downloadCopySuccessTitle => '复制成功';
+
+  @override
+  String get loadingTasks => '正在加载任务列表...';
+
+  @override
+  String get loadingTasksHint => '正在连接下载引擎';
 
   @override
   String get downloadCopySuccessMessage => '下载链接已复制';
