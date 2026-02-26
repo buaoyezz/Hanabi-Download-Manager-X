@@ -1,13 +1,29 @@
 @echo off
 chcp 65001 >nul
-setlocal enabledelayedexpansion
+setlocal EnableExtensions DisableDelayedExpansion
 
-:: Get ESC character for ANSI colors
-for /F %%a in ('echo prompt $E ^| cmd') do set "ESC=%%a"
+:: Color setup (set NO_COLOR=1 to disable)
+set "C_RESET="
+set "C_WHITE="
+set "C_CYAN="
+set "C_YELLOW="
+set "C_RED="
+set "C_GREEN="
+set "C_GRAY="
+if not defined NO_COLOR (
+    for /F %%a in ('echo prompt $E ^| cmd') do set "ESC=%%a"
+    set "C_RESET=%ESC%[0m"
+    set "C_WHITE=%ESC%[97m"
+    set "C_CYAN=%ESC%[96m"
+    set "C_YELLOW=%ESC%[93m"
+    set "C_RED=%ESC%[91m"
+    set "C_GREEN=%ESC%[92m"
+    set "C_GRAY=%ESC%[90m"
+)
 
-echo %ESC%[96m========================================%ESC%[0m
-echo %ESC%[96m  Hanabi Popup Build + Copy Script%ESC%[0m
-echo %ESC%[96m========================================%ESC%[0m
+echo %C_CYAN%========================================%C_RESET%
+echo %C_CYAN%  Hanabi Popup Build + Copy Script%C_RESET%
+echo %C_CYAN%========================================%C_RESET%
 echo.
 
 set "ROOT=%~dp0"
@@ -21,48 +37,48 @@ for %%A in (%*) do (
     if /I "%%~A"=="--build-only" set "BUILD_ONLY=1"
 )
 
-echo %ESC%[97m[1/2] Building Hanabi Popup...%ESC%[0m
+echo %C_WHITE%[1/2] Building Hanabi Popup...%C_RESET%
 cd /d "%POPUP_DIR%"
 call npm run tauri:build
 if errorlevel 1 (
-    echo %ESC%[91m[ERROR] Popup build failed!%ESC%[0m
+    echo %C_RED%[ERROR] Popup build failed!%C_RESET%
     cd /d "%ROOT%"
     if "%NO_PAUSE%"=="0" pause
     exit /b 1
 )
 cd /d "%ROOT%"
-echo %ESC%[93m[OK] Popup build done%ESC%[0m
+echo %C_YELLOW%[OK] Popup build done%C_RESET%
 echo.
 
 if not exist "%POPUP_EXE%" (
-    echo %ESC%[91m[ERROR] Popup exe not found: %POPUP_EXE%%ESC%[0m
+    echo %C_RED%[ERROR] Popup exe not found: %POPUP_EXE%%C_RESET%
     if "%NO_PAUSE%"=="0" pause
     exit /b 1
 )
 
 if "%BUILD_ONLY%"=="1" (
-    echo %ESC%[90m[SKIP] Copy step (--build-only)%ESC%[0m
+    echo %C_GRAY%[SKIP] Copy step (--build-only)%C_RESET%
     echo.
-    echo %ESC%[93m========================================%ESC%[0m
-    echo %ESC%[93m  Popup Build Complete!%ESC%[0m
-    echo %ESC%[93m========================================%ESC%[0m
+    echo %C_YELLOW%========================================%C_RESET%
+    echo %C_YELLOW%  Popup Build Complete!%C_RESET%
+    echo %C_YELLOW%========================================%C_RESET%
     echo.
     if "%NO_PAUSE%"=="0" pause
     exit /b 0
 )
 
-echo %ESC%[97m[2/2] Copying popup exe...%ESC%[0m
+echo %C_WHITE%[2/2] Copying popup exe...%C_RESET%
 
 call :copy_to "%ROOT%build\\windows\\x64\\runner\\Release"
 call :copy_to "%ROOT%build\\windows\\x64\\runner\\Debug"
 
 copy /Y "%POPUP_EXE%" "%ROOT%hanabi-popup.exe" >nul
-echo   %ESC%[92m+%ESC%[0m hanabi-popup.exe -^> repo root
+echo   %C_GREEN%+%C_RESET% hanabi-popup.exe -^> repo root
 
 echo.
-echo %ESC%[93m========================================%ESC%[0m
-echo %ESC%[93m  Popup Build Complete!%ESC%[0m
-echo %ESC%[93m========================================%ESC%[0m
+echo %C_YELLOW%========================================%C_RESET%
+echo %C_YELLOW%  Popup Build Complete!%C_RESET%
+echo %C_YELLOW%========================================%C_RESET%
 echo.
 
 if "%NO_PAUSE%"=="0" pause
@@ -71,14 +87,14 @@ exit /b 0
 :copy_to
 set "BASE=%~1"
 if not exist "%BASE%" (
-    echo   %ESC%[90m-%ESC%[0m %BASE% not found, skip
+    echo   %C_GRAY%-%C_RESET% %BASE% not found, skip
     goto :eof
 )
 set "ASSETS=%BASE%\\data\\zzbuaoye_assets"
 if not exist "%ASSETS%" (
     mkdir "%ASSETS%"
-    echo   %ESC%[92m+%ESC%[0m Created %ASSETS%
+    echo   %C_GREEN%+%C_RESET% Created %ASSETS%
 )
 copy /Y "%POPUP_EXE%" "%ASSETS%\\" >nul
-echo   %ESC%[92m+%ESC%[0m hanabi-popup.exe -^> %ASSETS%
+echo   %C_GREEN%+%C_RESET% hanabi-popup.exe -^> %ASSETS%
 goto :eof
