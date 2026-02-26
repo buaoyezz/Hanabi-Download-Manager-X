@@ -64,13 +64,13 @@ class NsfxHttpClient {
   /// 获取文件信息 - 浏览器式策略 + 总超时保护
   /// 优先 GET 探测，回退 Range 和 HEAD。
   /// 总超时 15 秒（所有策略共享），网络不可达时立即失败。
-  /// 代理开启时，若代理连接失败，自动降级直连重试。
+  /// 代理开启时，若代理返回错误（502/503/407等）或连接失败，自动降级直连重试。
   Future<FileInfo> getFileInfo(String url, Map<String, String> headers) async {
     final result = await _getFileInfoInternal(url, headers);
     
-    // 代理开启且探测失败 → 降级直连重试
-    if (result.size == 0 && _isProxyEnabled && !_proxyFailed) {
-      _logger.warning('NSFX-HTTP', 'Proxy probe failed, falling back to direct connection');
+    // 代理开启且探测失败（size==0 或被标记为代理错误） → 降级直连重试
+    if ((result.size == 0 || result.proxyError) && _isProxyEnabled && !_proxyFailed) {
+      _logger.warning('NSFX-HTTP', 'Proxy probe failed (proxyError=${result.proxyError}), falling back to direct connection');
       _switchToDirectConnection();
       return await _getFileInfoInternal(url, headers);
     }
@@ -86,6 +86,13 @@ class NsfxHttpClient {
     _client?.close(force: true);
     _client = null; // 下次访问 client getter 会创建无代理的新实例
     _logger.info('NSFX-HTTP', 'Switched to direct connection (proxy bypassed)');
+  }
+
+  /// 外部调用：下载过程中遇到代理错误时切换到直连
+  void switchToDirectOnProxyError() {
+    if (_proxyFailed) return; // 已经切换过了
+    _logger.warning('NSFX-HTTP', 'Proxy error during download, switching to direct connection');
+    _switchToDirectConnection();
   }
 
   Future<FileInfo> _getFileInfoInternal(String url, Map<String, String> headers) async {
@@ -140,6 +147,16 @@ class NsfxHttpClient {
            msg.contains('name or service not known');
   }
 
+  /// 判断 HTTP 状态码是否为代理相关错误
+  bool _isProxyErrorStatus(int statusCode) {
+    return statusCode == 502 || // Bad Gateway
+           statusCode == 503 || // Service Unavailable
+           statusCode == 407 || // Proxy Authentication Required
+           statusCode == 504 || // Gateway Timeout
+           statusCode == 523 || // Origin Is Unreachable (Cloudflare via proxy)
+           statusCode == 525;   // SSL Handshake Failed (proxy SSL issue)
+  }
+
   /// GET 探测：发送普通 GET，从响应头提取文件信息后立即断开
   Future<_ProbeResult?> _probeGet(
     String url, Map<String, String> headers, DateTime deadline,
@@ -166,6 +183,12 @@ class NsfxHttpClient {
 
       probeClient.close(force: true);
       probeClient = null;
+
+      // 代理错误码 → 立即返回，触发 fallback
+      if (_isProxyEnabled && _isProxyErrorStatus(statusCode)) {
+        _logger.warning('NSFX-HTTP', 'GET probe: proxy error status=$statusCode');
+        return _ProbeResult(FileInfo(size: 0, supportsRange: false, proxyError: true));
+      }
 
       if (statusCode == 200 && contentLength > 0) {
         final supportsRange = acceptRanges?.toLowerCase() == 'bytes';
@@ -220,6 +243,12 @@ class NsfxHttpClient {
       probeClient.close(force: true);
       probeClient = null;
 
+      // 代理错误码 → 立即返回，触发 fallback
+      if (_isProxyEnabled && _isProxyErrorStatus(statusCode)) {
+        _logger.warning('NSFX-HTTP', 'Range probe ($label): proxy error status=$statusCode');
+        return FileInfo(size: 0, supportsRange: false, proxyError: true);
+      }
+
       if (statusCode == 206 && contentRange != null) {
         final match = RegExp(r'bytes \d+-\d+/(\d+|\*)').firstMatch(contentRange);
         if (match != null && match.group(1) != '*') {
@@ -262,6 +291,12 @@ class NsfxHttpClient {
 
       probeClient.close(force: true);
       probeClient = null;
+
+      // 代理错误码 → 立即返回，触发 fallback
+      if (_isProxyEnabled && _isProxyErrorStatus(statusCode)) {
+        _logger.warning('NSFX-HTTP', 'HEAD probe ($label): proxy error status=$statusCode');
+        return FileInfo(size: 0, supportsRange: false, proxyError: true);
+      }
 
       if (statusCode == 200 && contentLength > 0) {
         final supportsRange = acceptRanges?.toLowerCase() == 'bytes';
@@ -332,6 +367,7 @@ class _ProbeResult {
 class FileInfo {
   final int size;
   final bool supportsRange;
+  final bool proxyError;
 
-  FileInfo({required this.size, required this.supportsRange});
+  FileInfo({required this.size, required this.supportsRange, this.proxyError = false});
 }

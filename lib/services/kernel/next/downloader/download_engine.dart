@@ -111,10 +111,46 @@ class DownloadEngine {
       await _isolateMultiThreadDownload(task, headers, fileInfo.size);
 
     } catch (e) {
-      _logger.error('NSFX-Engine', 'Download failed: ${task.filename} - $e');
-      task.status = TaskStatus.failed;
-      task.errorMessage = e.toString();
-      onError(task);
+      final errorText = e.toString();
+      // 代理错误 → 切换直连并重试一次
+      if ((errorText.contains('HTTP 502') || errorText.contains('HTTP 503') || 
+           errorText.contains('HTTP 504') || errorText.contains('HTTP 407') ||
+           errorText.contains('PROXY_ERROR_')) && 
+          httpClient.config.proxy.enabled) {
+        _logger.warning('NSFX-Engine', 'Proxy error during download, retrying with direct connection: $e');
+        httpClient.switchToDirectOnProxyError();
+        try {
+          // 重置任务状态
+          task.status = TaskStatus.downloading;
+          task.downloadedSize = 0;
+          task.progress = 0;
+          task.segments.clear();
+          task.errorMessage = null;
+          
+          final headers = _buildHeaders(task);
+          final fileInfo = await httpClient.getFileInfo(task.url, headers);
+          if (fileInfo.size > 0) {
+            task.totalSize = fileInfo.size;
+          }
+          await _singleThreadDownload(
+            task,
+            headers,
+            supportsRange: fileInfo.supportsRange,
+            totalSizeHint: fileInfo.size > 0 ? fileInfo.size : null,
+          );
+          return;
+        } catch (retryError) {
+          _logger.error('NSFX-Engine', 'Retry with direct connection also failed: $retryError');
+          task.status = TaskStatus.failed;
+          task.errorMessage = retryError.toString();
+          onError(task);
+        }
+      } else {
+        _logger.error('NSFX-Engine', 'Download failed: ${task.filename} - $e');
+        task.status = TaskStatus.failed;
+        task.errorMessage = e.toString();
+        onError(task);
+      }
     } finally {
       _cancelledTasks.remove(task.id);
       _pausedTasks.remove(task.id);
@@ -769,6 +805,15 @@ class DownloadEngine {
           segment.status = SegmentStatus.failed;
           return false;
         }
+        // 代理错误（502/503/504/407）→ 不重试，立即失败，让外层触发直连 fallback
+        if (errorText.contains('PROXY_ERROR_')) {
+          _logger.warning('NSFX-Engine', 'Segment ${segment.index} proxy error: $errorText, triggering fallback');
+          segment.lastError = errorText;
+          segment.status = SegmentStatus.failed;
+          // 通知 httpClient 切换到直连
+          httpClient.switchToDirectOnProxyError();
+          return false;
+        }
 
         retryCount++;
         segment.retryCount = retryCount;
@@ -878,9 +923,12 @@ class DownloadEngine {
       if (response.statusCode != 206 && response.statusCode != 200) {
         await response.drain();
         client.close();
+        // 标记代理错误状态码，主线程可据此触发 fallback
+        final isProxyErr = (response.statusCode == 502 || response.statusCode == 503 ||
+            response.statusCode == 504 || response.statusCode == 407);
         params.sendPort.send(_IsolateResult(
           success: false,
-          error: 'HTTP ${response.statusCode}',
+          error: isProxyErr ? 'PROXY_ERROR_${response.statusCode}' : 'HTTP ${response.statusCode}',
           downloadedBytes: params.alreadyDownloaded,
         ));
         return;
