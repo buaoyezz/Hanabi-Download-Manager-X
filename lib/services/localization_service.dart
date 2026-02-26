@@ -65,7 +65,10 @@ class LocalizationService extends ChangeNotifier {
   }
 
   Map<String, String>? getStringsFor(Locale locale) {
-    return _packs[_localeKey(locale)]?.strings;
+    final key = _localeKey(locale);
+    final pack = _packs[key];
+    _logger.info('Lang', 'getStringsFor: locale=$locale, key=$key, found=${pack != null}, strings=${pack?.strings.length ?? 0}');
+    return pack?.strings;
   }
 
   String get languagePreference {
@@ -74,6 +77,7 @@ class LocalizationService extends ChangeNotifier {
 
   Future<void> setLanguagePreference(String value) async {
     await _config.setLanguagePreference(value);
+    _revision++; // Force reload when language changes
     notifyListeners();
   }
 
@@ -139,15 +143,17 @@ class LocalizationService extends ChangeNotifier {
           continue;
         }
 
-        loaded[_localeKey(locale)] = LanguagePack(
+        final key = _localeKey(locale);
+        loaded[key] = LanguagePack(
           localeTag: normalizedTag,
           locale: locale,
           strings: strings,
-          name: _readString(data, 'name'),
+          name: _readString(data, '@@languageName') ?? _readString(data, 'name'),
           author: _readString(data, 'author'),
           version: _readString(data, 'version'),
           source: _readString(data, 'source'),
         );
+        _logger.info('Lang', 'Loaded pack: $normalizedTag -> key=$key, strings=${strings.length}');
       } catch (e) {
         _logger.error('Lang', 'Failed to load pack ${entity.path}: $e');
       }
@@ -157,7 +163,7 @@ class LocalizationService extends ChangeNotifier {
       ..clear()
       ..addAll(loaded);
     _revision++;
-    _logger.info('Lang', 'Loaded ${_packs.length} language pack(s)');
+    _logger.info('Lang', 'Loaded ${_packs.length} language pack(s), keys: ${_packs.keys.join(", ")}');
   }
 
   Locale _defaultLocaleFromSystem() {
