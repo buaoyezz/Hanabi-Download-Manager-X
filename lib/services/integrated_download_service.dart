@@ -27,6 +27,7 @@ class IntegratedDownloadService extends ChangeNotifier {
 
   // 智能轮询：根据是否有活跃下载调整间隔
   bool _hasActiveDownloads = false;
+  bool _hasLoadedOnce = false;
   static const _activePollingInterval = Duration(seconds: 1);  // 有下载时1秒
   static const _idlePollingInterval = Duration(seconds: 5);    // 空闲时5秒
 
@@ -37,12 +38,15 @@ class IntegratedDownloadService extends ChangeNotifier {
   IntegratedDownloadService(this._kernelService) {
     _startPolling();
     _subscribeToKernelStreams();
+    // 立即尝试首次加载，不等待轮询间隔
+    _immediateFirstLoad();
   }
 
   bool get _useNewKernel => _clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
   bool get isKernelRunning => _useNewKernel ? _kernelManager.isRunning : _kernelService.isRunning;
 
   List<DownloadTask> get tasks => List.unmodifiable(_tasks);
+  bool get hasLoadedOnce => _hasLoadedOnce;
 
   DownloadTask? findDuplicateTask(String url) {
     final normalized = _normalizeUrl(url);
@@ -66,6 +70,19 @@ class IntegratedDownloadService extends ChangeNotifier {
 
   void _startPolling() {
     _scheduleNextPoll();
+  }
+
+  /// 启动时立即尝试加载任务，最多重试 10 次（每 500ms），
+  /// 避免等待 5 秒的空闲轮询间隔
+  Future<void> _immediateFirstLoad() async {
+    for (int i = 0; i < 10; i++) {
+      if (_hasLoadedOnce) return;
+      if (isKernelRunning) {
+        await _updateTasks();
+        if (_hasLoadedOnce) return;
+      }
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
   }
 
   /// 订阅内核的进度 Stream，实现实时更新
@@ -307,6 +324,12 @@ class IntegratedDownloadService extends ChangeNotifier {
       if (newHasActiveDownloads != _hasActiveDownloads) {
         _hasActiveDownloads = newHasActiveDownloads;
         _appLogger.debug('App', 'Active downloads: $_hasActiveDownloads, polling interval adjusted');
+      }
+
+      // 标记首次加载完成
+      if (!_hasLoadedOnce) {
+        _hasLoadedOnce = true;
+        notifyNow();
       }
     } catch (e) {
       _appLogger.error('App', 'Failed to update tasks: $e');
@@ -788,6 +811,7 @@ class IntegratedDownloadService extends ChangeNotifier {
   Future<void> resetTasksAndReload() async {
     _tasks.clear();
     _hasActiveDownloads = false;
+    _hasLoadedOnce = false;
     notifyNow();
 
     // 重新订阅/取消订阅内核流（新内核才有）
@@ -805,6 +829,7 @@ class IntegratedDownloadService extends ChangeNotifier {
         'mode': config.mode,
         'max_concurrent_tasks': config.maxConcurrentTasks,
         'segment_speed_limit': config.segmentSpeedLimit,
+        'global_speed_limit': config.globalSpeedLimit,
         'enable_dynamic_segments': config.enableDynamicSegments,
         'conflict_strategy': config.conflictStrategy,
         'proxy': config.proxy != null ? {
@@ -827,6 +852,7 @@ class IntegratedDownloadService extends ChangeNotifier {
     String? mode,
     int? maxConcurrentTasks,
     int? segmentSpeedLimit,
+    int? globalSpeedLimit,
     bool? enableDynamicSegments,
     String? conflictStrategy,
     Map<String, dynamic>? proxyConfig,
@@ -848,7 +874,7 @@ class IntegratedDownloadService extends ChangeNotifier {
           enabled: proxyConfig['enabled'] ?? false,
           type: proxyConfig['type'] ?? 'http',
           host: proxyConfig['host'] ?? '',
-          port: proxyConfig['port'] ?? 8080,
+          port: proxyConfig['port'] ?? 7897,
           username: proxyConfig['username'],
           password: proxyConfig['password'],
           requiresAuth: proxyConfig['requires_auth'] ?? false,
@@ -861,6 +887,7 @@ class IntegratedDownloadService extends ChangeNotifier {
         mode: mode ?? 'auto',
         maxConcurrentTasks: maxConcurrentTasks ?? 3,
         segmentSpeedLimit: segmentSpeedLimit ?? 0,
+        globalSpeedLimit: globalSpeedLimit ?? 0,
         enableDynamicSegments: enableDynamicSegments ?? true,
         conflictStrategy: effectiveConflictStrategy,
         proxy: proxy,
@@ -879,7 +906,7 @@ class IntegratedDownloadService extends ChangeNotifier {
     }
     
     if (success) {
-      _appLogger.info('App', 'Download config updated: threads=$threads, segments=$segments, mode=$mode, concurrent=$maxConcurrentTasks, limit=$segmentSpeedLimit, dynamicSegments=$enableDynamicSegments, proxy=${proxyConfig != null ? 'enabled' : 'unchanged'}');
+      _appLogger.info('App', 'Download config updated: threads=$threads, segments=$segments, mode=$mode, concurrent=$maxConcurrentTasks, segLimit=$segmentSpeedLimit, globalLimit=$globalSpeedLimit, dynamicSegments=$enableDynamicSegments, proxy=${proxyConfig != null ? 'enabled' : 'unchanged'}');
     }
     return success;
   }

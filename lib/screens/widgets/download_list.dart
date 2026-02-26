@@ -15,6 +15,7 @@ import '../../widgets/smooth_scroll_wrapper.dart';
 import '../../utils/fluent_icons.dart' as CustomIcons;
 import '../../utils/failure_reason_localizer.dart';
 import '../../widgets/animated_notifications.dart';
+import '../../widgets/speed_chart_widget.dart';
 import '../../l10n/app_localizations.dart';
 
 class DownloadList extends StatefulWidget {
@@ -106,6 +107,7 @@ class _DownloadListState extends State<DownloadList> {
         },
         builder: (context, tasks, child) {
           final downloadService = context.read<IntegratedDownloadService>();
+          final hasLoaded = context.select<IntegratedDownloadService, bool>((s) => s.hasLoadedOnce);
           final tagMap = context.watch<ClientConfigService>().getTaskTagsMap();
 
           var activeTasks = tasks
@@ -147,6 +149,9 @@ class _DownloadListState extends State<DownloadList> {
           }
           
           if (activeTasks.isEmpty) {
+            if (!hasLoaded) {
+              return _buildLoadingState(context);
+            }
             return _buildEmptyState(context);
           }
 
@@ -796,6 +801,38 @@ class _DownloadListState extends State<DownloadList> {
     return '${(bytesPerSecond / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB/s';
   }
 
+  Widget _buildLoadingState(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 48,
+            height: 48,
+            child: ProgressRing(
+              strokeWidth: 3,
+              activeColor: AppTheme.accentPrimary,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            t.loadingTasks,
+            style: FluentTheme.of(context).typography.body?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            t.loadingTasksHint,
+            style: FluentTheme.of(context).typography.caption?.copyWith(
+              color: AppTheme.textTertiary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Column(
@@ -891,6 +928,10 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
   bool _showAllSegments = false;
   int _maxVisibleSegments = 5;
   String _segmentsDisplayMode = 'merged'; // 'merged' (合并) 或 'list' (列表)
+  bool _showSpeedChart = true;
+  bool _showChartFrost = true;
+  String _chartPosition = 'mid'; // 'low' | 'mid' | 'high'
+  String _chartColor = 'blue';
 
   AppLocalizations get t => AppLocalizations.of(context)!;
 
@@ -905,11 +946,19 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
     final defaultExpanded = prefs.getBool('segments_default_expanded') ?? false;
     final maxVisible = prefs.getInt('segments_max_visible') ?? 5;
     final displayMode = prefs.getString('segments_display_mode') ?? 'merged';
+    final showChart = prefs.getBool('show_speed_chart') ?? true;
+    final showFrost = prefs.getBool('show_chart_frost') ?? true;
+    final chartPos = prefs.getString('chart_position') ?? 'mid';
+    final chartCol = prefs.getString('chart_color') ?? 'blue';
     if (mounted) {
       setState(() {
         _isSegmentsExpanded = defaultExpanded;
         _maxVisibleSegments = maxVisible;
         _segmentsDisplayMode = displayMode;
+        _showSpeedChart = showChart;
+        _showChartFrost = showFrost;
+        _chartPosition = chartPos;
+        _chartColor = chartCol;
       });
     }
   }
@@ -924,7 +973,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
 
     return AnimatedCard(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(18),
+      padding: EdgeInsets.zero,
       backgroundColor: AppTheme.surfaceCard.withValues(alpha: 0.85),
       hoverColor: AppTheme.surfaceCard.withValues(alpha: 0.95),
       borderColor: isActive 
@@ -934,21 +983,63 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
       borderRadius: AppTheme.radiusLg,
       enableScaleAnimation: false,
       enableGlowAnimation: isActive,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          _buildHeader(downloadService),
-          const SizedBox(height: 16),
-          _buildTagsRow(),
-          _buildProgressSection(),
-          if (widget.task.status == DownloadStatus.downloading) ...[
-            const SizedBox(height: 14),
-            _buildSpeedInfo(),
-          ],
-          if (widget.task.status == DownloadStatus.failed && widget.task.error != null) ...[
-            const SizedBox(height: 14),
-            _buildErrorInfo(),
-          ],
+          // 背景速度折线图（下载中/暂停/失败时显示）
+          if (_showSpeedChart && (widget.task.status == DownloadStatus.downloading || widget.task.status == DownloadStatus.paused || widget.task.status == DownloadStatus.failed))
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                child: SpeedChartWidget(
+                  taskId: widget.task.id,
+                  currentSpeed: widget.task.speed ?? 0,
+                  status: widget.task.status == DownloadStatus.paused
+                      ? 'paused'
+                      : widget.task.status == DownloadStatus.failed
+                          ? 'failed'
+                          : 'downloading',
+                  colorName: _chartColor,
+                  position: _chartPosition == 'low'
+                      ? ChartPosition.low
+                      : _chartPosition == 'high'
+                          ? ChartPosition.high
+                          : ChartPosition.mid,
+                  progress: widget.task.progress.clamp(0.0, 1.0),
+                ),
+              ),
+            ),
+          // 毛玻璃层（在曲线之上、内容之下）
+          if (_showSpeedChart && _showChartFrost && (widget.task.status == DownloadStatus.downloading || widget.task.status == DownloadStatus.paused || widget.task.status == DownloadStatus.failed))
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 1.5, sigmaY: 1.5),
+                  child: Container(color: Colors.transparent),
+                ),
+              ),
+            ),
+          // 卡片内容
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(downloadService),
+                const SizedBox(height: 16),
+                _buildTagsRow(),
+                _buildProgressSection(),
+                if (widget.task.status == DownloadStatus.downloading) ...[
+                  const SizedBox(height: 14),
+                  _buildSpeedInfo(),
+                ],
+                if (widget.task.status == DownloadStatus.failed && widget.task.error != null) ...[
+                  const SizedBox(height: 14),
+                  _buildErrorInfo(),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );

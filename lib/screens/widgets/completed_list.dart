@@ -182,6 +182,7 @@ class _CompletedListState extends State<CompletedList> {
         },
         builder: (context, completedTasks, child) {
           final downloadService = context.read<IntegratedDownloadService>();
+          final hasLoaded = context.select<IntegratedDownloadService, bool>((s) => s.hasLoadedOnce);
 
           // 按完成时间排序，最新的在前面
           completedTasks.sort((a, b) {
@@ -192,6 +193,9 @@ class _CompletedListState extends State<CompletedList> {
           });
 
           if (completedTasks.isEmpty) {
+            if (!hasLoaded) {
+              return _buildLoadingState(context);
+            }
             return _buildEmptyState(context);
           }
 
@@ -909,6 +913,38 @@ class _CompletedListState extends State<CompletedList> {
                 SizedBox(width: 6),
                 Text(t.completedOpenFolderButton, style: const TextStyle(fontSize: 12)),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingState(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 48,
+            height: 48,
+            child: ProgressRing(
+              strokeWidth: 3,
+              activeColor: AppTheme.accentPrimary,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            t.loadingTasks,
+            style: FluentTheme.of(context).typography.body?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            t.loadingTasksHint,
+            style: FluentTheme.of(context).typography.caption?.copyWith(
+              color: AppTheme.textTertiary,
             ),
           ),
         ],
