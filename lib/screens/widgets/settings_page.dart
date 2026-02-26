@@ -13,7 +13,6 @@ import '../../services/kernel_service.dart';
 import '../../services/kernel/kernel_manager.dart';
 import '../../services/developer_mode_service.dart';
 import '../../services/client_config_service.dart';
-import '../../services/user_profile_service.dart';
 import '../../services/performance_monitor_service.dart';
 import '../../widgets/folder_picker_dialog.dart';
 import '../../widgets/settings_components.dart';
@@ -99,6 +98,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String _mode = 'auto'; // auto, threads_only, segments_only, manual
   int _maxConcurrentTasks = 3;
   int _segmentSpeedLimit = 0;
+  int _globalSpeedLimit = 0; // 全局带宽限制（bytes/s）
   String _conflictStrategy = 'increment'; // increment | timestamp | overwrite
   bool _enableDynamicSegments = true; // 动态分段开关
   bool _loadingConfig = true;
@@ -107,7 +107,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _useProxy = false;
   String _proxyType = 'system'; // system, http, socks5
   String _proxyHost = '';
-  int _proxyPort = 8080;
+  int _proxyPort = 7897;
   String _proxyUsername = '';
   String _proxyPassword = '';
   bool _proxyRequiresAuth = false;
@@ -116,7 +116,6 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _openOnStartup = false;
   final _autoStartService = AutoStartService();
   bool _notifyOnComplete = true;
-  bool _enableOnlineStats = true; // 在线统计开关
   String _downloadPath = '';
   String _closeButtonBehavior = 'minimize_to_tray';
   bool _showTrayRunningStatus = false;
@@ -146,7 +145,6 @@ class _SettingsPageState extends State<SettingsPage> {
       _loadAutoStartSettings();
       _loadBehaviorSettings();
       _loadKernelSettings();
-      _loadOnlineStatsSettings();
       
       // 监听开发者模式变化，如果关闭时正在查看开发者标签，自动切换回高级标签
       _devModeService = Provider.of<DeveloperModeService>(context, listen: false);
@@ -160,34 +158,6 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() {
         _currentTabIndex = 4; // 切换到高级标签
       });
-    }
-  }
-
-  Future<void> _loadOnlineStatsSettings() async {
-    final userProfile = UserProfileService();
-    if (mounted) {
-      setState(() {
-        _enableOnlineStats = userProfile.statsEnabled;
-      });
-    }
-  }
-
-  Future<void> _toggleOnlineStats(bool value) async {
-    final t = AppLocalizations.of(context)!;
-    final userProfile = UserProfileService();
-    await userProfile.setStatsEnabled(value);
-    
-    if (mounted) {
-      setState(() {
-        _enableOnlineStats = value;
-      });
-      
-      NotificationManager.of(context)?.showSuccess(
-        value ? t.settingsOnlineStatsEnabledTitle : t.settingsOnlineStatsDisabledTitle,
-        message: value
-            ? t.settingsOnlineStatsEnabledMessage
-            : t.settingsOnlineStatsDisabledMessage,
-      );
     }
   }
 
@@ -701,6 +671,7 @@ class _SettingsPageState extends State<SettingsPage> {
           _mode = config['mode'] ?? 'auto';
           _maxConcurrentTasks = config['max_concurrent_tasks'] ?? 3;
           _segmentSpeedLimit = config['segment_speed_limit'] ?? 0;
+          _globalSpeedLimit = config['global_speed_limit'] ?? 0;
           _enableDynamicSegments = config['enable_dynamic_segments'] ?? true;
           _conflictStrategy = config['conflict_strategy'] ?? 'increment';
           
@@ -708,9 +679,9 @@ class _SettingsPageState extends State<SettingsPage> {
           final proxyConfig = config['proxy'] as Map<String, dynamic>?;
           if (proxyConfig != null) {
             _useProxy = proxyConfig['enabled'] ?? false;
-            _proxyType = proxyConfig['type'] ?? 'http';
+            _proxyType = proxyConfig['type'] ?? 'system';
             _proxyHost = proxyConfig['host'] ?? '';
-            _proxyPort = proxyConfig['port'] ?? 8080;
+            _proxyPort = proxyConfig['port'] ?? 7897;
             _proxyUsername = proxyConfig['username'] ?? '';
             _proxyPassword = proxyConfig['password'] ?? '';
             _proxyRequiresAuth = proxyConfig['requires_auth'] ?? false;
@@ -733,6 +704,7 @@ class _SettingsPageState extends State<SettingsPage> {
     String? mode, 
     int? maxConcurrentTasks, 
     int? segmentSpeedLimit,
+    int? globalSpeedLimit,
     bool? enableDynamicSegments,
     String? conflictStrategy,
     Map<String, dynamic>? proxyConfig,
@@ -746,6 +718,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (mode != null) _mode = mode;
       if (maxConcurrentTasks != null) _maxConcurrentTasks = maxConcurrentTasks;
       if (segmentSpeedLimit != null) _segmentSpeedLimit = segmentSpeedLimit;
+      if (globalSpeedLimit != null) _globalSpeedLimit = globalSpeedLimit;
       if (enableDynamicSegments != null) _enableDynamicSegments = enableDynamicSegments;
       if (conflictStrategy != null) _conflictStrategy = conflictStrategy;
     });
@@ -756,6 +729,7 @@ class _SettingsPageState extends State<SettingsPage> {
       mode: mode ?? _mode,
       maxConcurrentTasks: maxConcurrentTasks ?? _maxConcurrentTasks,
       segmentSpeedLimit: segmentSpeedLimit ?? _segmentSpeedLimit,
+      globalSpeedLimit: globalSpeedLimit ?? _globalSpeedLimit,
       enableDynamicSegments: enableDynamicSegments ?? _enableDynamicSegments,
       conflictStrategy: conflictStrategy ?? _conflictStrategy,
       proxyConfig: proxyConfig,
@@ -767,10 +741,12 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _updateProxyConfig() async {
     final t = AppLocalizations.of(context)!;
+    // system 代理强制 host 为 127.0.0.1
+    final effectiveHost = _proxyType == 'system' ? '127.0.0.1' : _proxyHost;
     final proxyConfig = {
       'enabled': _useProxy,
       'type': _proxyType,
-      'host': _proxyHost,
+      'host': effectiveHost,
       'port': _proxyPort,
       'username': _proxyUsername,
       'password': _proxyPassword,
@@ -783,7 +759,7 @@ class _SettingsPageState extends State<SettingsPage> {
       NotificationManager.of(context)?.showSuccess(
         t.settingsProxySavedTitle,
         message: _useProxy
-            ? t.settingsProxyEnabledMessage(_proxyHost, _proxyPort)
+            ? t.settingsProxyEnabledMessage(effectiveHost, _proxyPort)
             : t.settingsProxyDisabledMessage,
       );
     }
@@ -1057,16 +1033,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   );
                 }
               },
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildSettingItem(
-            context,
-            title: t.settingsOnlineStatsTitle,
-            subtitle: t.settingsOnlineStatsSubtitle,
-            trailing: ToggleSwitch(
-              checked: _enableOnlineStats,
-              onChanged: _toggleOnlineStats,
             ),
           ),
           const SizedBox(height: 12),
@@ -1347,6 +1313,46 @@ class _SettingsPageState extends State<SettingsPage> {
           
           const SizedBox(height: 12),
           
+          // 全局限速
+          _buildSettingItem(
+            context,
+            title: t.settingsGlobalSpeedLimitTitle,
+            subtitle: t.settingsGlobalSpeedLimitSubtitle,
+            trailing: SizedBox(
+              width: 200,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Slider(
+                      value: (_globalSpeedLimit / 1024).clamp(0, 102400).toDouble(),
+                      min: 0,
+                      max: 102400, // 100 MB/s
+                      divisions: 200,
+                      onChanged: (value) {
+                        _updateConfig(globalSpeedLimit: (value * 1024).toInt());
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 90,
+                    child: Text(
+                      _globalSpeedLimit == 0
+                          ? t.settingsSpeedUnlimited
+                          : _globalSpeedLimit >= 1024 * 1024
+                              ? '${(_globalSpeedLimit / 1024 / 1024).toStringAsFixed(1)} MB/s'
+                              : '${(_globalSpeedLimit / 1024).toStringAsFixed(0)} KB/s',
+                      style: FluentTheme.of(context).typography.bodyStrong,
+                      textAlign: TextAlign.end,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 12),
+          
           // 重名冲突策略
           _buildSettingItem(
             context,
@@ -1412,7 +1418,46 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             
             
-            // 只有非系统代理才显示手动配置
+            // 系统代理：只显示端口（host 固定 127.0.0.1）
+            if (_proxyType == 'system') ...[
+              const SizedBox(height: 12),
+              
+              _buildSettingItem(
+                context,
+                title: t.settingsProxyServerTitle,
+                subtitle: '127.0.0.1',
+                trailing: SizedBox(
+                  width: 160,
+                  child: Row(
+                    children: [
+                      Text(
+                        '127.0.0.1 :',
+                        style: FluentTheme.of(context).typography.body?.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: NumberBox<int>(
+                          value: _proxyPort,
+                          min: 1,
+                          max: 65535,
+                          mode: SpinButtonPlacementMode.none,
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() => _proxyPort = value);
+                              _updateProxyConfig();
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            
+            // 手动代理（http/socks5）：显示完整 host:port + 认证
             if (_proxyType != 'system') ...[
               const SizedBox(height: 12),
               
@@ -1595,14 +1640,12 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       final service = context.read<IntegratedDownloadService>();
       
-      // 对于系统代理，使用特殊的参数
+      // 对于系统代理，使用 127.0.0.1 + 用户配置的端口
       String testHost = _proxyHost;
       int testPort = _proxyPort;
       
       if (_proxyType == 'system') {
-        // 系统代理不需要手动指定主机和端口
-        testHost = 'system'; // 使用特殊标识
-        testPort = 0; // 端口设为0表示系统代理
+        testHost = '127.0.0.1';
       }
       
       final result = await service.testProxyConnection(
@@ -2002,22 +2045,22 @@ class _SettingsPageState extends State<SettingsPage> {
                     
                     _buildSettingItem(
                       context,
-                      title: t.settingsDeveloperShowOnlineStatsTitle,
-                      subtitle: t.settingsDeveloperShowOnlineStatsSubtitle,
+                      title: t.settingsDeveloperShowWebCheckTitle,
+                      subtitle: t.settingsDeveloperShowWebCheckSubtitle,
                       trailing: ToggleSwitch(
-                        checked: devMode.showOnlineStatsPage,
-                        onChanged: (value) => devMode.setShowOnlineStatsPage(value),
+                        checked: devMode.showWebCheckPage,
+                        onChanged: (value) => devMode.setShowWebCheckPage(value),
                       ),
                     ),
                     const SizedBox(height: 8),
                     
                     _buildSettingItem(
                       context,
-                      title: t.settingsDeveloperShowWebCheckTitle,
-                      subtitle: t.settingsDeveloperShowWebCheckSubtitle,
+                      title: t.settingsDeveloperShowConnectionDebugTitle,
+                      subtitle: t.settingsDeveloperShowConnectionDebugSubtitle,
                       trailing: ToggleSwitch(
-                        checked: devMode.showWebCheckPage,
-                        onChanged: (value) => devMode.setShowWebCheckPage(value),
+                        checked: devMode.showConnectionDebugPage,
+                        onChanged: (value) => devMode.setShowConnectionDebugPage(value),
                       ),
                     ),
                   ],

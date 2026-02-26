@@ -312,7 +312,7 @@ class NsfxHttpServer {
         enabled: p['enabled'] ?? false,
         type: p['type'] ?? 'http',
         host: p['host'] ?? '',
-        port: p['port'] ?? 8080,
+        port: p['port'] ?? 7897,
         username: p['username'],
         password: p['password'],
         requiresAuth: p['requires_auth'] ?? false,

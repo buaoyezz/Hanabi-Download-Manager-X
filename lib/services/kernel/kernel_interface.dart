@@ -155,6 +155,7 @@ class DownloadConfig {
   String mode;
   int maxConcurrentTasks;
   int segmentSpeedLimit;
+  int globalSpeedLimit; // 全局带宽限制（bytes/s），0 = 不限速
   bool enableDynamicSegments;
   String conflictStrategy;
   ProxyConfig? proxy;
@@ -165,6 +166,7 @@ class DownloadConfig {
     this.mode = 'auto',
     this.maxConcurrentTasks = 3,
     this.segmentSpeedLimit = 0,
+    this.globalSpeedLimit = 0,
     this.enableDynamicSegments = true,
     this.conflictStrategy = 'increment',
     this.proxy,
@@ -176,6 +178,7 @@ class DownloadConfig {
     'mode': mode,
     'max_concurrent_tasks': maxConcurrentTasks,
     'segment_speed_limit': segmentSpeedLimit,
+    'global_speed_limit': globalSpeedLimit,
     'enable_dynamic_segments': enableDynamicSegments,
     'conflict_strategy': conflictStrategy,
     'proxy': proxy?.toJson(),
@@ -187,6 +190,7 @@ class DownloadConfig {
     mode: json['mode'] ?? 'auto',
     maxConcurrentTasks: json['max_concurrent_tasks'] ?? json['maxConcurrentTasks'] ?? 3,
     segmentSpeedLimit: json['segment_speed_limit'] ?? json['segmentSpeedLimit'] ?? 0,
+    globalSpeedLimit: json['global_speed_limit'] ?? json['globalSpeedLimit'] ?? 0,
     enableDynamicSegments: json['enable_dynamic_segments'] ?? json['enableDynamicSegments'] ?? true,
     conflictStrategy: json['conflict_strategy'] ?? json['conflictStrategy'] ?? 'increment',
     proxy: json['proxy'] != null ? ProxyConfig.fromJson(json['proxy']) : null,
@@ -206,7 +210,7 @@ class ProxyConfig {
     this.enabled = false,
     this.type = 'system',
     this.host = '',
-    this.port = 8080,
+    this.port = 7897,
     this.username,
     this.password,
     this.requiresAuth = false,
@@ -226,7 +230,7 @@ class ProxyConfig {
     enabled: json['enabled'] ?? false,
     type: json['type'] ?? 'system',
     host: json['host'] ?? '',
-    port: json['port'] ?? 8080,
+    port: json['port'] ?? 7897,
     username: json['username'],
     password: json['password'],
     requiresAuth: json['requires_auth'] ?? json['requiresAuth'] ?? false,
