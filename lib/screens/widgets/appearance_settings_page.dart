@@ -718,7 +718,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     for (final pack in packs) {
       if (languageLabels.containsKey(pack.localeTag)) continue;
       final name = (pack.name ?? '').trim();
-      final label = name.isEmpty ? pack.localeTag : '$name (${pack.localeTag})';
+      final label = name.isEmpty ? pack.localeTag : name;
       languageLabels[pack.localeTag] = label;
     }
     final languagePreference = localizationService.languagePreference;
@@ -881,7 +881,11 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                       .map(
                         (entry) => ComboBoxItem(
                           value: entry.key,
-                          child: Text(entry.value),
+                          child: Text(
+                            entry.value,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
                         ),
                       )
                       .toList(),
@@ -889,11 +893,17 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                     if (value == null) return;
                     await localizationService.setLanguagePreference(value);
                     if (mounted) {
+                      // Wait for the next frame to ensure the new locale is applied
+                      await Future.delayed(const Duration(milliseconds: 100));
+                      if (!mounted) return;
+                      
+                      // Get the new localization after language switch
+                      final newT = AppLocalizations.of(context)!;
                       NotificationManager.of(context)?.showSuccess(
-                        t.appearanceLanguageSwitchedTitle,
+                        newT.appearanceLanguageSwitchedTitle,
                         message: value == 'system'
-                            ? t.appearanceLanguageSwitchedSystem
-                            : t.appearanceLanguageSwitchedTo(languageLabels[value] ?? value),
+                            ? newT.appearanceLanguageSwitchedSystem
+                            : newT.appearanceLanguageSwitchedTo(languageLabels[value] ?? value),
                       );
                     }
                   },
@@ -925,6 +935,41 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                       Icon(CustomIcons.FluentIcons.refresh, size: 14),
                       const SizedBox(width: 6),
                       Text(t.appearanceLanguageRefreshButton),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildSettingItem(
+              context,
+              title: t.developerOpenL10nFolderTitle,
+              subtitle: t.developerOpenL10nFolderSubtitle,
+              trailing: SizedBox(
+                width: 250,
+                child: Button(
+                  onPressed: () async {
+                    try {
+                      final dir = Directory(langDir);
+                      if (!await dir.exists()) {
+                        await dir.create(recursive: true);
+                      }
+                      await Process.run('explorer', [langDir]);
+                    } catch (e) {
+                      if (mounted) {
+                        NotificationManager.of(context)?.showError(
+                          t.developerOpenL10nFolderFailedTitle,
+                          message: t.developerOpenL10nFolderFailedMessage(e.toString()),
+                        );
+                      }
+                    }
+                  },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(CustomIcons.FluentIcons.folder_open, size: 14),
+                      const SizedBox(width: 6),
+                      Text(t.developerOpenL10nFolderTitle),
                     ],
                   ),
                 ),
