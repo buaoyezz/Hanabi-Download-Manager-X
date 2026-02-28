@@ -60,12 +60,18 @@ class SettingsItem extends StatefulWidget {
   final String title;
   final String? subtitle;
   final Widget trailing;
+  final bool stackOnNarrow;
+  final double narrowBreakpoint;
+  final AlignmentGeometry stackedTrailingAlignment;
 
   const SettingsItem({
     super.key,
     required this.title,
     this.subtitle,
     required this.trailing,
+    this.stackOnNarrow = false,
+    this.narrowBreakpoint = 760,
+    this.stackedTrailingAlignment = Alignment.centerLeft,
   });
 
   @override
@@ -74,6 +80,36 @@ class SettingsItem extends StatefulWidget {
 
 class _SettingsItemState extends State<SettingsItem> {
   bool _isHovered = false;
+
+  Widget _buildTitleContent(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: FluentTheme.of(context).typography.body?.copyWith(
+                fontWeight: FontWeight.w400,
+                color: AppTheme.textPrimary,
+                fontSize: 13,
+              ),
+        ),
+        if (widget.subtitle != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            widget.subtitle!,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: FluentTheme.of(context).typography.caption?.copyWith(
+                  color: AppTheme.textTertiary,
+                  fontSize: 11,
+                ),
+          ),
+        ],
+      ],
+    );
+  }
 
   void _setHovered(bool value) {
     if (_isHovered == value) {
@@ -105,36 +141,35 @@ class _SettingsItemState extends State<SettingsItem> {
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = widget.stackOnNarrow &&
+                  constraints.maxWidth < widget.narrowBreakpoint;
+
+              if (compact) {
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      widget.title,
-                      style: FluentTheme.of(context).typography.body?.copyWith(
-                            fontWeight: FontWeight.w400,
-                            color: AppTheme.textPrimary,
-                            fontSize: 13,
-                          ),
+                    _buildTitleContent(context),
+                    const SizedBox(height: 10),
+                    Align(
+                      alignment: widget.stackedTrailingAlignment,
+                      child: widget.trailing,
                     ),
-                    if (widget.subtitle != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        widget.subtitle!,
-                        style: FluentTheme.of(context).typography.caption?.copyWith(
-                              color: AppTheme.textTertiary,
-                              fontSize: 11,
-                            ),
-                      ),
-                    ],
                   ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              widget.trailing,
-            ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(
+                    child: _buildTitleContent(context),
+                  ),
+                  const SizedBox(width: 12),
+                  widget.trailing,
+                ],
+              );
+            },
           ),
         ),
       ),
@@ -160,7 +195,8 @@ class StatusIndicator extends StatelessWidget {
     final t = AppLocalizations.of(context)!;
     final color = isOnline ? AppTheme.statusSuccess : AppTheme.statusError;
 
-    final baseColor = Color.lerp(AppTheme.surfaceCard, color, 0.10) ?? color.withValues(alpha: 0.1);
+    final baseColor = Color.lerp(AppTheme.surfaceCard, color, 0.10) ??
+        color.withValues(alpha: 0.1);
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -215,11 +251,12 @@ class StatusIndicator extends StatelessWidget {
                     const SizedBox(width: 6),
                     Text(
                       isOnline ? t.statusOnline : t.statusOffline,
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                            color: color,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 11,
-                          ),
+                      style:
+                          FluentTheme.of(context).typography.caption?.copyWith(
+                                color: color,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 11,
+                              ),
                     ),
                   ],
                 ),
