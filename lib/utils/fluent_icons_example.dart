@@ -48,10 +48,10 @@ class FluentIconsExample {
     // 返回: ['arrow_download_16', 'arrow_download_20', 'arrow_download_24', ...]
     
     // 搜索包含 "heart" 的所有图标
-    final heartIcons = FluentIcons.search('heart');
+    FluentIcons.search('heart');
     
     // 搜索包含 "calendar" 的所有图标
-    final calendarIcons = FluentIcons.search('calendar');
+    FluentIcons.search('calendar');
     
     // 使用搜索结果
     for (final iconName in downloadIcons) {

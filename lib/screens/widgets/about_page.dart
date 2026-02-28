@@ -199,38 +199,6 @@ class _AboutPageState extends State<AboutPage> with SingleTickerProviderStateMix
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppTheme.bgLayer2.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-        border: Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.5)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 16, color: AppTheme.accentLight),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.accentLight,
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              color: AppTheme.textTertiary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _launchUrl(BuildContext context, String url) async {
     try {
       await Process.start('cmd', ['/c', 'start', '', url], runInShell: true);

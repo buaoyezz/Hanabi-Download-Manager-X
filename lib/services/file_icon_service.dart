@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 import 'dart:async';
 import 'package:ffi/ffi.dart';
 import 'package:win32/win32.dart';
-import 'package:flutter/foundation.dart' show Uint8List, kDebugMode;
+import 'package:flutter/foundation.dart' show Uint8List;
 
 class FileIconService {
   static final FileIconService _instance = FileIconService._internal();

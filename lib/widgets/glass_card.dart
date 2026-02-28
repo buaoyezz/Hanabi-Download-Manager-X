@@ -32,7 +32,6 @@ class GlassCard extends StatefulWidget {
 class _GlassCardState extends State<GlassCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _hoverController;
-  bool _isHovered = false;
 
   // 性能设置
   final _performanceSettings = NotificationSettingsService();
@@ -54,14 +53,12 @@ class _GlassCardState extends State<GlassCard>
 
   void _onEnter(PointerEvent _) {
     if (widget.enableHover) {
-      _isHovered = true;
       _hoverController.forward();
     }
   }
 
   void _onExit(PointerEvent _) {
     if (widget.enableHover) {
-      _isHovered = false;
       _hoverController.reverse();
     }
   }

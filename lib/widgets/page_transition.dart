@@ -26,7 +26,6 @@ class _PageTransitionState extends State<PageTransition>
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
-  String? _previousPageKey;
 
   @override
   void initState() {
@@ -61,7 +60,6 @@ class _PageTransitionState extends State<PageTransition>
   void didUpdateWidget(PageTransition oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.pageKey != widget.pageKey) {
-      _previousPageKey = oldWidget.pageKey;
       _controller.reset();
       _controller.forward();
     }

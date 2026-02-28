@@ -1,21 +1,16 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:fluent_ui/fluent_ui.dart' as fluent;
 import 'package:system_tray/system_tray.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:path/path.dart' as path;
 import 'logger_service.dart';
 import 'kernel_service.dart';
 import 'client_config_service.dart';
-import '../main.dart';
-import '../widgets/tray_menu_window.dart';
 
 class SystemTrayService {
   final SystemTray _systemTray = SystemTray();
   bool _isInitialized = false;
   final _logger = LoggerService();
   KernelService? _kernelService;
-  bool _isMenuWindowShowing = false;
 
   Future<void> initialize({
     KernelService? kernelService,

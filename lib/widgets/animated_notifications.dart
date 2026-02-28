@@ -212,25 +212,6 @@ class _ModernNotificationCardState extends State<ModernNotificationCard>
     }
   }
 
-  Color get _backgroundColor {
-    if (widget.data.type == NotificationType.custom && widget.data.customBackgroundColor != null) {
-      return widget.data.customBackgroundColor!;
-    }
-    
-    switch (widget.data.type) {
-      case NotificationType.success:
-        return AppTheme.statusSuccess.withValues(alpha: 0.08);
-      case NotificationType.warning:
-        return AppTheme.statusWarning.withValues(alpha: 0.08);
-      case NotificationType.error:
-        return AppTheme.statusError.withValues(alpha: 0.08);
-      case NotificationType.info:
-        return AppTheme.accentPrimary.withValues(alpha: 0.08);
-      case NotificationType.custom:
-        return AppTheme.accentPrimary.withValues(alpha: 0.08);
-    }
-  }
-
   Color get _accentColor {
     if (widget.data.type == NotificationType.custom && widget.data.customColor != null) {
       return widget.data.customColor!;

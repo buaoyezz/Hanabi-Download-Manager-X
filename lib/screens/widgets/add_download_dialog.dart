@@ -661,7 +661,6 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
       case DownloadStatus.merging:
         return t.downloadStatusMerging;
       case DownloadStatus.pending:
-      default:
         return t.downloadStatusPending;
     }
   }

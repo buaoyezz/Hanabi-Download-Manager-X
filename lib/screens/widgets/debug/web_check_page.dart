@@ -1,7 +1,6 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import '../../../services/kernel_service.dart';
-import '../../../services/kernel/kernel_manager.dart';
 import '../../../services/client_config_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';

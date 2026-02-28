@@ -356,7 +356,6 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
       case DownloadStatus.merging:
         return t.downloadStatusMerging;
       case DownloadStatus.pending:
-      default:
         return t.downloadStatusPending;
     }
   }

@@ -2,7 +2,6 @@ import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:fluent_ui/fluent_ui.dart' as fluent;
 import '../theme/app_theme.dart';
 
 /// 高性能动画配置
@@ -937,7 +936,6 @@ class _SmoothPageTransitionState extends State<SmoothPageTransition>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _scaleAnimation;
-  String? _previousKey;
   
   @override
   void initState() {
@@ -972,7 +970,6 @@ class _SmoothPageTransitionState extends State<SmoothPageTransition>
   void didUpdateWidget(SmoothPageTransition oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.pageKey != widget.pageKey) {
-      _previousKey = oldWidget.pageKey;
       _controller.reset();
       _controller.forward();
     }

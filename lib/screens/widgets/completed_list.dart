@@ -181,7 +181,6 @@ class _CompletedListState extends State<CompletedList> {
           return false;
         },
         builder: (context, completedTasks, child) {
-          final downloadService = context.read<IntegratedDownloadService>();
           final hasLoaded = context.select<IntegratedDownloadService, bool>((s) => s.hasLoadedOnce);
 
           // 按完成时间排序，最新的在前面

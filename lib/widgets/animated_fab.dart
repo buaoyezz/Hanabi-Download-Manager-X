@@ -33,8 +33,6 @@ class _AnimatedFabState extends State<AnimatedFab>
   late AnimationController _hoverController;
   late AnimationController _pressController;
   late AnimationController _iconController;
-  
-  bool _isHovered = false;
 
   @override
   void initState() {
@@ -93,12 +91,10 @@ class _AnimatedFabState extends State<AnimatedFab>
   }
 
   void _onEnter(PointerEvent _) {
-    setState(() => _isHovered = true);
     _hoverController.forward();
   }
 
   void _onExit(PointerEvent _) {
-    setState(() => _isHovered = false);
     _hoverController.reverse();
   }
 
