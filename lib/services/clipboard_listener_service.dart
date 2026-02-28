@@ -48,12 +48,12 @@ class ClipboardListenerService {
       if (!config.getEnableClipboardListener()) return;
 
       if (!appWindow.isVisible) return;
-      final navContext = navigatorKey.currentContext;
-      if (navContext == null) return;
       final navigator = navigatorKey.currentState;
       if (navigator != null && navigator.canPop()) return;
 
       final data = await Clipboard.getData(Clipboard.kTextPlain);
+      if (!context.mounted) return;
+
       final rawText = data?.text?.trim();
       if (rawText == null || rawText.isEmpty) return;
       if (_lastPromptedText == rawText) return;
@@ -61,6 +61,9 @@ class ClipboardListenerService {
       final url = _extractUrl(rawText);
       if (url == null || url.isEmpty) return;
       if (!_looksLikeDownloadUrl(url)) return;
+
+      final navContext = navigatorKey.currentContext;
+      if (navContext == null || !navContext.mounted) return;
 
       _isShowing = true;
       await showDialog(

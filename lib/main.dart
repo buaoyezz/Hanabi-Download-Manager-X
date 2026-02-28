@@ -567,6 +567,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   Future<void> _cleanup() async {
+    // Cache dependencies before async gaps.
+    final kernelManager = context.read<KernelManager>();
+    final kernelService = context.read<KernelService>();
+
     // 保存窗口状态
     try {
       final win = appWindow;
@@ -606,7 +610,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     // 停止新内核
     try {
-      final kernelManager = context.read<KernelManager>();
       await kernelManager.stop();
     } catch (e) {
       // 忽略错误
@@ -614,7 +617,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     
     // 停止旧kernel服务
     try {
-      final kernelService = context.read<KernelService>();
       await kernelService.stopKernel();
     } catch (e) {
       // 忽略错误，确保清理继续

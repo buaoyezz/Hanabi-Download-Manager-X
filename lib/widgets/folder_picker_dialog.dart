@@ -353,14 +353,14 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
       ),
     );
 
-    if (result != null && mounted) {
+    if (result != null && context.mounted) {
       final quickPathService = Provider.of<QuickPathService>(context, listen: false);
       final success = await quickPathService.addQuickPath(
         result['path']!,
         customName: result['name']!.isEmpty ? null : result['name'],
       );
 
-      if (mounted) {
+      if (context.mounted) {
         await showDialog(
           context: context,
           builder: (context) => ContentDialog(
@@ -403,7 +403,7 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
       ),
     );
 
-    if (result == true && mounted) {
+    if (result == true && context.mounted) {
       final quickPathService = Provider.of<QuickPathService>(context, listen: false);
       await quickPathService.removeQuickPath(pathStr);
     }

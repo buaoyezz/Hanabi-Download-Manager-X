@@ -92,7 +92,8 @@ class PopupWindowService {
       // 如果找不到 Tauri 弹窗，回退到 Dialog 方式
       _logger.info('Tauri popup not found, falling back to dialog mode');
       final ctx = navigatorKey.currentContext;
-      if (ctx != null) {
+      if (ctx != null && ctx.mounted) {
+        // ignore: use_build_context_synchronously
         await showPopupDownload(
           ctx,
           url: url,
@@ -108,7 +109,8 @@ class PopupWindowService {
       // 回退到旧的 Dialog 方式
       _logger.info('Falling back to dialog mode');
       final ctx = navigatorKey.currentContext;
-      if (ctx != null) {
+      if (ctx != null && ctx.mounted) {
+        // ignore: use_build_context_synchronously
         await showPopupDownload(
           ctx,
           url: url,
@@ -136,7 +138,8 @@ class PopupWindowService {
     await showAndBringToFront();
     await flashWindow();
 
-    final ctx = navigatorKey.currentContext ?? context;
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null || !ctx.mounted) return;
 
     _logger.debug('Opening popup dialog');
     await fluent.showDialog(

@@ -712,6 +712,7 @@ class _CompletedListState extends State<CompletedList> {
 
     final prefixController = TextEditingController();
     final suffixController = TextEditingController();
+    final service = context.read<IntegratedDownloadService>();
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -767,7 +768,6 @@ class _CompletedListState extends State<CompletedList> {
       return;
     }
 
-    final service = context.read<IntegratedDownloadService>();
     int success = 0;
     int failed = 0;
 
