@@ -10,15 +10,15 @@ class KernelService extends ChangeNotifier {
   Process? _kernelProcess;
   bool _isRunning = false;
   final String _baseUrl = 'http://127.0.0.1:9710';
-  
+
   // 启动进度
   double _startupProgress = 0.0;
   String _startupStatus = '';
-  
+
   bool get isRunning => _isRunning;
   double get startupProgress => _startupProgress;
   String get startupStatus => _startupStatus;
-  
+
   void _updateProgress(double progress, String status) {
     _startupProgress = progress;
     _startupStatus = status;
@@ -52,7 +52,7 @@ class KernelService extends ChangeNotifier {
       _logger.info('========================================');
       _logger.info('Starting download kernel...');
       _logger.info('========================================');
-      
+
       // 步骤 1: 清理旧进程 (0% -> 15%)
       _updateProgress(0.0, '正在清理旧进程...');
       _logger.info('[1/4] Cleaning up any orphaned kernel processes...');
@@ -60,11 +60,12 @@ class KernelService extends ChangeNotifier {
       await Future.delayed(const Duration(milliseconds: 300));
       _logger.info('[1/4] Cleanup completed');
       _updateProgress(0.15, '清理完成');
-      
+
       // 步骤 2: 检查现有服务 (15% -> 30%)
       _updateProgress(0.15, '正在检查现有服务...');
-      _logger.info('[2/4] Checking if kernel server is already running on $_baseUrl');
-      
+      _logger.info(
+          '[2/4] Checking if kernel server is already running on $_baseUrl');
+
       final isHealthy = await _checkHealth();
       if (isHealthy) {
         _isRunning = true;
@@ -78,7 +79,7 @@ class KernelService extends ChangeNotifier {
       }
       _logger.info('[2/4] No existing kernel found, starting new instance...');
       _updateProgress(0.30, '准备启动新实例...');
-      
+
       // 步骤 3: 启动进程 (30% -> 50%)
       _updateProgress(0.30, '正在启动内核进程...');
       _logger.info('[3/4] Launching kernel process...');
@@ -92,7 +93,7 @@ class KernelService extends ChangeNotifier {
         _logger.info('Mode: Production (Executable)');
         success = await _startExeKernel();
       }
-      
+
       if (success) {
         _logger.info('[4/4] Kernel process started and health check passed');
         _logger.info('========================================');
@@ -100,13 +101,14 @@ class KernelService extends ChangeNotifier {
         _logger.info('========================================');
         _updateProgress(1.0, '启动完成');
       } else {
-        _logger.error('[4/4] Kernel process failed to start or health check failed');
+        _logger.error(
+            '[4/4] Kernel process failed to start or health check failed');
         _logger.error('========================================');
         _logger.error('Kernel startup FAILED');
         _logger.error('========================================');
         _updateProgress(0.0, '启动失败');
       }
-      
+
       return success;
     } catch (e, stackTrace) {
       _logger.error('========================================');
@@ -121,15 +123,16 @@ class KernelService extends ChangeNotifier {
 
   /// 开发模式：启动 Python 脚本
   Future<bool> _startPythonKernel() async {
-    final scriptPath = path.join(Directory.current.path, 'python', 'soda_bridge_server.py');
+    final scriptPath =
+        path.join(Directory.current.path, 'python', 'soda_bridge_server.py');
     _logger.info('Starting Python kernel: $scriptPath');
-    
+
     final scriptFile = File(scriptPath);
     if (!await scriptFile.exists()) {
       _logger.error('Python script not found: $scriptPath');
       return false;
     }
-    
+
     try {
       // 启动 Python 脚本，使用绝对路�?
       _logger.info('Executing: python $scriptPath');
@@ -142,7 +145,7 @@ class KernelService extends ChangeNotifier {
       );
 
       _logger.info('Python process started, PID: ${_kernelProcess?.pid}');
-      
+
       // 监听进程输出并同步到日志
       // Windows 中文环境�?Python 默认使用系统编码（GBK�?
       if (Platform.isWindows) {
@@ -159,7 +162,7 @@ class KernelService extends ChangeNotifier {
             _logger.error('Error reading stdout: $error');
           },
         );
-        
+
         _kernelProcess!.stderr.transform(systemEncoding.decoder).listen(
           (data) {
             for (var line in data.split('\n')) {
@@ -174,7 +177,9 @@ class KernelService extends ChangeNotifier {
           },
         );
       } else {
-        _kernelProcess!.stdout.transform(const Utf8Decoder(allowMalformed: true)).listen(
+        _kernelProcess!.stdout
+            .transform(const Utf8Decoder(allowMalformed: true))
+            .listen(
           (data) {
             for (var line in data.split('\n')) {
               final trimmed = line.trim();
@@ -187,8 +192,10 @@ class KernelService extends ChangeNotifier {
             _logger.error('Error reading stdout: $error');
           },
         );
-        
-        _kernelProcess!.stderr.transform(const Utf8Decoder(allowMalformed: true)).listen(
+
+        _kernelProcess!.stderr
+            .transform(const Utf8Decoder(allowMalformed: true))
+            .listen(
           (data) {
             for (var line in data.split('\n')) {
               final trimmed = line.trim();
@@ -210,11 +217,11 @@ class KernelService extends ChangeNotifier {
       for (int i = 0; i < 20; i++) {
         await Future.delayed(const Duration(milliseconds: 500));
         isHealthyAfterStart = await _checkHealth();
-        
+
         // 更新进度: 50% + (i/20 * 50%)
         final progress = 0.50 + (i / 20 * 0.50);
         _updateProgress(progress, '健康检查 ${i + 1}/20...');
-        
+
         if (isHealthyAfterStart) {
           _logger.info('Health check passed on attempt ${i + 1}');
           _updateProgress(1.0, '启动完成');
@@ -230,7 +237,8 @@ class KernelService extends ChangeNotifier {
         return true;
       } else {
         _logger.error('Python kernel health check failed after start');
-        _logger.error('Process may have crashed or failed to bind to port 9710');
+        _logger
+            .error('Process may have crashed or failed to bind to port 9710');
         _updateProgress(0.0, '健康检查失败');
         await stopKernel();
         return false;
@@ -246,13 +254,13 @@ class KernelService extends ChangeNotifier {
   Future<bool> _startExeKernel() async {
     final exePath = await _getKernelPath();
     _logger.info('Starting exe kernel: $exePath');
-    
+
     final exeFile = File(exePath);
     if (!await exeFile.exists()) {
       _logger.error('Kernel executable not found: $exePath');
       return false;
     }
-    
+
     try {
       // 使用normal模式以捕获输�?
       _kernelProcess = await Process.start(
@@ -263,7 +271,7 @@ class KernelService extends ChangeNotifier {
       );
 
       _logger.info('Exe process started, PID: ${_kernelProcess?.pid}');
-      
+
       // 监听进程输出并同步到日志
       // Windows 中文环境�?Python 默认使用系统编码（GBK�?
       if (Platform.isWindows) {
@@ -280,7 +288,7 @@ class KernelService extends ChangeNotifier {
             _logger.error('Error reading stdout: $error');
           },
         );
-        
+
         _kernelProcess!.stderr.transform(systemEncoding.decoder).listen(
           (data) {
             for (var line in data.split('\n')) {
@@ -295,7 +303,9 @@ class KernelService extends ChangeNotifier {
           },
         );
       } else {
-        _kernelProcess!.stdout.transform(const Utf8Decoder(allowMalformed: true)).listen(
+        _kernelProcess!.stdout
+            .transform(const Utf8Decoder(allowMalformed: true))
+            .listen(
           (data) {
             for (var line in data.split('\n')) {
               final trimmed = line.trim();
@@ -308,8 +318,10 @@ class KernelService extends ChangeNotifier {
             _logger.error('Error reading stdout: $error');
           },
         );
-        
-        _kernelProcess!.stderr.transform(const Utf8Decoder(allowMalformed: true)).listen(
+
+        _kernelProcess!.stderr
+            .transform(const Utf8Decoder(allowMalformed: true))
+            .listen(
           (data) {
             for (var line in data.split('\n')) {
               final trimmed = line.trim();
@@ -331,11 +343,11 @@ class KernelService extends ChangeNotifier {
       for (int i = 0; i < 15; i++) {
         await Future.delayed(const Duration(milliseconds: 500));
         isHealthyAfterStart = await _checkHealth();
-        
+
         // 更新进度: 50% + (i/15 * 50%)
         final progress = 0.50 + (i / 15 * 0.50);
         _updateProgress(progress, '健康检查 ${i + 1}/15...');
-        
+
         if (isHealthyAfterStart) {
           _updateProgress(1.0, '启动完成');
           break;
@@ -363,13 +375,13 @@ class KernelService extends ChangeNotifier {
 
   Future<void> stopKernel() async {
     _logger.info('Stopping kernel...');
-    
+
     if (_kernelProcess != null) {
       try {
         // 尝试优雅关闭
         _kernelProcess!.kill(ProcessSignal.sigterm);
         await Future.delayed(const Duration(milliseconds: 500));
-        
+
         // 如果还在运行，强制终�?
         if (_kernelProcess != null) {
           _kernelProcess!.kill(ProcessSignal.sigkill);
@@ -379,10 +391,10 @@ class KernelService extends ChangeNotifier {
       }
       _kernelProcess = null;
     }
-    
+
     // 直接�?Dart 中清理可能残留的进程
     await _killOrphanedKernelProcesses();
-    
+
     _isRunning = false;
     _logger.info('Kernel stopped successfully');
     notifyListeners();
@@ -413,7 +425,13 @@ class KernelService extends ChangeNotifier {
         }
 
         // 2. 查找所有 soda_bridge_server.exe 进程
-        final tasklistResult = await Process.run('tasklist', ['/FI', 'IMAGENAME eq soda_bridge_server.exe', '/FO', 'CSV', '/NH']);
+        final tasklistResult = await Process.run('tasklist', [
+          '/FI',
+          'IMAGENAME eq soda_bridge_server.exe',
+          '/FO',
+          'CSV',
+          '/NH'
+        ]);
         if (tasklistResult.exitCode == 0) {
           final output = tasklistResult.stdout.toString();
           if (output.isNotEmpty && !output.contains('INFO: No tasks')) {
@@ -427,7 +445,8 @@ class KernelService extends ChangeNotifier {
                     await Process.run('taskkill', ['/F', '/PID', pid]);
                     _logger.info('Killed soda_bridge_server.exe, PID: $pid');
                   } catch (e) {
-                    _logger.warning('Failed to kill soda_bridge_server.exe PID $pid: $e');
+                    _logger.warning(
+                        'Failed to kill soda_bridge_server.exe PID $pid: $e');
                   }
                 }
               }
@@ -442,14 +461,15 @@ class KernelService extends ChangeNotifier {
             '-Command',
             'Get-CimInstance Win32_Process -Filter "name=\'python.exe\'" | Select-Object ProcessId,CommandLine | ConvertTo-Json'
           ]);
-          
+
           if (psResult.exitCode == 0) {
             final output = psResult.stdout.toString();
             if (output.isNotEmpty && output.trim() != 'null') {
               try {
                 final dynamic jsonData = jsonDecode(output);
-                final List<dynamic> processes = jsonData is List ? jsonData : [jsonData];
-                
+                final List<dynamic> processes =
+                    jsonData is List ? jsonData : [jsonData];
+
                 for (final proc in processes) {
                   final commandLine = proc['CommandLine']?.toString() ?? '';
                   if (commandLine.contains('soda_bridge_server.py')) {
@@ -478,10 +498,8 @@ class KernelService extends ChangeNotifier {
     }
   }
 
-
-
   Future<String> _getKernelPath() async {
-    final exeDir = kDebugMode 
+    final exeDir = kDebugMode
         ? path.join(Directory.current.path, 'python', 'dist')
         : path.dirname(Platform.resolvedExecutable);
     return path.join(exeDir, 'soda_bridge_server.exe');
@@ -490,8 +508,8 @@ class KernelService extends ChangeNotifier {
   Future<bool> _checkHealth() async {
     try {
       final response = await http.get(Uri.parse('$_baseUrl/health')).timeout(
-        const Duration(seconds: 5),
-      );
+            const Duration(seconds: 5),
+          );
       return response.statusCode == 200;
     } catch (e) {
       return false;
@@ -499,7 +517,7 @@ class KernelService extends ChangeNotifier {
   }
 
   Future<String?> addDownload(
-    String url, 
+    String url,
     String filename, {
     String? referer,
     String? userAgent,
@@ -516,7 +534,7 @@ class KernelService extends ChangeNotifier {
         'url': url,
         'filename': filename,
       };
-      
+
       // 添加可选的身份验证参数
       if (referer != null && referer.isNotEmpty) {
         body['referer'] = referer;
@@ -530,7 +548,7 @@ class KernelService extends ChangeNotifier {
       if (headers != null && headers.isNotEmpty) {
         body['headers'] = headers;
       }
-      
+
       final response = await http.post(
         Uri.parse('$_baseUrl/download/add'),
         headers: {'Content-Type': 'application/json'},
@@ -636,7 +654,8 @@ class KernelService extends ChangeNotifier {
     if (!_isRunning) return null;
 
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/settings/download-config'));
+      final response =
+          await http.get(Uri.parse('$_baseUrl/settings/download-config'));
 
       if (response.statusCode == 200) {
         final result = jsonDecode(response.body);
@@ -657,20 +676,50 @@ class KernelService extends ChangeNotifier {
     String? mode,
     int? maxConcurrentTasks,
     int? segmentSpeedLimit,
+    int? globalSpeedLimit,
     bool? enableDynamicSegments,
+    String? conflictStrategy,
+    String? defaultUserAgent,
+    String? httpVersionPolicy,
     Map<String, dynamic>? proxyConfig,
   }) async {
     if (!_isRunning) return false;
 
     try {
       final body = <String, dynamic>{};
-      if (threads != null) body['threads'] = threads;
-      if (segments != null) body['segments'] = segments;
-      if (mode != null) body['mode'] = mode;
-      if (maxConcurrentTasks != null) body['max_concurrent_tasks'] = maxConcurrentTasks;
-      if (segmentSpeedLimit != null) body['segment_speed_limit'] = segmentSpeedLimit;
-      if (enableDynamicSegments != null) body['enable_dynamic_segments'] = enableDynamicSegments;
-      if (proxyConfig != null) body['proxy'] = proxyConfig;
+      if (threads != null) {
+        body['threads'] = threads;
+      }
+      if (segments != null) {
+        body['segments'] = segments;
+      }
+      if (mode != null) {
+        body['mode'] = mode;
+      }
+      if (maxConcurrentTasks != null) {
+        body['max_concurrent_tasks'] = maxConcurrentTasks;
+      }
+      if (segmentSpeedLimit != null) {
+        body['segment_speed_limit'] = segmentSpeedLimit;
+      }
+      if (globalSpeedLimit != null) {
+        body['global_speed_limit'] = globalSpeedLimit;
+      }
+      if (enableDynamicSegments != null) {
+        body['enable_dynamic_segments'] = enableDynamicSegments;
+      }
+      if (conflictStrategy != null) {
+        body['conflict_strategy'] = conflictStrategy;
+      }
+      if (defaultUserAgent != null) {
+        body['default_user_agent'] = defaultUserAgent;
+      }
+      if (httpVersionPolicy != null) {
+        body['http_version_policy'] = httpVersionPolicy;
+      }
+      if (proxyConfig != null) {
+        body['proxy'] = proxyConfig;
+      }
 
       final response = await http.post(
         Uri.parse('$_baseUrl/settings/download-config'),
@@ -705,7 +754,7 @@ class KernelService extends ChangeNotifier {
         'host': host,
         'port': port,
       };
-      
+
       if (username != null && username.isNotEmpty) {
         body['username'] = username;
       }
@@ -845,7 +894,8 @@ class KernelService extends ChangeNotifier {
     if (!_isRunning) return null;
 
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/download/statistics'));
+      final response =
+          await http.get(Uri.parse('$_baseUrl/download/statistics'));
 
       if (response.statusCode == 200) {
         final result = jsonDecode(response.body);
@@ -888,7 +938,8 @@ class KernelService extends ChangeNotifier {
     if (!_isRunning) return null;
 
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/settings/download-dir'));
+      final response =
+          await http.get(Uri.parse('$_baseUrl/settings/download-dir'));
 
       if (response.statusCode == 200) {
         final result = jsonDecode(response.body);
@@ -932,4 +983,3 @@ class KernelService extends ChangeNotifier {
     super.dispose();
   }
 }
-

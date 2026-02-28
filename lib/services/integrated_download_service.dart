@@ -28,8 +28,8 @@ class IntegratedDownloadService extends ChangeNotifier {
   // 智能轮询：根据是否有活跃下载调整间隔
   bool _hasActiveDownloads = false;
   bool _hasLoadedOnce = false;
-  static const _activePollingInterval = Duration(seconds: 1);  // 有下载时1秒
-  static const _idlePollingInterval = Duration(seconds: 5);    // 空闲时5秒
+  static const _activePollingInterval = Duration(seconds: 1); // 有下载时1秒
+  static const _idlePollingInterval = Duration(seconds: 5); // 空闲时5秒
 
   // Stream 订阅
   StreamSubscription? _progressSubscription;
@@ -42,8 +42,10 @@ class IntegratedDownloadService extends ChangeNotifier {
     _immediateFirstLoad();
   }
 
-  bool get _useNewKernel => _clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
-  bool get isKernelRunning => _useNewKernel ? _kernelManager.isRunning : _kernelService.isRunning;
+  bool get _useNewKernel =>
+      _clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
+  bool get isKernelRunning =>
+      _useNewKernel ? _kernelManager.isRunning : _kernelService.isRunning;
 
   List<DownloadTask> get tasks => List.unmodifiable(_tasks);
   bool get hasLoadedOnce => _hasLoadedOnce;
@@ -100,7 +102,8 @@ class IntegratedDownloadService extends ChangeNotifier {
       final progressStream = _kernelManager.onProgress;
       if (progressStream != null) {
         _progressSubscription = progressStream.listen((task) {
-          _appLogger.debug('App', 'Stream progress: ${task.filename} - ${task.progress.toStringAsFixed(1)}%');
+          _appLogger.debug('App',
+              'Stream progress: ${task.filename} - ${task.progress.toStringAsFixed(1)}%');
           _handleStreamUpdate(task);
         });
         _appLogger.info('App', 'Subscribed to progress stream');
@@ -131,7 +134,9 @@ class IntegratedDownloadService extends ChangeNotifier {
 
       // 检查是否有关键变化
       final isStatusChanged = oldTask.status != newTask.status;
-      final isSizeChanged = oldTask.fileSize != newTask.fileSize && newTask.fileSize != null && newTask.fileSize! > 0;
+      final isSizeChanged = oldTask.fileSize != newTask.fileSize &&
+          newTask.fileSize != null &&
+          newTask.fileSize! > 0;
 
       if (isStatusChanged && newTask.status == DownloadStatus.failed) {
         DownloadFailureStatsService().recordFailure(newTask);
@@ -139,7 +144,8 @@ class IntegratedDownloadService extends ChangeNotifier {
 
       if (isStatusChanged || isSizeChanged) {
         // 关键变化走即时通知
-        _appLogger.debug('App', 'Critical change detected: status=$isStatusChanged, size=$isSizeChanged');
+        _appLogger.debug('App',
+            'Critical change detected: status=$isStatusChanged, size=$isSizeChanged');
         notifyNow();
       } else {
         // 普通进度更新走节流
@@ -163,7 +169,8 @@ class IntegratedDownloadService extends ChangeNotifier {
   // 智能轮询：根据下载状态动态调整间隔
   void _scheduleNextPoll() {
     _pollTimer?.cancel();
-    final interval = _hasActiveDownloads ? _activePollingInterval : _idlePollingInterval;
+    final interval =
+        _hasActiveDownloads ? _activePollingInterval : _idlePollingInterval;
     _pollTimer = Timer(interval, () async {
       // 确保已订阅内核 Stream
       if (_progressSubscription == null && isKernelRunning) {
@@ -173,7 +180,7 @@ class IntegratedDownloadService extends ChangeNotifier {
       _scheduleNextPoll();
     });
   }
-  
+
   /// 从根源 override notifyListeners，所有通知强制走节流
   /// 外部调用 notifyListeners() 默认走节流模式
   /// 需要立即通知时，先设 _immediate = true 再调用
@@ -236,7 +243,8 @@ class IntegratedDownloadService extends ChangeNotifier {
       bool hasCriticalChange = false;
 
       for (var kernelTask in kernelTasks) {
-        final existingIndex = _tasks.indexWhere((t) => t.id == kernelTask['id']);
+        final existingIndex =
+            _tasks.indexWhere((t) => t.id == kernelTask['id']);
 
         final newTask = _convertKernelTask(kernelTask);
 
@@ -246,10 +254,14 @@ class IntegratedDownloadService extends ChangeNotifier {
           // 检查是否有实际变化（包括文件大小变化）
           final isStatusChanged = oldTask.status != newTask.status;
           final isSizeChanged = oldTask.fileSize != newTask.fileSize;
-          final isProgressChanged = (oldTask.progress - newTask.progress).abs() > 0.001;
+          final isProgressChanged =
+              (oldTask.progress - newTask.progress).abs() > 0.001;
           final isSpeedChanged = oldTask.speed != newTask.speed;
 
-          final hasTaskChanged = isStatusChanged || isSizeChanged || isProgressChanged || isSpeedChanged;
+          final hasTaskChanged = isStatusChanged ||
+              isSizeChanged ||
+              isProgressChanged ||
+              isSpeedChanged;
           final isCriticalChange = isStatusChanged || isSizeChanged;
 
           if (isStatusChanged && newTask.status == DownloadStatus.failed) {
@@ -263,19 +275,23 @@ class IntegratedDownloadService extends ChangeNotifier {
           // 标记关键变化
           if (isCriticalChange) {
             hasCriticalChange = true;
-            _appLogger.debug('App', 'Critical change in polling: status=$isStatusChanged, size=$isSizeChanged');
+            _appLogger.debug('App',
+                'Critical change in polling: status=$isStatusChanged, size=$isSizeChanged');
           }
 
           // Log status changes (only when status actually changes)
           if (oldTask.status != newTask.status) {
-            _appLogger.debug('App', 'Kernel task status: ${kernelTask['id']} -> ${kernelTask['status']}');
-            _appLogger.info('App', 'Status change: ${newTask.fileName} from ${oldTask.status} to ${newTask.status}');
+            _appLogger.debug('App',
+                'Kernel task status: ${kernelTask['id']} -> ${kernelTask['status']}');
+            _appLogger.info('App',
+                'Status change: ${newTask.fileName} from ${oldTask.status} to ${newTask.status}');
             switch (newTask.status) {
               case DownloadStatus.completed:
                 _appLogger.info('App', 'Task completed: ${newTask.fileName}');
                 break;
               case DownloadStatus.failed:
-                _appLogger.error('App', 'Task failed: ${newTask.fileName}, Error: ${newTask.error ?? 'Unknown error'}');
+                _appLogger.error('App',
+                    'Task failed: ${newTask.fileName}, Error: ${newTask.error ?? 'Unknown error'}');
                 break;
               case DownloadStatus.paused:
                 _appLogger.info('App', 'Task paused: ${newTask.fileName}');
@@ -295,13 +311,15 @@ class IntegratedDownloadService extends ChangeNotifier {
           // Log progress updates for downloading tasks
           if (newTask.status == DownloadStatus.downloading &&
               oldTask.progress != newTask.progress) {
-            _appLogger.debug('App', 'Download progress: ${newTask.fileName} - ${(newTask.progress * 100).toStringAsFixed(1)}% @ ${newTask.formattedSpeed}');
+            _appLogger.debug('App',
+                'Download progress: ${newTask.fileName} - ${(newTask.progress * 100).toStringAsFixed(1)}% @ ${newTask.formattedSpeed}');
           }
           _tasks[existingIndex] = newTask;
         } else {
           _tasks.add(newTask);
           hasChanges = true;
-          _appLogger.info('App', 'New task added: ${newTask.fileName} (${newTask.status})');
+          _appLogger.info(
+              'App', 'New task added: ${newTask.fileName} (${newTask.status})');
           if (newTask.status == DownloadStatus.failed) {
             DownloadFailureStatsService().recordFailure(newTask);
           }
@@ -323,7 +341,8 @@ class IntegratedDownloadService extends ChangeNotifier {
           t.status == DownloadStatus.merging);
       if (newHasActiveDownloads != _hasActiveDownloads) {
         _hasActiveDownloads = newHasActiveDownloads;
-        _appLogger.debug('App', 'Active downloads: $_hasActiveDownloads, polling interval adjusted');
+        _appLogger.debug('App',
+            'Active downloads: $_hasActiveDownloads, polling interval adjusted');
       }
 
       // 标记首次加载完成
@@ -355,15 +374,17 @@ class IntegratedDownloadService extends ChangeNotifier {
       'startTime': task.startTime?.toIso8601String(),
       'endTime': task.endTime?.toIso8601String(),
       'createdTime': task.createdTime.toIso8601String(), // 添加创建时间
-      'segments': task.segments.map((s) => {
-        'index': s.index,
-        'startByte': s.startByte,
-        'endByte': s.endByte,
-        'downloadedBytes': s.downloadedBytes,
-        'speed': s.speed,
-        'status': s.status,
-        'retryCount': s.retryCount,
-      }).toList(),
+      'segments': task.segments
+          .map((s) => {
+                'index': s.index,
+                'startByte': s.startByte,
+                'endByte': s.endByte,
+                'downloadedBytes': s.downloadedBytes,
+                'speed': s.speed,
+                'status': s.status,
+                'retryCount': s.retryCount,
+              })
+          .toList(),
     };
   }
 
@@ -403,12 +424,20 @@ class IntegratedDownloadService extends ChangeNotifier {
         segments = segmentsList.map((seg) {
           return SegmentInfo(
             index: (seg['index'] as num?)?.toInt() ?? 0,
-            startByte: (seg['startByte'] as num?)?.toInt() ?? (seg['start_byte'] as num?)?.toInt() ?? 0,
-            endByte: (seg['endByte'] as num?)?.toInt() ?? (seg['end_byte'] as num?)?.toInt() ?? 0,
-            downloadedBytes: (seg['downloadedBytes'] as num?)?.toInt() ?? (seg['downloaded_bytes'] as num?)?.toInt() ?? 0,
+            startByte: (seg['startByte'] as num?)?.toInt() ??
+                (seg['start_byte'] as num?)?.toInt() ??
+                0,
+            endByte: (seg['endByte'] as num?)?.toInt() ??
+                (seg['end_byte'] as num?)?.toInt() ??
+                0,
+            downloadedBytes: (seg['downloadedBytes'] as num?)?.toInt() ??
+                (seg['downloaded_bytes'] as num?)?.toInt() ??
+                0,
             speed: (seg['speed'] as num?)?.toDouble() ?? 0.0,
             status: seg['status']?.toString() ?? 'pending',
-            retryCount: (seg['retryCount'] as num?)?.toInt() ?? (seg['retry_count'] as num?)?.toInt() ?? 0,
+            retryCount: (seg['retryCount'] as num?)?.toInt() ??
+                (seg['retry_count'] as num?)?.toInt() ??
+                0,
           );
         }).toList();
       } catch (e) {
@@ -422,7 +451,7 @@ class IntegratedDownloadService extends ChangeNotifier {
     final totalSize = kernelTask['totalSize'];
     final downloadedSize = kernelTask['downloadedSize'];
     final speed = (kernelTask['speed'] ?? 0.0).toDouble();
-    
+
     if (totalSize != null && downloadedSize != null && speed > 0) {
       final remainingBytes = totalSize - downloadedSize;
       if (remainingBytes > 0) {
@@ -432,16 +461,16 @@ class IntegratedDownloadService extends ChangeNotifier {
     }
 
     // 解析统计信息
-    final peakSpeed = kernelTask['peakSpeed'] != null 
-        ? (kernelTask['peakSpeed'] as num).toDouble() 
+    final peakSpeed = kernelTask['peakSpeed'] != null
+        ? (kernelTask['peakSpeed'] as num).toDouble()
         : null;
-    final averageSpeed = kernelTask['averageSpeed'] != null 
-        ? (kernelTask['averageSpeed'] as num).toDouble() 
+    final averageSpeed = kernelTask['averageSpeed'] != null
+        ? (kernelTask['averageSpeed'] as num).toDouble()
         : null;
     final threadCount = kernelTask['threadCount'] as int?;
     final segmentCount = segments?.length;
     final downloadCore = kernelTask['downloadCore'] as String? ?? 'NSF-X';
-    
+
     // 解析时间
     DateTime? startTime;
     DateTime? endTime;
@@ -463,12 +492,13 @@ class IntegratedDownloadService extends ChangeNotifier {
     // 注意：kernelTask['progress'] 是 0-100 的百分比，需要转换为 0-1 的小数供 UI 使用
     final progressValue = (kernelTask['progress'] ?? 0.0).toDouble();
     final normalizedProgress = progressValue / 100.0;
-    
+
     // 调试日志：输出进度值
     if (status == DownloadStatus.downloading) {
-      _appLogger.debug('App', 'Progress conversion: ${kernelTask['filename']} - raw: $progressValue%, normalized: ${(normalizedProgress * 100).toStringAsFixed(2)}%, downloaded: ${kernelTask['downloadedSize']}/${kernelTask['totalSize']}');
+      _appLogger.debug('App',
+          'Progress conversion: ${kernelTask['filename']} - raw: $progressValue%, normalized: ${(normalizedProgress * 100).toStringAsFixed(2)}%, downloaded: ${kernelTask['downloadedSize']}/${kernelTask['totalSize']}');
     }
-    
+
     return DownloadTask(
       id: kernelTask['id'],
       url: kernelTask['url'],
@@ -517,8 +547,12 @@ class IntegratedDownloadService extends ChangeNotifier {
       _subscribeToKernelStreams();
     }
 
-    _appLogger.info('App', 'Adding download task: $fileName (using ${_useNewKernel ? 'NSFX' : 'Legacy'} kernel)');
-    if (referer != null || userAgent != null || cookies != null || headers != null) {
+    _appLogger.info('App',
+        'Adding download task: $fileName (using ${_useNewKernel ? 'NSFX' : 'Legacy'} kernel)');
+    if (referer != null ||
+        userAgent != null ||
+        cookies != null ||
+        headers != null) {
       _appLogger.info('App', 'With authentication headers');
     }
 
@@ -554,12 +588,12 @@ class IntegratedDownloadService extends ChangeNotifier {
       _appLogger.error('App', 'Failed to add task: $fileName');
     }
   }
-  
+
   // 添加测试任务
   void _addTestTask(String testType, String fileName) {
     final id = 'test_${DateTime.now().millisecondsSinceEpoch}';
     DownloadTask testTask;
-    
+
     switch (testType) {
       case 'test_task_merging':
         testTask = DownloadTask(
@@ -573,7 +607,7 @@ class IntegratedDownloadService extends ChangeNotifier {
           filePath: '/test/path/$fileName',
         );
         break;
-        
+
       case 'test_task_downloading':
         testTask = DownloadTask(
           id: id,
@@ -589,7 +623,7 @@ class IntegratedDownloadService extends ChangeNotifier {
           segments: _generateTestSegments(32, 0.45),
         );
         break;
-        
+
       case 'test_task_paused':
         testTask = DownloadTask(
           id: id,
@@ -603,7 +637,7 @@ class IntegratedDownloadService extends ChangeNotifier {
           segments: _generateTestSegments(16, 0.62),
         );
         break;
-        
+
       case 'test_task_pending':
         testTask = DownloadTask(
           id: id,
@@ -616,7 +650,7 @@ class IntegratedDownloadService extends ChangeNotifier {
           filePath: '/test/path/$fileName',
         );
         break;
-        
+
       case 'test_task_failed':
         testTask = DownloadTask(
           id: id,
@@ -631,35 +665,38 @@ class IntegratedDownloadService extends ChangeNotifier {
           segments: _generateTestSegments(8, 0.28, failedCount: 2),
         );
         break;
-        
+
       default:
         _appLogger.warning('App', 'Unknown test task type: $testType');
         return;
     }
-    
+
     _tasks.add(testTask);
-    _appLogger.info('App', 'Test task added: ${testTask.fileName} (${testTask.status})');
+    _appLogger.info(
+        'App', 'Test task added: ${testTask.fileName} (${testTask.status})');
     notifyNow();
   }
-  
+
   // 生成测试分段
-  List<SegmentInfo> _generateTestSegments(int count, double overallProgress, {int failedCount = 0}) {
+  List<SegmentInfo> _generateTestSegments(int count, double overallProgress,
+      {int failedCount = 0}) {
     final segments = <SegmentInfo>[];
     final segmentSize = 1024 * 1024 * 100; // 每个分段 100 MB
-    
+
     for (int i = 0; i < count; i++) {
       final startByte = i * segmentSize;
       final endByte = (i + 1) * segmentSize;
-      
+
       String status;
       int downloadedBytes;
       double speed = 0;
-      
+
       if (i < count * overallProgress) {
         // 已完成的分段
         status = 'completed';
         downloadedBytes = segmentSize;
-      } else if (i == (count * overallProgress).floor() && overallProgress % 1 != 0) {
+      } else if (i == (count * overallProgress).floor() &&
+          overallProgress % 1 != 0) {
         // 正在下载的分段
         status = 'downloading';
         downloadedBytes = (segmentSize * (overallProgress % 1)).toInt();
@@ -673,7 +710,7 @@ class IntegratedDownloadService extends ChangeNotifier {
         status = 'pending';
         downloadedBytes = 0;
       }
-      
+
       segments.add(SegmentInfo(
         index: i,
         startByte: startByte,
@@ -684,7 +721,7 @@ class IntegratedDownloadService extends ChangeNotifier {
         retryCount: status == 'failed' ? 2 : 0,
       ));
     }
-    
+
     return segments;
   }
 
@@ -695,14 +732,14 @@ class IntegratedDownloadService extends ChangeNotifier {
       return;
     }
     _appLogger.info('App', 'Pausing task: ${task.fileName} (ID: $id)');
-    
+
     bool success;
     if (_useNewKernel) {
       success = await _kernelManager.pauseDownload(id);
     } else {
       success = await _kernelService.pauseDownload(id);
     }
-    
+
     if (success) {
       _appLogger.info('App', 'Task paused successfully: ${task.fileName}');
       await _updateTasks();
@@ -718,14 +755,14 @@ class IntegratedDownloadService extends ChangeNotifier {
       return;
     }
     _appLogger.info('App', 'Resuming task: ${task.fileName} (ID: $id)');
-    
+
     bool success;
     if (_useNewKernel) {
       success = await _kernelManager.resumeDownload(id);
     } else {
       success = await _kernelService.resumeDownload(id);
     }
-    
+
     if (success) {
       _appLogger.info('App', 'Task resumed successfully: ${task.fileName}');
       await _updateTasks();
@@ -736,28 +773,29 @@ class IntegratedDownloadService extends ChangeNotifier {
 
   Future<void> removeTask(String id) async {
     final task = _tasks.firstWhereOrNull((t) => t.id == id);
-    
+
     if (task == null) {
       _appLogger.error('App', 'Task not found for removal: $id');
       return;
     }
-    
+
     _appLogger.info('App', 'Removing task: ${task.fileName} (ID: $id)');
-    
+
     bool success;
     if (_useNewKernel) {
       success = await _kernelManager.cancelDownload(id);
     } else {
       success = await _kernelService.cancelDownload(id);
     }
-    
+
     if (success) {
       _tasks.removeWhere((task) => task.id == id);
       _clientConfig.setTaskTags(id, []);
       _appLogger.info('App', 'Task removed successfully: ${task.fileName}');
       notifyNow();
     } else {
-      _appLogger.error('App', 'Failed to remove task: ${task.fileName} (ID: $id)');
+      _appLogger.error(
+          'App', 'Failed to remove task: ${task.fileName} (ID: $id)');
     }
   }
 
@@ -832,15 +870,19 @@ class IntegratedDownloadService extends ChangeNotifier {
         'global_speed_limit': config.globalSpeedLimit,
         'enable_dynamic_segments': config.enableDynamicSegments,
         'conflict_strategy': config.conflictStrategy,
-        'proxy': config.proxy != null ? {
-          'enabled': config.proxy!.enabled,
-          'type': config.proxy!.type,
-          'host': config.proxy!.host,
-          'port': config.proxy!.port,
-          'username': config.proxy!.username,
-          'password': config.proxy!.password,
-          'requires_auth': config.proxy!.requiresAuth,
-        } : null,
+        'default_user_agent': config.defaultUserAgent,
+        'http_version_policy': config.httpVersionPolicy,
+        'proxy': config.proxy != null
+            ? {
+                'enabled': config.proxy!.enabled,
+                'type': config.proxy!.type,
+                'host': config.proxy!.host,
+                'port': config.proxy!.port,
+                'username': config.proxy!.username,
+                'password': config.proxy!.password,
+                'requires_auth': config.proxy!.requiresAuth,
+              }
+            : null,
       };
     }
     return await _kernelService.getDownloadConfig();
@@ -855,18 +897,16 @@ class IntegratedDownloadService extends ChangeNotifier {
     int? globalSpeedLimit,
     bool? enableDynamicSegments,
     String? conflictStrategy,
+    String? defaultUserAgent,
+    String? httpVersionPolicy,
     Map<String, dynamic>? proxyConfig,
   }) async {
     bool success;
-    
+
     if (_useNewKernel) {
-      String effectiveConflictStrategy = conflictStrategy ?? 'increment';
-      if (conflictStrategy == null) {
-        final existing = await _kernelManager.getConfig();
-        if (existing != null) {
-          effectiveConflictStrategy = existing.conflictStrategy;
-        }
-      }
+      final existing = await _kernelManager.getConfig();
+      String effectiveConflictStrategy =
+          conflictStrategy ?? existing?.conflictStrategy ?? 'increment';
 
       kernel.ProxyConfig? proxy;
       if (proxyConfig != null) {
@@ -880,17 +920,25 @@ class IntegratedDownloadService extends ChangeNotifier {
           requiresAuth: proxyConfig['requires_auth'] ?? false,
         );
       }
-      
+
       final config = kernel.DownloadConfig(
-        threads: threads ?? 8,
-        segments: segments ?? 8,
-        mode: mode ?? 'auto',
-        maxConcurrentTasks: maxConcurrentTasks ?? 3,
-        segmentSpeedLimit: segmentSpeedLimit ?? 0,
-        globalSpeedLimit: globalSpeedLimit ?? 0,
-        enableDynamicSegments: enableDynamicSegments ?? true,
+        threads: threads ?? existing?.threads ?? 8,
+        segments: segments ?? existing?.segments ?? 8,
+        mode: mode ?? existing?.mode ?? 'auto',
+        maxConcurrentTasks:
+            maxConcurrentTasks ?? existing?.maxConcurrentTasks ?? 3,
+        segmentSpeedLimit:
+            segmentSpeedLimit ?? existing?.segmentSpeedLimit ?? 0,
+        globalSpeedLimit: globalSpeedLimit ?? existing?.globalSpeedLimit ?? 0,
+        enableDynamicSegments:
+            enableDynamicSegments ?? existing?.enableDynamicSegments ?? true,
         conflictStrategy: effectiveConflictStrategy,
-        proxy: proxy,
+        defaultUserAgent: defaultUserAgent ??
+            existing?.defaultUserAgent ??
+            kernel.DownloadConfig.defaultUserAgentFallback,
+        httpVersionPolicy:
+            httpVersionPolicy ?? existing?.httpVersionPolicy ?? 'auto',
+        proxy: proxy ?? existing?.proxy,
       );
       success = await _kernelManager.setConfig(config);
     } else {
@@ -900,13 +948,18 @@ class IntegratedDownloadService extends ChangeNotifier {
         mode: mode,
         maxConcurrentTasks: maxConcurrentTasks,
         segmentSpeedLimit: segmentSpeedLimit,
+        globalSpeedLimit: globalSpeedLimit,
         enableDynamicSegments: enableDynamicSegments,
+        conflictStrategy: conflictStrategy,
+        defaultUserAgent: defaultUserAgent,
+        httpVersionPolicy: httpVersionPolicy,
         proxyConfig: proxyConfig,
       );
     }
-    
+
     if (success) {
-      _appLogger.info('App', 'Download config updated: threads=$threads, segments=$segments, mode=$mode, concurrent=$maxConcurrentTasks, segLimit=$segmentSpeedLimit, globalLimit=$globalSpeedLimit, dynamicSegments=$enableDynamicSegments, proxy=${proxyConfig != null ? 'enabled' : 'unchanged'}');
+      _appLogger.info('App',
+          'Download config updated: threads=$threads, segments=$segments, mode=$mode, concurrent=$maxConcurrentTasks, segLimit=$segmentSpeedLimit, globalLimit=$globalSpeedLimit, dynamicSegments=$enableDynamicSegments, proxy=${proxyConfig != null ? 'enabled' : 'unchanged'}');
     }
     return success;
   }
@@ -938,7 +991,8 @@ class IntegratedDownloadService extends ChangeNotifier {
           password: password,
         );
       }
-      _appLogger.info('App', 'Proxy connection test: $type://$host:$port - ${result ? 'success' : 'failed'}');
+      _appLogger.info('App',
+          'Proxy connection test: $type://$host:$port - ${result ? 'success' : 'failed'}');
       return result;
     } catch (e) {
       _appLogger.error('App', 'Proxy connection test failed: $e');
@@ -948,18 +1002,21 @@ class IntegratedDownloadService extends ChangeNotifier {
 
   /// 重试失败的分段
   Future<void> retryFailedSegments(String id) async {
-    final task = _tasks.firstWhere((t) => t.id == id, orElse: () => _tasks.first);
-    _appLogger.info('App', 'Retrying failed segments for task: ${task.fileName} (ID: $id)');
-    
+    final task =
+        _tasks.firstWhere((t) => t.id == id, orElse: () => _tasks.first);
+    _appLogger.info(
+        'App', 'Retrying failed segments for task: ${task.fileName} (ID: $id)');
+
     bool success;
     if (_useNewKernel) {
       success = await _kernelManager.retryFailedSegments(id);
     } else {
       success = await _kernelService.retryFailedSegments(id);
     }
-    
+
     if (success) {
-      _appLogger.info('App', 'Failed segments retry initiated: ${task.fileName}');
+      _appLogger.info(
+          'App', 'Failed segments retry initiated: ${task.fileName}');
       await _updateTasks();
     } else {
       _appLogger.error('App', 'Failed to retry segments: ${task.fileName}');
@@ -968,21 +1025,25 @@ class IntegratedDownloadService extends ChangeNotifier {
 
   /// 重试特定分段
   Future<void> retrySegment(String id, int segmentIndex) async {
-    final task = _tasks.firstWhere((t) => t.id == id, orElse: () => _tasks.first);
-    _appLogger.info('App', 'Retrying segment $segmentIndex for task: ${task.fileName} (ID: $id)');
-    
+    final task =
+        _tasks.firstWhere((t) => t.id == id, orElse: () => _tasks.first);
+    _appLogger.info('App',
+        'Retrying segment $segmentIndex for task: ${task.fileName} (ID: $id)');
+
     bool success;
     if (_useNewKernel) {
       success = await _kernelManager.retrySegment(id, segmentIndex);
     } else {
       success = await _kernelService.retrySegment(id, segmentIndex);
     }
-    
+
     if (success) {
-      _appLogger.info('App', 'Segment $segmentIndex retry initiated: ${task.fileName}');
+      _appLogger.info(
+          'App', 'Segment $segmentIndex retry initiated: ${task.fileName}');
       await _updateTasks();
     } else {
-      _appLogger.error('App', 'Failed to retry segment $segmentIndex: ${task.fileName}');
+      _appLogger.error(
+          'App', 'Failed to retry segment $segmentIndex: ${task.fileName}');
     }
   }
 

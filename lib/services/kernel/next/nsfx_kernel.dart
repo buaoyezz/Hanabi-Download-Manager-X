@@ -20,7 +20,7 @@ class NsfxKernel implements KernelInterface {
   late TaskStorage _storage;
   NsfxHttpServer? _httpServer;
   final _logger = AppLoggerService();
-  
+
   String _downloadDir = '';
   final Map<String, Task> _tasks = {};
 
@@ -30,7 +30,7 @@ class NsfxKernel implements KernelInterface {
 
   Timer? _statsTimer;
   Timer? _saveTimer;
-  
+
   // 节流控制，避免 Windows 消息队列溢出
   DateTime _lastProgressEmit = DateTime.fromMillisecondsSinceEpoch(0);
   static const _minProgressEmitInterval = Duration(milliseconds: 100);
@@ -60,7 +60,7 @@ class NsfxKernel implements KernelInterface {
 
     try {
       _logger.info('NSFX', 'Starting NSFX kernel...');
-      
+
       _storage = TaskStorage();
       await _storage.init();
 
@@ -81,9 +81,9 @@ class NsfxKernel implements KernelInterface {
       }
 
       // 设置默认下载目录
-      final home = Platform.environment['USERPROFILE'] ?? 
-                   Platform.environment['HOME'] ?? 
-                   Directory.current.path;
+      final home = Platform.environment['USERPROFILE'] ??
+          Platform.environment['HOME'] ??
+          Directory.current.path;
       _downloadDir = p.join(home, 'Downloads');
 
       // 启动统计定时器
@@ -100,7 +100,8 @@ class NsfxKernel implements KernelInterface {
       _httpServer = NsfxHttpServer(this);
       final httpStarted = await _httpServer!.start();
       if (!httpStarted) {
-        _logger.warning('NSFX', 'HTTP server failed to start, browser extension may not work');
+        _logger.warning('NSFX',
+            'HTTP server failed to start, browser extension may not work');
       }
 
       _isRunning = true;
@@ -117,11 +118,11 @@ class NsfxKernel implements KernelInterface {
     _logger.info('NSFX', 'Stopping NSFX kernel...');
     _statsTimer?.cancel();
     _saveTimer?.cancel();
-    
+
     await _httpServer?.stop();
     await _storage.saveTasks(_tasks);
     _httpClient.close();
-    
+
     _isRunning = false;
     _logger.info('NSFX', 'NSFX kernel stopped');
   }
@@ -142,7 +143,8 @@ class NsfxKernel implements KernelInterface {
     final filepath = p.join(_downloadDir, resolvedFilename);
 
     if (resolvedFilename != filename) {
-      _logger.info('NSFX', 'Filename conflict resolved: $filename -> $resolvedFilename');
+      _logger.info(
+          'NSFX', 'Filename conflict resolved: $filename -> $resolvedFilename');
     }
     _logger.info('NSFX', 'Adding download: $resolvedFilename');
     _logger.debug('NSFX', 'URL: $url');
@@ -159,10 +161,10 @@ class NsfxKernel implements KernelInterface {
     );
 
     _tasks[id] = task;
-    
+
     // 立即保存任务列表
     await _storage.saveTasks(_tasks);
-    
+
     _checkQueue();
 
     _logger.info('NSFX', 'Download added with ID: $id');
@@ -170,9 +172,8 @@ class NsfxKernel implements KernelInterface {
   }
 
   void _checkQueue() {
-    final activeCount = _tasks.values
-        .where((t) => t.status == TaskStatus.downloading)
-        .length;
+    final activeCount =
+        _tasks.values.where((t) => t.status == TaskStatus.downloading).length;
 
     if (activeCount >= _config.maxConcurrentTasks) return;
 
@@ -210,7 +211,8 @@ class NsfxKernel implements KernelInterface {
       var candidate = '${baseName}_${stamp}${extension}';
       var candidatePath = p.join(_downloadDir, candidate);
       if (await _conflictExists(candidatePath, candidate)) {
-        candidate = '${baseName}_${stamp}_${DateTime.now().millisecondsSinceEpoch}${extension}';
+        candidate =
+            '${baseName}_${stamp}_${DateTime.now().millisecondsSinceEpoch}${extension}';
       }
       return candidate;
     }
@@ -259,10 +261,10 @@ class NsfxKernel implements KernelInterface {
     task.status = TaskStatus.paused;
     _engine.pauseDownload(taskId);
     _progressController.add(_toDownloadTask(task));
-    
+
     // 立即保存任务列表
     await _storage.saveTasks(_tasks);
-    
+
     _checkQueue();
     return true;
   }
@@ -288,7 +290,7 @@ class NsfxKernel implements KernelInterface {
     task.status = TaskStatus.cancelled;
     _engine.cancelDownload(taskId);
     _tasks.remove(taskId);
-    
+
     // 立即保存任务列表
     await _storage.saveTasks(_tasks);
 
@@ -296,7 +298,7 @@ class NsfxKernel implements KernelInterface {
     try {
       final file = File(task.filepath);
       if (await file.exists()) await file.delete();
-      
+
       final tempDir = Directory(p.join(
         File(task.filepath).parent.path,
         '.nsfx_temp',
@@ -395,8 +397,11 @@ class NsfxKernel implements KernelInterface {
       mode: _config.mode,
       maxConcurrentTasks: _config.maxConcurrentTasks,
       segmentSpeedLimit: _config.segmentSpeedLimit,
+      globalSpeedLimit: _config.globalSpeedLimit,
       enableDynamicSegments: _config.enableDynamicSegments,
       conflictStrategy: _config.conflictStrategy,
+      defaultUserAgent: _config.defaultUserAgent,
+      httpVersionPolicy: _config.httpVersionPolicy,
       proxy: ProxyConfig(
         enabled: _config.proxy.enabled,
         type: _config.proxy.type,
@@ -416,8 +421,14 @@ class NsfxKernel implements KernelInterface {
     _config.mode = config.mode;
     _config.maxConcurrentTasks = config.maxConcurrentTasks;
     _config.segmentSpeedLimit = config.segmentSpeedLimit;
+    _config.globalSpeedLimit = config.globalSpeedLimit;
     _config.enableDynamicSegments = config.enableDynamicSegments;
     _config.conflictStrategy = config.conflictStrategy;
+    _config.defaultUserAgent = config.defaultUserAgent.trim().isEmpty
+        ? NsfxConfig.defaultUserAgentFallback
+        : config.defaultUserAgent;
+    _config.httpVersionPolicy =
+        NsfxHttpVersionPolicy.normalize(config.httpVersionPolicy);
 
     if (config.proxy != null) {
       _config.proxy.enabled = config.proxy!.enabled;
@@ -430,7 +441,7 @@ class NsfxKernel implements KernelInterface {
     }
 
     await _storage.saveConfig(_config);
-    
+
     // 重建 HTTP 客户端以应用新配置
     _httpClient.close();
     _httpClient = NsfxHttpClient(_config);
@@ -466,7 +477,8 @@ class NsfxKernel implements KernelInterface {
 
     final currentFile = File(currentPath);
     if (!await currentFile.exists()) {
-      _logger.warning('NSFX', 'File not found for task ${task.id}: $currentPath');
+      _logger.warning(
+          'NSFX', 'File not found for task ${task.id}: $currentPath');
       return false;
     }
 
@@ -555,11 +567,13 @@ class NsfxKernel implements KernelInterface {
     final lastStatus = _lastEmittedStatus[task.id];
     final lastTotalSize = _lastEmittedTotalSize[task.id];
     final isStatusChanged = lastStatus != task.status;
-    final isTotalSizeChanged = lastTotalSize != task.totalSize && task.totalSize > 0;
+    final isTotalSizeChanged =
+        lastTotalSize != task.totalSize && task.totalSize > 0;
     final isCriticalChange = isStatusChanged || isTotalSizeChanged;
 
     // 关键变化必须立即发送，普通进度更新才节流
-    if (!isCriticalChange && now.difference(_lastProgressEmit) < _minProgressEmitInterval) {
+    if (!isCriticalChange &&
+        now.difference(_lastProgressEmit) < _minProgressEmitInterval) {
       return;
     }
 
@@ -578,7 +592,8 @@ class NsfxKernel implements KernelInterface {
   }
 
   void _onTaskError(Task task) {
-    _logger.error('NSFX', 'Download failed: ${task.filename} - ${task.errorMessage}');
+    _logger.error(
+        'NSFX', 'Download failed: ${task.filename} - ${task.errorMessage}');
     _progressController.add(_toDownloadTask(task));
     _checkQueue();
   }
@@ -627,28 +642,37 @@ class NsfxKernel implements KernelInterface {
       startTime: task.startTime,
       endTime: task.endTime,
       createdTime: task.createdTime, // 传递创建时间
-      segments: task.segments.map((s) => SegmentInfo(
-        index: s.index,
-        startByte: s.startByte,
-        endByte: s.endByte,
-        downloadedBytes: s.downloadedBytes,
-        speed: s.speed,
-        status: s.status.name,
-        retryCount: s.retryCount,
-        progress: s.progress,
-      )).toList(),
+      segments: task.segments
+          .map((s) => SegmentInfo(
+                index: s.index,
+                startByte: s.startByte,
+                endByte: s.endByte,
+                downloadedBytes: s.downloadedBytes,
+                speed: s.speed,
+                status: s.status.name,
+                retryCount: s.retryCount,
+                progress: s.progress,
+              ))
+          .toList(),
     );
   }
 
   DownloadStatus _convertStatus(TaskStatus status) {
     switch (status) {
-      case TaskStatus.pending: return DownloadStatus.pending;
-      case TaskStatus.downloading: return DownloadStatus.downloading;
-      case TaskStatus.paused: return DownloadStatus.paused;
-      case TaskStatus.completed: return DownloadStatus.completed;
-      case TaskStatus.failed: return DownloadStatus.failed;
-      case TaskStatus.cancelled: return DownloadStatus.cancelled;
-      case TaskStatus.merging: return DownloadStatus.merging;
+      case TaskStatus.pending:
+        return DownloadStatus.pending;
+      case TaskStatus.downloading:
+        return DownloadStatus.downloading;
+      case TaskStatus.paused:
+        return DownloadStatus.paused;
+      case TaskStatus.completed:
+        return DownloadStatus.completed;
+      case TaskStatus.failed:
+        return DownloadStatus.failed;
+      case TaskStatus.cancelled:
+        return DownloadStatus.cancelled;
+      case TaskStatus.merging:
+        return DownloadStatus.merging;
     }
   }
 

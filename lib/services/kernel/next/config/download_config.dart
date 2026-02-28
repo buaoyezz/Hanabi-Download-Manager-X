@@ -1,4 +1,36 @@
+class NsfxHttpVersionPolicy {
+  static const String auto = 'auto';
+  static const String http1Only = 'http1_only';
+  static const String http2Only = 'http2_only';
+  static const String http3Only = 'http3_only';
+
+  static bool isSupported(String? value) {
+    return value == auto ||
+        value == http1Only ||
+        value == http2Only ||
+        value == http3Only;
+  }
+
+  static String normalize(String? value) {
+    if (isSupported(value)) return value!;
+    return auto;
+  }
+
+  static bool isSupportedByDartIo(String? value) {
+    return normalize(value) != http3Only;
+  }
+
+  static String normalizeForDartIo(String? value) {
+    final normalized = normalize(value);
+    if (normalized == http3Only) return auto;
+    return normalized;
+  }
+}
+
 class NsfxConfig {
+  static const String defaultUserAgentFallback =
+      'NSFX/2.0 (Next Speed Force X)';
+
   int threads;
   int? segments;
   String mode;
@@ -14,6 +46,8 @@ class NsfxConfig {
   int readTimeout;
   int maxRetries;
   bool enableDynamicSegments;
+  String defaultUserAgent;
+  String httpVersionPolicy;
 
   NsfxConfig({
     this.threads = 8,
@@ -29,39 +63,66 @@ class NsfxConfig {
     this.readTimeout = 120,
     this.maxRetries = 500, // 大量重试次数，应对极端网络（配合外层无限循环）
     this.enableDynamicSegments = true,
+    this.defaultUserAgent = defaultUserAgentFallback,
+    this.httpVersionPolicy = NsfxHttpVersionPolicy.auto,
   }) : proxy = proxy ?? NsfxProxyConfig();
 
   Map<String, dynamic> toJson() => {
-    'threads': threads,
-    'segments': segments,
-    'mode': mode,
-    'max_concurrent_tasks': maxConcurrentTasks,
-    'segment_speed_limit': segmentSpeedLimit,
-    'global_speed_limit': globalSpeedLimit,
-    'conflict_strategy': conflictStrategy,
-    'proxy': proxy.toJson(),
-    'chunk_size': chunkSize,
-    'connection_timeout': connectionTimeout,
-    'read_timeout': readTimeout,
-    'max_retries': maxRetries,
-    'enable_dynamic_segments': enableDynamicSegments,
-  };
+        'threads': threads,
+        'segments': segments,
+        'mode': mode,
+        'max_concurrent_tasks': maxConcurrentTasks,
+        'segment_speed_limit': segmentSpeedLimit,
+        'global_speed_limit': globalSpeedLimit,
+        'conflict_strategy': conflictStrategy,
+        'proxy': proxy.toJson(),
+        'chunk_size': chunkSize,
+        'connection_timeout': connectionTimeout,
+        'read_timeout': readTimeout,
+        'max_retries': maxRetries,
+        'enable_dynamic_segments': enableDynamicSegments,
+        'default_user_agent': defaultUserAgent,
+        'http_version_policy':
+            NsfxHttpVersionPolicy.normalize(httpVersionPolicy),
+      };
 
   factory NsfxConfig.fromJson(Map<String, dynamic> json) => NsfxConfig(
-    threads: json['threads'] ?? 8,
-    segments: json['segments'],
-    mode: json['mode'] ?? 'auto',
-    maxConcurrentTasks: json['max_concurrent_tasks'] ?? json['maxConcurrentTasks'] ?? 3,
-    segmentSpeedLimit: json['segment_speed_limit'] ?? json['segmentSpeedLimit'] ?? 0,
-    globalSpeedLimit: json['global_speed_limit'] ?? json['globalSpeedLimit'] ?? 0,
-    conflictStrategy: json['conflict_strategy'] ?? json['conflictStrategy'] ?? 'increment',
-    proxy: json['proxy'] != null ? NsfxProxyConfig.fromJson(json['proxy']) : null,
-    chunkSize: json['chunk_size'] ?? json['chunkSize'] ?? 1024 * 1024,
-    connectionTimeout: json['connection_timeout'] ?? json['connectionTimeout'] ?? 30,
-    readTimeout: json['read_timeout'] ?? json['readTimeout'] ?? 120,
-    maxRetries: json['max_retries'] ?? json['maxRetries'] ?? 500, // 大量重试
-    enableDynamicSegments: json['enable_dynamic_segments'] ?? json['enableDynamicSegments'] ?? true,
-  );
+        threads: json['threads'] ?? 8,
+        segments: json['segments'],
+        mode: json['mode'] ?? 'auto',
+        maxConcurrentTasks:
+            json['max_concurrent_tasks'] ?? json['maxConcurrentTasks'] ?? 3,
+        segmentSpeedLimit:
+            json['segment_speed_limit'] ?? json['segmentSpeedLimit'] ?? 0,
+        globalSpeedLimit:
+            json['global_speed_limit'] ?? json['globalSpeedLimit'] ?? 0,
+        conflictStrategy: json['conflict_strategy'] ??
+            json['conflictStrategy'] ??
+            'increment',
+        proxy: json['proxy'] != null
+            ? NsfxProxyConfig.fromJson(json['proxy'])
+            : null,
+        chunkSize: json['chunk_size'] ?? json['chunkSize'] ?? 1024 * 1024,
+        connectionTimeout:
+            json['connection_timeout'] ?? json['connectionTimeout'] ?? 30,
+        readTimeout: json['read_timeout'] ?? json['readTimeout'] ?? 120,
+        maxRetries: json['max_retries'] ?? json['maxRetries'] ?? 500, // 大量重试
+        enableDynamicSegments: json['enable_dynamic_segments'] ??
+            json['enableDynamicSegments'] ??
+            true,
+        defaultUserAgent: (() {
+          final value = (json['default_user_agent'] ??
+                  json['defaultUserAgent'] ??
+                  defaultUserAgentFallback)
+              .toString()
+              .trim();
+          return value.isEmpty ? defaultUserAgentFallback : value;
+        })(),
+        httpVersionPolicy: NsfxHttpVersionPolicy.normalize(
+          (json['http_version_policy'] ?? json['httpVersionPolicy'])
+              ?.toString(),
+        ),
+      );
 }
 
 class NsfxProxyConfig {
@@ -84,24 +145,25 @@ class NsfxProxyConfig {
   });
 
   Map<String, dynamic> toJson() => {
-    'enabled': enabled,
-    'type': type,
-    'host': host,
-    'port': port,
-    'username': username,
-    'password': password,
-    'requires_auth': requiresAuth,
-  };
+        'enabled': enabled,
+        'type': type,
+        'host': host,
+        'port': port,
+        'username': username,
+        'password': password,
+        'requires_auth': requiresAuth,
+      };
 
-  factory NsfxProxyConfig.fromJson(Map<String, dynamic> json) => NsfxProxyConfig(
-    enabled: json['enabled'] ?? false,
-    type: json['type'] ?? 'system',
-    host: json['host'] ?? '',
-    port: json['port'] ?? 7897,
-    username: json['username'],
-    password: json['password'],
-    requiresAuth: json['requires_auth'] ?? json['requiresAuth'] ?? false,
-  );
+  factory NsfxProxyConfig.fromJson(Map<String, dynamic> json) =>
+      NsfxProxyConfig(
+        enabled: json['enabled'] ?? false,
+        type: json['type'] ?? 'system',
+        host: json['host'] ?? '',
+        port: json['port'] ?? 7897,
+        username: json['username'],
+        password: json['password'],
+        requiresAuth: json['requires_auth'] ?? json['requiresAuth'] ?? false,
+      );
 
   String? toProxyUrl() {
     if (!enabled || type == 'system') return null;
@@ -126,7 +188,8 @@ class DynamicSegmentConfig {
   /// - 稳定优先：分段数保守，避免过多连接导致服务器拒绝
   /// - 线程 ≠ 分段：segments 是文件切割数，threads 是并发连接数
   /// - threads 由 config.threads 控制上限，不超过 segments
-  static (int threads, int segments) calculate(int fileSize, NsfxConfig config) {
+  static (int threads, int segments) calculate(
+      int fileSize, NsfxConfig config) {
     const mb = 1024 * 1024;
     final maxThreads = config.threads.clamp(1, 64);
 

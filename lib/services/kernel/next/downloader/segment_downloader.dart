@@ -15,11 +15,11 @@ class SegmentDownloader {
 
   bool _cancelled = false;
   bool _paused = false;
-  
+
   // 节流控制，避免 Windows 消息队列溢出
   DateTime _lastProgressCall = DateTime.fromMillisecondsSinceEpoch(0);
   static const _minCallInterval = Duration(milliseconds: 500);
-  
+
   // 计数器，用于定期让出控制权
   int _chunkCounter = 0;
   static const _yieldInterval = 50; // 每处理 50 个 chunk 让出一次
@@ -112,14 +112,13 @@ class SegmentDownloader {
             final remaining = segment.size - segment.downloadedBytes;
             if (remaining <= 0) break;
 
-            final toWrite = chunk.length > remaining 
-                ? chunk.sublist(0, remaining) 
-                : chunk;
-            
+            final toWrite =
+                chunk.length > remaining ? chunk.sublist(0, remaining) : chunk;
+
             sink.add(toWrite);
             segment.downloadedBytes += toWrite.length;
             bytesThisInterval += toWrite.length;
-            
+
             // 定期让出控制权给主线程，防止 Windows 消息队列阻塞
             _chunkCounter++;
             if (_chunkCounter >= _yieldInterval) {
@@ -131,7 +130,9 @@ class SegmentDownloader {
             // 限速
             if (config.segmentSpeedLimit > 0) {
               final expectedDuration = Duration(
-                microseconds: (toWrite.length / config.segmentSpeedLimit * 1000000).round(),
+                microseconds:
+                    (toWrite.length / config.segmentSpeedLimit * 1000000)
+                        .round(),
               );
               final actualDuration = stopwatch.elapsed;
               if (expectedDuration > actualDuration) {
@@ -147,7 +148,7 @@ class SegmentDownloader {
               segment.speed = bytesThisInterval / elapsed;
               bytesThisInterval = 0;
               lastUpdate = now;
-              
+
               // 节流：避免多个 segment 同时触发大量回调
               if (now.difference(_lastProgressCall) >= _minCallInterval) {
                 _lastProgressCall = now;
@@ -174,12 +175,10 @@ class SegmentDownloader {
           segment.speed = 0;
           onProgress(segment);
           return true;
-
         } catch (e) {
           await sink.close();
           rethrow;
         }
-
       } catch (e) {
         retryCount++;
         segment.retryCount = retryCount;
@@ -200,8 +199,11 @@ class SegmentDownloader {
   }
 
   Map<String, String> _buildHeaders() {
+    final userAgent = task.userAgent?.trim();
     final headers = <String, String>{
-      'User-Agent': task.userAgent ?? 'NSFX/2.0 (Next Speed Force X)',
+      'User-Agent': userAgent != null && userAgent.isNotEmpty
+          ? userAgent
+          : config.defaultUserAgent,
       'Accept': '*/*',
       'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
       'Connection': 'keep-alive',
