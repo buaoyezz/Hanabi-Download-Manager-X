@@ -540,7 +540,7 @@ class NsfxKernel implements KernelInterface {
       );
 
       final testClient = NsfxHttpClient(testConfig);
-      final info = await testClient.getFileInfo(
+      await testClient.getFileInfo(
         'https://www.google.com',
         {'User-Agent': 'NSFX/2.0'},
       );

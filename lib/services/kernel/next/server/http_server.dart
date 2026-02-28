@@ -216,13 +216,11 @@ class NsfxHttpServer {
     int completedCount = 0;
     int failedCount = 0;
 
-    if (tasks != null) {
-      for (final task in tasks) {
-        if (task.status == 'completed') {
-          completedCount++;
-        } else if (task.status == 'failed' || task.status == 'error') {
-          failedCount++;
-        }
+    for (final task in tasks) {
+      if (task.status == DownloadStatus.completed) {
+        completedCount++;
+      } else if (task.status == DownloadStatus.failed) {
+        failedCount++;
       }
     }
 
@@ -616,7 +614,7 @@ class NsfxHttpServer {
       'startTime': task.startTime?.toIso8601String(),
       'endTime': task.endTime?.toIso8601String(),
       'segments': task.segments
-          ?.map((s) => {
+          .map((s) => {
                 'index': s.index,
                 'startByte': s.startByte,
                 'endByte': s.endByte,
