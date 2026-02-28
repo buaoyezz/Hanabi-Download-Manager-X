@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
-import '../main.dart' show isWindowMaximized, maximizeWindowProperly, restoreWindowProperly;
+import '../main.dart'
+    show isWindowMaximized, maximizeWindowProperly, restoreWindowProperly;
 import '../utils/fluent_icons.dart' as CustomIcons;
 import '../services/integrated_download_service.dart';
 import '../services/developer_mode_service.dart';
@@ -29,6 +30,7 @@ import 'widgets/debug/status_page.dart';
 import 'widgets/debug/web_check_page.dart';
 import 'widgets/debug/connection_debug_page.dart';
 import 'widgets/performance_monitor_page.dart';
+import 'widgets/update_dialog.dart';
 
 class NavigationItem {
   final String id;
@@ -51,7 +53,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
+class _HomeScreenState extends State<HomeScreen>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   static const String _pageDownloading = 'downloading';
   static const String _pageCompleted = 'completed';
   static const String _pageLog = 'log';
@@ -90,21 +93,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
 
   // 当前选中的页面标识符
   String _currentPageId = _pageDownloading;
-  
+
   // 窗口大小监听
   Timer? _windowSizeCheckTimer;
   double _lastSavedWidth = 0;
   double _lastSavedHeight = 0;
-  
+  bool _forcedUpdateDialogShown = false;
+
   List<NavigationItem> _getNavItems(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     // 使用 select 只监听影响导航列表的字段
-    final showLogPage = context.select<DeveloperModeService, bool>((s) => s.showLogPage);
-    final showStatusPage = context.select<DeveloperModeService, bool>((s) => s.showStatusPage);
-    final showWebCheckPage = context.select<DeveloperModeService, bool>((s) => s.showWebCheckPage);
-    final showPerformanceMonitorPage = context.select<DeveloperModeService, bool>((s) => s.showPerformanceMonitorPage);
-    final showConnectionDebugPage = context.select<DeveloperModeService, bool>((s) => s.showConnectionDebugPage);
-    
+    final showLogPage =
+        context.select<DeveloperModeService, bool>((s) => s.showLogPage);
+    final showStatusPage =
+        context.select<DeveloperModeService, bool>((s) => s.showStatusPage);
+    final showWebCheckPage =
+        context.select<DeveloperModeService, bool>((s) => s.showWebCheckPage);
+    final showPerformanceMonitorPage =
+        context.select<DeveloperModeService, bool>(
+            (s) => s.showPerformanceMonitorPage);
+    final showConnectionDebugPage = context
+        .select<DeveloperModeService, bool>((s) => s.showConnectionDebugPage);
+
     final items = <NavigationItem>[
       NavigationItem(
         id: _pageDownloading,
@@ -119,9 +129,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         body: const CompletedList(),
       ),
     ];
-    
+
     final bottomItems = <NavigationItem>[];
-    
+
     if (showLogPage) {
       bottomItems.add(NavigationItem(
         id: _pageLog,
@@ -130,17 +140,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         body: const LogPage(key: ValueKey('log_page')),
       ));
     }
-    
+
     if (showStatusPage) {
       bottomItems.add(NavigationItem(
         id: _pageStatus,
         icon: CustomIcons.FluentIcons.health,
         title: t.homeNavStatus,
         body: const StatusPage(key: ValueKey('status_page')),
-        
       ));
     }
-    
+
     if (showWebCheckPage) {
       bottomItems.add(NavigationItem(
         id: _pageWebCheck,
@@ -156,7 +165,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         id: _pagePerformance,
         icon: CustomIcons.FluentIcons.speed_high,
         title: t.homeNavPerformance,
-        body: const PerformanceMonitorPage(key: ValueKey('performance_monitor_page')),
+        body: const PerformanceMonitorPage(
+            key: ValueKey('performance_monitor_page')),
       ));
     }
 
@@ -169,7 +179,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         body: const ConnectionDebugPage(key: ValueKey('connection_debug_page')),
       ));
     }
-    
+
     bottomItems.addAll([
       NavigationItem(
         id: _pageSettings,
@@ -184,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         body: const AboutPage(key: ValueKey('about_page')),
       ),
     ]);
-    
+
     return [...items, ...bottomItems];
   }
 
@@ -192,19 +202,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   void initState() {
     super.initState();
     AppLoggerService().info('App', 'HomeScreen initialized');
-    
+
     // 初始化窗口最大化状态（一次性 FFI 调用）
     _isMaximized = isWindowMaximized();
-    
+
     // 监听窗口尺寸变化（OS 级最大化/还原）
     WidgetsBinding.instance.addObserver(this);
-    
+
     // 侧边栏动画控制器 - 快速响应的展开/收缩
     _sidebarController = AnimationController(
       duration: const Duration(milliseconds: 250),
       vsync: this,
     );
-    
+
     // 宽度动画 - 使用 easeInOutCubic 曲线实现丝滑的双向过渡
     _widthAnimation = Tween<double>(begin: 200, end: 52).animate(
       CurvedAnimation(
@@ -213,7 +223,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         reverseCurve: Curves.easeInOutCubic,
       ),
     );
-    
+
     // 从配置中读取默认侧边栏状态
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadSidebarState();
@@ -221,22 +231,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
       _checkForUpdates();
     });
   }
-  
+
   /// 检查更新并显示通知
   Future<void> _checkForUpdates() async {
     try {
       final updateService = Provider.of<UpdateService>(context, listen: false);
-      
+
       // 检查是否应该自动检查更新
       final shouldCheck = await updateService.shouldAutoCheck();
       if (!shouldCheck) {
         AppLoggerService().info('Update', '跳过自动更新检查');
         return;
       }
-      
+
       // 执行更新检查
       final hasUpdate = await updateService.checkForUpdates();
-      
+
       // 如果有更新，显示通知
       if (hasUpdate && mounted) {
         final availableUpdate = updateService.availableUpdate;
@@ -244,37 +254,71 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
           final t = AppLocalizations.of(context)!;
           final currentVersion = updateService.currentVersion;
           final newVersion = availableUpdate.version;
-          
-          NotificationManager.of(context)?.showInfo(
-            t.homeUpdateFoundTitle,
-            message: t.homeUpdateFoundMessage(currentVersion, newVersion),
+          final isZh = Localizations.localeOf(context).languageCode == 'zh';
+
+          if (updateService.isForcedUpdate) {
+            NotificationManager.of(context)?.showError(
+              t.homeUpdateFoundTitle,
+              message:
+                  '${t.homeUpdateFoundMessage(currentVersion, newVersion)}${isZh ? '（强制更新）' : ' (Forced update)'}',
+            );
+
+            if (!_forcedUpdateDialogShown) {
+              _forcedUpdateDialogShown = true;
+              await showDialog<void>(
+                context: context,
+                barrierDismissible: false,
+                builder: (dialogContext) => PopScope(
+                  canPop: false,
+                  child: UpdateDialog(
+                    updateInfo: availableUpdate,
+                    currentVersion: currentVersion,
+                  ),
+                ),
+              );
+            }
+          } else if (updateService.isRecommendedUpdate) {
+            NotificationManager.of(context)?.showInfo(
+              t.homeUpdateFoundTitle,
+              message:
+                  '${t.homeUpdateFoundMessage(currentVersion, newVersion)}${isZh ? '（推荐更新）' : ' (Recommended)'}',
+            );
+          } else {
+            NotificationManager.of(context)?.showInfo(
+              t.homeUpdateFoundTitle,
+              message: t.homeUpdateFoundMessage(currentVersion, newVersion),
+            );
+          }
+
+          AppLoggerService().info(
+            'Update',
+            '发现新版本: $newVersion，紧急程度=${availableUpdate.urgency.name}',
           );
-          
-          AppLoggerService().info('Update', '发现新版本: $newVersion，已显示通知');
         }
       }
     } catch (e) {
       AppLoggerService().error('Update', '检查更新失败: $e');
     }
   }
-  
+
   void _loadSidebarState() {
     try {
       final config = Provider.of<ClientConfigService>(context, listen: false);
       final defaultExpanded = config.getSidebarDefaultExpanded();
-      
+
       setState(() {
         _isSidebarExpanded = defaultExpanded;
       });
-      
+
       // 设置动画状态
       if (defaultExpanded) {
         _sidebarController.value = 0; // 展开状态
       } else {
         _sidebarController.value = 1; // 收缩状态
       }
-      
-      AppLoggerService().info('App', 'Sidebar default state loaded: ${defaultExpanded ? "expanded" : "collapsed"}');
+
+      AppLoggerService().info('App',
+          'Sidebar default state loaded: ${defaultExpanded ? "expanded" : "collapsed"}');
     } catch (e) {
       AppLoggerService().error('App', 'Failed to load sidebar state: $e');
       // 如果加载失败，使用默认展开状态
@@ -282,7 +326,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
       _sidebarController.value = 0;
     }
   }
-  
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -299,67 +343,70 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
       setState(() => _isMaximized = nowMaximized);
     }
   }
-  
+
   /// 启动窗口大小监听
   void _startWindowSizeMonitoring() {
     // 初始化上次保存的大小
     _lastSavedWidth = appWindow.size.width;
     _lastSavedHeight = appWindow.size.height;
-    
+
     // 优化：从 3 秒提升到 10 秒，窗口大小变化极少发生，不需要频繁检查
     _windowSizeCheckTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (!mounted) return;
-      
+
       final currentWidth = appWindow.size.width;
       final currentHeight = appWindow.size.height;
-      
+
       // 快速判断：大小没变就跳过，避免不必要的 Provider 查询
-      if ((currentWidth - _lastSavedWidth).abs() <= 1 && 
+      if ((currentWidth - _lastSavedWidth).abs() <= 1 &&
           (currentHeight - _lastSavedHeight).abs() <= 1) {
         return;
       }
-      
+
       _checkAndSaveWindowSize();
     });
   }
-  
+
   /// 检查并保存窗口大小
   Future<void> _checkAndSaveWindowSize() async {
     if (!mounted) return;
-    
+
     try {
       final config = Provider.of<ClientConfigService>(context, listen: false);
       final rememberSize = config.getWindowRememberSize();
-      
+
       // 只有在启用记忆大小时才保存
       if (!rememberSize) return;
-      
+
       final currentWidth = appWindow.size.width;
       final currentHeight = appWindow.size.height;
 
       if (_isMaximized) return; // 最大化时不保存窗口大小
-      
+
       // 验证窗口大小是否合理（防止保存异常值）
       // 最小尺寸 600x400，最大尺寸 4096x2160
       // 窗口最小化时，size 可能会变成很小的值（如 160x28），需要过滤掉
-      if (currentWidth < 600 || currentHeight < 400 || 
-          currentWidth > 4096 || currentHeight > 2160) {
-        AppLoggerService().warning('App', 'Invalid window size detected: ${currentWidth.toInt()}x${currentHeight.toInt()}, skipping save');
+      if (currentWidth < 600 ||
+          currentHeight < 400 ||
+          currentWidth > 4096 ||
+          currentHeight > 2160) {
+        AppLoggerService().warning('App',
+            'Invalid window size detected: ${currentWidth.toInt()}x${currentHeight.toInt()}, skipping save');
         return;
       }
-      
+
       // 检查大小是否有变化（允许1像素的误差）
-      if ((currentWidth - _lastSavedWidth).abs() > 1 || 
+      if ((currentWidth - _lastSavedWidth).abs() > 1 ||
           (currentHeight - _lastSavedHeight).abs() > 1) {
-        
         // 保存新的窗口大小
         await config.setWindowWidth(currentWidth);
         await config.setWindowHeight(currentHeight);
-        
+
         _lastSavedWidth = currentWidth;
         _lastSavedHeight = currentHeight;
-        
-        AppLoggerService().debug('App', 'Window size saved: ${currentWidth.toInt()}x${currentHeight.toInt()}');
+
+        AppLoggerService().debug('App',
+            'Window size saved: ${currentWidth.toInt()}x${currentHeight.toInt()}');
       }
     } catch (e) {
       AppLoggerService().error('App', 'Failed to save window size: $e');
@@ -391,25 +438,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
     final navItems = _getNavItems(context);
     // 优化：合并多个 select 为一个 tuple，减少独立订阅数量
     // 每个 select 都是一个独立的监听器，多个 select 可能导致同一帧内多次重建
-    final kernelIsRunning = context.select<KernelService, bool>((s) => s.isRunning);
-    final kernelManagerIsRunning = context.select<KernelManager, bool>((s) => s.isRunning);
-    
+    final kernelIsRunning =
+        context.select<KernelService, bool>((s) => s.isRunning);
+    final kernelManagerIsRunning =
+        context.select<KernelManager, bool>((s) => s.isRunning);
+
     // 合并 WindowEffectService 的多个 select 为单次读取
     final windowEffect = context.watch<WindowEffectService>();
-    final isTransparent = windowEffect.isTransparentBackground || windowEffect.effectMode.startsWith('mica');
-    
+    final isTransparent = windowEffect.isTransparentBackground ||
+        windowEffect.effectMode.startsWith('mica');
+
     // 根据窗口效果调整背景透明度
     final sidebarOpacity = isTransparent ? 0.2 : 0.65;
-    
+
     // 计算统一的 shell 背景色（标题栏+侧边栏共用）
     final isMica = windowEffect.isMicaEffect;
     final effectEnabled = windowEffect.effectEnabled;
     final shellBgAlpha = isMica ? 0.4 : (effectEnabled ? sidebarOpacity : 1.0);
-    
+
     // 核心修复逻辑：确保 _currentIndex 与 _currentPageId 同步
     // 这解决了列表项动态增减（如在线统计出现/消失）导致的索引错位
-    final correctIndex = navItems.indexWhere((item) => item.id == _currentPageId);
-    
+    final correctIndex =
+        navItems.indexWhere((item) => item.id == _currentPageId);
+
     if (correctIndex != -1) {
       // 找到了当前标题对应的页面，更新索引
       _currentIndex = correctIndex;
@@ -424,7 +475,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         _currentPageId = navItems[_currentIndex].id;
       }
     }
-    
+
     Widget shellContent = Container(
       // 统一的 shell 背景色（标题栏 + 侧边栏一体）
       color: AppTheme.bgSolid.withValues(alpha: shellBgAlpha),
@@ -440,7 +491,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
                 _buildEdgeSidebar(context, navItems, sidebarOpacity),
                 // 右侧：内容区（左上角圆角，覆盖在 shell 背景上）
                 Expanded(
-                  child: _buildContentArea(context, isTransparent, kernelIsRunning, kernelManagerIsRunning, navItems),
+                  child: _buildContentArea(context, isTransparent,
+                      kernelIsRunning, kernelManagerIsRunning, navItems),
                 ),
               ],
             ),
@@ -470,7 +522,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   /// 内容区域 - 根据窗口效果设置决定是否使用模糊
-  Widget _buildContentArea(BuildContext context, bool isTransparent, bool kernelIsRunning, bool kernelManagerIsRunning, List<NavigationItem> navItems) {
+  Widget _buildContentArea(
+      BuildContext context,
+      bool isTransparent,
+      bool kernelIsRunning,
+      bool kernelManagerIsRunning,
+      List<NavigationItem> navItems) {
     // 优化：使用 read 而非 select，因为 build() 中已经 select 了这些值
     // 这里只需要读取当前值，不需要再次订阅监听
     final effectService = context.read<WindowEffectService>();
@@ -489,7 +546,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         ),
       ),
       clipBehavior: Clip.hardEdge,
-      child: _buildPageContent(kernelIsRunning, kernelManagerIsRunning, navItems),
+      child:
+          _buildPageContent(kernelIsRunning, kernelManagerIsRunning, navItems),
     );
 
     // 优化：移除内容区独立的 BackdropFilter，由外层 shell 统一处理模糊
@@ -536,7 +594,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
                       ),
                     ),
                   ),
-                  child: Icon(CustomIcons.FluentIcons.global_nav_button,
+                  child: Icon(
+                    CustomIcons.FluentIcons.global_nav_button,
                     size: menuIconSize,
                     color: AppTheme.textSecondary,
                   ),
@@ -561,7 +620,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
                             borderRadius: BorderRadius.circular(4),
                             boxShadow: [
                               BoxShadow(
-                                color: AppTheme.accentPrimary.withValues(alpha: 0.2),
+                                color: AppTheme.accentPrimary
+                                    .withValues(alpha: 0.2),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
                               ),
@@ -582,11 +642,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
                       Expanded(
                         child: Text(
                           AppLocalizations.of(context)!.appTitle,
-                          style: FluentTheme.of(context).typography.caption?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            letterSpacing: 0.3,
-                          ),
+                          style: FluentTheme.of(context)
+                              .typography
+                              .caption
+                              ?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                                letterSpacing: 0.3,
+                              ),
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,
                         ),
@@ -609,7 +672,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   /// 标题栏右侧操作按钮
-  Widget _buildTitleBarActions(BuildContext context, {bool compactButtons = false}) {
+  Widget _buildTitleBarActions(BuildContext context,
+      {bool compactButtons = false}) {
     // 基于窗口宽度做响应式，不依赖父级约束
     final windowWidth = MediaQuery.of(context).size.width;
     final isNarrow = windowWidth < 800;
@@ -643,14 +707,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
     );
   }
 
-  Widget _buildPageContent(bool kernelIsRunning, bool kernelManagerIsRunning, List<NavigationItem> navItems) {
+  Widget _buildPageContent(bool kernelIsRunning, bool kernelManagerIsRunning,
+      List<NavigationItem> navItems) {
     // 检查新内核或旧内核是否在运行
     final isKernelRunning = kernelManagerIsRunning || kernelIsRunning;
 
     // 如果内核正在运行，或者当前页面是调试页面（日志、状态、Web检测、在线统计、性能监控），直接显示页面
     final currentPageId = navItems[_currentIndex].id;
     final isDebugPage = _debugPageIds.contains(currentPageId);
-    
+
     if (isKernelRunning || isDebugPage) {
       // 使用 AnimatedSwitcher 实现页面切换的淡入淡出效果
       return RepaintBoundary(
@@ -674,7 +739,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         ),
       );
     }
-    
+
     // 否则显示加载动画
     return _buildLoadingIndicator();
   }
@@ -683,11 +748,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
     return Consumer2<KernelService, KernelManager>(
       builder: (context, kernelService, kernelManager, child) {
         // 优先使用新内核的状态
-        final useNewKernel = context.read<ClientConfigService>().getBool('kernel.use_new_kernel', defaultValue: true);
-        
+        final useNewKernel = context
+            .read<ClientConfigService>()
+            .getBool('kernel.use_new_kernel', defaultValue: true);
+
         double progress;
         String status;
-        
+
         if (useNewKernel) {
           progress = kernelManager.startupProgress;
           status = kernelManager.startupStatus;
@@ -695,9 +762,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
           progress = kernelService.startupProgress;
           status = kernelService.startupStatus;
         }
-        
+
         final percentage = (progress * 100).toInt();
-        
+
         return Center(
           child: Container(
             constraints: const BoxConstraints(maxWidth: 450),
@@ -715,131 +782,143 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
                 children: [
                   const ProgressRing(),
                   const SizedBox(height: 20),
-                Text(
-                  AppLocalizations.of(context)!.homeKernelStartingTitle,
-                  style: const TextStyle(
-                    color: AppTheme.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                if (status.isNotEmpty)
                   Text(
-                    status,
+                    AppLocalizations.of(context)!.homeKernelStartingTitle,
                     style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 13,
-                    ),
-                  )
-                else
-                  Text(
-                    AppLocalizations.of(context)!.homeKernelStartingHint,
-                    style: const TextStyle(
-                      color: AppTheme.textTertiary,
-                      fontSize: 12,
+                      color: AppTheme.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                const SizedBox(height: 20),
-                // 进度条
-                Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: AppTheme.bgLayer2,
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                            child: FractionallySizedBox(
-                              alignment: Alignment.centerLeft,
-                              widthFactor: progress.clamp(0.0, 1.0),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: AppTheme.accentPrimary,
-                                  borderRadius: BorderRadius.circular(3),
+                  const SizedBox(height: 8),
+                  if (status.isNotEmpty)
+                    Text(
+                      status,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 13,
+                      ),
+                    )
+                  else
+                    Text(
+                      AppLocalizations.of(context)!.homeKernelStartingHint,
+                      style: const TextStyle(
+                        color: AppTheme.textTertiary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  const SizedBox(height: 20),
+                  // 进度条
+                  Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: AppTheme.bgLayer2,
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                              child: FractionallySizedBox(
+                                alignment: Alignment.centerLeft,
+                                widthFactor: progress.clamp(0.0, 1.0),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.accentPrimary,
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        SizedBox(
-                          width: 45,
-                          child: Text(
-                            '$percentage%',
-                            style: const TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                          const SizedBox(width: 12),
+                          SizedBox(
+                            width: 45,
+                            child: Text(
+                              '$percentage%',
+                              style: const TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              textAlign: TextAlign.right,
                             ),
-                            textAlign: TextAlign.right,
                           ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Button(
+                        onPressed: () async {
+                          // 打开日志页面
+                          final devMode = Provider.of<DeveloperModeService>(
+                              context,
+                              listen: false);
+                          if (!devMode.showLogPage) {
+                            await devMode.setShowLogPage(true);
+                          }
+                          // 等待一帧，让 UI 更新
+                          await Future.delayed(
+                              const Duration(milliseconds: 100));
+                          // 切换到日志页面（日志页面通常在索引 2）
+                          if (mounted) {
+                            setState(() {
+                              _currentIndex = 2; // 下载中(0), 已完成(1), 日志(2)
+                              _currentPageId = _pageLog;
+                            });
+                          }
+                        },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(CustomIcons.FluentIcons.text_document,
+                                size: 14),
+                            SizedBox(width: 6),
+                            Text(AppLocalizations.of(context)!.homeViewLog),
+                          ],
                         ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Button(
-                      onPressed: () async {
-                        // 打开日志页面
-                        final devMode = Provider.of<DeveloperModeService>(context, listen: false);
-                        if (!devMode.showLogPage) {
-                          await devMode.setShowLogPage(true);
-                        }
-                        // 等待一帧，让 UI 更新
-                        await Future.delayed(const Duration(milliseconds: 100));
-                        // 切换到日志页面（日志页面通常在索引 2）
-                        if (mounted) {
-                          setState(() {
-                            _currentIndex = 2;  // 下载中(0), 已完成(1), 日志(2)
-                            _currentPageId = _pageLog;
-                          });
-                        }
-                      },
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(CustomIcons.FluentIcons.text_document, size: 14),
-                          SizedBox(width: 6),
-                          Text(AppLocalizations.of(context)!.homeViewLog),
-                        ],
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    FilledButton(
-                      onPressed: () async {
-                        // 重试启动
-                        final config = Provider.of<ClientConfigService>(context, listen: false);
-                        final useNewKernel = config.getBool('kernel.use_new_kernel', defaultValue: true);
-                        
-                        if (useNewKernel) {
-                          final kernelManager = Provider.of<KernelManager>(context, listen: false);
-                          await kernelManager.start(type: KernelType.next);
-                        } else {
-                          final kernelService = Provider.of<KernelService>(context, listen: false);
-                          await kernelService.startKernel();
-                        }
-                      },
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(CustomIcons.FluentIcons.refresh, size: 14),
-                          SizedBox(width: 6),
-                          Text(AppLocalizations.of(context)!.homeRetry),
-                        ],
+                      const SizedBox(width: 12),
+                      FilledButton(
+                        onPressed: () async {
+                          // 重试启动
+                          final config = Provider.of<ClientConfigService>(
+                              context,
+                              listen: false);
+                          final useNewKernel = config.getBool(
+                              'kernel.use_new_kernel',
+                              defaultValue: true);
+
+                          if (useNewKernel) {
+                            final kernelManager = Provider.of<KernelManager>(
+                                context,
+                                listen: false);
+                            await kernelManager.start(type: KernelType.next);
+                          } else {
+                            final kernelService = Provider.of<KernelService>(
+                                context,
+                                listen: false);
+                            await kernelService.startKernel();
+                          }
+                        },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(CustomIcons.FluentIcons.refresh, size: 14),
+                            SizedBox(width: 6),
+                            Text(AppLocalizations.of(context)!.homeRetry),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -848,7 +927,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   /// Edge 风格侧边栏 - 只包含导航项（优化版，减少重建）
-  Widget _buildEdgeSidebar(BuildContext context, List<NavigationItem> navItems, double opacity) {
+  Widget _buildEdgeSidebar(
+      BuildContext context, List<NavigationItem> navItems, double opacity) {
     return RepaintBoundary(
       child: AnimatedBuilder(
         animation: _widthAnimation,
@@ -863,15 +943,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
                 const SizedBox(height: 8),
 
                 // 主导航项
-                ...navItems.asMap().entries
+                ...navItems
+                    .asMap()
+                    .entries
                     .where((entry) => !_bottomPageIds.contains(entry.value.id))
-                    .map((entry) => _buildNavItemWidget(context, entry.key, entry.value, isCompact)),
+                    .map((entry) => _buildNavItemWidget(
+                        context, entry.key, entry.value, isCompact)),
 
                 const Spacer(),
 
                 // 分隔线
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: isCompact ? 8 : 16, vertical: 8),
+                  padding: EdgeInsets.symmetric(
+                      horizontal: isCompact ? 8 : 16, vertical: 8),
                   child: Container(
                     height: 1,
                     color: AppTheme.borderSubtle.withValues(alpha: 0.3),
@@ -922,11 +1006,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   }
 
   /// 构建底部导航项
-  List<Widget> _buildBottomNavItems(BuildContext context, List<NavigationItem> navItems, bool isCompact) {
-    final bottomItems = navItems.asMap().entries
+  List<Widget> _buildBottomNavItems(
+      BuildContext context, List<NavigationItem> navItems, bool isCompact) {
+    final bottomItems = navItems
+        .asMap()
+        .entries
         .where((entry) => _bottomPageIds.contains(entry.value.id))
         .toList();
-    
+
     return bottomItems.map((entry) {
       final item = entry.value;
       final index = entry.key;
@@ -963,9 +1050,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   /// 托盘按钮（带动画效果）
   Widget _buildAnimatedTrayButton(BuildContext context) {
     // 优化：使用 select 只监听 closeButtonBehavior，避免整个配置变化时重建
-    final closeButtonBehavior = context.select<ClientConfigService, String>((c) => c.getCloseButtonBehavior());
+    final closeButtonBehavior = context
+        .select<ClientConfigService, String>((c) => c.getCloseButtonBehavior());
     final shouldShowTrayButton = closeButtonBehavior != 'minimize_to_tray';
-    
+
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 200),
       // 优化：移除 ScaleTransition + elasticOut，改用简单的 FadeTransition
@@ -987,7 +1075,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
                     padding: WidgetStateProperty.all(EdgeInsets.zero),
                   ),
                   onPressed: () => systemTrayService.hideMainWindow(),
-                  child: Icon(CustomIcons.FluentIcons.chrome_minimize, size: 12),
+                  child:
+                      Icon(CustomIcons.FluentIcons.chrome_minimize, size: 12),
                 ),
               ),
             )
@@ -1003,32 +1092,39 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
     // 使用 Selector 只在任务数量变化时重建，而不是每次任务更新都重建
     return Selector<IntegratedDownloadService, (int, int)>(
       selector: (_, service) {
-        final downloading = service.tasks.where((t) => t.status == DownloadStatus.downloading).length;
-        final completed = service.tasks.where((t) => t.status == DownloadStatus.completed).length;
+        final downloading = service.tasks
+            .where((t) => t.status == DownloadStatus.downloading)
+            .length;
+        final completed = service.tasks
+            .where((t) => t.status == DownloadStatus.completed)
+            .length;
         return (downloading, completed);
       },
       builder: (context, counts, _) {
         final (downloading, completed) = counts;
-        
+
         return Container(
           height: 28,
           padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
             color: AppTheme.bgLayer2.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(AppTheme.radiusRound),
-            border: Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.5)),
+            border:
+                Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.5)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildStatItem(CustomIcons.FluentIcons.download, downloading, AppTheme.accentPrimary),
+              _buildStatItem(CustomIcons.FluentIcons.download, downloading,
+                  AppTheme.accentPrimary),
               Container(
                 width: 1,
                 height: 12,
                 margin: const EdgeInsets.symmetric(horizontal: 8),
                 color: AppTheme.borderSubtle.withValues(alpha: 0.5),
               ),
-              _buildStatItem(CustomIcons.FluentIcons.completed, completed, AppTheme.statusSuccess),
+              _buildStatItem(CustomIcons.FluentIcons.completed, completed,
+                  AppTheme.statusSuccess),
             ],
           ),
         );
@@ -1054,9 +1150,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
     );
   }
 
-  Widget _buildNavItemWidget(BuildContext context, int index, NavigationItem item, bool isCompact) {
+  Widget _buildNavItemWidget(
+      BuildContext context, int index, NavigationItem item, bool isCompact) {
     final isSelected = _currentIndex == index;
-    
+
     return Padding(
       padding: EdgeInsets.symmetric(
         horizontal: isCompact ? 6 : 12,
@@ -1077,8 +1174,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
       ),
     );
   }
-
-
 
   Widget _buildWindowButtons(BuildContext context, {bool compact = false}) {
     final buttonColors = WindowButtonColors(
@@ -1109,9 +1204,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
         height: 40,
         child: Row(
           children: [
-            _buildCustomMinimizeButton(buttonColors, buttonWidth, buttonHeight, iconSize),
-            _buildCustomMaximizeButton(buttonColors, buttonWidth, buttonHeight, iconSize),
-            _buildCustomCloseButton(closeButtonColors, buttonWidth, buttonHeight, iconSize),
+            _buildCustomMinimizeButton(
+                buttonColors, buttonWidth, buttonHeight, iconSize),
+            _buildCustomMaximizeButton(
+                buttonColors, buttonWidth, buttonHeight, iconSize),
+            _buildCustomCloseButton(
+                closeButtonColors, buttonWidth, buttonHeight, iconSize),
           ],
         ),
       ),
@@ -1142,7 +1240,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
   ) {
     return _buildWindowButton(
       colors: colors,
-      icon: _isMaximized ? CustomIcons.FluentIcons.minimize_20 : CustomIcons.FluentIcons.maximize_20,
+      icon: _isMaximized
+          ? CustomIcons.FluentIcons.minimize_20
+          : CustomIcons.FluentIcons.maximize_20,
       width: width,
       height: height,
       iconSize: iconSize,
@@ -1173,10 +1273,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin, 
       iconSize: iconSize,
       onPressed: () async {
         try {
-          final config = Provider.of<ClientConfigService>(context, listen: false);
+          final config =
+              Provider.of<ClientConfigService>(context, listen: false);
           final closeButtonBehavior = config.getCloseButtonBehavior();
 
-          AppLoggerService().info('App', 'Close button pressed, behavior: $closeButtonBehavior');
+          AppLoggerService().info(
+              'App', 'Close button pressed, behavior: $closeButtonBehavior');
 
           if (closeButtonBehavior == 'minimize_to_tray') {
             systemTrayService.hideMainWindow();
@@ -1262,7 +1364,8 @@ class _NavItem extends StatefulWidget {
   State<_NavItem> createState() => _NavItemState();
 }
 
-class _NavItemState extends State<_NavItem> with SingleTickerProviderStateMixin {
+class _NavItemState extends State<_NavItem>
+    with SingleTickerProviderStateMixin {
   // 优化：合并为单个动画控制器，减少资源占用
   late AnimationController _controller;
   bool _isHovered = false;
@@ -1356,7 +1459,8 @@ class _NavItemState extends State<_NavItem> with SingleTickerProviderStateMixin 
   }
 
   Widget _buildCompactContent(double hoverValue, double selectValue) {
-    final bgAlpha = (selectValue * 0.8 + hoverValue * 0.4 * (1 - selectValue)).clamp(0.0, 0.8);
+    final bgAlpha = (selectValue * 0.8 + hoverValue * 0.4 * (1 - selectValue))
+        .clamp(0.0, 0.8);
 
     final iconColor = Color.lerp(
       Color.lerp(AppTheme.textSecondary, AppTheme.textPrimary, hoverValue),
@@ -1386,7 +1490,8 @@ class _NavItemState extends State<_NavItem> with SingleTickerProviderStateMixin 
                   width: 3,
                   height: (16 * selectValue).clamp(0.0, 16.0),
                   decoration: BoxDecoration(
-                    color: AppTheme.accentPrimary.withValues(alpha: selectValue),
+                    color:
+                        AppTheme.accentPrimary.withValues(alpha: selectValue),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -1404,7 +1509,8 @@ class _NavItemState extends State<_NavItem> with SingleTickerProviderStateMixin 
   }
 
   Widget _buildExpandedContent(double hoverValue, double selectValue) {
-    final bgAlpha = (selectValue * 0.8 + hoverValue * 0.4 * (1 - selectValue)).clamp(0.0, 0.8);
+    final bgAlpha = (selectValue * 0.8 + hoverValue * 0.4 * (1 - selectValue))
+        .clamp(0.0, 0.8);
 
     final iconColor = Color.lerp(
       Color.lerp(AppTheme.textSecondary, AppTheme.textPrimary, hoverValue),
@@ -1447,7 +1553,8 @@ class _NavItemState extends State<_NavItem> with SingleTickerProviderStateMixin 
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: textColor,
-                fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w400,
+                fontWeight:
+                    widget.isSelected ? FontWeight.w600 : FontWeight.w400,
                 fontSize: 13,
               ),
             ),
@@ -1457,5 +1564,3 @@ class _NavItemState extends State<_NavItem> with SingleTickerProviderStateMixin 
     );
   }
 }
-
-

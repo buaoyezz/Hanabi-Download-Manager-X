@@ -15,15 +15,74 @@ class UpdateDialog extends StatelessWidget {
     required this.currentVersion,
   });
 
+  bool _isChineseLocale(BuildContext context) =>
+      Localizations.localeOf(context).languageCode == 'zh';
+
+  String _urgencyLabel(BuildContext context, UpdateUrgency urgency) {
+    final zh = _isChineseLocale(context);
+    switch (urgency) {
+      case UpdateUrgency.forced:
+        return zh ? '强制更新' : 'Forced Update';
+      case UpdateUrgency.recommended:
+        return zh ? '推荐更新' : 'Recommended Update';
+      case UpdateUrgency.normal:
+        return zh ? '普通更新' : 'Normal Update';
+    }
+  }
+
+  String _urgencyHint(BuildContext context, UpdateInfo info) {
+    final zh = _isChineseLocale(context);
+    if (info.urgency == UpdateUrgency.forced) {
+      if (info.minSupportedVersion != null) {
+        return zh
+            ? '当前版本低于最低支持版本 v${info.minSupportedVersion!.versionString}，请立即更新。'
+            : 'Current version is below minimum supported v${info.minSupportedVersion!.versionString}. Update is required.';
+      }
+      return zh
+          ? '该版本为强制更新，请立即安装。'
+          : 'This release is mandatory. Please update now.';
+    }
+    if (info.urgency == UpdateUrgency.recommended) {
+      return zh
+          ? '该版本包含重要改进，建议尽快更新。'
+          : 'This release includes important improvements and is recommended.';
+    }
+    return zh ? '检测到新版本，可按需更新。' : 'A newer version is available.';
+  }
+
+  Color _urgencyColor(UpdateUrgency urgency) {
+    switch (urgency) {
+      case UpdateUrgency.forced:
+        return AppTheme.statusError;
+      case UpdateUrgency.recommended:
+        return AppTheme.statusWarning;
+      case UpdateUrgency.normal:
+        return AppTheme.accentLight;
+    }
+  }
+
+  IconData _urgencyIcon(UpdateUrgency urgency) {
+    switch (urgency) {
+      case UpdateUrgency.forced:
+        return FluentIcons.warning;
+      case UpdateUrgency.recommended:
+        return FluentIcons.info;
+      case UpdateUrgency.normal:
+        return FluentIcons.download;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
+    final urgencyColor = _urgencyColor(updateInfo.urgency);
+    final isForced = updateInfo.urgency == UpdateUrgency.forced;
     return ContentDialog(
       title: Row(
         children: [
           Icon(
-            FluentIcons.download,
-            color: AppTheme.accentLight,
+            _urgencyIcon(updateInfo.urgency),
+            color: urgencyColor,
             size: 20,
           ),
           const SizedBox(width: 10),
@@ -36,6 +95,47 @@ class UpdateDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: urgencyColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                border: Border.all(
+                  color: urgencyColor.withValues(alpha: 0.35),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: urgencyColor.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      _urgencyLabel(context, updateInfo.urgency),
+                      style:
+                          FluentTheme.of(context).typography.caption?.copyWith(
+                                color: urgencyColor,
+                                fontWeight: FontWeight.w700,
+                              ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _urgencyHint(context, updateInfo),
+                      style: FluentTheme.of(context)
+                          .typography
+                          .caption
+                          ?.copyWith(color: AppTheme.textSecondary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
             // 版本信息
             Container(
               padding: const EdgeInsets.all(16),
@@ -54,16 +154,22 @@ class UpdateDialog extends StatelessWidget {
                     children: [
                       Text(
                         t.updateCurrentVersionTitle,
-                        style: FluentTheme.of(context).typography.caption?.copyWith(
-                          color: AppTheme.textSecondary,
-                        ),
+                        style: FluentTheme.of(context)
+                            .typography
+                            .caption
+                            ?.copyWith(
+                              color: AppTheme.textSecondary,
+                            ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'v$currentVersion',
-                        style: FluentTheme.of(context).typography.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: FluentTheme.of(context)
+                            .typography
+                            .bodyLarge
+                            ?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
                       ),
                     ],
                   ),
@@ -77,17 +183,23 @@ class UpdateDialog extends StatelessWidget {
                     children: [
                       Text(
                         t.updateLatestVersionLabel,
-                        style: FluentTheme.of(context).typography.caption?.copyWith(
-                          color: AppTheme.textSecondary,
-                        ),
+                        style: FluentTheme.of(context)
+                            .typography
+                            .caption
+                            ?.copyWith(
+                              color: AppTheme.textSecondary,
+                            ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'v${updateInfo.version}',
-                        style: FluentTheme.of(context).typography.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.accentLight,
-                        ),
+                        style: FluentTheme.of(context)
+                            .typography
+                            .bodyLarge
+                            ?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.accentLight,
+                            ),
                       ),
                     ],
                   ),
@@ -95,13 +207,13 @@ class UpdateDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            
+
             // 更新日志
             Text(
               t.updateAvailableChangelogTitle,
               style: FluentTheme.of(context).typography.subtitle?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
             const SizedBox(height: 12),
             ClipRRect(
@@ -137,10 +249,11 @@ class UpdateDialog extends StatelessWidget {
         ),
       ),
       actions: [
-        Button(
-          onPressed: () => Navigator.pop(context),
-          child: Text(t.updateDialogLaterButton),
-        ),
+        if (!isForced)
+          Button(
+            onPressed: () => Navigator.pop(context),
+            child: Text(t.updateDialogLaterButton),
+          ),
         FilledButton(
           onPressed: () async {
             if (updateInfo.downloadUrl.isNotEmpty) {
@@ -153,7 +266,11 @@ class UpdateDialog extends StatelessWidget {
               Navigator.pop(context);
             }
           },
-          child: Text(t.updateDialogDownloadNowButton),
+          child: Text(
+            isForced
+                ? (_isChineseLocale(context) ? '立即更新' : 'Update Now')
+                : t.updateDialogDownloadNowButton,
+          ),
         ),
       ],
     );
@@ -214,17 +331,23 @@ class CurrentVersionDialog extends StatelessWidget {
                     children: [
                       Text(
                         t.updateCurrentVersionTitle,
-                        style: FluentTheme.of(context).typography.caption?.copyWith(
-                          color: AppTheme.textSecondary,
-                        ),
+                        style: FluentTheme.of(context)
+                            .typography
+                            .caption
+                            ?.copyWith(
+                              color: AppTheme.textSecondary,
+                            ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'v$currentVersion',
-                        style: FluentTheme.of(context).typography.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.statusSuccess,
-                        ),
+                        style: FluentTheme.of(context)
+                            .typography
+                            .bodyLarge
+                            ?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.statusSuccess,
+                            ),
                       ),
                     ],
                   ),
@@ -232,13 +355,13 @@ class CurrentVersionDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            
+
             // 更新日志
             Text(
               t.updateChangelogTitle,
               style: FluentTheme.of(context).typography.subtitle?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
             const SizedBox(height: 12),
             ClipRRect(
@@ -330,16 +453,17 @@ class NoUpdateDialog extends StatelessWidget {
                 children: [
                   Text(
                     '${t.updateCurrentVersionTitle}: v$currentVersion',
-                    style: FluentTheme.of(context).typography.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style:
+                        FluentTheme.of(context).typography.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     t.updateLatestSubtitle,
                     style: FluentTheme.of(context).typography.body?.copyWith(
-                      color: AppTheme.textSecondary,
-                    ),
+                          color: AppTheme.textSecondary,
+                        ),
                   ),
                 ],
               ),

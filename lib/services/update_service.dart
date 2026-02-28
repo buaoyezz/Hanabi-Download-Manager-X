@@ -11,9 +11,16 @@ import 'app_logger_service.dart';
 /// 版本通道枚举
 /// alpha < beta < release
 enum VersionChannel {
-  alpha, 
-  beta,   
-  release, 
+  alpha,
+  beta,
+  release,
+}
+
+/// 更新紧急程度
+enum UpdateUrgency {
+  normal,
+  recommended,
+  forced,
 }
 
 /// 版本信息类
@@ -34,7 +41,7 @@ class VersionInfo {
   factory VersionInfo.parse(String versionStr) {
     // 移除 v/V 前缀
     var cleaned = versionStr.replaceFirst(RegExp(r'^[vV]'), '').trim();
-    
+
     // 分离版本号和通道
     VersionChannel channel = VersionChannel.release;
     if (cleaned.contains('-')) {
@@ -88,7 +95,7 @@ class VersionInfo {
   }
 
   String get versionString => '$major.$minor.$patch';
-  
+
   String get fullVersionString {
     if (channel == VersionChannel.release) {
       return versionString;
@@ -100,7 +107,6 @@ class VersionInfo {
   String toString() => fullVersionString;
 }
 
-
 /// 更新信息类
 class UpdateInfo {
   final String version;
@@ -109,6 +115,8 @@ class UpdateInfo {
   final String changelog;
   final String publishedAt;
   final bool isPrerelease;
+  final UpdateUrgency urgency;
+  final VersionInfo? minSupportedVersion;
 
   UpdateInfo({
     required this.version,
@@ -117,6 +125,8 @@ class UpdateInfo {
     required this.changelog,
     required this.publishedAt,
     required this.isPrerelease,
+    required this.urgency,
+    this.minSupportedVersion,
   });
 
   factory UpdateInfo.fromJson(Map<String, dynamic> json) {
@@ -134,24 +144,139 @@ class UpdateInfo {
     String version = json['tag_name'] as String? ?? '';
     version = version.replaceFirst(RegExp(r'^[vV]'), '');
 
+    final changelog = json['body'] as String? ?? '暂无更新日志';
+    final explicitUrgency = (json['update_urgency'] ??
+            json['update_level'] ??
+            json['update_type'] ??
+            json['urgency'])
+        ?.toString();
+    final explicitMinSupported = (json['min_supported_version'] ??
+            json['minimum_supported_version'] ??
+            json['min_version'])
+        ?.toString();
+
+    final urgency = explicitUrgency != null && explicitUrgency.trim().isNotEmpty
+        ? _parseUrgencyValue(explicitUrgency)
+        : _parseUrgencyFromChangelog(changelog);
+    final minSupportedVersion =
+        explicitMinSupported != null && explicitMinSupported.trim().isNotEmpty
+            ? _tryParseVersion(explicitMinSupported)
+            : _parseMinSupportedVersionFromChangelog(changelog);
+
     return UpdateInfo(
       version: version,
       versionInfo: VersionInfo.parse(version),
       downloadUrl: downloadUrl,
-      changelog: json['body'] as String? ?? '暂无更新日志',
+      changelog: changelog,
       publishedAt: json['published_at'] as String? ?? '',
       isPrerelease: json['prerelease'] as bool? ?? false,
+      urgency: urgency,
+      minSupportedVersion: minSupportedVersion,
     );
+  }
+
+  bool get isForcedUpdate => urgency == UpdateUrgency.forced;
+
+  UpdateInfo copyWith({
+    String? version,
+    VersionInfo? versionInfo,
+    String? downloadUrl,
+    String? changelog,
+    String? publishedAt,
+    bool? isPrerelease,
+    UpdateUrgency? urgency,
+    VersionInfo? minSupportedVersion,
+    bool keepMinSupportedVersion = true,
+  }) {
+    return UpdateInfo(
+      version: version ?? this.version,
+      versionInfo: versionInfo ?? this.versionInfo,
+      downloadUrl: downloadUrl ?? this.downloadUrl,
+      changelog: changelog ?? this.changelog,
+      publishedAt: publishedAt ?? this.publishedAt,
+      isPrerelease: isPrerelease ?? this.isPrerelease,
+      urgency: urgency ?? this.urgency,
+      minSupportedVersion: keepMinSupportedVersion
+          ? (minSupportedVersion ?? this.minSupportedVersion)
+          : minSupportedVersion,
+    );
+  }
+
+  static UpdateUrgency _parseUrgencyValue(String raw) {
+    final value = raw.trim().toLowerCase();
+    switch (value) {
+      case 'forced':
+      case 'force':
+      case 'mandatory':
+      case 'required':
+      case 'critical':
+        return UpdateUrgency.forced;
+      case 'recommended':
+      case 'recommend':
+      case 'suggested':
+      case 'important':
+        return UpdateUrgency.recommended;
+      default:
+        return UpdateUrgency.normal;
+    }
+  }
+
+  static UpdateUrgency _parseUrgencyFromChangelog(String changelog) {
+    final text = changelog.toLowerCase();
+    final forceFlag = RegExp(
+      r'^\s*(force_update|mandatory_update|required_update)\s*[:=]\s*(1|true|yes)\s*$',
+      multiLine: true,
+      caseSensitive: false,
+    );
+    if (forceFlag.hasMatch(text) ||
+        text.contains('#force-update') ||
+        text.contains('#mandatory-update')) {
+      return UpdateUrgency.forced;
+    }
+
+    final levelMatch = RegExp(
+      r'^\s*(update_level|update_type|update_urgency|urgency)\s*[:=]\s*([a-z_]+)\s*$',
+      multiLine: true,
+      caseSensitive: false,
+    ).firstMatch(text);
+    if (levelMatch != null) {
+      return _parseUrgencyValue(levelMatch.group(2) ?? '');
+    }
+
+    if (text.contains('#recommended-update') || text.contains('#recommended')) {
+      return UpdateUrgency.recommended;
+    }
+    return UpdateUrgency.normal;
+  }
+
+  static VersionInfo? _parseMinSupportedVersionFromChangelog(String changelog) {
+    final match = RegExp(
+      r'^\s*(min_supported_version|minimum_supported_version|min_version)\s*[:=]\s*([0-9]+\.[0-9]+\.[0-9]+(?:-[a-z]+)?)\s*$',
+      multiLine: true,
+      caseSensitive: false,
+    ).firstMatch(changelog);
+    if (match == null) return null;
+    final raw = match.group(2);
+    if (raw == null || raw.trim().isEmpty) return null;
+    return _tryParseVersion(raw);
+  }
+
+  static VersionInfo? _tryParseVersion(String raw) {
+    try {
+      return VersionInfo.parse(raw);
+    } catch (_) {
+      return null;
+    }
   }
 }
 
 /// 更新检查间隔枚举
 enum UpdateCheckInterval {
-  startup,      // 仅启动时
-  hourly,       // 每小时
-  daily,        // 每天
-  weekly,       // 每周
-  never,        // 从不自动检查
+  startup, // 仅启动时
+  hourly, // 每小时
+  daily, // 每天
+  weekly, // 每周
+  never, // 从不自动检查
 }
 
 extension UpdateCheckIntervalExtension on UpdateCheckInterval {
@@ -186,12 +311,12 @@ extension UpdateCheckIntervalExtension on UpdateCheckInterval {
   }
 }
 
-
 /// 更新服务
 class UpdateService extends ChangeNotifier {
   static const String _repoOwner = 'buaoyezz';
   static const String _repoName = 'Hanabi-Download-Manager-X';
-  static const String _apiUrl = 'https://api.github.com/repos/$_repoOwner/$_repoName/releases';
+  static const String _apiUrl =
+      'https://api.github.com/repos/$_repoOwner/$_repoName/releases';
 
   // 缓存相关的 SharedPreferences keys
   static const String _keyLastCheckTime = 'update_last_check_time';
@@ -202,14 +327,14 @@ class UpdateService extends ChangeNotifier {
   static const String _keyAllowAlpha = 'update_allow_alpha';
 
   final AppLoggerService? _logger;
-  
+
   bool _isChecking = false;
   String? _error;
   UpdateInfo? _latestRelease;
   UpdateInfo? _currentRelease;
   UpdateInfo? _availableUpdate; // 根据用户设置筛选后的可用更新
   List<UpdateInfo> _allReleases = [];
-  
+
   // 当前版本信息
   late VersionInfo _currentVersionInfo;
   String _currentVersion = AppConstants.version;
@@ -242,6 +367,9 @@ class UpdateService extends ChangeNotifier {
   bool get isVersionNewer => _isCurrentVersionNewer();
   bool? get isDotNet8Installed => _isDotNet8Installed;
   bool get isCheckingDotNet => _isCheckingDotNet;
+  bool get isForcedUpdate => _availableUpdate?.isForcedUpdate ?? false;
+  bool get isRecommendedUpdate =>
+      _availableUpdate?.urgency == UpdateUrgency.recommended;
 
   UpdateService({AppLoggerService? logger}) : _logger = logger {
     _currentVersionInfo = VersionInfo.parse(_currentVersion);
@@ -267,13 +395,13 @@ class UpdateService extends ChangeNotifier {
     _currentVersionInfo = VersionInfo.parse(_currentVersion);
     _currentChannel = _parseChannel(AppConstants.channel);
     _logger?.info('Update', '当前版本: $_currentVersion (${_currentChannel.name})');
-    
+
     // 检测 .NET 8 是否安装
     await checkDotNet8Installation();
-    
+
     // 启动自动检查定时器
     _startAutoCheckTimer();
-    
+
     notifyListeners();
   }
 
@@ -284,14 +412,16 @@ class UpdateService extends ChangeNotifier {
       _allowBeta = prefs.getBool(_keyAllowBeta) ?? false;
       _allowAlpha = prefs.getBool(_keyAllowAlpha) ?? false;
       final intervalIndex = prefs.getInt(_keyCheckInterval) ?? 0;
-      _checkInterval = UpdateCheckInterval.values[intervalIndex.clamp(0, UpdateCheckInterval.values.length - 1)];
-      
+      _checkInterval = UpdateCheckInterval.values[
+          intervalIndex.clamp(0, UpdateCheckInterval.values.length - 1)];
+
       final lastCheckMs = prefs.getInt(_keyLastCheckTime);
       if (lastCheckMs != null) {
         _lastCheckTime = DateTime.fromMillisecondsSinceEpoch(lastCheckMs);
       }
-      
-      _logger?.info('Update', '设置已加载: allowBeta=$_allowBeta, allowAlpha=$_allowAlpha, interval=${_checkInterval.name}');
+
+      _logger?.info('Update',
+          '设置已加载: allowBeta=$_allowBeta, allowAlpha=$_allowAlpha, interval=${_checkInterval.name}');
     } catch (e) {
       _logger?.error('Update', '加载设置失败: $e');
     }
@@ -303,7 +433,7 @@ class UpdateService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       _cachedChangelog = prefs.getString(_keyCachedChangelog);
       final cachedVersion = prefs.getString(_keyCachedVersion);
-      
+
       if (_cachedChangelog != null && cachedVersion == _currentVersion) {
         _logger?.info('Update', '已加载缓存的更新日志');
       } else {
@@ -323,13 +453,13 @@ class UpdateService extends ChangeNotifier {
         await prefs.setString(_keyCachedVersion, _currentVersion);
       }
       if (_lastCheckTime != null) {
-        await prefs.setInt(_keyLastCheckTime, _lastCheckTime!.millisecondsSinceEpoch);
+        await prefs.setInt(
+            _keyLastCheckTime, _lastCheckTime!.millisecondsSinceEpoch);
       }
     } catch (e) {
       _logger?.error('Update', '保存缓存失败: $e');
     }
   }
-
 
   /// 设置是否允许 Beta 更新
   Future<void> setAllowBeta(bool value) async {
@@ -376,27 +506,28 @@ class UpdateService extends ChangeNotifier {
   Future<bool> shouldAutoCheck() async {
     if (_checkInterval == UpdateCheckInterval.never) return false;
     if (_checkInterval == UpdateCheckInterval.startup) return true;
-    
+
     if (_lastCheckTime == null) return true;
-    
+
     final duration = _checkInterval.duration;
     if (duration == null) return false;
-    
+
     return DateTime.now().difference(_lastCheckTime!) >= duration;
   }
 
   /// 检查当前版本是否比云端最新版本更新
   bool _isCurrentVersionNewer() {
     if (_allReleases.isEmpty) return false;
-    
+
     // 找到云端最高版本
     UpdateInfo? highest;
     for (final release in _allReleases) {
-      if (highest == null || release.versionInfo.compareTo(highest.versionInfo) > 0) {
+      if (highest == null ||
+          release.versionInfo.compareTo(highest.versionInfo) > 0) {
         highest = release;
       }
     }
-    
+
     if (highest == null) return false;
     return _currentVersionInfo.compareTo(highest.versionInfo) > 0;
   }
@@ -404,7 +535,7 @@ class UpdateService extends ChangeNotifier {
   /// 检查更新
   Future<bool> checkForUpdates({bool force = false}) async {
     if (_isChecking) return false;
-    
+
     _isChecking = true;
     _error = null;
     notifyListeners();
@@ -415,7 +546,7 @@ class UpdateService extends ChangeNotifier {
       // 获取所有发布版本
       _allReleases = await _fetchAllReleases();
       _lastCheckTime = DateTime.now();
-      
+
       if (_allReleases.isEmpty) {
         _error = '未找到任何发布版本';
         _isChecking = false;
@@ -425,7 +556,7 @@ class UpdateService extends ChangeNotifier {
 
       // 查找当前版本的发布信息
       _currentRelease = _findReleaseByVersion(_currentVersion);
-      
+
       // 如果当前版本在云端不存在，说明版本过新
       if (_currentRelease == null) {
         _logger?.info('Update', '当前版本 $_currentVersion 在云端不存在，可能是开发版本');
@@ -433,13 +564,13 @@ class UpdateService extends ChangeNotifier {
 
       // 根据用户设置筛选可用更新
       _filterAvailableUpdate();
-      
+
       // 保存缓存
       await _saveCache();
 
       _isChecking = false;
       notifyListeners();
-      
+
       return _availableUpdate != null;
     } catch (e) {
       _error = '检查更新失败: $e';
@@ -461,7 +592,9 @@ class UpdateService extends ChangeNotifier {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body) as List<dynamic>;
-        final releases = data.map((item) => UpdateInfo.fromJson(item as Map<String, dynamic>)).toList();
+        final releases = data
+            .map((item) => UpdateInfo.fromJson(item as Map<String, dynamic>))
+            .toList();
         _logger?.info('Update', '获取到 ${releases.length} 个发布版本');
         return releases;
       } else {
@@ -485,7 +618,6 @@ class UpdateService extends ChangeNotifier {
     return null;
   }
 
-
   /// 根据用户设置筛选可用更新
   void _filterAvailableUpdate() {
     _availableUpdate = null;
@@ -494,42 +626,60 @@ class UpdateService extends ChangeNotifier {
     if (_allReleases.isEmpty) return;
 
     UpdateInfo? bestUpdate;
-    
+
     for (final release in _allReleases) {
-      final releaseVersion = release.versionInfo;
-      
+      final effectiveRelease = _applyUrgencyPolicy(release);
+      final releaseVersion = effectiveRelease.versionInfo;
+
       // 检查是否比当前版本新
       if (releaseVersion.compareTo(_currentVersionInfo) <= 0) {
         continue;
       }
 
-      // 检查通道是否允许
-      if (!_isChannelAllowed(releaseVersion.channel)) {
+      // 强制更新不受更新通道开关限制
+      if (effectiveRelease.urgency != UpdateUrgency.forced &&
+          !_isChannelAllowed(releaseVersion.channel)) {
         continue;
       }
 
       // 选择最新的符合条件的版本
-      if (bestUpdate == null || releaseVersion.compareTo(bestUpdate.versionInfo) > 0) {
-        bestUpdate = release;
+      if (bestUpdate == null ||
+          releaseVersion.compareTo(bestUpdate.versionInfo) > 0) {
+        bestUpdate = effectiveRelease;
       }
     }
 
     _availableUpdate = bestUpdate;
-    
+
     // 同时设置 latestRelease 为最新的 release 版本（用于显示）
     for (final release in _allReleases) {
       if (release.versionInfo.channel == VersionChannel.release) {
-        if (_latestRelease == null || release.versionInfo.compareTo(_latestRelease!.versionInfo) > 0) {
+        if (_latestRelease == null ||
+            release.versionInfo.compareTo(_latestRelease!.versionInfo) > 0) {
           _latestRelease = release;
         }
       }
     }
 
     if (_availableUpdate != null) {
-      _logger?.info('Update', '发现可用更新: ${_availableUpdate!.version}');
+      _logger?.info(
+        'Update',
+        '发现可用更新: ${_availableUpdate!.version} (urgency=${_availableUpdate!.urgency.name})',
+      );
     } else {
       _logger?.info('Update', '没有可用更新');
     }
+  }
+
+  UpdateInfo _applyUrgencyPolicy(UpdateInfo release) {
+    var urgency = release.urgency;
+    final minVersion = release.minSupportedVersion;
+    if (minVersion != null &&
+        _currentVersionInfo.compareVersionOnly(minVersion) < 0) {
+      urgency = UpdateUrgency.forced;
+    }
+    if (urgency == release.urgency) return release;
+    return release.copyWith(urgency: urgency);
   }
 
   /// 检查通道是否允许
@@ -587,7 +737,7 @@ class UpdateService extends ChangeNotifier {
       final trimmed = line.trim();
 
       // 跳过文件下载区域
-      if (trimmed.startsWith('### File') || 
+      if (trimmed.startsWith('### File') ||
           trimmed.startsWith('### Extension') ||
           trimmed.startsWith('---')) {
         skipSection = true;
@@ -595,20 +745,35 @@ class UpdateService extends ChangeNotifier {
       }
 
       // 跳过不需要的内容
-      if (skipSection || 
+      if (skipSection ||
           trimmed.startsWith('sha256:') ||
           trimmed.startsWith('&gt;[') ||
           trimmed.startsWith('>[') ||
           trimmed.startsWith('Official Website:') ||
           trimmed.startsWith('**Full Changelog**') ||
+          RegExp(
+            r'^(update_level|update_type|update_urgency|urgency)\s*[:=]',
+            caseSensitive: false,
+          ).hasMatch(trimmed) ||
+          RegExp(
+            r'^(min_supported_version|minimum_supported_version|min_version)\s*[:=]',
+            caseSensitive: false,
+          ).hasMatch(trimmed) ||
+          RegExp(
+            r'^(force_update|mandatory_update|required_update)\s*[:=]',
+            caseSensitive: false,
+          ).hasMatch(trimmed) ||
+          trimmed.startsWith('#force-update') ||
+          trimmed.startsWith('#mandatory-update') ||
+          trimmed.startsWith('#recommended-update') ||
           trimmed.contains('browser_download_url') ||
           trimmed.contains('/releases/download/')) {
         continue;
       }
 
       // 处理 [+] [-] [*] 格式
-      if (trimmed.startsWith('[+]') || 
-          trimmed.startsWith('[-]') || 
+      if (trimmed.startsWith('[+]') ||
+          trimmed.startsWith('[-]') ||
           trimmed.startsWith('[*]')) {
         final content = trimmed.substring(3).trim();
         result.add('- $content');
@@ -659,13 +824,13 @@ class UpdateService extends ChangeNotifier {
   /// 检测 .NET 8 是否安装
   Future<bool> checkDotNet8Installation() async {
     if (_isCheckingDotNet) return _isDotNet8Installed ?? false;
-    
+
     _isCheckingDotNet = true;
     notifyListeners();
 
     try {
       _logger?.info('Update', '检测 .NET 8 安装状态...');
-      
+
       // 使用 dotnet --list-runtimes 命令检测
       final result = await Process.run(
         'dotnet',
@@ -676,9 +841,10 @@ class UpdateService extends ChangeNotifier {
       if (result.exitCode == 0) {
         final output = result.stdout.toString();
         // 检查是否包含 Microsoft.WindowsDesktop.App 8.x
-        final hasDesktopRuntime = output.contains(RegExp(r'Microsoft\.WindowsDesktop\.App\s+8\.\d+\.\d+'));
+        final hasDesktopRuntime = output
+            .contains(RegExp(r'Microsoft\.WindowsDesktop\.App\s+8\.\d+\.\d+'));
         _isDotNet8Installed = hasDesktopRuntime;
-        
+
         if (hasDesktopRuntime) {
           _logger?.info('Update', '.NET 8 Desktop Runtime 已安装');
         } else {
@@ -702,11 +868,11 @@ class UpdateService extends ChangeNotifier {
   Future<bool> launchUpdateExe() async {
     try {
       _logger?.info('Update', '启动 update.exe...');
-      
+
       // 获取 update.exe 的路径
       final exePath = Platform.resolvedExecutable;
       final exeDir = path.dirname(exePath);
-      
+
       // 尝试多个可能的路径
       final possiblePaths = [
         // Release 模式路径：data/zzbuaoye_assets 目录
@@ -716,9 +882,10 @@ class UpdateService extends ChangeNotifier {
         // 备用路径：直接在 exe 目录下
         path.join(exeDir, 'Update.exe'),
         // 旧路径兼容
-        path.join(exeDir, 'data', 'flutter_assets', 'assets', 'update', 'Update.exe'),
+        path.join(
+            exeDir, 'data', 'flutter_assets', 'assets', 'update', 'Update.exe'),
       ];
-      
+
       String? updateExePath;
       for (final testPath in possiblePaths) {
         if (await File(testPath).exists()) {
@@ -726,7 +893,7 @@ class UpdateService extends ChangeNotifier {
           break;
         }
       }
-      
+
       if (updateExePath == null) {
         _logger?.error('Update', 'Update.exe 未找到，尝试的路径:');
         for (final testPath in possiblePaths) {
@@ -734,7 +901,7 @@ class UpdateService extends ChangeNotifier {
         }
         return false;
       }
-      
+
       _logger?.info('Update', 'Update.exe 路径: $updateExePath');
 
       // 启动 update.exe
@@ -743,14 +910,14 @@ class UpdateService extends ChangeNotifier {
         [],
         mode: ProcessStartMode.detached,
       );
-      
+
       _logger?.info('Update', 'Update.exe 已启动');
-      
+
       // 延迟 500ms 后退出应用，确保更新器已启动
       Future.delayed(const Duration(milliseconds: 500), () {
         exit(0);
       });
-      
+
       return true;
     } catch (e) {
       _logger?.error('Update', '启动 Update.exe 失败: $e');

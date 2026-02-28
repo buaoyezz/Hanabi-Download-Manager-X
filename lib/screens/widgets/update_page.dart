@@ -32,7 +32,8 @@ class _UpdatePageState extends State<UpdatePage> {
     }
   }
 
-  String _getCheckIntervalLabel(UpdateCheckInterval interval, AppLocalizations t) {
+  String _getCheckIntervalLabel(
+      UpdateCheckInterval interval, AppLocalizations t) {
     switch (interval) {
       case UpdateCheckInterval.startup:
         return t.updateIntervalStartup;
@@ -44,6 +45,70 @@ class _UpdatePageState extends State<UpdatePage> {
         return t.updateIntervalWeekly;
       case UpdateCheckInterval.never:
         return t.updateIntervalNever;
+    }
+  }
+
+  bool _isChineseLocale(BuildContext context) =>
+      Localizations.localeOf(context).languageCode == 'zh';
+
+  String _getUrgencyLabel(BuildContext context, UpdateUrgency urgency) {
+    final zh = _isChineseLocale(context);
+    switch (urgency) {
+      case UpdateUrgency.forced:
+        return zh ? '强制更新' : 'Forced Update';
+      case UpdateUrgency.recommended:
+        return zh ? '推荐更新' : 'Recommended Update';
+      case UpdateUrgency.normal:
+        return zh ? '普通更新' : 'Normal Update';
+    }
+  }
+
+  String _getUrgencyHint(BuildContext context, UpdateInfo info) {
+    final zh = _isChineseLocale(context);
+    switch (info.urgency) {
+      case UpdateUrgency.forced:
+        if (info.minSupportedVersion != null) {
+          return zh
+              ? '最低支持版本：v${info.minSupportedVersion!.versionString}。当前版本过低，必须更新。'
+              : 'Minimum supported version is v${info.minSupportedVersion!.versionString}. Your version is too old and must be updated.';
+        }
+        return zh ? '该版本为强制更新，必须更新后继续使用。' : 'This is a mandatory update.';
+      case UpdateUrgency.recommended:
+        return zh
+            ? '该版本包含重要修复与改进，建议尽快更新。'
+            : 'Includes important fixes and improvements. Updating is recommended.';
+      case UpdateUrgency.normal:
+        return zh ? '可按需更新。' : 'Optional update.';
+    }
+  }
+
+  String _getUpdateActionLabel(BuildContext context, UpdateUrgency urgency) {
+    final zh = _isChineseLocale(context);
+    if (urgency == UpdateUrgency.forced) {
+      return zh ? '立即更新' : 'Update Now';
+    }
+    return AppLocalizations.of(context)!.updateStartButton;
+  }
+
+  Color _getUrgencyColor(UpdateUrgency urgency) {
+    switch (urgency) {
+      case UpdateUrgency.forced:
+        return AppTheme.statusError;
+      case UpdateUrgency.recommended:
+        return AppTheme.statusWarning;
+      case UpdateUrgency.normal:
+        return AppTheme.accentLight;
+    }
+  }
+
+  IconData _getUrgencyIcon(UpdateUrgency urgency) {
+    switch (urgency) {
+      case UpdateUrgency.forced:
+        return FluentIcons.warning;
+      case UpdateUrgency.recommended:
+        return FluentIcons.info;
+      case UpdateUrgency.normal:
+        return FluentIcons.download;
     }
   }
 
@@ -72,7 +137,7 @@ class _UpdatePageState extends State<UpdatePage> {
       builder: (context, updateService, child) {
         // 判断是否有更新
         final hasUpdate = updateService.hasUpdate();
-        
+
         return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,7 +163,9 @@ class _UpdatePageState extends State<UpdatePage> {
           margin: const EdgeInsets.symmetric(horizontal: 20),
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: FluentTheme.of(context).resources.cardBackgroundFillColorDefault,
+            color: FluentTheme.of(context)
+                .resources
+                .cardBackgroundFillColorDefault,
             borderRadius: BorderRadius.circular(AppTheme.radiusLg),
             border: Border.all(
               color: FluentTheme.of(context).resources.cardStrokeColorDefault,
@@ -117,9 +184,10 @@ class _UpdatePageState extends State<UpdatePage> {
                   const SizedBox(width: 10),
                   Text(
                     t.updateCurrentVersionTitle,
-                    style: FluentTheme.of(context).typography.subtitle?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style:
+                        FluentTheme.of(context).typography.subtitle?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
                   ),
                 ],
               ),
@@ -146,17 +214,21 @@ class _UpdatePageState extends State<UpdatePage> {
                       children: [
                         Text(
                           'v${updateService.currentVersion}',
-                          style: FluentTheme.of(context).typography.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.accentLight,
-                          ),
+                          style: FluentTheme.of(context)
+                              .typography
+                              .titleLarge
+                              ?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.accentLight,
+                              ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           t.appTitle,
-                          style: FluentTheme.of(context).typography.body?.copyWith(
-                            color: AppTheme.textSecondary,
-                          ),
+                          style:
+                              FluentTheme.of(context).typography.body?.copyWith(
+                                    color: AppTheme.textSecondary,
+                                  ),
                         ),
                       ],
                     ),
@@ -167,8 +239,8 @@ class _UpdatePageState extends State<UpdatePage> {
               Text(
                 t.updateChangelogTitle,
                 style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
               const SizedBox(height: 12),
               ClipRRect(
@@ -202,7 +274,8 @@ class _UpdatePageState extends State<UpdatePage> {
                       blendMode: BlendMode.dstIn,
                       child: SingleChildScrollView(
                         physics: const NeverScrollableScrollPhysics(),
-                        child: _buildMarkdownContent(context, updateService.getCurrentChangelog()),
+                        child: _buildMarkdownContent(
+                            context, updateService.getCurrentChangelog()),
                       ),
                     ),
                   ),
@@ -227,11 +300,18 @@ class _UpdatePageState extends State<UpdatePage> {
   Widget _buildUpdateCheckSection(BuildContext context, AppLocalizations t) {
     return Consumer<UpdateService>(
       builder: (context, updateService, child) {
+        final activeUpdate =
+            updateService.availableUpdate ?? updateService.latestRelease;
+        final urgency = activeUpdate?.urgency ?? UpdateUrgency.normal;
+        final isForced = urgency == UpdateUrgency.forced;
+
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 20),
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: FluentTheme.of(context).resources.cardBackgroundFillColorDefault,
+            color: FluentTheme.of(context)
+                .resources
+                .cardBackgroundFillColorDefault,
             borderRadius: BorderRadius.circular(AppTheme.radiusLg),
             border: Border.all(
               color: FluentTheme.of(context).resources.cardStrokeColorDefault,
@@ -253,73 +333,95 @@ class _UpdatePageState extends State<UpdatePage> {
                       const SizedBox(width: 10),
                       Text(
                         t.updateCheckTitle,
-                        style: FluentTheme.of(context).typography.subtitle?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: FluentTheme.of(context)
+                            .typography
+                            .subtitle
+                            ?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
                       ),
                     ],
                   ),
                   Row(
                     children: [
                       // 如果有更新，显示"开始更新"按钮
-                      if (!updateService.isChecking && updateService.hasUpdate()) ...[
+                      if (!updateService.isChecking &&
+                          updateService.hasUpdate()) ...[
                         FilledButton(
                           onPressed: () async {
+                            final release = updateService.availableUpdate ??
+                                updateService.latestRelease;
+                            if (release == null) return;
+
                             // 先弹出确认对话框
                             final confirmed = await showDialog<bool>(
                               context: context,
+                              barrierDismissible: !isForced,
                               builder: (context) => ContentDialog(
-                                title: Text(t.updateConfirmTitle),
+                                title: Text(
+                                  isForced
+                                      ? (_isChineseLocale(context)
+                                          ? '强制更新'
+                                          : 'Mandatory Update')
+                                      : t.updateConfirmTitle,
+                                ),
                                 content: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      t.updateConfirmMessage,
-                                      style: FluentTheme.of(context).typography.body,
+                                      isForced
+                                          ? (_isChineseLocale(context)
+                                              ? '当前版本必须更新后才能继续获得支持，请立即更新。'
+                                              : 'This version must be updated to continue receiving support.')
+                                          : t.updateConfirmMessage,
+                                      style: FluentTheme.of(context)
+                                          .typography
+                                          .body,
                                     ),
                                     const SizedBox(height: 12),
                                     Container(
                                       padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
-                                        color: AppTheme.accentPrimary.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                                        color: _getUrgencyColor(urgency)
+                                            .withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(
+                                            AppTheme.radiusMd),
                                         border: Border.all(
-                                          color: AppTheme.accentPrimary.withValues(alpha: 0.3),
+                                          color: _getUrgencyColor(urgency)
+                                              .withValues(alpha: 0.3),
                                         ),
                                       ),
                                       child: Row(
                                         children: [
                                           Icon(
-                                            FluentIcons.info,
+                                            _getUrgencyIcon(urgency),
                                             size: 16,
-                                            color: AppTheme.accentPrimary,
+                                            color: _getUrgencyColor(urgency),
                                           ),
                                           const SizedBox(width: 8),
                                           Expanded(
                                             child: Text(
                                               t.updateConfirmDetails(
-                                                updateService.availableUpdate?.version ??
-                                                    updateService.latestRelease?.version ??
-                                                    t.updateUnknownVersion,
+                                                release.version,
                                                 updateService.currentVersion,
-                                                '${updateService.currentVersion} → ${updateService.availableUpdate?.version ?? updateService.latestRelease?.version ?? t.updateUnknownVersion}',
-                                                _getChannelDisplayName(updateService.currentChannel, t),
-                                                updateService.availableUpdate?.versionInfo.channel != null
-                                                    ? _getChannelDisplayName(
-                                                        updateService.availableUpdate!.versionInfo.channel!,
-                                                        t,
-                                                      )
-                                                    : updateService.latestRelease?.versionInfo.channel != null
-                                                        ? _getChannelDisplayName(
-                                                            updateService.latestRelease!.versionInfo.channel!,
-                                                            t,
-                                                          )
-                                                        : t.updateUnknownChannel,
+                                                '${updateService.currentVersion} → ${release.version}',
+                                                _getChannelDisplayName(
+                                                    updateService
+                                                        .currentChannel,
+                                                    t),
+                                                _getChannelDisplayName(
+                                                  release.versionInfo.channel,
+                                                  t,
+                                                ),
                                               ),
-                                              style: FluentTheme.of(context).typography.caption?.copyWith(
-                                                color: AppTheme.textSecondary,
-                                              ),
+                                              style: FluentTheme.of(context)
+                                                  .typography
+                                                  .caption
+                                                  ?.copyWith(
+                                                    color:
+                                                        AppTheme.textSecondary,
+                                                  ),
                                             ),
                                           ),
                                         ],
@@ -328,13 +430,23 @@ class _UpdatePageState extends State<UpdatePage> {
                                   ],
                                 ),
                                 actions: [
-                                  Button(
-                                    onPressed: () => Navigator.pop(context, false),
-                                    child: Text(t.updateConfirmCancelButton),
-                                  ),
+                                  if (!isForced)
+                                    Button(
+                                      onPressed: () =>
+                                          Navigator.pop(context, false),
+                                      child: Text(t.updateConfirmCancelButton),
+                                    ),
                                   FilledButton(
-                                    onPressed: () => Navigator.pop(context, true),
-                                    child: Text(t.updateConfirmProceedButton),
+                                    onPressed: () =>
+                                        Navigator.pop(context, true),
+                                    child: Text(
+                                      isForced
+                                          ? _getUpdateActionLabel(
+                                              context,
+                                              urgency,
+                                            )
+                                          : t.updateConfirmProceedButton,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -343,32 +455,39 @@ class _UpdatePageState extends State<UpdatePage> {
                             if (confirmed != true) return;
 
                             // 用户确认后开始更新
-                            final hasDotNet8 = updateService.isDotNet8Installed ?? false;
+                            final hasDotNet8 =
+                                updateService.isDotNet8Installed ?? false;
                             if (hasDotNet8) {
-                              final success = await updateService.launchUpdateExe();
+                              final success =
+                                  await updateService.launchUpdateExe();
                               if (!success && context.mounted) {
                                 await showDialog(
                                   context: context,
                                   builder: (context) => ContentDialog(
                                     title: Text(t.updateLauncherFailedTitle),
-                                    content: Text(t.updateLauncherFailedMessage),
+                                    content:
+                                        Text(t.updateLauncherFailedMessage),
                                     actions: [
                                       Button(
                                         onPressed: () => Navigator.pop(context),
-                                        child: Text(t.updateLauncherFailedCloseButton),
+                                        child: Text(
+                                            t.updateLauncherFailedCloseButton),
                                       ),
                                       FilledButton(
                                         onPressed: () async {
                                           Navigator.pop(context);
-                                          final release = updateService.availableUpdate ?? updateService.latestRelease!;
                                           if (release.downloadUrl.isNotEmpty) {
-                                            final uri = Uri.parse(release.downloadUrl);
+                                            final uri =
+                                                Uri.parse(release.downloadUrl);
                                             if (await canLaunchUrl(uri)) {
-                                              await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                              await launchUrl(uri,
+                                                  mode: LaunchMode
+                                                      .externalApplication);
                                             }
                                           }
                                         },
-                                        child: Text(t.updateLauncherFailedManualDownloadButton),
+                                        child: Text(t
+                                            .updateLauncherFailedManualDownloadButton),
                                       ),
                                     ],
                                   ),
@@ -376,11 +495,11 @@ class _UpdatePageState extends State<UpdatePage> {
                               }
                             } else {
                               // 没有 .NET 8，直接打开下载页面
-                              final release = updateService.availableUpdate ?? updateService.latestRelease!;
                               if (release.downloadUrl.isNotEmpty) {
                                 final uri = Uri.parse(release.downloadUrl);
                                 if (await canLaunchUrl(uri)) {
-                                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                  await launchUrl(uri,
+                                      mode: LaunchMode.externalApplication);
                                 }
                               }
                             }
@@ -390,7 +509,7 @@ class _UpdatePageState extends State<UpdatePage> {
                             children: [
                               Icon(FluentIcons.download, size: 14),
                               const SizedBox(width: 6),
-                              Text(t.updateStartButton),
+                              Text(_getUpdateActionLabel(context, urgency)),
                             ],
                           ),
                         ),
@@ -463,7 +582,8 @@ class _UpdatePageState extends State<UpdatePage> {
     );
   }
 
-  Widget _buildErrorState(BuildContext context, String error, AppLocalizations t) {
+  Widget _buildErrorState(
+      BuildContext context, String error, AppLocalizations t) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -487,16 +607,17 @@ class _UpdatePageState extends State<UpdatePage> {
               children: [
                 Text(
                   t.updateCheckFailedTitle,
-                  style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                    color: AppTheme.statusError,
-                  ),
+                  style:
+                      FluentTheme.of(context).typography.bodyStrong?.copyWith(
+                            color: AppTheme.statusError,
+                          ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   error,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
+                        color: AppTheme.textSecondary,
+                      ),
                 ),
               ],
             ),
@@ -524,23 +645,24 @@ class _UpdatePageState extends State<UpdatePage> {
             size: 24,
           ),
           const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      t.updateLatestTitle,
-                      style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                        color: AppTheme.statusSuccess,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      t.updateLatestSubtitle,
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  t.updateLatestTitle,
+                  style:
+                      FluentTheme.of(context).typography.bodyStrong?.copyWith(
+                            color: AppTheme.statusSuccess,
+                          ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  t.updateLatestSubtitle,
+                  style: FluentTheme.of(context).typography.caption?.copyWith(
                         color: AppTheme.textSecondary,
                       ),
-                    ),
+                ),
               ],
             ),
           ),
@@ -569,8 +691,8 @@ class _UpdatePageState extends State<UpdatePage> {
             child: Text(
               t.updateInitialHint,
               style: FluentTheme.of(context).typography.body?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
+                    color: AppTheme.textSecondary,
+                  ),
             ),
           ),
         ],
@@ -586,29 +708,29 @@ class _UpdatePageState extends State<UpdatePage> {
         selectable: true,
         styleSheet: MarkdownStyleSheet(
           p: FluentTheme.of(context).typography.body?.copyWith(
-            height: 1.6,
-            color: AppTheme.textPrimary,
-          ),
+                height: 1.6,
+                color: AppTheme.textPrimary,
+              ),
           h1: FluentTheme.of(context).typography.title?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
-          ),
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+              ),
           h2: FluentTheme.of(context).typography.subtitle?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
-          ),
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+              ),
           h3: FluentTheme.of(context).typography.bodyLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
-          ),
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+              ),
           listBullet: FluentTheme.of(context).typography.body?.copyWith(
-            color: AppTheme.textPrimary,
-          ),
+                color: AppTheme.textPrimary,
+              ),
           code: FluentTheme.of(context).typography.body?.copyWith(
-            fontFamily: 'Consolas',
-            backgroundColor: AppTheme.bgLayer2,
-            color: AppTheme.accentLight,
-          ),
+                fontFamily: 'Consolas',
+                backgroundColor: AppTheme.bgLayer2,
+                color: AppTheme.accentLight,
+              ),
           codeblockDecoration: BoxDecoration(
             color: AppTheme.bgLayer2,
             borderRadius: BorderRadius.circular(AppTheme.radiusSm),
@@ -623,9 +745,9 @@ class _UpdatePageState extends State<UpdatePage> {
             ),
           ),
           a: FluentTheme.of(context).typography.body?.copyWith(
-            color: AppTheme.accentLight,
-            decoration: TextDecoration.underline,
-          ),
+                color: AppTheme.accentLight,
+                decoration: TextDecoration.underline,
+              ),
         ),
         onTapLink: (text, href, title) async {
           if (href != null) {
@@ -667,16 +789,17 @@ class _UpdatePageState extends State<UpdatePage> {
               children: [
                 Text(
                   t.updateUnreleasedTitle,
-                  style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                    color: AppTheme.accentLight,
-                  ),
+                  style:
+                      FluentTheme.of(context).typography.bodyStrong?.copyWith(
+                            color: AppTheme.accentLight,
+                          ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   t.updateUnreleasedSubtitle(updateService.currentVersion),
                   style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
+                        color: AppTheme.textSecondary,
+                      ),
                 ),
               ],
             ),
@@ -686,7 +809,8 @@ class _UpdatePageState extends State<UpdatePage> {
     );
   }
 
-  void _showChangelogDialog(BuildContext context, String title, String content) {
+  void _showChangelogDialog(
+      BuildContext context, String title, String content) {
     showDialog(
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.4),
@@ -774,12 +898,14 @@ class _UpdatePageState extends State<UpdatePage> {
     return Consumer<UpdateService>(
       builder: (context, updateService, child) {
         final hasDotNet8 = updateService.isDotNet8Installed;
-        
+
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 20),
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: FluentTheme.of(context).resources.cardBackgroundFillColorDefault,
+            color: FluentTheme.of(context)
+                .resources
+                .cardBackgroundFillColorDefault,
             borderRadius: BorderRadius.circular(AppTheme.radiusLg),
             border: Border.all(
               color: FluentTheme.of(context).resources.cardStrokeColorDefault,
@@ -798,13 +924,50 @@ class _UpdatePageState extends State<UpdatePage> {
                   const SizedBox(width: 10),
                   Text(
                     t.updateSettingsTitle,
-                    style: FluentTheme.of(context).typography.subtitle?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style:
+                        FluentTheme.of(context).typography.subtitle?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
+              if (updateService.isForcedUpdate &&
+                  updateService.availableUpdate != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.statusError.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    border: Border.all(
+                      color: AppTheme.statusError.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        FluentIcons.warning,
+                        color: AppTheme.statusError,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _getUrgencyHint(
+                            context,
+                            updateService.availableUpdate!,
+                          ),
+                          style: FluentTheme.of(context)
+                              .typography
+                              .caption
+                              ?.copyWith(color: AppTheme.textSecondary),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
               // .NET 8 未安装时显示醒目横幅
               if (hasDotNet8 == false) ...[
                 Container(
@@ -830,23 +993,29 @@ class _UpdatePageState extends State<UpdatePage> {
                           children: [
                             Text(
                               '.NET 8 Desktop Runtime',
-                              style: FluentTheme.of(context).typography.bodyStrong,
+                              style:
+                                  FluentTheme.of(context).typography.bodyStrong,
                             ),
                             const SizedBox(height: 2),
                             Text(
                               t.updateDotNetMissingSubtitle,
-                              style: FluentTheme.of(context).typography.caption?.copyWith(
-                                color: AppTheme.textSecondary,
-                              ),
+                              style: FluentTheme.of(context)
+                                  .typography
+                                  .caption
+                                  ?.copyWith(
+                                    color: AppTheme.textSecondary,
+                                  ),
                             ),
                           ],
                         ),
                       ),
                       Button(
                         onPressed: () async {
-                          final uri = Uri.parse(updateService.getDotNet8DownloadUrl());
+                          final uri =
+                              Uri.parse(updateService.getDotNet8DownloadUrl());
                           if (await canLaunchUrl(uri)) {
-                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                            await launchUrl(uri,
+                                mode: LaunchMode.externalApplication);
                           }
                         },
                         child: Text(t.updateDotNetDownloadButton),
@@ -872,19 +1041,22 @@ class _UpdatePageState extends State<UpdatePage> {
               _buildSettingRow(
                 context,
                 title: t.updateChannelTitle,
-                subtitle: _getChannelDisplayName(updateService.currentChannel, t),
+                subtitle:
+                    _getChannelDisplayName(updateService.currentChannel, t),
                 trailing: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _getChannelColor(updateService.currentChannel).withValues(alpha: 0.2),
+                    color: _getChannelColor(updateService.currentChannel)
+                        .withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     updateService.currentChannel.name.toUpperCase(),
                     style: FluentTheme.of(context).typography.caption?.copyWith(
-                      color: _getChannelColor(updateService.currentChannel),
-                      fontWeight: FontWeight.w600,
-                    ),
+                          color: _getChannelColor(updateService.currentChannel),
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                 ),
               ),
@@ -934,10 +1106,11 @@ class _UpdatePageState extends State<UpdatePage> {
               if (updateService.lastCheckTime != null) ...[
                 const SizedBox(height: 16),
                 Text(
-                  t.updateLastCheckLabel(_formatDateTime(updateService.lastCheckTime!, t)),
+                  t.updateLastCheckLabel(
+                      _formatDateTime(updateService.lastCheckTime!, t)),
                   style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
+                        color: AppTheme.textSecondary,
+                      ),
                 ),
               ],
             ],
@@ -962,15 +1135,15 @@ class _UpdatePageState extends State<UpdatePage> {
               Text(
                 title,
                 style: FluentTheme.of(context).typography.body?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
+                      fontWeight: FontWeight.w500,
+                    ),
               ),
               const SizedBox(height: 2),
               Text(
                 subtitle,
                 style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
+                      color: AppTheme.textSecondary,
+                    ),
               ),
             ],
           ),
@@ -994,7 +1167,7 @@ class _UpdatePageState extends State<UpdatePage> {
   String _formatDateTime(DateTime dateTime, AppLocalizations t) {
     final now = DateTime.now();
     final diff = now.difference(dateTime);
-    
+
     if (diff.inMinutes < 1) {
       return t.updateTimeJustNow;
     } else if (diff.inHours < 1) {
@@ -1011,9 +1184,12 @@ class _UpdatePageState extends State<UpdatePage> {
     UpdateService updateService,
     AppLocalizations t,
   ) {
-    final release = updateService.availableUpdate ?? updateService.latestRelease!;
+    final release =
+        updateService.availableUpdate ?? updateService.latestRelease!;
     final hasDotNet8 = updateService.isDotNet8Installed ?? false;
-    
+    final urgency = release.urgency;
+    final urgencyColor = _getUrgencyColor(urgency);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1021,36 +1197,74 @@ class _UpdatePageState extends State<UpdatePage> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppTheme.statusWarning.withValues(alpha: 0.1),
+            color: urgencyColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             border: Border.all(
-              color: AppTheme.statusWarning.withValues(alpha: 0.3),
+              color: urgencyColor.withValues(alpha: 0.3),
             ),
           ),
           child: Row(
             children: [
               Icon(
-                FluentIcons.download,
-                color: AppTheme.statusWarning,
+                _getUrgencyIcon(urgency),
+                color: urgencyColor,
                 size: 24,
               ),
               const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Text(
-                          t.updateAvailableTitle,
-                          style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                            color: AppTheme.statusWarning,
+                        Expanded(
+                          child: Text(
+                            t.updateAvailableTitle,
+                            style: FluentTheme.of(context)
+                                .typography
+                                .bodyStrong
+                                ?.copyWith(
+                                  color: urgencyColor,
+                                ),
                           ),
                         ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: urgencyColor.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            _getUrgencyLabel(context, urgency),
+                            style: FluentTheme.of(context)
+                                .typography
+                                .caption
+                                ?.copyWith(
+                                  color: urgencyColor,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       'v${updateService.currentVersion} → v${release.version}',
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: AppTheme.textSecondary,
-                      ),
+                      style:
+                          FluentTheme.of(context).typography.caption?.copyWith(
+                                color: AppTheme.textSecondary,
+                              ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _getUrgencyHint(context, release),
+                      style:
+                          FluentTheme.of(context).typography.caption?.copyWith(
+                                color: AppTheme.textSecondary,
+                              ),
                     ),
                   ],
                 ),
@@ -1058,12 +1272,46 @@ class _UpdatePageState extends State<UpdatePage> {
             ],
           ),
         ),
+        if (urgency == UpdateUrgency.forced &&
+            release.minSupportedVersion != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.statusError.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(
+                color: AppTheme.statusError.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  FluentIcons.warning,
+                  size: 16,
+                  color: AppTheme.statusError,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _isChineseLocale(context)
+                        ? '最低支持版本：v${release.minSupportedVersion!.versionString}，请立即更新。'
+                        : 'Minimum supported version: v${release.minSupportedVersion!.versionString}. Please update immediately.',
+                    style: FluentTheme.of(context).typography.caption?.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 16),
         Text(
           t.updateAvailableChangelogTitle,
           style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+                fontWeight: FontWeight.w600,
+              ),
         ),
         const SizedBox(height: 12),
         ClipRRect(
@@ -1097,7 +1345,8 @@ class _UpdatePageState extends State<UpdatePage> {
                 blendMode: BlendMode.dstIn,
                 child: SingleChildScrollView(
                   physics: const NeverScrollableScrollPhysics(),
-                  child: _buildMarkdownContent(context, updateService.getLatestChangelog()),
+                  child: _buildMarkdownContent(
+                      context, updateService.getLatestChangelog()),
                 ),
               ),
             ),
@@ -1133,30 +1382,38 @@ class _UpdatePageState extends State<UpdatePage> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          t.updateDotNetRecommendTitle,
-                          style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                            color: AppTheme.statusInfo,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          t.updateDotNetRecommendSubtitle,
-                          style: FluentTheme.of(context).typography.caption?.copyWith(
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        t.updateDotNetRecommendTitle,
+                        style: FluentTheme.of(context)
+                            .typography
+                            .bodyStrong
+                            ?.copyWith(
+                              color: AppTheme.statusInfo,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        t.updateDotNetRecommendSubtitle,
+                        style: FluentTheme.of(context)
+                            .typography
+                            .caption
+                            ?.copyWith(
+                              color: AppTheme.textSecondary,
+                            ),
+                      ),
                     ],
                   ),
                 ),
                 Button(
                   onPressed: () async {
-                    final uri = Uri.parse(updateService.getDotNet8DownloadUrl());
+                    final uri =
+                        Uri.parse(updateService.getDotNet8DownloadUrl());
                     if (await canLaunchUrl(uri)) {
-                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      await launchUrl(uri,
+                          mode: LaunchMode.externalApplication);
                     }
                   },
                   child: Text(t.updateDotNetRecommendButton),
