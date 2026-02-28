@@ -1,4 +1,5 @@
 {
+  "@@locale": "en",
   "appTitle": "Hanabi Download ManagerX",
   "aboutEasterEggCongrats": "Congrats, you found the easter egg!",
   "aboutEasterEggTitle": "This easter egg doesn't do much.",
@@ -279,6 +280,31 @@
   "settingsSegmentSpeedLimitSubtitle": "Limit speed per segment",
   "settingsGlobalSpeedLimitTitle": "Global speed limit",
   "settingsGlobalSpeedLimitSubtitle": "Limit total download bandwidth",
+  "settingsHttpVersionTitle": "HTTP protocol",
+  "settingsHttpVersionSubtitle": "Choose protocol strategy for HTTPS downloads",
+  "settingsHttpVersionAuto": "Auto (recommended)",
+  "settingsHttpVersionHttp1Only": "Force HTTP/1.1",
+  "settingsHttpVersionHttp2Only": "Force HTTP/2",
+  "settingsHttpVersionHttp3Only": "Force HTTP/3 (fallback)",
+  "settingsDefaultUserAgentTitle": "Default User-Agent",
+  "settingsDefaultUserAgentSubtitle": "Used when a task does not provide User-Agent",
+  "settingsDefaultUserAgentPlaceholder": "Enter default User-Agent",
+  "settingsUaPresetTitle": "User-Agent presets",
+  "settingsUaPresetSubtitle": "Quickly switch browser disguise, manual input, or custom UA packs",
+  "settingsUaPresetManualOption": "Manual input (keep current value)",
+  "settingsUaPresetBuiltinOption": "Built-in - {name}",
+  "settingsUaPresetCustomOption": "Custom - {name}",
+  "settingsUaCustomCreateTitle": "Create custom UA pack",
+  "settingsUaCustomCreateSubtitle": "Save once and switch anytime",
+  "settingsUaCustomNamePlaceholder": "Name",
+  "settingsUaCustomValuePlaceholder": "User-Agent string",
+  "settingsUaCustomAddButton": "Add",
+  "settingsUaCustomListTitle": "Custom UA packs",
+  "settingsUaCustomListEmpty": "No custom UA packs yet",
+  "settingsUaCustomListCount": "{count} packs, can apply or delete",
+  "settingsUaCustomListHint": "Create one custom UA pack above first",
+  "settingsUaCustomEnabledButton": "Enabled",
+  "settingsUaCustomApplyButton": "Apply",
   "settingsSpeedUnlimited": "Unlimited",
   "settingsSpeedTotal": "Total {speed} KB/s",
   "@settingsDownloadPathChangedMessage": {
@@ -289,6 +315,21 @@
   "@settingsSpeedTotal": {
     "placeholders": {
       "speed": {}
+    }
+  },
+  "@settingsUaPresetBuiltinOption": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "@settingsUaPresetCustomOption": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "@settingsUaCustomListCount": {
+    "placeholders": {
+      "count": {}
     }
   },
   "settingsPopupSaveFailedMessage": "Failed to save: {error}",
@@ -1111,7 +1152,6 @@
     }
   },
   "completedFilePathMissingMessage": "File path not found",
-  "completedFileNotFoundMessage": "File not found",
   "completedRunFileFailedMessage": "Failed to run file: {error}",
   "@completedRunFileFailedMessage": {
     "placeholders": {
@@ -1994,3 +2034,4 @@
   "settingsConflictStrategyTimestamp": "Append timestamp",
   "settingsConflictStrategyOverwrite": "Overwrite existing"
 }
+

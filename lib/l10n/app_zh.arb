@@ -1,4 +1,5 @@
 {
+  "@@locale": "zh",
   "appTitle": "Hanabi Download Manager X",
   "aboutEasterEggCongrats": "恭喜你发现了这个彩蛋！",
   "aboutEasterEggTitle": "这个彩蛋没什么用",
@@ -280,6 +281,32 @@
   "settingsSegmentSpeedLimitSubtitle": "限制单分段速度",
   "settingsGlobalSpeedLimitTitle": "全局限速",
   "settingsGlobalSpeedLimitSubtitle": "限制总下载带宽",
+  "settingsHttpVersionTitle": "HTTP 协议",
+  "settingsHttpVersionSubtitle": "为 HTTPS 下载选择协议策略",
+  "settingsHttpVersionAuto": "自动（推荐）",
+  "settingsHttpVersionHttp1Only": "强制 HTTP/1.1",
+  "settingsHttpVersionHttp2Only": "强制 HTTP/2",
+  "settingsHttpVersionHttp3Only": "强制 HTTP/3（自动回退）",
+  "settingsDefaultUserAgentTitle": "默认 User-Agent",
+  "settingsDefaultUserAgentSubtitle": "任务未提供 User-Agent 时使用",
+  "settingsDefaultUserAgentPlaceholder": "输入默认 User-Agent",
+
+  "settingsUaPresetTitle": "User-Agent 预设",
+  "settingsUaPresetSubtitle": "快速切换浏览器伪装、手动输入或自定义 UA 包",
+  "settingsUaPresetManualOption": "手动输入（保持当前值）",
+  "settingsUaPresetBuiltinOption": "内置 - {name}",
+  "settingsUaPresetCustomOption": "自定义 - {name}",
+  "settingsUaCustomCreateTitle": "创建自定义 UA 包",
+  "settingsUaCustomCreateSubtitle": "保存后可随时切换使用",
+  "settingsUaCustomNamePlaceholder": "名称",
+  "settingsUaCustomValuePlaceholder": "User-Agent 字符串",
+  "settingsUaCustomAddButton": "添加",
+  "settingsUaCustomListTitle": "自定义 UA 包",
+  "settingsUaCustomListEmpty": "暂无自定义 UA 包",
+  "settingsUaCustomListCount": "共 {count} 个，可应用或删除",
+  "settingsUaCustomListHint": "先在上方创建一个 UA 包",
+  "settingsUaCustomEnabledButton": "已启用",
+  "settingsUaCustomApplyButton": "应用",
   "settingsSpeedUnlimited": "不限速",
   "settingsSpeedTotal": "总: {speed} KB/s",
   "@settingsDownloadPathChangedMessage": {
@@ -287,9 +314,20 @@
       "path": {}
     }
   },
-  "@settingsSpeedTotal": {
+  
+  "@settingsUaPresetBuiltinOption": {
     "placeholders": {
-      "speed": {}
+      "name": {}
+    }
+  },
+  "@settingsUaPresetCustomOption": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "@settingsUaCustomListCount": {
+    "placeholders": {
+      "count": {}
     }
   },
   "settingsPopupSaveFailedMessage": "无法保存弹窗设置: {error}",
@@ -316,10 +354,10 @@
   "settingsProxyPasswordSubtitle": "代理账号密码",
   "settingsProxyPasswordPlaceholder": "密码",
   "settingsProxyTipsTitle": "代理配置提示",
-  "settingsProxyTipsSystem": "• 自动使用系统配置的代理设置\\n• 支持 Windows、macOS 和 Linux 系统代理\\n• 配置后将应用到所有新的下载任务\\n• 正在进行的下载不会受到影响",
-  "settingsProxyTipsHttp": "• 使用 HTTP/HTTPS 代理协议\\n• 配置后将应用到所有新的下载任务\\n• 正在进行的下载不会受到影响\\n• 支持用户名密码认证",
-  "settingsProxyTipsSocks5": "• 使用 SOCKS5 代理协议\\n• 需要安装 aiohttp-socks 库支持\\n• 配置后将应用到所有新的下载任务\\n• 正在进行的下载不会受到影响",
-  "settingsProxyTipsDefault": "• 支持系统代理、HTTP/HTTPS 和 SOCKS5 代理\\n• 配置后将应用到所有新的下载任务\\n• 正在进行的下载不会受到影响",
+  "settingsProxyTipsSystem": "• 自动使用系统配置的代理设置\n• 支持 Windows、macOS 和 Linux 系统代理\n• 配置后将应用到所有新的下载任务\n• 正在进行的下载不会受到影响",
+  "settingsProxyTipsHttp": "• 使用 HTTP/HTTPS 代理协议\n• 配置后将应用到所有新的下载任务\n• 正在进行的下载不会受到影响\n• 支持用户名密码认证",
+  "settingsProxyTipsSocks5": "• 使用 SOCKS5 代理协议\n• 需要安装 aiohttp-socks 库支持\n• 配置后将应用到所有新的下载任务\n• 正在进行的下载不会受到影响",
+  "settingsProxyTipsDefault": "• 支持系统代理、HTTP/HTTPS 和 SOCKS5 代理\n• 配置后将应用到所有新的下载任务\n• 正在进行的下载不会受到影响",
   "settingsProxyTestButton": "测试连接",
   "settingsProxyTestingTitle": "正在测试...",
   "settingsProxyTestingMessage": "请稍候",
@@ -1111,7 +1149,6 @@
     }
   },
   "completedFilePathMissingMessage": "文件路径不存在",
-  "completedFileNotFoundMessage": "文件不存在",
   "completedRunFileFailedMessage": "运行文件失败: {error}",
   "@completedRunFileFailedMessage": {
     "placeholders": {
@@ -1994,3 +2031,5 @@
   "settingsConflictStrategyTimestamp": "追加时间戳",
   "settingsConflictStrategyOverwrite": "覆盖原文件"
 }
+
+

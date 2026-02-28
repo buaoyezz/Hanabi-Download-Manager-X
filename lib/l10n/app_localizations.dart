@@ -1226,6 +1226,156 @@ abstract class AppLocalizations {
   /// **'限制总下载带宽'**
   String get settingsGlobalSpeedLimitSubtitle;
 
+  /// No description provided for @settingsHttpVersionTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'HTTP 协议'**
+  String get settingsHttpVersionTitle;
+
+  /// No description provided for @settingsHttpVersionSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'为 HTTPS 下载选择协议策略'**
+  String get settingsHttpVersionSubtitle;
+
+  /// No description provided for @settingsHttpVersionAuto.
+  ///
+  /// In zh, this message translates to:
+  /// **'自动（推荐）'**
+  String get settingsHttpVersionAuto;
+
+  /// No description provided for @settingsHttpVersionHttp1Only.
+  ///
+  /// In zh, this message translates to:
+  /// **'强制 HTTP/1.1'**
+  String get settingsHttpVersionHttp1Only;
+
+  /// No description provided for @settingsHttpVersionHttp2Only.
+  ///
+  /// In zh, this message translates to:
+  /// **'强制 HTTP/2'**
+  String get settingsHttpVersionHttp2Only;
+
+  /// No description provided for @settingsHttpVersionHttp3Only.
+  ///
+  /// In zh, this message translates to:
+  /// **'强制 HTTP/3（自动回退）'**
+  String get settingsHttpVersionHttp3Only;
+
+  /// No description provided for @settingsDefaultUserAgentTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'默认 User-Agent'**
+  String get settingsDefaultUserAgentTitle;
+
+  /// No description provided for @settingsDefaultUserAgentSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'任务未提供 User-Agent 时使用'**
+  String get settingsDefaultUserAgentSubtitle;
+
+  /// No description provided for @settingsDefaultUserAgentPlaceholder.
+  ///
+  /// In zh, this message translates to:
+  /// **'输入默认 User-Agent'**
+  String get settingsDefaultUserAgentPlaceholder;
+
+  /// No description provided for @settingsUaPresetTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'User-Agent 预设'**
+  String get settingsUaPresetTitle;
+
+  /// No description provided for @settingsUaPresetSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'快速切换浏览器伪装、手动输入或自定义 UA 包'**
+  String get settingsUaPresetSubtitle;
+
+  /// No description provided for @settingsUaPresetManualOption.
+  ///
+  /// In zh, this message translates to:
+  /// **'手动输入（保持当前值）'**
+  String get settingsUaPresetManualOption;
+
+  /// No description provided for @settingsUaPresetBuiltinOption.
+  ///
+  /// In zh, this message translates to:
+  /// **'内置 - {name}'**
+  String settingsUaPresetBuiltinOption(Object name);
+
+  /// No description provided for @settingsUaPresetCustomOption.
+  ///
+  /// In zh, this message translates to:
+  /// **'自定义 - {name}'**
+  String settingsUaPresetCustomOption(Object name);
+
+  /// No description provided for @settingsUaCustomCreateTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'创建自定义 UA 包'**
+  String get settingsUaCustomCreateTitle;
+
+  /// No description provided for @settingsUaCustomCreateSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'保存后可随时切换使用'**
+  String get settingsUaCustomCreateSubtitle;
+
+  /// No description provided for @settingsUaCustomNamePlaceholder.
+  ///
+  /// In zh, this message translates to:
+  /// **'名称'**
+  String get settingsUaCustomNamePlaceholder;
+
+  /// No description provided for @settingsUaCustomValuePlaceholder.
+  ///
+  /// In zh, this message translates to:
+  /// **'User-Agent 字符串'**
+  String get settingsUaCustomValuePlaceholder;
+
+  /// No description provided for @settingsUaCustomAddButton.
+  ///
+  /// In zh, this message translates to:
+  /// **'添加'**
+  String get settingsUaCustomAddButton;
+
+  /// No description provided for @settingsUaCustomListTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'自定义 UA 包'**
+  String get settingsUaCustomListTitle;
+
+  /// No description provided for @settingsUaCustomListEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无自定义 UA 包'**
+  String get settingsUaCustomListEmpty;
+
+  /// No description provided for @settingsUaCustomListCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'共 {count} 个，可应用或删除'**
+  String settingsUaCustomListCount(Object count);
+
+  /// No description provided for @settingsUaCustomListHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'先在上方创建一个 UA 包'**
+  String get settingsUaCustomListHint;
+
+  /// No description provided for @settingsUaCustomEnabledButton.
+  ///
+  /// In zh, this message translates to:
+  /// **'已启用'**
+  String get settingsUaCustomEnabledButton;
+
+  /// No description provided for @settingsUaCustomApplyButton.
+  ///
+  /// In zh, this message translates to:
+  /// **'应用'**
+  String get settingsUaCustomApplyButton;
+
   /// No description provided for @settingsSpeedUnlimited.
   ///
   /// In zh, this message translates to:
@@ -1385,25 +1535,25 @@ abstract class AppLocalizations {
   /// No description provided for @settingsProxyTipsSystem.
   ///
   /// In zh, this message translates to:
-  /// **'• 自动使用系统配置的代理设置\\n• 支持 Windows、macOS 和 Linux 系统代理\\n• 配置后将应用到所有新的下载任务\\n• 正在进行的下载不会受到影响'**
+  /// **'• 自动使用系统配置的代理设置\n• 支持 Windows、macOS 和 Linux 系统代理\n• 配置后将应用到所有新的下载任务\n• 正在进行的下载不会受到影响'**
   String get settingsProxyTipsSystem;
 
   /// No description provided for @settingsProxyTipsHttp.
   ///
   /// In zh, this message translates to:
-  /// **'• 使用 HTTP/HTTPS 代理协议\\n• 配置后将应用到所有新的下载任务\\n• 正在进行的下载不会受到影响\\n• 支持用户名密码认证'**
+  /// **'• 使用 HTTP/HTTPS 代理协议\n• 配置后将应用到所有新的下载任务\n• 正在进行的下载不会受到影响\n• 支持用户名密码认证'**
   String get settingsProxyTipsHttp;
 
   /// No description provided for @settingsProxyTipsSocks5.
   ///
   /// In zh, this message translates to:
-  /// **'• 使用 SOCKS5 代理协议\\n• 需要安装 aiohttp-socks 库支持\\n• 配置后将应用到所有新的下载任务\\n• 正在进行的下载不会受到影响'**
+  /// **'• 使用 SOCKS5 代理协议\n• 需要安装 aiohttp-socks 库支持\n• 配置后将应用到所有新的下载任务\n• 正在进行的下载不会受到影响'**
   String get settingsProxyTipsSocks5;
 
   /// No description provided for @settingsProxyTipsDefault.
   ///
   /// In zh, this message translates to:
-  /// **'• 支持系统代理、HTTP/HTTPS 和 SOCKS5 代理\\n• 配置后将应用到所有新的下载任务\\n• 正在进行的下载不会受到影响'**
+  /// **'• 支持系统代理、HTTP/HTTPS 和 SOCKS5 代理\n• 配置后将应用到所有新的下载任务\n• 正在进行的下载不会受到影响'**
   String get settingsProxyTipsDefault;
 
   /// No description provided for @settingsProxyTestButton.
@@ -4673,12 +4823,6 @@ abstract class AppLocalizations {
   /// **'文件路径不存在'**
   String get completedFilePathMissingMessage;
 
-  /// No description provided for @completedFileNotFoundMessage.
-  ///
-  /// In zh, this message translates to:
-  /// **'文件可能已被移动或删除'**
-  String get completedFileNotFoundMessage;
-
   /// No description provided for @completedRunFileFailedMessage.
   ///
   /// In zh, this message translates to:
@@ -4738,6 +4882,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'文件不存在'**
   String get completedFileNotFoundTitle;
+
+  /// No description provided for @completedFileNotFoundMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'文件可能已被移动或删除'**
+  String get completedFileNotFoundMessage;
 
   /// No description provided for @completedDeleteFailedTitle.
   ///

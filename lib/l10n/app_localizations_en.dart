@@ -636,6 +636,92 @@ class AppLocalizationsEn extends AppLocalizations {
       'Limit total download bandwidth';
 
   @override
+  String get settingsHttpVersionTitle => 'HTTP protocol';
+
+  @override
+  String get settingsHttpVersionSubtitle =>
+      'Choose protocol strategy for HTTPS downloads';
+
+  @override
+  String get settingsHttpVersionAuto => 'Auto (recommended)';
+
+  @override
+  String get settingsHttpVersionHttp1Only => 'Force HTTP/1.1';
+
+  @override
+  String get settingsHttpVersionHttp2Only => 'Force HTTP/2';
+
+  @override
+  String get settingsHttpVersionHttp3Only => 'Force HTTP/3 (fallback)';
+
+  @override
+  String get settingsDefaultUserAgentTitle => 'Default User-Agent';
+
+  @override
+  String get settingsDefaultUserAgentSubtitle =>
+      'Used when a task does not provide User-Agent';
+
+  @override
+  String get settingsDefaultUserAgentPlaceholder => 'Enter default User-Agent';
+
+  @override
+  String get settingsUaPresetTitle => 'User-Agent presets';
+
+  @override
+  String get settingsUaPresetSubtitle =>
+      'Quickly switch browser disguise, manual input, or custom UA packs';
+
+  @override
+  String get settingsUaPresetManualOption =>
+      'Manual input (keep current value)';
+
+  @override
+  String settingsUaPresetBuiltinOption(Object name) {
+    return 'Built-in - $name';
+  }
+
+  @override
+  String settingsUaPresetCustomOption(Object name) {
+    return 'Custom - $name';
+  }
+
+  @override
+  String get settingsUaCustomCreateTitle => 'Create custom UA pack';
+
+  @override
+  String get settingsUaCustomCreateSubtitle => 'Save once and switch anytime';
+
+  @override
+  String get settingsUaCustomNamePlaceholder => 'Name';
+
+  @override
+  String get settingsUaCustomValuePlaceholder => 'User-Agent string';
+
+  @override
+  String get settingsUaCustomAddButton => 'Add';
+
+  @override
+  String get settingsUaCustomListTitle => 'Custom UA packs';
+
+  @override
+  String get settingsUaCustomListEmpty => 'No custom UA packs yet';
+
+  @override
+  String settingsUaCustomListCount(Object count) {
+    return '$count packs, can apply or delete';
+  }
+
+  @override
+  String get settingsUaCustomListHint =>
+      'Create one custom UA pack above first';
+
+  @override
+  String get settingsUaCustomEnabledButton => 'Enabled';
+
+  @override
+  String get settingsUaCustomApplyButton => 'Apply';
+
+  @override
   String get settingsSpeedUnlimited => 'Unlimited';
 
   @override
@@ -2552,10 +2638,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get completedFilePathMissingMessage => 'File path not found';
 
   @override
-  String get completedFileNotFoundMessage =>
-      'The file may have been moved or deleted';
-
-  @override
   String completedRunFileFailedMessage(Object error) {
     return 'Failed to run file: $error';
   }
@@ -2592,6 +2674,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get completedFileNotFoundTitle => 'File not found';
+
+  @override
+  String get completedFileNotFoundMessage =>
+      'The file may have been moved or deleted';
 
   @override
   String get completedDeleteFailedTitle => 'Delete failed';

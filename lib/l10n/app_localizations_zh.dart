@@ -613,6 +613,87 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsGlobalSpeedLimitSubtitle => '限制总下载带宽';
 
   @override
+  String get settingsHttpVersionTitle => 'HTTP 协议';
+
+  @override
+  String get settingsHttpVersionSubtitle => '为 HTTPS 下载选择协议策略';
+
+  @override
+  String get settingsHttpVersionAuto => '自动（推荐）';
+
+  @override
+  String get settingsHttpVersionHttp1Only => '强制 HTTP/1.1';
+
+  @override
+  String get settingsHttpVersionHttp2Only => '强制 HTTP/2';
+
+  @override
+  String get settingsHttpVersionHttp3Only => '强制 HTTP/3（自动回退）';
+
+  @override
+  String get settingsDefaultUserAgentTitle => '默认 User-Agent';
+
+  @override
+  String get settingsDefaultUserAgentSubtitle => '任务未提供 User-Agent 时使用';
+
+  @override
+  String get settingsDefaultUserAgentPlaceholder => '输入默认 User-Agent';
+
+  @override
+  String get settingsUaPresetTitle => 'User-Agent 预设';
+
+  @override
+  String get settingsUaPresetSubtitle => '快速切换浏览器伪装、手动输入或自定义 UA 包';
+
+  @override
+  String get settingsUaPresetManualOption => '手动输入（保持当前值）';
+
+  @override
+  String settingsUaPresetBuiltinOption(Object name) {
+    return '内置 - $name';
+  }
+
+  @override
+  String settingsUaPresetCustomOption(Object name) {
+    return '自定义 - $name';
+  }
+
+  @override
+  String get settingsUaCustomCreateTitle => '创建自定义 UA 包';
+
+  @override
+  String get settingsUaCustomCreateSubtitle => '保存后可随时切换使用';
+
+  @override
+  String get settingsUaCustomNamePlaceholder => '名称';
+
+  @override
+  String get settingsUaCustomValuePlaceholder => 'User-Agent 字符串';
+
+  @override
+  String get settingsUaCustomAddButton => '添加';
+
+  @override
+  String get settingsUaCustomListTitle => '自定义 UA 包';
+
+  @override
+  String get settingsUaCustomListEmpty => '暂无自定义 UA 包';
+
+  @override
+  String settingsUaCustomListCount(Object count) {
+    return '共 $count 个，可应用或删除';
+  }
+
+  @override
+  String get settingsUaCustomListHint => '先在上方创建一个 UA 包';
+
+  @override
+  String get settingsUaCustomEnabledButton => '已启用';
+
+  @override
+  String get settingsUaCustomApplyButton => '应用';
+
+  @override
   String get settingsSpeedUnlimited => '不限速';
 
   @override
@@ -698,19 +779,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsProxyTipsSystem =>
-      '• 自动使用系统配置的代理设置\\n• 支持 Windows、macOS 和 Linux 系统代理\\n• 配置后将应用到所有新的下载任务\\n• 正在进行的下载不会受到影响';
+      '• 自动使用系统配置的代理设置\n• 支持 Windows、macOS 和 Linux 系统代理\n• 配置后将应用到所有新的下载任务\n• 正在进行的下载不会受到影响';
 
   @override
   String get settingsProxyTipsHttp =>
-      '• 使用 HTTP/HTTPS 代理协议\\n• 配置后将应用到所有新的下载任务\\n• 正在进行的下载不会受到影响\\n• 支持用户名密码认证';
+      '• 使用 HTTP/HTTPS 代理协议\n• 配置后将应用到所有新的下载任务\n• 正在进行的下载不会受到影响\n• 支持用户名密码认证';
 
   @override
   String get settingsProxyTipsSocks5 =>
-      '• 使用 SOCKS5 代理协议\\n• 需要安装 aiohttp-socks 库支持\\n• 配置后将应用到所有新的下载任务\\n• 正在进行的下载不会受到影响';
+      '• 使用 SOCKS5 代理协议\n• 需要安装 aiohttp-socks 库支持\n• 配置后将应用到所有新的下载任务\n• 正在进行的下载不会受到影响';
 
   @override
   String get settingsProxyTipsDefault =>
-      '• 支持系统代理、HTTP/HTTPS 和 SOCKS5 代理\\n• 配置后将应用到所有新的下载任务\\n• 正在进行的下载不会受到影响';
+      '• 支持系统代理、HTTP/HTTPS 和 SOCKS5 代理\n• 配置后将应用到所有新的下载任务\n• 正在进行的下载不会受到影响';
 
   @override
   String get settingsProxyTestButton => '测试连接';
@@ -2444,9 +2525,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get completedFilePathMissingMessage => '文件路径不存在';
 
   @override
-  String get completedFileNotFoundMessage => '文件可能已被移动或删除';
-
-  @override
   String completedRunFileFailedMessage(Object error) {
     return '运行文件失败: $error';
   }
@@ -2483,6 +2561,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get completedFileNotFoundTitle => '文件不存在';
+
+  @override
+  String get completedFileNotFoundMessage => '文件可能已被移动或删除';
 
   @override
   String get completedDeleteFailedTitle => '删除失败';
