@@ -1,0 +1,1 @@
+1.使用powershell书写中文切记提前使用utf8
