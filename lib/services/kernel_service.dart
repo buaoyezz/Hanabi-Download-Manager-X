@@ -27,11 +27,11 @@ class KernelService extends ChangeNotifier {
 
   // 过滤掉过于频繁的日志
   bool _shouldLogLine(String line) {
-    // 过滤�?aiohttp.access 的日志（太频繁）
+    // 过滤掉 aiohttp.access 的日志（太频繁）
     if (line.contains('aiohttp.access')) {
       return false;
     }
-    // 过滤�?pending_popup 的日志（太频繁）
+    // 过滤掉 pending_popup 的日志（太频繁）
     if (line.contains('[bridge] pending_popup')) {
       return false;
     }
@@ -89,7 +89,7 @@ class KernelService extends ChangeNotifier {
         _logger.info('Mode: Development (Python script)');
         success = await _startPythonKernel();
       } else {
-        // 生产模式：启�?exe
+        // 生产模式：启动 exe
         _logger.info('Mode: Production (Executable)');
         success = await _startExeKernel();
       }
@@ -134,7 +134,7 @@ class KernelService extends ChangeNotifier {
     }
 
     try {
-      // 启动 Python 脚本，使用绝对路�?
+      // 启动 Python 脚本，使用绝对路径
       _logger.info('Executing: python $scriptPath');
       _kernelProcess = await Process.start(
         'python',
@@ -147,7 +147,7 @@ class KernelService extends ChangeNotifier {
       _logger.info('Python process started, PID: ${_kernelProcess?.pid}');
 
       // 监听进程输出并同步到日志
-      // Windows 中文环境�?Python 默认使用系统编码（GBK�?
+      // Windows 中文环境：Python 默认使用系统编码（GBK）
       if (Platform.isWindows) {
         _kernelProcess!.stdout.transform(systemEncoding.decoder).listen(
           (data) {
@@ -250,7 +250,7 @@ class KernelService extends ChangeNotifier {
     }
   }
 
-  /// 生产模式：启�?exe
+  /// 生产模式：启动 exe
   Future<bool> _startExeKernel() async {
     final exePath = await _getKernelPath();
     _logger.info('Starting exe kernel: $exePath');
@@ -262,7 +262,7 @@ class KernelService extends ChangeNotifier {
     }
 
     try {
-      // 使用normal模式以捕获输�?
+      // 使用 normal 模式以捕获输出
       _kernelProcess = await Process.start(
         exePath,
         [],
@@ -273,7 +273,7 @@ class KernelService extends ChangeNotifier {
       _logger.info('Exe process started, PID: ${_kernelProcess?.pid}');
 
       // 监听进程输出并同步到日志
-      // Windows 中文环境�?Python 默认使用系统编码（GBK�?
+      // Windows 中文环境：Python 默认使用系统编码（GBK）
       if (Platform.isWindows) {
         _kernelProcess!.stdout.transform(systemEncoding.decoder).listen(
           (data) {
@@ -382,7 +382,7 @@ class KernelService extends ChangeNotifier {
         _kernelProcess!.kill(ProcessSignal.sigterm);
         await Future.delayed(const Duration(milliseconds: 500));
 
-        // 如果还在运行，强制终�?
+        // 如果还在运行，强制终止
         if (_kernelProcess != null) {
           _kernelProcess!.kill(ProcessSignal.sigkill);
         }
@@ -392,7 +392,7 @@ class KernelService extends ChangeNotifier {
       _kernelProcess = null;
     }
 
-    // 直接�?Dart 中清理可能残留的进程
+    // 直接在 Dart 中清理可能残留的进程
     await _killOrphanedKernelProcesses();
 
     _isRunning = false;
@@ -400,11 +400,11 @@ class KernelService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 清理占用 9710 端口和所�?kernel 相关进程
+  /// 清理占用 9710 端口和所有 kernel 相关进程
   Future<void> _killOrphanedKernelProcesses() async {
     try {
       if (Platform.isWindows) {
-        // 1. 查找占用 9710 端口的进�?
+        // 1. 查找占用 9710 端口的进程
         final netstatResult = await Process.run('netstat', ['-ano']);
         if (netstatResult.exitCode == 0) {
           final lines = netstatResult.stdout.toString().split('\n');
@@ -454,8 +454,8 @@ class KernelService extends ChangeNotifier {
           }
         }
 
-        // 3. 查找 Python 进程中运�?soda_bridge_server.py 的进�?
-        // 使用 PowerShell 代替 wmic（Windows 11 已弃�?wmic�?
+        // 3. 查找 Python 进程中运行 soda_bridge_server.py 的进程
+        // 使用 PowerShell 代替 wmic（Windows 11 已弃用 wmic）
         try {
           final psResult = await Process.run('powershell', [
             '-Command',

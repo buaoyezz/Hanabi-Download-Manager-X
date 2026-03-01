@@ -115,6 +115,7 @@ class _SettingsPageState extends State<SettingsPage> {
   int _globalSpeedLimit = 0;
   String _conflictStrategy = 'increment'; // increment | timestamp | overwrite
   bool _enableDynamicSegments = true;
+  bool _showHttpConnectivityBadges = false;
   bool _loadingConfig = true;
 
   // Proxy configuration state
@@ -350,7 +351,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _verifyAutoStartPath() async {
     final isCorrect = await _autoStartService.isRegisteredPathCorrect();
     if (!isCorrect && mounted) {
-      // 鐠侯垰绶炴稉宥嗩劀绾噯绱濋懛顏勫З娣囶喖顦?
+      // 路径不正确，尝试自动修复
       final fixed = await _autoStartService.verifyAndFixAutoStart();
       if (fixed && mounted) {
         final t = AppLocalizations.of(context)!;
@@ -1241,6 +1242,10 @@ class _SettingsPageState extends State<SettingsPage> {
           }
           _defaultUserAgentController.text = _manualDefaultUserAgent;
           _syncSelectedUaPackInState();
+          _showHttpConnectivityBadges = clientConfig.getBool(
+            'download.show_http_connectivity_badges',
+            defaultValue: false,
+          );
 
           // Load proxy configuration
           final proxyConfig = config['proxy'] as Map<String, dynamic>?;
@@ -1322,7 +1327,8 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _updateProxyConfig() async {
     final t = AppLocalizations.of(context)!;
 
-    final effectiveHost = _proxyType == 'system' ? '127.0.0.1' : _proxyHost;
+    final useSystemProxy = _proxyType == 'system';
+    final effectiveHost = useSystemProxy ? '' : _proxyHost;
     final proxyConfig = {
       'enabled': _useProxy,
       'type': _proxyType,
@@ -1338,11 +1344,20 @@ class _SettingsPageState extends State<SettingsPage> {
     if (mounted) {
       NotificationManager.of(context)?.showSuccess(
         t.settingsProxySavedTitle,
-        message: _useProxy
-            ? t.settingsProxyEnabledMessage(effectiveHost, _proxyPort)
-            : t.settingsProxyDisabledMessage,
+        message: !_useProxy
+            ? t.settingsProxyDisabledMessage
+            : (useSystemProxy
+                ? t.settingsProxyEnabledSystemMessage
+                : t.settingsProxyEnabledMessage(effectiveHost, _proxyPort)),
       );
     }
+  }
+
+  Future<void> _setShowHttpConnectivityBadges(bool value) async {
+    final clientConfig = context.read<ClientConfigService>();
+    await clientConfig.setBool('download.show_http_connectivity_badges', value);
+    if (!mounted) return;
+    setState(() => _showHttpConnectivityBadges = value);
   }
 
   Future<void> _saveDefaultUserAgent() async {
@@ -1545,7 +1560,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  // 鐢瓕顫夐弽鍥╊劮妞?
+  // 通用设置
   List<Widget> _buildGeneralTab(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     return [
@@ -2013,6 +2028,16 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           const SizedBox(height: 12),
+          _buildSettingItem(
+            context,
+            title: t.settingsDownloadCardHttpBadgeTitle,
+            subtitle: t.settingsDownloadCardHttpBadgeSubtitle,
+            trailing: ToggleSwitch(
+              checked: _showHttpConnectivityBadges,
+              onChanged: _setShowHttpConnectivityBadges,
+            ),
+          ),
+          const SizedBox(height: 12),
           _buildUaSettingItem(
             context,
             title: t.settingsDefaultUserAgentTitle,
@@ -2361,49 +2386,22 @@ class _SettingsPageState extends State<SettingsPage> {
                 ],
                 onChanged: (value) {
                   if (value != null) {
-                    setState(() => _proxyType = value);
+                    setState(() {
+                      _proxyType = value;
+                      if (_proxyType != 'system') {
+                        if (_proxyHost.trim().isEmpty) {
+                          _proxyHost = '127.0.0.1';
+                        }
+                        if (_proxyPort <= 0) {
+                          _proxyPort = 7897;
+                        }
+                      }
+                    });
                     _updateProxyConfig();
                   }
                 },
               ),
             ),
-            if (_proxyType == 'system') ...[
-              const SizedBox(height: 12),
-              _buildSettingItem(
-                context,
-                title: t.settingsProxyServerTitle,
-                subtitle: '127.0.0.1',
-                trailing: SizedBox(
-                  width: 160,
-                  child: Row(
-                    children: [
-                      Text(
-                        '127.0.0.1 :',
-                        style:
-                            FluentTheme.of(context).typography.body?.copyWith(
-                                  color: AppTheme.textSecondary,
-                                ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: NumberBox<int>(
-                          value: _proxyPort,
-                          min: 1,
-                          max: 65535,
-                          mode: SpinButtonPlacementMode.none,
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() => _proxyPort = value);
-                              _updateProxyConfig();
-                            }
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
             if (_proxyType != 'system') ...[
               const SizedBox(height: 12),
               _buildSettingItem(
@@ -2464,7 +2462,7 @@ class _SettingsPageState extends State<SettingsPage> {
               if (_proxyRequiresAuth) ...[
                 const SizedBox(height: 12),
 
-                // 閻劍鍩涢崥?
+                // 认证信息
                 _buildSettingItem(
                   context,
                   title: t.settingsProxyUsernameTitle,
@@ -2632,7 +2630,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  // 妤傛楠囬弽鍥╊劮妞?
+  // 高级设置
   List<Widget> _buildAdvancedTab(BuildContext context) {
     return [
       _buildKernelSection(context),

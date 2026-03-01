@@ -96,7 +96,7 @@ class NsfxKernel implements KernelInterface {
         _storage.saveTasks(_tasks);
       });
 
-      // 启动 HTTP 服务器（用于浏览器插件通信）
+      // 启动 HTTP 服务器（用于浏览器扩展通信）
       _httpServer = NsfxHttpServer(this);
       final httpStarted = await _httpServer!.start();
       if (!httpStarted) {
@@ -162,7 +162,7 @@ class NsfxKernel implements KernelInterface {
 
     _tasks[id] = task;
 
-    // 立即保存任务列表
+    // 绔嬪嵆淇濆瓨浠诲姟鍒楄〃
     await _storage.saveTasks(_tasks);
 
     _checkQueue();
@@ -262,7 +262,7 @@ class NsfxKernel implements KernelInterface {
     _engine.pauseDownload(taskId);
     _progressController.add(_toDownloadTask(task));
 
-    // 立即保存任务列表
+    // 绔嬪嵆淇濆瓨浠诲姟鍒楄〃
     await _storage.saveTasks(_tasks);
 
     _checkQueue();
@@ -291,10 +291,10 @@ class NsfxKernel implements KernelInterface {
     _engine.cancelDownload(taskId);
     _tasks.remove(taskId);
 
-    // 立即保存任务列表
+    // 绔嬪嵆淇濆瓨浠诲姟鍒楄〃
     await _storage.saveTasks(_tasks);
 
-    // 清理文件
+    // 娓呯悊鏂囦欢
     try {
       final file = File(task.filepath);
       if (await file.exists()) await file.delete();
@@ -571,7 +571,7 @@ class NsfxKernel implements KernelInterface {
         lastTotalSize != task.totalSize && task.totalSize > 0;
     final isCriticalChange = isStatusChanged || isTotalSizeChanged;
 
-    // 关键变化必须立即发送，普通进度更新才节流
+    // 关键变化必须立即发送，普通进度更新会被节流
     if (!isCriticalChange &&
         now.difference(_lastProgressEmit) < _minProgressEmitInterval) {
       return;
@@ -641,7 +641,10 @@ class NsfxKernel implements KernelInterface {
       averageSpeed: task.averageSpeed,
       startTime: task.startTime,
       endTime: task.endTime,
-      createdTime: task.createdTime, // 传递创建时间
+      createdTime: task.createdTime, // preserve creation time
+      effectiveHttpVersionPolicy: task.effectiveHttpVersionPolicy,
+      negotiatedHttpVersion: task.negotiatedHttpVersion,
+      targetReachable: task.targetReachable,
       segments: task.segments
           .map((s) => SegmentInfo(
                 index: s.index,
