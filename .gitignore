@@ -15,12 +15,16 @@ migrate_working_dir/
 *.backup
 *~
 
+
 # IDE/Editor related
 .claude.json
 .claude/
 CLAUDE.md
+AGENTS.md
 结果.txt
 update*.md
+GEMINI_RULES.md
+GEMINI*.md
 # Fonts html
 .assets/font/*.css
 .assets/font/*.html
@@ -98,6 +102,7 @@ env/
 .venv/
 pip-log.txt
 pip-delete-this-directory.txt
+generate_icons.py
 
 # Nuitka
 *.build/
@@ -258,3 +263,16 @@ site/
 # Deployment scripts (if sensitive)
 # deploy.sh
 # deploy.bat
+test_server_out.txt
+test_server_err.txt
+test_meow_pack.py
+generate_meow_lang.py
+docs/language_pack_template.arb
+
+# Local protocol/integration test helpers and artifacts
+.codex_tmp/
+lib/_codex_probe_main.dart
+integration_test/http_policy_range_integration_test.dart
+tools/run_http_integration.ps1
+log_export_*.txt
+lib/services/kernel/next/server/log_export_*.txt
