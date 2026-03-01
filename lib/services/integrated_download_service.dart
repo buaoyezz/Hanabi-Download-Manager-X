@@ -374,6 +374,9 @@ class IntegratedDownloadService extends ChangeNotifier {
       'startTime': task.startTime?.toIso8601String(),
       'endTime': task.endTime?.toIso8601String(),
       'createdTime': task.createdTime.toIso8601String(), // 添加创建时间
+      'effectiveHttpVersionPolicy': task.effectiveHttpVersionPolicy,
+      'negotiatedHttpVersion': task.negotiatedHttpVersion,
+      'targetReachable': task.targetReachable,
       'segments': task.segments
           .map((s) => {
                 'index': s.index,
@@ -470,6 +473,18 @@ class IntegratedDownloadService extends ChangeNotifier {
     final threadCount = kernelTask['threadCount'] as int?;
     final segmentCount = segments?.length;
     final downloadCore = kernelTask['downloadCore'] as String? ?? 'NSF-X';
+    final effectiveHttpVersionPolicy =
+        kernelTask['effectiveHttpVersionPolicy']?.toString();
+    final negotiatedHttpVersion =
+        kernelTask['negotiatedHttpVersion']?.toString();
+    final targetReachableRaw = kernelTask['targetReachable'];
+    final bool? targetReachable = targetReachableRaw is bool
+        ? targetReachableRaw
+        : (targetReachableRaw is String
+            ? (targetReachableRaw.toLowerCase() == 'true'
+                ? true
+                : (targetReachableRaw.toLowerCase() == 'false' ? false : null))
+            : null);
 
     // 解析时间
     DateTime? startTime;
@@ -517,6 +532,9 @@ class IntegratedDownloadService extends ChangeNotifier {
       threadCount: threadCount,
       segmentCount: segmentCount,
       downloadCore: downloadCore,
+      effectiveHttpVersionPolicy: effectiveHttpVersionPolicy,
+      negotiatedHttpVersion: negotiatedHttpVersion,
+      targetReachable: targetReachable,
       startTime: startTime,
       endTime: endTime,
       createdAt: createdTime, // 传递创建时间

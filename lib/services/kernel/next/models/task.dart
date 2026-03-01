@@ -24,6 +24,9 @@ class Task {
   String? referer;
   String? cookies;
   Map<String, String>? headers;
+  String? effectiveHttpVersionPolicy;
+  String? negotiatedHttpVersion;
+  bool? targetReachable;
 
   Task({
     required this.id,
@@ -48,17 +51,20 @@ class Task {
     this.referer,
     this.cookies,
     this.headers,
-  }) : createdTime = createdTime ?? DateTime.now(),
-       segments = segments ?? [];
+    this.effectiveHttpVersionPolicy,
+    this.negotiatedHttpVersion,
+    this.targetReachable,
+  })  : createdTime = createdTime ?? DateTime.now(),
+        segments = segments ?? [];
 
   void updateProgress() {
     if (segments.isEmpty) return;
-    
+
     downloadedSize = segments.fold(0, (sum, s) => sum + s.downloadedBytes);
     speed = segments
         .where((s) => s.status == SegmentStatus.downloading)
         .fold(0.0, (sum, s) => sum + s.speed);
-    
+
     if (totalSize > 0) {
       progress = (downloadedSize / totalSize) * 100;
       if (speed > 0) {
@@ -70,25 +76,28 @@ class Task {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'url': url,
-    'filename': filename,
-    'filepath': filepath,
-    'status': status.name,
-    'totalSize': totalSize,
-    'downloadedSize': downloadedSize,
-    'speed': speed,
-    'progress': progress,
-    'eta': eta,
-    'errorMessage': errorMessage,
-    'threadCount': threadCount,
-    'peakSpeed': peakSpeed,
-    'averageSpeed': averageSpeed,
-    'startTime': startTime?.toIso8601String(),
-    'endTime': endTime?.toIso8601String(),
-    'createdTime': createdTime.toIso8601String(),
-    'segments': segments.map((s) => s.toJson()).toList(),
-  };
+        'id': id,
+        'url': url,
+        'filename': filename,
+        'filepath': filepath,
+        'status': status.name,
+        'totalSize': totalSize,
+        'downloadedSize': downloadedSize,
+        'speed': speed,
+        'progress': progress,
+        'eta': eta,
+        'errorMessage': errorMessage,
+        'threadCount': threadCount,
+        'peakSpeed': peakSpeed,
+        'averageSpeed': averageSpeed,
+        'startTime': startTime?.toIso8601String(),
+        'endTime': endTime?.toIso8601String(),
+        'createdTime': createdTime.toIso8601String(),
+        'segments': segments.map((s) => s.toJson()).toList(),
+        'effectiveHttpVersionPolicy': effectiveHttpVersionPolicy,
+        'negotiatedHttpVersion': negotiatedHttpVersion,
+        'targetReachable': targetReachable,
+      };
 }
 
 enum TaskStatus {

@@ -14,19 +14,19 @@ class TaskStorage {
   Future<void> init() async {
     if (_initialized) return;
 
-    final home = Platform.environment['USERPROFILE'] ?? 
-                 Platform.environment['HOME'] ?? 
-                 Directory.current.path;
-    
+    final home = Platform.environment['USERPROFILE'] ??
+        Platform.environment['HOME'] ??
+        Directory.current.path;
+
     // 新的存储目录：.hdmx/kernel
     _storageDir = Directory(path.join(home, '.hdmx', 'kernel'));
-    
+
     // 旧的存储目录：.nsfx_kernel
     _oldStorageDir = Directory(path.join(home, '.nsfx_kernel'));
-    
+
     // 检测并迁移老配置
     await _migrateOldConfigIfNeeded();
-    
+
     // 确保新目录存在
     if (!await _storageDir.exists()) {
       await _storageDir.create(recursive: true);
@@ -35,7 +35,7 @@ class TaskStorage {
     // 进行崩溃恢复与残留文件清理
     await _recoverJsonFile(_tasksFile, label: 'tasks');
     await _recoverJsonFile(_configFile, label: 'config');
-    
+
     _initialized = true;
   }
 
@@ -72,7 +72,7 @@ class TaskStorage {
 
       if (migratedCount > 0) {
         print('[TaskStorage] 成功迁移 $migratedCount 个配置文件');
-        
+
         // 迁移完成后删除老目录
         try {
           await _oldStorageDir.delete(recursive: true);
@@ -82,7 +82,7 @@ class TaskStorage {
         }
       } else {
         print('[TaskStorage] 无需迁移配置文件');
-        
+
         // 如果老目录为空，也尝试删除
         final oldFiles = await _oldStorageDir.list().toList();
         if (oldFiles.isEmpty) {
@@ -162,7 +162,7 @@ class TaskStorage {
 
   Future<void> clearAll() async {
     await init();
-    
+
     if (await _tasksFile.exists()) {
       await _tasksFile.delete();
     }
@@ -180,7 +180,8 @@ class TaskStorage {
     await _writeFileAtomically(target, content);
   }
 
-  Future<Map<String, dynamic>?> _readJsonMapWithRecovery(File target, {required String label}) async {
+  Future<Map<String, dynamic>?> _readJsonMapWithRecovery(File target,
+      {required String label}) async {
     final direct = await _tryReadJsonMap(target);
     if (direct != null) return direct;
 
@@ -305,36 +306,41 @@ class TaskStorage {
   }
 
   Map<String, dynamic> _taskToJson(Task task) => {
-    'id': task.id,
-    'url': task.url,
-    'filename': task.filename,
-    'filepath': task.filepath,
-    'status': task.status.name,
-    'totalSize': task.totalSize,
-    'downloadedSize': task.downloadedSize,
-    'speed': task.speed,
-    'progress': task.progress,
-    'eta': task.eta,
-    'errorMessage': task.errorMessage,
-    'threadCount': task.threadCount,
-    'peakSpeed': task.peakSpeed,
-    'averageSpeed': task.averageSpeed,
-    'startTime': task.startTime?.toIso8601String(),
-    'endTime': task.endTime?.toIso8601String(),
-    'createdTime': task.createdTime.toIso8601String(),
-    'userAgent': task.userAgent,
-    'referer': task.referer,
-    'cookies': task.cookies,
-    'headers': task.headers,
-    'segments': task.segments.map((s) => {
-      'index': s.index,
-      'startByte': s.startByte,
-      'endByte': s.endByte,
-      'downloadedBytes': s.downloadedBytes,
-      'status': s.status.name,
-      'retryCount': s.retryCount,
-    }).toList(),
-  };
+        'id': task.id,
+        'url': task.url,
+        'filename': task.filename,
+        'filepath': task.filepath,
+        'status': task.status.name,
+        'totalSize': task.totalSize,
+        'downloadedSize': task.downloadedSize,
+        'speed': task.speed,
+        'progress': task.progress,
+        'eta': task.eta,
+        'errorMessage': task.errorMessage,
+        'threadCount': task.threadCount,
+        'peakSpeed': task.peakSpeed,
+        'averageSpeed': task.averageSpeed,
+        'startTime': task.startTime?.toIso8601String(),
+        'endTime': task.endTime?.toIso8601String(),
+        'createdTime': task.createdTime.toIso8601String(),
+        'userAgent': task.userAgent,
+        'referer': task.referer,
+        'cookies': task.cookies,
+        'headers': task.headers,
+        'effectiveHttpVersionPolicy': task.effectiveHttpVersionPolicy,
+        'negotiatedHttpVersion': task.negotiatedHttpVersion,
+        'targetReachable': task.targetReachable,
+        'segments': task.segments
+            .map((s) => {
+                  'index': s.index,
+                  'startByte': s.startByte,
+                  'endByte': s.endByte,
+                  'downloadedBytes': s.downloadedBytes,
+                  'status': s.status.name,
+                  'retryCount': s.retryCount,
+                })
+            .toList(),
+      };
 
   Task _taskFromJson(Map<String, dynamic> json) {
     final task = Task(
@@ -355,13 +361,22 @@ class TaskStorage {
       threadCount: json['threadCount'] ?? 1,
       peakSpeed: (json['peakSpeed'] ?? 0).toDouble(),
       averageSpeed: (json['averageSpeed'] ?? 0).toDouble(),
-      startTime: json['startTime'] != null ? DateTime.parse(json['startTime']) : null,
+      startTime:
+          json['startTime'] != null ? DateTime.parse(json['startTime']) : null,
       endTime: json['endTime'] != null ? DateTime.parse(json['endTime']) : null,
-      createdTime: json['createdTime'] != null ? DateTime.parse(json['createdTime']) : DateTime.now(),
+      createdTime: json['createdTime'] != null
+          ? DateTime.parse(json['createdTime'])
+          : DateTime.now(),
       userAgent: json['userAgent'],
       referer: json['referer'],
       cookies: json['cookies'],
-      headers: json['headers'] != null ? Map<String, String>.from(json['headers']) : null,
+      headers: json['headers'] != null
+          ? Map<String, String>.from(json['headers'])
+          : null,
+      effectiveHttpVersionPolicy:
+          json['effectiveHttpVersionPolicy']?.toString(),
+      negotiatedHttpVersion: json['negotiatedHttpVersion']?.toString(),
+      targetReachable: json['targetReachable'] as bool?,
     );
 
     if (json['segments'] != null) {

@@ -20,10 +20,47 @@ class NsfxHttpVersionPolicy {
     return normalize(value) != http3Only;
   }
 
-  static String normalizeForDartIo(String? value) {
+  /// Generic fallback order for protocol policies.
+  ///
+  /// Keep strict preference first, then gracefully degrade.
+  static List<String> fallbackChain(String? value) {
     final normalized = normalize(value);
-    if (normalized == http3Only) return auto;
-    return normalized;
+
+    switch (normalized) {
+      case http3Only:
+        return const [http3Only, http2Only, http1Only];
+      case http2Only:
+        return const [http2Only, http1Only];
+      case http1Only:
+        return const [http1Only];
+      case auto:
+      default:
+        return const [http3Only, http2Only, http1Only];
+    }
+  }
+
+  /// Returns protocol fallback order for current dart:io transport.
+  ///
+  /// dart:io currently has no HTTP/3 transport, so `http3_only` should
+  /// explicitly downgrade to `http2_only` first, then `http1_only`.
+  static List<String> fallbackChainForDartIo(String? value) {
+    final normalized = normalize(value);
+
+    switch (normalized) {
+      case http3Only:
+        return const [http2Only, http1Only];
+      case http2Only:
+        return const [http2Only, http1Only];
+      case http1Only:
+        return const [http1Only];
+      case auto:
+      default:
+        return const [http2Only, http1Only];
+    }
+  }
+
+  static String normalizeForDartIo(String? value) {
+    return fallbackChainForDartIo(value).first;
   }
 }
 

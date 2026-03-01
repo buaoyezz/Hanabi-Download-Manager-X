@@ -27,7 +27,10 @@ class DownloadTask {
   double averageSpeed;
   DateTime? startTime;
   DateTime? endTime;
-  DateTime createdTime; // 添加创建时间字段
+  DateTime createdTime; // task creation time
+  String? effectiveHttpVersionPolicy;
+  String? negotiatedHttpVersion;
+  bool? targetReachable;
   List<SegmentInfo> segments;
 
   DownloadTask({
@@ -47,7 +50,10 @@ class DownloadTask {
     this.averageSpeed = 0,
     this.startTime,
     this.endTime,
-    DateTime? createdTime, // 添加可选参数
+    this.effectiveHttpVersionPolicy,
+    this.negotiatedHttpVersion,
+    this.targetReachable,
+    DateTime? createdTime, // optional persisted creation time
     List<SegmentInfo>? segments,
   })  : createdTime = createdTime ?? DateTime.now(),
         segments = segments ?? [];
@@ -69,7 +75,10 @@ class DownloadTask {
         'averageSpeed': averageSpeed,
         'startTime': startTime?.toIso8601String(),
         'endTime': endTime?.toIso8601String(),
-        'createdTime': createdTime.toIso8601String(), // 添加创建时间
+        'createdTime': createdTime.toIso8601String(), // serialize creation time
+        'effectiveHttpVersionPolicy': effectiveHttpVersionPolicy,
+        'negotiatedHttpVersion': negotiatedHttpVersion,
+        'targetReachable': targetReachable,
         'segments': segments.map((s) => s.toJson()).toList(),
       };
 
@@ -105,9 +114,13 @@ class DownloadTask {
         endTime: json['endTime'] != null
             ? DateTime.tryParse(json['endTime'].toString())
             : null,
+        effectiveHttpVersionPolicy:
+            json['effectiveHttpVersionPolicy']?.toString(),
+        negotiatedHttpVersion: json['negotiatedHttpVersion']?.toString(),
+        targetReachable: json['targetReachable'] as bool?,
         createdTime: json['createdTime'] != null
             ? DateTime.tryParse(json['createdTime'].toString())
-            : null, // 添加创建时间解析
+            : null, // parse creation time
         segments: (json['segments'] as List?)
                 ?.map((s) => SegmentInfo.fromJson(s as Map<String, dynamic>))
                 .toList() ??
@@ -196,7 +209,7 @@ class DownloadConfig {
   String mode;
   int maxConcurrentTasks;
   int segmentSpeedLimit;
-  int globalSpeedLimit; // 全局带宽限制（bytes/s），0 = 不限速
+  int globalSpeedLimit; // global bandwidth limit (bytes/s), 0 = unlimited
   bool enableDynamicSegments;
   String conflictStrategy;
   String defaultUserAgent;

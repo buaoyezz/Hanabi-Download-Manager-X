@@ -16,12 +16,71 @@ void main() {
       expect(config.httpVersionPolicy, NsfxHttpVersionPolicy.http3Only);
     });
 
-    test('NsfxHttpVersionPolicy falls back http3 to auto for dart:io transport',
-        () {
+    test('NsfxHttpVersionPolicy keeps strict chain then fallback', () {
+      expect(
+        NsfxHttpVersionPolicy.fallbackChain(NsfxHttpVersionPolicy.http3Only),
+        const [
+          NsfxHttpVersionPolicy.http3Only,
+          NsfxHttpVersionPolicy.http2Only,
+          NsfxHttpVersionPolicy.http1Only,
+        ],
+      );
+      expect(
+        NsfxHttpVersionPolicy.fallbackChain(NsfxHttpVersionPolicy.http2Only),
+        const [
+          NsfxHttpVersionPolicy.http2Only,
+          NsfxHttpVersionPolicy.http1Only,
+        ],
+      );
+      expect(
+        NsfxHttpVersionPolicy.fallbackChain(NsfxHttpVersionPolicy.auto),
+        const [
+          NsfxHttpVersionPolicy.http3Only,
+          NsfxHttpVersionPolicy.http2Only,
+          NsfxHttpVersionPolicy.http1Only,
+        ],
+      );
+    });
+
+    test('NsfxHttpVersionPolicy downgrades http3 for dart:io transport', () {
       expect(
         NsfxHttpVersionPolicy.normalizeForDartIo(
             NsfxHttpVersionPolicy.http3Only),
-        NsfxHttpVersionPolicy.auto,
+        NsfxHttpVersionPolicy.http2Only,
+      );
+      expect(
+        NsfxHttpVersionPolicy.normalizeForDartIo(
+            NsfxHttpVersionPolicy.http2Only),
+        NsfxHttpVersionPolicy.http2Only,
+      );
+      expect(
+        NsfxHttpVersionPolicy.fallbackChainForDartIo(
+            NsfxHttpVersionPolicy.http3Only),
+        const [
+          NsfxHttpVersionPolicy.http2Only,
+          NsfxHttpVersionPolicy.http1Only,
+        ],
+      );
+      expect(
+        NsfxHttpVersionPolicy.fallbackChainForDartIo(
+            NsfxHttpVersionPolicy.http2Only),
+        const [
+          NsfxHttpVersionPolicy.http2Only,
+          NsfxHttpVersionPolicy.http1Only,
+        ],
+      );
+      expect(
+        NsfxHttpVersionPolicy.fallbackChainForDartIo(
+            NsfxHttpVersionPolicy.auto),
+        const [
+          NsfxHttpVersionPolicy.http2Only,
+          NsfxHttpVersionPolicy.http1Only,
+        ],
+      );
+      expect(
+        NsfxHttpVersionPolicy.isSupportedByDartIo(
+            NsfxHttpVersionPolicy.http2Only),
+        isTrue,
       );
       expect(
         NsfxHttpVersionPolicy.isSupportedByDartIo(

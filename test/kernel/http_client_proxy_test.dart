@@ -22,6 +22,22 @@ void main() {
       expect(proxy.supportsHttpBasicAuth, isFalse);
     });
 
+    test('uses system proxy mode without forcing host:port proxy string', () {
+      final config = NsfxConfig(
+        proxy: NsfxProxyConfig(
+          enabled: true,
+          type: 'system',
+        ),
+      );
+
+      final client = NsfxHttpClient(config);
+      final proxy = client.getActiveProxySettings();
+
+      expect(proxy, isNotNull);
+      expect(proxy!.type, 'system');
+      expect(client.getProxyString(), isNull);
+    });
+
     test('supports http basic auth only for non-socks5 proxies', () {
       final config = NsfxConfig(
         proxy: NsfxProxyConfig(
@@ -55,6 +71,30 @@ void main() {
 
       client.close();
       expect(client.getActiveProxySettings(), isNotNull);
+    });
+
+    test('system proxy mode treats transport connect errors as fallback eligible', () {
+      final config = NsfxConfig(
+        proxy: NsfxProxyConfig(enabled: true, type: 'system'),
+      );
+
+      final client = NsfxHttpClient(config);
+      expect(
+        client.shouldSwitchToDirectOnError(Exception('Connection refused')),
+        isTrue,
+      );
+    });
+
+    test('proxy fallback detector stays off when proxy is disabled', () {
+      final config = NsfxConfig(
+        proxy: NsfxProxyConfig(enabled: false, type: 'system'),
+      );
+
+      final client = NsfxHttpClient(config);
+      expect(
+        client.shouldSwitchToDirectOnError(Exception('Connection refused')),
+        isFalse,
+      );
     });
   });
 }
