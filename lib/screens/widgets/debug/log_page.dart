@@ -13,6 +13,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../../utils/fluent_icons.dart';
 import '../../../utils/failure_reason_localizer.dart';
+import '../../../widgets/safe_command_bar_button.dart';
 
 /// 自定义正则规则
 class CustomRegexRule {
@@ -732,31 +733,31 @@ class _LogPageState extends State<LogPage> {
         commandBar: CommandBar(
           mainAxisAlignment: MainAxisAlignment.end,
           primaryItems: [
-            CommandBarButton(
+            SafeCommandBarButton(
               icon: Icon(FluentIcons.filter),
               label: Text(_filterLevel == null ? t.logFilterLevelLabel : _filterLevel!.name.toUpperCase()),
               onPressed: () => _showFilterMenu(context),
             ),
-            CommandBarButton(
+            SafeCommandBarButton(
               icon: Icon(FluentIcons.source),
               label: Text(_filterTags.isNotEmpty 
                 ? _filterTags.length == 1 ? _filterTags.first : t.logFilterTagCount(_filterTags.length)
                 : _filterSource ?? t.logFilterSourceLabel),
               onPressed: () => _showSourceFilterMenu(context),
             ),
-            CommandBarButton(
+            SafeCommandBarButton(
               icon: Icon(FluentIcons.clock),
               label: Text(_startTime != null || _endTime != null ? t.logFilterTimeSelectedLabel : t.logFilterTimeLabel),
               onPressed: () => _showTimeRangeDialog(context),
             ),
-            CommandBarButton(
+            SafeCommandBarButton(
               icon: Icon(FluentIcons.code),
               label: Text(t.logRegexRulesButton),
               onPressed: () => _showRegexRulesDialog(context),
             ),
           ],
           secondaryItems: [
-            CommandBarButton(
+            SafeCommandBarButton(
               icon: Icon(_autoScroll ? FluentIcons.chevron_down : FluentIcons.pause),
               label: Text(_autoScroll ? t.logAutoScrollOn : t.logAutoScrollOff),
               onPressed: () {
@@ -764,7 +765,7 @@ class _LogPageState extends State<LogPage> {
                 context.read<ClientConfigService>().setLogAutoScroll(_autoScroll);
               },
             ),
-            CommandBarButton(
+            SafeCommandBarButton(
               icon: Icon(_showStats ? FluentIcons.chart : FluentIcons.hide3),
               label: Text(_showStats ? t.logStatsShow : t.logStatsHide),
               onPressed: () {
@@ -772,7 +773,7 @@ class _LogPageState extends State<LogPage> {
                 context.read<ClientConfigService>().setLogShowStats(_showStats);
               },
             ),
-            CommandBarButton(
+            SafeCommandBarButton(
               icon: Icon(_showFailureStats ? FluentIcons.warning : FluentIcons.hide3),
               label: Text(_showFailureStats ? t.logFailureStatsShow : t.logFailureStatsHide),
               onPressed: () {
@@ -781,23 +782,23 @@ class _LogPageState extends State<LogPage> {
               },
             ),
             const CommandBarSeparator(),
-            CommandBarButton(
+            SafeCommandBarButton(
               icon: Icon(FluentIcons.save),
               label: Text(t.logExportLogsButton),
               onPressed: () => _exportLogs(context),
             ),
-            CommandBarButton(
+            SafeCommandBarButton(
               icon: Icon(FluentIcons.folder_open),
               label: Text(t.logExportDiagnosticsButton),
               onPressed: () => _exportDiagnostics(context),
             ),
-            CommandBarButton(
+            SafeCommandBarButton(
               icon: Icon(FluentIcons.archive),
               label: Text(t.logArchiveButton),
               onPressed: () => _showArchiveDialog(context),
             ),
             const CommandBarSeparator(),
-            CommandBarButton(
+            SafeCommandBarButton(
               icon: Icon(FluentIcons.clear),
               label: Text(t.logClearButton),
               onPressed: () => _showClearConfirmDialog(context),

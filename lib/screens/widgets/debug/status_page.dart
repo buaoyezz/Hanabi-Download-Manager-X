@@ -18,6 +18,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 import '../../../utils/constants.dart';
 import '../../../widgets/animated_notifications.dart';
+import '../../../widgets/safe_command_bar_button.dart';
 
 class StatusPage extends StatefulWidget {
   const StatusPage({super.key});
@@ -491,7 +492,7 @@ class _StatusPageState extends State<StatusPage> {
         commandBar: CommandBar(
           mainAxisAlignment: MainAxisAlignment.end,
           primaryItems: [
-            CommandBarButton(
+            SafeCommandBarButton(
               icon: const Icon(FluentIcons.refresh),
               label: Text(t.statusPageRefresh),
               onPressed: () {
@@ -501,12 +502,12 @@ class _StatusPageState extends State<StatusPage> {
                 networkService.startMonitoring();
               },
             ),
-            CommandBarButton(
+            SafeCommandBarButton(
               icon: const Icon(FluentIcons.test_case),
               label: Text(t.statusPageTestApi),
               onPressed: _testingApi ? null : _testAllApis,
             ),
-            CommandBarButton(
+            SafeCommandBarButton(
               icon: const Icon(FluentIcons.clear),
               label: Text(t.statusPageClearLogs),
               onPressed: () {

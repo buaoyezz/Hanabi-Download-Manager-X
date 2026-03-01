@@ -900,6 +900,16 @@ class PluginAppLocalizations extends AppLocalizations {
       'settingsHttpVersionHttp3Only', _fallback.settingsHttpVersionHttp3Only);
 
   @override
+  String get settingsDownloadCardHttpBadgeTitle => _string(
+      'settingsDownloadCardHttpBadgeTitle',
+      _fallback.settingsDownloadCardHttpBadgeTitle);
+
+  @override
+  String get settingsDownloadCardHttpBadgeSubtitle => _string(
+      'settingsDownloadCardHttpBadgeSubtitle',
+      _fallback.settingsDownloadCardHttpBadgeSubtitle);
+
+  @override
   String get settingsDefaultUserAgentTitle => _string(
       'settingsDefaultUserAgentTitle', _fallback.settingsDefaultUserAgentTitle);
 
@@ -1021,6 +1031,11 @@ class PluginAppLocalizations extends AppLocalizations {
       'settingsProxyEnabledMessage',
       {'host': host, 'port': port},
       _fallback.settingsProxyEnabledMessage(host, port));
+
+  @override
+  String get settingsProxyEnabledSystemMessage => _string(
+      'settingsProxyEnabledSystemMessage',
+      _fallback.settingsProxyEnabledSystemMessage);
 
   @override
   String get settingsProxyDisabledMessage => _string(

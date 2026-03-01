@@ -1262,6 +1262,18 @@ abstract class AppLocalizations {
   /// **'强制 HTTP/3（自动回退）'**
   String get settingsHttpVersionHttp3Only;
 
+  /// No description provided for @settingsDownloadCardHttpBadgeTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'下载卡片协议徽标'**
+  String get settingsDownloadCardHttpBadgeTitle;
+
+  /// No description provided for @settingsDownloadCardHttpBadgeSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'在每个下载卡片显示 HTTP 版本和目标连通性'**
+  String get settingsDownloadCardHttpBadgeSubtitle;
+
   /// No description provided for @settingsDefaultUserAgentTitle.
   ///
   /// In zh, this message translates to:
@@ -1423,6 +1435,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'已启用代理: {host}:{port}'**
   String settingsProxyEnabledMessage(Object host, Object port);
+
+  /// No description provided for @settingsProxyEnabledSystemMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'已启用代理：跟随系统设置'**
+  String get settingsProxyEnabledSystemMessage;
 
   /// No description provided for @settingsProxyDisabledMessage.
   ///

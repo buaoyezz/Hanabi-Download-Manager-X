@@ -655,6 +655,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsHttpVersionHttp3Only => 'Force HTTP/3 (fallback)';
 
   @override
+  String get settingsDownloadCardHttpBadgeTitle => 'Card protocol badges';
+
+  @override
+  String get settingsDownloadCardHttpBadgeSubtitle =>
+      'Show HTTP version and target connectivity on each download card';
+
+  @override
   String get settingsDefaultUserAgentTitle => 'Default User-Agent';
 
   @override
@@ -750,6 +757,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String settingsProxyEnabledMessage(Object host, Object port) {
     return 'Proxy enabled: $host:$port';
   }
+
+  @override
+  String get settingsProxyEnabledSystemMessage =>
+      'Proxy enabled: follow system settings';
 
   @override
   String get settingsProxyDisabledMessage => 'Proxy disabled';

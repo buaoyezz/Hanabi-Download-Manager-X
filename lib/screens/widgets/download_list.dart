@@ -1,4 +1,4 @@
-﻿import 'dart:ui';
+import 'dart:ui';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -7,7 +7,8 @@ import '../../services/integrated_download_service.dart';
 import '../../services/performance_monitor_service.dart';
 import '../../services/download_failure_stats_service.dart';
 import '../../services/client_config_service.dart';
-import '../../models/download_task.dart' show DownloadTask, DownloadStatus, SegmentInfo;
+import '../../models/download_task.dart'
+    show DownloadTask, DownloadStatus, SegmentInfo;
 import '../../theme/app_theme.dart';
 import '../../widgets/file_icon_widget.dart';
 import '../../widgets/animated_card.dart';
@@ -87,7 +88,8 @@ class _DownloadListState extends State<DownloadList> {
             if (previous[i].status == DownloadStatus.downloading ||
                 next[i].status == DownloadStatus.downloading) {
               // 进度变化超过 0.1% 才重建，避免过于频繁
-              if ((previous[i].progress - next[i].progress).abs() > 0.001) return true;
+              if ((previous[i].progress - next[i].progress).abs() > 0.001)
+                return true;
               // 速度变化也需要更新
               if (previous[i].speed != next[i].speed) return true;
             }
@@ -96,24 +98,28 @@ class _DownloadListState extends State<DownloadList> {
         },
         builder: (context, tasks, child) {
           final downloadService = context.read<IntegratedDownloadService>();
-          final hasLoaded = context.select<IntegratedDownloadService, bool>((s) => s.hasLoadedOnce);
+          final hasLoaded = context
+              .select<IntegratedDownloadService, bool>((s) => s.hasLoadedOnce);
           final tagMap = context.watch<ClientConfigService>().getTaskTagsMap();
 
-          var activeTasks = tasks
-              .where((t) => t.status != DownloadStatus.completed)
-              .toList();
+          var activeTasks =
+              tasks.where((t) => t.status != DownloadStatus.completed).toList();
 
           // 应用搜索过滤
           if (_searchQuery.isNotEmpty) {
-            activeTasks = activeTasks.where((t) => 
-              t.fileName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-              t.url.toLowerCase().contains(_searchQuery.toLowerCase())
-            ).toList();
+            activeTasks = activeTasks
+                .where((t) =>
+                    t.fileName
+                        .toLowerCase()
+                        .contains(_searchQuery.toLowerCase()) ||
+                    t.url.toLowerCase().contains(_searchQuery.toLowerCase()))
+                .toList();
           }
 
           // 应用状态过滤
           if (_filterStatus != null) {
-            activeTasks = activeTasks.where((t) => t.status == _filterStatus).toList();
+            activeTasks =
+                activeTasks.where((t) => t.status == _filterStatus).toList();
           }
 
           // 应用标签过滤
@@ -123,7 +129,7 @@ class _DownloadListState extends State<DownloadList> {
               return tags.contains(_filterTag);
             }).toList();
           }
-          
+
           // 应用排序 - 直接使用 createdAt 字段
           activeTasks.sort((a, b) {
             if (_sortOrder == 'newest') {
@@ -133,10 +139,13 @@ class _DownloadListState extends State<DownloadList> {
             }
           });
 
-          if (activeTasks.isEmpty && (_searchQuery.isNotEmpty || _filterStatus != null || _filterTag != null)) {
+          if (activeTasks.isEmpty &&
+              (_searchQuery.isNotEmpty ||
+                  _filterStatus != null ||
+                  _filterTag != null)) {
             return _buildNoResultsState(context);
           }
-          
+
           if (activeTasks.isEmpty) {
             if (!hasLoaded) {
               return _buildLoadingState(context);
@@ -144,50 +153,55 @@ class _DownloadListState extends State<DownloadList> {
             return _buildEmptyState(context);
           }
 
-        // 计算总体统计
-        final downloadingTasks = activeTasks.where((t) => t.status == DownloadStatus.downloading).toList();
-        final totalSpeed = downloadingTasks.fold<double>(0, (sum, t) => sum + (t.speed ?? 0));
-        final totalSegments = downloadingTasks.fold<int>(0, (sum, t) => sum + (t.segments?.length ?? 0));
+          // 计算总体统计
+          final downloadingTasks = activeTasks
+              .where((t) => t.status == DownloadStatus.downloading)
+              .toList();
+          final totalSpeed = downloadingTasks.fold<double>(
+              0, (sum, t) => sum + (t.speed ?? 0));
+          final totalSegments = downloadingTasks.fold<int>(
+              0, (sum, t) => sum + (t.segments?.length ?? 0));
 
-        return Column(
-          children: [
-            // 顶部工具栏：搜索和筛选按钮
-            _buildToolbar(context),
-            // 搜索和筛选栏（展开时显示）
-            _buildSearchBar(context, downloadService),
-            // 下载统计栏
-            if (downloadingTasks.isNotEmpty)
-              _buildStatsBar(context, downloadingTasks.length, totalSpeed, totalSegments),
-            // 任务列表
-            Expanded(
-              child: SmoothListView.builder(
-                      padding: const EdgeInsets.all(20),
-                      itemCount: activeTasks.length,
-                      // 性能优化：增加缓存区域，预加载更多项目减少滚动时的创建销毁
-                      cacheExtent: 500,
-                      // 添加 addRepaintBoundaries 优化重绘
-                      addRepaintBoundaries: true,
-                      // 添加 addAutomaticKeepAlives 保持状态
-                      addAutomaticKeepAlives: false,
-                      // 平滑滚动配置 - 使用快速响应模式
-                      config: SmoothScrollConfig.fast,
-                      itemBuilder: (context, index) {
-                        final task = activeTasks[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          // 使用 RepaintBoundary 隔离每个卡片的重绘
-                          child: RepaintBoundary(
-                            child: _DownloadTaskCard(
-                              key: ValueKey(task.id),
-                              task: task,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        );
+          return Column(
+            children: [
+              // 顶部工具栏：搜索和筛选按钮
+              _buildToolbar(context),
+              // 搜索和筛选栏（展开时显示）
+              _buildSearchBar(context, downloadService),
+              // 下载统计栏
+              if (downloadingTasks.isNotEmpty)
+                _buildStatsBar(context, downloadingTasks.length, totalSpeed,
+                    totalSegments),
+              // 任务列表
+              Expanded(
+                child: SmoothListView.builder(
+                  padding: const EdgeInsets.all(20),
+                  itemCount: activeTasks.length,
+                  // 性能优化：增加缓存区域，预加载更多项目减少滚动时的创建销毁
+                  cacheExtent: 500,
+                  // 添加 addRepaintBoundaries 优化重绘
+                  addRepaintBoundaries: true,
+                  // 添加 addAutomaticKeepAlives 保持状态
+                  addAutomaticKeepAlives: false,
+                  // 平滑滚动配置 - 使用快速响应模式
+                  config: SmoothScrollConfig.fast,
+                  itemBuilder: (context, index) {
+                    final task = activeTasks[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      // 使用 RepaintBoundary 隔离每个卡片的重绘
+                      child: RepaintBoundary(
+                        child: _DownloadTaskCard(
+                          key: ValueKey(task.id),
+                          task: task,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
         },
       ),
     );
@@ -203,7 +217,8 @@ class _DownloadListState extends State<DownloadList> {
             icon: Icon(
               CustomIcons.FluentIcons.searchIcon,
               size: 14,
-              color: _showSearch ? AppTheme.accentLight : AppTheme.textSecondary,
+              color:
+                  _showSearch ? AppTheme.accentLight : AppTheme.textSecondary,
             ),
             onPressed: () => setState(() => _showSearch = !_showSearch),
             style: ButtonStyle(
@@ -225,7 +240,9 @@ class _DownloadListState extends State<DownloadList> {
             icon: Icon(
               CustomIcons.FluentIcons.filter,
               size: 14,
-              color: _filterStatus != null ? AppTheme.accentLight : AppTheme.textSecondary,
+              color: _filterStatus != null
+                  ? AppTheme.accentLight
+                  : AppTheme.textSecondary,
             ),
             onPressed: () => _showFilterDialog(context),
             style: ButtonStyle(
@@ -247,7 +264,9 @@ class _DownloadListState extends State<DownloadList> {
             icon: Icon(
               CustomIcons.FluentIcons.tag,
               size: 14,
-              color: _filterTag != null ? AppTheme.accentLight : AppTheme.textSecondary,
+              color: _filterTag != null
+                  ? AppTheme.accentLight
+                  : AppTheme.textSecondary,
             ),
             onPressed: () => _showTagFilterDialog(context),
             style: ButtonStyle(
@@ -267,7 +286,9 @@ class _DownloadListState extends State<DownloadList> {
           // 排序按钮
           IconButton(
             icon: Icon(
-              _sortOrder == 'newest' ? CustomIcons.FluentIcons.sort_down : CustomIcons.FluentIcons.sort_up,
+              _sortOrder == 'newest'
+                  ? CustomIcons.FluentIcons.sort_down
+                  : CustomIcons.FluentIcons.sort_up,
               size: 14,
               color: AppTheme.textSecondary,
             ),
@@ -300,15 +321,16 @@ class _DownloadListState extends State<DownloadList> {
                   Text(
                     _getStatusFilterText(_filterStatus!),
                     style: FluentTheme.of(context).typography.caption?.copyWith(
-                      color: AppTheme.accentLight,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
+                          color: AppTheme.accentLight,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                   const SizedBox(width: 6),
                   GestureDetector(
                     onTap: () => setState(() => _filterStatus = null),
-                    child: Icon(CustomIcons.FluentIcons.chrome_close,
+                    child: Icon(
+                      CustomIcons.FluentIcons.chrome_close,
                       size: 10,
                       color: AppTheme.accentLight,
                     ),
@@ -333,15 +355,16 @@ class _DownloadListState extends State<DownloadList> {
                   Text(
                     _filterTag!,
                     style: FluentTheme.of(context).typography.caption?.copyWith(
-                      color: AppTheme.accentLight,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
+                          color: AppTheme.accentLight,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                   const SizedBox(width: 6),
                   GestureDetector(
                     onTap: () => setState(() => _filterTag = null),
-                    child: Icon(CustomIcons.FluentIcons.chrome_close,
+                    child: Icon(
+                      CustomIcons.FluentIcons.chrome_close,
                       size: 10,
                       color: AppTheme.accentLight,
                     ),
@@ -385,12 +408,18 @@ class _DownloadListState extends State<DownloadList> {
           children: [
             Text(t.downloadFilterSubtitle),
             const SizedBox(height: 16),
-            _buildFilterOption(context, null, t.downloadFilterAll, CustomIcons.FluentIcons.list),
-            _buildFilterOption(context, DownloadStatus.downloading, t.downloadStatusDownloading, CustomIcons.FluentIcons.download),
-            _buildFilterOption(context, DownloadStatus.paused, t.downloadStatusPaused, CustomIcons.FluentIcons.pause),
-            _buildFilterOption(context, DownloadStatus.pending, t.downloadStatusPending, CustomIcons.FluentIcons.clock),
-            _buildFilterOption(context, DownloadStatus.failed, t.downloadStatusFailed, CustomIcons.FluentIcons.error_badge),
-            _buildFilterOption(context, DownloadStatus.merging, t.downloadStatusMerging, CustomIcons.FluentIcons.processing),
+            _buildFilterOption(context, null, t.downloadFilterAll,
+                CustomIcons.FluentIcons.list),
+            _buildFilterOption(context, DownloadStatus.downloading,
+                t.downloadStatusDownloading, CustomIcons.FluentIcons.download),
+            _buildFilterOption(context, DownloadStatus.paused,
+                t.downloadStatusPaused, CustomIcons.FluentIcons.pause),
+            _buildFilterOption(context, DownloadStatus.pending,
+                t.downloadStatusPending, CustomIcons.FluentIcons.clock),
+            _buildFilterOption(context, DownloadStatus.failed,
+                t.downloadStatusFailed, CustomIcons.FluentIcons.error_badge),
+            _buildFilterOption(context, DownloadStatus.merging,
+                t.downloadStatusMerging, CustomIcons.FluentIcons.processing),
           ],
         ),
         actions: [
@@ -431,25 +460,33 @@ class _DownloadListState extends State<DownloadList> {
                           Navigator.pop(context);
                         },
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? AppTheme.accentPrimary.withValues(alpha: 0.2)
                                 : AppTheme.bgLayer2,
-                            borderRadius: BorderRadius.circular(AppTheme.radiusRound),
+                            borderRadius:
+                                BorderRadius.circular(AppTheme.radiusRound),
                             border: Border.all(
                               color: isSelected
-                                  ? AppTheme.accentPrimary.withValues(alpha: 0.4)
+                                  ? AppTheme.accentPrimary
+                                      .withValues(alpha: 0.4)
                                   : AppTheme.borderSubtle,
                             ),
                           ),
                           child: Text(
                             tag,
-                            style: FluentTheme.of(context).typography.caption?.copyWith(
-                              color: isSelected ? AppTheme.accentLight : AppTheme.textSecondary,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: FluentTheme.of(context)
+                                .typography
+                                .caption
+                                ?.copyWith(
+                                  color: isSelected
+                                      ? AppTheme.accentLight
+                                      : AppTheme.textSecondary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
                           ),
                         ),
                       );
@@ -487,8 +524,10 @@ class _DownloadListState extends State<DownloadList> {
           children: [
             Text(t.downloadSortSubtitle),
             const SizedBox(height: 16),
-            _buildSortOption(context, 'newest', t.downloadSortNewest, CustomIcons.FluentIcons.sort_down, t.downloadSortNewestDesc),
-            _buildSortOption(context, 'oldest', t.downloadSortOldest, CustomIcons.FluentIcons.sort_up, t.downloadSortOldestDesc),
+            _buildSortOption(context, 'newest', t.downloadSortNewest,
+                CustomIcons.FluentIcons.sort_down, t.downloadSortNewestDesc),
+            _buildSortOption(context, 'oldest', t.downloadSortOldest,
+                CustomIcons.FluentIcons.sort_up, t.downloadSortOldestDesc),
           ],
         ),
         actions: [
@@ -501,9 +540,10 @@ class _DownloadListState extends State<DownloadList> {
     );
   }
 
-  Widget _buildSortOption(BuildContext context, String value, String label, IconData icon, String description) {
+  Widget _buildSortOption(BuildContext context, String value, String label,
+      IconData icon, String description) {
     final isSelected = _sortOrder == value;
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: GestureDetector(
@@ -514,7 +554,7 @@ class _DownloadListState extends State<DownloadList> {
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: isSelected 
+            color: isSelected
                 ? AppTheme.accentPrimary.withValues(alpha: 0.1)
                 : AppTheme.bgLayer2.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
@@ -529,7 +569,8 @@ class _DownloadListState extends State<DownloadList> {
               Icon(
                 icon,
                 size: 16,
-                color: isSelected ? AppTheme.accentLight : AppTheme.textSecondary,
+                color:
+                    isSelected ? AppTheme.accentLight : AppTheme.textSecondary,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -539,23 +580,29 @@ class _DownloadListState extends State<DownloadList> {
                     Text(
                       label,
                       style: FluentTheme.of(context).typography.body?.copyWith(
-                        color: isSelected ? AppTheme.accentLight : AppTheme.textPrimary,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                      ),
+                            color: isSelected
+                                ? AppTheme.accentLight
+                                : AppTheme.textPrimary,
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       description,
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: AppTheme.textTertiary,
-                        fontSize: 11,
-                      ),
+                      style:
+                          FluentTheme.of(context).typography.caption?.copyWith(
+                                color: AppTheme.textTertiary,
+                                fontSize: 11,
+                              ),
                     ),
                   ],
                 ),
               ),
               if (isSelected)
-                Icon(CustomIcons.FluentIcons.check_mark,
+                Icon(
+                  CustomIcons.FluentIcons.check_mark,
                   size: 16,
                   color: AppTheme.accentLight,
                 ),
@@ -566,9 +613,10 @@ class _DownloadListState extends State<DownloadList> {
     );
   }
 
-  Widget _buildFilterOption(BuildContext context, DownloadStatus? status, String label, IconData icon) {
+  Widget _buildFilterOption(BuildContext context, DownloadStatus? status,
+      String label, IconData icon) {
     final isSelected = _filterStatus == status;
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: GestureDetector(
@@ -579,7 +627,7 @@ class _DownloadListState extends State<DownloadList> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected 
+            color: isSelected
                 ? AppTheme.accentPrimary.withValues(alpha: 0.1)
                 : AppTheme.bgLayer2.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
@@ -594,19 +642,24 @@ class _DownloadListState extends State<DownloadList> {
               Icon(
                 icon,
                 size: 14,
-                color: isSelected ? AppTheme.accentLight : AppTheme.textSecondary,
+                color:
+                    isSelected ? AppTheme.accentLight : AppTheme.textSecondary,
               ),
               const SizedBox(width: 10),
               Text(
                 label,
                 style: FluentTheme.of(context).typography.body?.copyWith(
-                  color: isSelected ? AppTheme.accentLight : AppTheme.textPrimary,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                ),
+                      color: isSelected
+                          ? AppTheme.accentLight
+                          : AppTheme.textPrimary,
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.normal,
+                    ),
               ),
               const Spacer(),
               if (isSelected)
-                Icon(CustomIcons.FluentIcons.check_mark,
+                Icon(
+                  CustomIcons.FluentIcons.check_mark,
                   size: 14,
                   color: AppTheme.accentLight,
                 ),
@@ -617,7 +670,8 @@ class _DownloadListState extends State<DownloadList> {
     );
   }
 
-  Widget _buildSearchBar(BuildContext context, IntegratedDownloadService downloadService) {
+  Widget _buildSearchBar(
+      BuildContext context, IntegratedDownloadService downloadService) {
     // 只在搜索展开时显示
     if (!_showSearch) {
       return const SizedBox.shrink();
@@ -636,7 +690,8 @@ class _DownloadListState extends State<DownloadList> {
       ),
       child: Row(
         children: [
-          Icon(CustomIcons.FluentIcons.searchIcon, size: 14, color: AppTheme.accentLight),
+          Icon(CustomIcons.FluentIcons.searchIcon,
+              size: 14, color: AppTheme.accentLight),
           const SizedBox(width: 8),
           Expanded(
             child: TextBox(
@@ -644,7 +699,10 @@ class _DownloadListState extends State<DownloadList> {
               placeholder: t.downloadSearchPlaceholder,
               onChanged: (value) => setState(() => _searchQuery = value),
               decoration: WidgetStateProperty.all(const BoxDecoration()),
-              style: FluentTheme.of(context).typography.body?.copyWith(fontSize: 13),
+              style: FluentTheme.of(context)
+                  .typography
+                  .body
+                  ?.copyWith(fontSize: 13),
               autofocus: true,
             ),
           ),
@@ -678,22 +736,23 @@ class _DownloadListState extends State<DownloadList> {
           Text(
             t.downloadNoResultsTitle,
             style: FluentTheme.of(context).typography.subtitle?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+                  color: AppTheme.textSecondary,
+                ),
           ),
           const SizedBox(height: 8),
           Text(
             t.downloadNoResultsSubtitle,
             style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: AppTheme.textTertiary,
-            ),
+                  color: AppTheme.textTertiary,
+                ),
           ),
         ],
       ),
     );
   }
-  
-  Widget _buildStatsBar(BuildContext context, int activeCount, double totalSpeed, int totalSegments) {
+
+  Widget _buildStatsBar(BuildContext context, int activeCount,
+      double totalSpeed, int totalSegments) {
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -737,8 +796,9 @@ class _DownloadListState extends State<DownloadList> {
       ),
     );
   }
-  
-  Widget _buildStatItem(BuildContext context, {
+
+  Widget _buildStatItem(
+    BuildContext context, {
     required IconData icon,
     required String label,
     required String value,
@@ -757,16 +817,16 @@ class _DownloadListState extends State<DownloadList> {
               Text(
                 value,
                 style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                  color: color,
-                  fontSize: 13,
-                ),
+                      color: color,
+                      fontSize: 13,
+                    ),
               ),
               Text(
                 label,
                 style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: AppTheme.textTertiary,
-                  fontSize: 10,
-                ),
+                      color: AppTheme.textTertiary,
+                      fontSize: 10,
+                    ),
               ),
             ],
           ),
@@ -774,7 +834,7 @@ class _DownloadListState extends State<DownloadList> {
       ),
     );
   }
-  
+
   Widget _buildDivider() {
     return Container(
       width: 1,
@@ -782,11 +842,14 @@ class _DownloadListState extends State<DownloadList> {
       color: AppTheme.borderSubtle,
     );
   }
-  
+
   String _formatSpeed(double bytesPerSecond) {
-    if (bytesPerSecond < 1024) return '${bytesPerSecond.toStringAsFixed(0)} B/s';
-    if (bytesPerSecond < 1024 * 1024) return '${(bytesPerSecond / 1024).toStringAsFixed(1)} KB/s';
-    if (bytesPerSecond < 1024 * 1024 * 1024) return '${(bytesPerSecond / (1024 * 1024)).toStringAsFixed(1)} MB/s';
+    if (bytesPerSecond < 1024)
+      return '${bytesPerSecond.toStringAsFixed(0)} B/s';
+    if (bytesPerSecond < 1024 * 1024)
+      return '${(bytesPerSecond / 1024).toStringAsFixed(1)} KB/s';
+    if (bytesPerSecond < 1024 * 1024 * 1024)
+      return '${(bytesPerSecond / (1024 * 1024)).toStringAsFixed(1)} MB/s';
     return '${(bytesPerSecond / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB/s';
   }
 
@@ -807,15 +870,15 @@ class _DownloadListState extends State<DownloadList> {
           Text(
             t.loadingTasks,
             style: FluentTheme.of(context).typography.body?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+                  color: AppTheme.textSecondary,
+                ),
           ),
           const SizedBox(height: 8),
           Text(
             t.loadingTasksHint,
             style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: AppTheme.textTertiary,
-            ),
+                  color: AppTheme.textTertiary,
+                ),
           ),
         ],
       ),
@@ -827,77 +890,79 @@ class _DownloadListState extends State<DownloadList> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-            TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 1200),
-              tween: Tween(begin: 0.0, end: 1.0),
-              curve: Curves.elasticOut,
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: value,
-                  child: Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.accentPrimary.withValues(alpha: 0.3 * value),
-                          blurRadius: 60 * value,
-                          spreadRadius: 10 * value,
+          TweenAnimationBuilder<double>(
+            duration: const Duration(milliseconds: 1200),
+            tween: Tween(begin: 0.0, end: 1.0),
+            curve: Curves.elasticOut,
+            builder: (context, value, child) {
+              return Transform.scale(
+                scale: value,
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.accentPrimary
+                            .withValues(alpha: 0.3 * value),
+                        blurRadius: 60 * value,
+                        spreadRadius: 10 * value,
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    CustomIcons.FluentIcons.download,
+                    size: 40,
+                    color: AppTheme.accentPrimary.withValues(alpha: 0.6),
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 24),
+          TweenAnimationBuilder<double>(
+            duration: const Duration(milliseconds: 800),
+            tween: Tween(begin: 0.0, end: 1.0),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, child) {
+              return Transform.translate(
+                offset: Offset(0, 20 * (1 - value)),
+                child: Opacity(
+                  opacity: value,
+                  child: Text(
+                    t.downloadEmptyTitle,
+                    style:
+                        FluentTheme.of(context).typography.subtitle?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimary,
+                            ),
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 8),
+          TweenAnimationBuilder<double>(
+            duration: const Duration(milliseconds: 1000),
+            tween: Tween(begin: 0.0, end: 1.0),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, child) {
+              return Transform.translate(
+                offset: Offset(0, 20 * (1 - value)),
+                child: Opacity(
+                  opacity: value,
+                  child: Text(
+                    t.downloadEmptySubtitle,
+                    style: FluentTheme.of(context).typography.body?.copyWith(
+                          color: AppTheme.textTertiary,
                         ),
-                      ],
-                    ),
-                    child: Icon(
-                      CustomIcons.FluentIcons.download,
-                      size: 40,
-                      color: AppTheme.accentPrimary.withValues(alpha: 0.6),
-                    ),
                   ),
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-            TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 800),
-              tween: Tween(begin: 0.0, end: 1.0),
-              curve: Curves.easeOutCubic,
-              builder: (context, value, child) {
-                return Transform.translate(
-                  offset: Offset(0, 20 * (1 - value)),
-                  child: Opacity(
-                    opacity: value,
-                    child: Text(
-                      t.downloadEmptyTitle,
-                      style: FluentTheme.of(context).typography.subtitle?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 8),
-            TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 1000),
-              tween: Tween(begin: 0.0, end: 1.0),
-              curve: Curves.easeOutCubic,
-              builder: (context, value, child) {
-                return Transform.translate(
-                  offset: Offset(0, 20 * (1 - value)),
-                  child: Opacity(
-                    opacity: value,
-                    child: Text(
-                      t.downloadEmptySubtitle,
-                      style: FluentTheme.of(context).typography.body?.copyWith(
-                        color: AppTheme.textTertiary,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -929,7 +994,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
     super.initState();
     _loadSegmentsExpandedSetting();
   }
-  
+
   Future<void> _loadSegmentsExpandedSetting() async {
     final prefs = await SharedPreferences.getInstance();
     final defaultExpanded = prefs.getBool('segments_default_expanded') ?? false;
@@ -958,6 +1023,13 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
     PerformanceMonitorService().trackRebuild('DownloadTaskCard');
 
     final downloadService = context.read<IntegratedDownloadService>();
+    final showHttpConnectivityBadges =
+        context.select<ClientConfigService, bool>(
+      (config) => config.getBool(
+        'download.show_http_connectivity_badges',
+        defaultValue: false,
+      ),
+    );
     final isActive = widget.task.status == DownloadStatus.downloading;
 
     return AnimatedCard(
@@ -965,7 +1037,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
       padding: EdgeInsets.zero,
       backgroundColor: AppTheme.surfaceCard.withValues(alpha: 0.85),
       hoverColor: AppTheme.surfaceCard.withValues(alpha: 0.95),
-      borderColor: isActive 
+      borderColor: isActive
           ? AppTheme.accentPrimary.withValues(alpha: 0.3)
           : AppTheme.borderSubtle,
       hoverBorderColor: AppTheme.accentPrimary.withValues(alpha: 0.5),
@@ -975,7 +1047,10 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
       child: Stack(
         children: [
           // 背景速度折线图（下载中/暂停/失败时显示）
-          if (_showSpeedChart && (widget.task.status == DownloadStatus.downloading || widget.task.status == DownloadStatus.paused || widget.task.status == DownloadStatus.failed))
+          if (_showSpeedChart &&
+              (widget.task.status == DownloadStatus.downloading ||
+                  widget.task.status == DownloadStatus.paused ||
+                  widget.task.status == DownloadStatus.failed))
             Positioned.fill(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppTheme.radiusLg),
@@ -998,7 +1073,11 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
               ),
             ),
           // 毛玻璃层（在曲线之上、内容之下）
-          if (_showSpeedChart && _showChartFrost && (widget.task.status == DownloadStatus.downloading || widget.task.status == DownloadStatus.paused || widget.task.status == DownloadStatus.failed))
+          if (_showSpeedChart &&
+              _showChartFrost &&
+              (widget.task.status == DownloadStatus.downloading ||
+                  widget.task.status == DownloadStatus.paused ||
+                  widget.task.status == DownloadStatus.failed))
             Positioned.fill(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppTheme.radiusLg),
@@ -1014,7 +1093,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeader(downloadService),
+                _buildHeader(downloadService, showHttpConnectivityBadges),
                 const SizedBox(height: 16),
                 _buildTagsRow(),
                 _buildProgressSection(),
@@ -1022,7 +1101,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                   const SizedBox(height: 14),
                   _buildSpeedInfo(),
                 ],
-                if (widget.task.status == DownloadStatus.failed && widget.task.error != null) ...[
+                if (widget.task.status == DownloadStatus.failed &&
+                    widget.task.error != null) ...[
                   const SizedBox(height: 14),
                   _buildErrorInfo(),
                 ],
@@ -1034,7 +1114,10 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
     );
   }
 
-  Widget _buildHeader(IntegratedDownloadService service) {
+  Widget _buildHeader(
+    IntegratedDownloadService service,
+    bool showHttpConnectivityBadges,
+  ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1057,11 +1140,11 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                     child: Text(
                       widget.task.fileName,
                       style: FluentTheme.of(context).typography.body?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
-                        fontSize: 14,
-                        height: 1.3,
-                      ),
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textPrimary,
+                            fontSize: 14,
+                            height: 1.3,
+                          ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1075,26 +1158,42 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
               Row(
                 children: [
                   Expanded(child: _buildUrlWithCopy()),
-                  if (widget.task.fileSize != null && widget.task.fileSize! > 0) ...[
+                  if (widget.task.fileSize != null &&
+                      widget.task.fileSize! > 0) ...[
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: AppTheme.bgLayer2.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         _formatBytes(widget.task.fileSize!),
-                        style: FluentTheme.of(context).typography.caption?.copyWith(
-                          color: AppTheme.textSecondary,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: FluentTheme.of(context)
+                            .typography
+                            .caption
+                            ?.copyWith(
+                              color: AppTheme.textSecondary,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
                       ),
                     ),
                   ],
                 ],
               ),
+              if (showHttpConnectivityBadges) ...[
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    _buildHttpVersionBadge(),
+                    _buildConnectivityBadge(),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -1105,8 +1204,96 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
     );
   }
 
+  Widget _buildHttpVersionBadge() {
+    final policy = widget.task.effectiveHttpVersionPolicy;
+    final negotiated =
+        _formatNegotiatedHttpVersion(widget.task.negotiatedHttpVersion);
+    final display = negotiated ??
+        switch (policy) {
+          'http3_only' => 'HTTP/3',
+          'http2_only' => 'HTTP/2',
+          'http1_only' => 'HTTP/1.1',
+          'auto' => 'HTTP Auto',
+          _ => 'HTTP --',
+        };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppTheme.accentPrimary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: AppTheme.accentPrimary.withValues(alpha: 0.28),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        display,
+        style: FluentTheme.of(context).typography.caption?.copyWith(
+              color: AppTheme.accentLight,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+      ),
+    );
+  }
+
+  String? _formatNegotiatedHttpVersion(String? rawVersion) {
+    final raw = (rawVersion ?? '').trim().toLowerCase();
+    if (raw.isEmpty) return null;
+
+    final normalized = raw.startsWith('http/') ? raw.substring(5) : raw;
+    if (normalized == 'http3' ||
+        normalized.startsWith('3') ||
+        normalized.contains('/3')) {
+      return 'HTTP/3';
+    }
+    if (normalized == 'http2' ||
+        normalized.startsWith('2') ||
+        normalized == 'h2' ||
+        normalized.contains('/2')) {
+      return 'HTTP/2';
+    }
+    if (normalized == 'http1_1' ||
+        normalized == 'http1' ||
+        normalized.startsWith('1')) {
+      return 'HTTP/1.1';
+    }
+    return null;
+  }
+
+  Widget _buildConnectivityBadge() {
+    final reachable = widget.task.targetReachable;
+    final (text, color) = switch (reachable) {
+      true => (t.statusValueReachable, AppTheme.statusSuccess),
+      false => (t.statusValueUnreachable, AppTheme.statusError),
+      null => (t.webCheckChecking, AppTheme.statusWarning),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: color.withValues(alpha: 0.28),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        text,
+        style: FluentTheme.of(context).typography.caption?.copyWith(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+      ),
+    );
+  }
+
   Widget _buildTagsRow() {
-    final tags = context.watch<ClientConfigService>().getTaskTags(widget.task.id);
+    final tags =
+        context.watch<ClientConfigService>().getTaskTags(widget.task.id);
     if (tags.isEmpty) return const SizedBox.shrink();
 
     return Padding(
@@ -1127,21 +1314,21 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             child: Text(
               tag,
               style: FluentTheme.of(context).typography.caption?.copyWith(
-                color: AppTheme.accentLight,
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-              ),
+                    color: AppTheme.accentLight,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
           );
         }).toList(),
       ),
     );
   }
-  
+
   // 状态指示器（简化版，无动画）
   Widget _buildStatusIndicator() {
     final color = _getStatusColor();
-    
+
     return Container(
       width: 10,
       height: 10,
@@ -1234,12 +1421,13 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
     final isMerging = widget.task.status == DownloadStatus.merging;
     final hasRetryableSegments = widget.task.hasRetryableSegments;
     final isFailed = widget.task.status == DownloadStatus.failed;
-    
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (!isMerging && (widget.task.status == DownloadStatus.pending ||
-            widget.task.status == DownloadStatus.paused))
+        if (!isMerging &&
+            (widget.task.status == DownloadStatus.pending ||
+                widget.task.status == DownloadStatus.paused))
           _ActionButton(
             icon: CustomIcons.FluentIcons.play,
             color: AppTheme.statusSuccess,
@@ -1254,9 +1442,10 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             tooltip: t.downloadActionPause,
           ),
         // 添加间距
-        if (!isMerging && (widget.task.status == DownloadStatus.pending ||
-            widget.task.status == DownloadStatus.paused ||
-            widget.task.status == DownloadStatus.downloading))
+        if (!isMerging &&
+            (widget.task.status == DownloadStatus.pending ||
+                widget.task.status == DownloadStatus.paused ||
+                widget.task.status == DownloadStatus.downloading))
           const SizedBox(width: 6),
         // 重试失败分段按钮 - 显示在删除按钮左边
         if (!isMerging && (hasRetryableSegments || isFailed)) ...[
@@ -1264,7 +1453,9 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             icon: CustomIcons.FluentIcons.refresh,
             color: AppTheme.accentLight,
             onPressed: () => service.retryFailedSegments(widget.task.id),
-            tooltip: hasRetryableSegments ? t.downloadActionRetrySegments : t.downloadActionRetryAll,
+            tooltip: hasRetryableSegments
+                ? t.downloadActionRetrySegments
+                : t.downloadActionRetryAll,
           ),
           const SizedBox(width: 6),
         ],
@@ -1289,11 +1480,12 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
   }
 
   Widget _buildProgressSection() {
-    final isUnknownSize = (widget.task.fileSize == null || widget.task.fileSize == 0) && 
-                          widget.task.status == DownloadStatus.downloading;
+    final isUnknownSize =
+        (widget.task.fileSize == null || widget.task.fileSize == 0) &&
+            widget.task.status == DownloadStatus.downloading;
     final isMerging = widget.task.status == DownloadStatus.merging;
     final progress = widget.task.progress.clamp(0.0, 1.0);
-    
+
     // 合并状态：特殊布局
     if (isMerging) {
       return Row(
@@ -1309,10 +1501,10 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
           Text(
             t.downloadMergingStatus,
             style: FluentTheme.of(context).typography.caption?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: AppTheme.accentPrimary,
-              fontSize: 12,
-            ),
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.accentPrimary,
+                  fontSize: 12,
+                ),
           ),
           const SizedBox(width: 12),
           // 中间短进度条
@@ -1329,15 +1521,15 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
           Text(
             '${(progress * 100).toStringAsFixed(1)}%',
             style: FluentTheme.of(context).typography.caption?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: AppTheme.accentLight,
-              fontSize: 12,
-            ),
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.accentLight,
+                  fontSize: 12,
+                ),
           ),
         ],
       );
     }
-    
+
     // 正常下载状态
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1347,24 +1539,26 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             // 左侧：已下载/总大小
-            if (!isUnknownSize && widget.task.fileSize != null && widget.task.fileSize! > 0)
+            if (!isUnknownSize &&
+                widget.task.fileSize != null &&
+                widget.task.fileSize! > 0)
               Text(
                 '${_formatBytes((widget.task.fileSize! * progress).round())} / ${_formatBytes(widget.task.fileSize!)}',
                 style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: AppTheme.textSecondary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
+                      color: AppTheme.textSecondary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
               )
             else
               Text(
                 t.downloadCalculatingSize,
                 style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: AppTheme.textTertiary,
-                  fontSize: 11,
-                ),
+                      color: AppTheme.textTertiary,
+                      fontSize: 11,
+                    ),
               ),
-            
+
             // 右侧：百分比
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -1377,16 +1571,16 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                     ? t.downloadCalculating
                     : '${(progress * 100).toStringAsFixed(1)}%',
                 style: FluentTheme.of(context).typography.caption?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.accentLight,
-                  fontSize: 12,
-                  letterSpacing: 0.5,
-                ),
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.accentLight,
+                      fontSize: 12,
+                      letterSpacing: 0.5,
+                    ),
               ),
             ),
           ],
         ),
-        
+
         const SizedBox(height: 10),
 
         // 进度条 - 优化：移除boxShadow提升性能
@@ -1428,9 +1622,10 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
               ),
           ],
         ),
-        
+
         // 分段进度（如果有）
-        if (widget.task.segments != null && widget.task.segments!.isNotEmpty) ...[
+        if (widget.task.segments != null &&
+            widget.task.segments!.isNotEmpty) ...[
           const SizedBox(height: 10),
           _buildSegmentsProgress(),
         ],
@@ -1440,23 +1635,24 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
 
   Widget _buildSegmentsProgress() {
     final segments = widget.task.segments!;
-    
+
     // 简洁模式：不显示分段信息
     if (_segmentsDisplayMode == 'none') {
       return const SizedBox.shrink();
     }
-    
+
     // 合并进度条模式
     if (_segmentsDisplayMode == 'merged') {
       return _buildMergedSegmentsBar(segments);
     }
-    
+
     // 列表模式
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         GestureDetector(
-          onTap: () => setState(() => _isSegmentsExpanded = !_isSegmentsExpanded),
+          onTap: () =>
+              setState(() => _isSegmentsExpanded = !_isSegmentsExpanded),
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
             decoration: BoxDecoration(
@@ -1475,9 +1671,9 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                 Text(
                   t.downloadSegmentsTitleWithCount(segments.length),
                   style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: AppTheme.textSecondary,
-                    fontSize: 11,
-                  ),
+                        color: AppTheme.textSecondary,
+                        fontSize: 11,
+                      ),
                 ),
                 const SizedBox(width: 6),
                 AnimatedRotation(
@@ -1496,25 +1692,27 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
         AnimatedCrossFade(
           firstChild: const SizedBox.shrink(),
           secondChild: _buildSegmentsList(segments),
-          crossFadeState: _isSegmentsExpanded 
-              ? CrossFadeState.showSecond 
+          crossFadeState: _isSegmentsExpanded
+              ? CrossFadeState.showSecond
               : CrossFadeState.showFirst,
           duration: const Duration(milliseconds: 200),
         ),
       ],
     );
   }
-  
+
   /// 合并分段进度条
   Widget _buildMergedSegmentsBar(List<SegmentInfo> segments) {
     final totalSize = widget.task.fileSize ?? 0;
     if (totalSize == 0) return const SizedBox.shrink();
-    
+
     // 统计分段状态
-    final completedCount = segments.where((s) => s.status == 'completed').length;
-    final downloadingCount = segments.where((s) => s.status == 'downloading').length;
+    final completedCount =
+        segments.where((s) => s.status == 'completed').length;
+    final downloadingCount =
+        segments.where((s) => s.status == 'downloading').length;
     final failedCount = segments.where((s) => s.status == 'failed').length;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1530,18 +1728,21 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             Text(
               t.downloadSegmentsTitle,
               style: FluentTheme.of(context).typography.caption?.copyWith(
-                color: AppTheme.textSecondary,
-                fontSize: 11,
-              ),
+                    color: AppTheme.textSecondary,
+                    fontSize: 11,
+                  ),
             ),
             const SizedBox(width: 8),
             // 分段状态统计
-            _buildSegmentStatusBadge(completedCount, AppTheme.statusSuccess, t.downloadSegmentsStatusCompleted),
+            _buildSegmentStatusBadge(completedCount, AppTheme.statusSuccess,
+                t.downloadSegmentsStatusCompleted),
             const SizedBox(width: 4),
-            _buildSegmentStatusBadge(downloadingCount, AppTheme.accentPrimary, t.downloadSegmentsStatusDownloading),
+            _buildSegmentStatusBadge(downloadingCount, AppTheme.accentPrimary,
+                t.downloadSegmentsStatusDownloading),
             if (failedCount > 0) ...[
               const SizedBox(width: 4),
-              _buildSegmentStatusBadge(failedCount, AppTheme.statusError, t.downloadSegmentsStatusFailed),
+              _buildSegmentStatusBadge(failedCount, AppTheme.statusError,
+                  t.downloadSegmentsStatusFailed),
             ],
           ],
         ),
@@ -1571,21 +1772,26 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             Expanded(
               child: Text(
                 failedCount > 0
-                    ? t.downloadSegmentsSummaryWithFailed(segments.length, completedCount, downloadingCount, failedCount)
-                    : t.downloadSegmentsSummary(segments.length, completedCount, downloadingCount),
+                    ? t.downloadSegmentsSummaryWithFailed(segments.length,
+                        completedCount, downloadingCount, failedCount)
+                    : t.downloadSegmentsSummary(
+                        segments.length, completedCount, downloadingCount),
                 style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: AppTheme.textTertiary,
-                  fontSize: 10,
-                ),
+                      color: AppTheme.textTertiary,
+                      fontSize: 10,
+                    ),
               ),
             ),
             // 快速重试按钮
             if (failedCount > 0) ...[
               const SizedBox(width: 8),
               GestureDetector(
-                onTap: () => context.read<IntegratedDownloadService>().retryFailedSegments(widget.task.id),
+                onTap: () => context
+                    .read<IntegratedDownloadService>()
+                    .retryFailedSegments(widget.task.id),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: AppTheme.accentLight.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(4),
@@ -1605,11 +1811,14 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                       const SizedBox(width: 3),
                       Text(
                         t.downloadRetryButton,
-                        style: FluentTheme.of(context).typography.caption?.copyWith(
-                          color: AppTheme.accentLight,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: FluentTheme.of(context)
+                            .typography
+                            .caption
+                            ?.copyWith(
+                              color: AppTheme.accentLight,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w500,
+                            ),
                       ),
                     ],
                   ),
@@ -1621,7 +1830,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
       ],
     );
   }
-  
+
   Widget _buildSegmentStatusBadge(int count, Color color, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -1632,27 +1841,27 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
       child: Text(
         '$count $label',
         style: FluentTheme.of(context).typography.caption?.copyWith(
-          color: color,
-          fontSize: 9,
-          fontWeight: FontWeight.w500,
-        ),
+              color: color,
+              fontSize: 9,
+              fontWeight: FontWeight.w500,
+            ),
       ),
     );
   }
 
   Widget _buildSegmentsList(List<SegmentInfo> segments) {
-    final visibleSegments = _showAllSegments 
-        ? segments 
+    final visibleSegments = _showAllSegments
+        ? segments
         : segments.take(_maxVisibleSegments).toList();
-    
+
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Column(
         children: [
           ...visibleSegments.map((segment) => Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: _buildSegmentRow(segment),
-          )),
+                padding: const EdgeInsets.only(bottom: 4),
+                child: _buildSegmentRow(segment),
+              )),
           if (segments.length > _maxVisibleSegments)
             _buildShowMoreButton(segments.length),
         ],
@@ -1662,7 +1871,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
 
   Widget _buildSegmentRow(SegmentInfo segment) {
     final downloadService = context.read<IntegratedDownloadService>();
-    
+
     // 根据分段状态选择颜色
     Color statusColor;
     switch (segment.status) {
@@ -1681,7 +1890,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
       default:
         statusColor = AppTheme.textTertiary;
     }
-    
+
     return Row(
       children: [
         // 分段编号和状态指示器
@@ -1701,9 +1910,9 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
               Text(
                 t.downloadSegmentLabel(segment.index + 1),
                 style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: AppTheme.textTertiary,
-                  fontSize: 10,
-                ),
+                      color: AppTheme.textTertiary,
+                      fontSize: 10,
+                    ),
               ),
             ],
           ),
@@ -1721,10 +1930,10 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
           child: Text(
             segment.statusText,
             style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: statusColor,
-              fontSize: 9,
-              fontWeight: FontWeight.w500,
-            ),
+                  color: statusColor,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w500,
+                ),
             textAlign: TextAlign.center,
           ),
         ),
@@ -1734,9 +1943,9 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
           child: Text(
             '${_formatBytes(segment.downloadedBytes)}/${_formatBytes(segment.endByte - segment.startByte)}',
             style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: AppTheme.textTertiary,
-              fontSize: 9,
-            ),
+                  color: AppTheme.textTertiary,
+                  fontSize: 9,
+                ),
             textAlign: TextAlign.right,
           ),
         ),
@@ -1746,10 +1955,12 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
           child: Text(
             _formatSpeed(segment.speed),
             style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: segment.speed > 0 ? AppTheme.accentLight : AppTheme.textTertiary,
-              fontSize: 9,
-              fontWeight: FontWeight.w500,
-            ),
+                  color: segment.speed > 0
+                      ? AppTheme.accentLight
+                      : AppTheme.textTertiary,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w500,
+                ),
             textAlign: TextAlign.right,
           ),
         ),
@@ -1765,10 +1976,10 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             child: Text(
               t.downloadSegmentRetryCount(segment.retryCount),
               style: FluentTheme.of(context).typography.caption?.copyWith(
-                color: AppTheme.statusWarning,
-                fontSize: 8,
-                fontWeight: FontWeight.w500,
-              ),
+                    color: AppTheme.statusWarning,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w500,
+                  ),
             ),
           ),
         ],
@@ -1776,7 +1987,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
         if (segment.canRetry) ...[
           const SizedBox(width: 6),
           GestureDetector(
-            onTap: () => downloadService.retrySegment(widget.task.id, segment.index),
+            onTap: () =>
+                downloadService.retrySegment(widget.task.id, segment.index),
             child: Container(
               width: 16,
               height: 16,
@@ -1817,20 +2029,22 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              _showAllSegments ? CustomIcons.FluentIcons.chevron_up_small : CustomIcons.FluentIcons.chevron_down_small,
+              _showAllSegments
+                  ? CustomIcons.FluentIcons.chevron_up_small
+                  : CustomIcons.FluentIcons.chevron_down_small,
               size: 12,
               color: AppTheme.accentLight,
             ),
             const SizedBox(width: 6),
             Text(
-              _showAllSegments 
+              _showAllSegments
                   ? t.downloadSegmentsCollapse
                   : t.downloadSegmentsShowAll(totalCount - _maxVisibleSegments),
               style: FluentTheme.of(context).typography.caption?.copyWith(
-                color: AppTheme.accentLight,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
+                    color: AppTheme.accentLight,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
             ),
           ],
         ),
@@ -1841,21 +2055,27 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
   String _formatBytes(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    if (bytes < 1024 * 1024 * 1024)
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
   }
-  
+
   String _formatSpeed(double bytesPerSecond) {
-    if (bytesPerSecond < 1024) return '${bytesPerSecond.toStringAsFixed(0)} B/s';
-    if (bytesPerSecond < 1024 * 1024) return '${(bytesPerSecond / 1024).toStringAsFixed(1)} KB/s';
-    if (bytesPerSecond < 1024 * 1024 * 1024) return '${(bytesPerSecond / (1024 * 1024)).toStringAsFixed(1)} MB/s';
+    if (bytesPerSecond < 1024)
+      return '${bytesPerSecond.toStringAsFixed(0)} B/s';
+    if (bytesPerSecond < 1024 * 1024)
+      return '${(bytesPerSecond / 1024).toStringAsFixed(1)} KB/s';
+    if (bytesPerSecond < 1024 * 1024 * 1024)
+      return '${(bytesPerSecond / (1024 * 1024)).toStringAsFixed(1)} MB/s';
     return '${(bytesPerSecond / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB/s';
   }
 
   Widget _buildSpeedInfo() {
-    final isUnknownSize = widget.task.fileSize == null || widget.task.fileSize == 0;
+    final isUnknownSize =
+        widget.task.fileSize == null || widget.task.fileSize == 0;
     final segmentCount = widget.task.segments?.length ?? 0;
-    final activeSegments = widget.task.segments?.where((s) => s.isDownloading).length ?? 0;
+    final activeSegments =
+        widget.task.segments?.where((s) => s.isDownloading).length ?? 0;
     final speed = widget.task.speed ?? 0;
 
     return Container(
@@ -1885,11 +2105,11 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                 Text(
                   _formatSpeed(speed),
                   style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: AppTheme.accentLight,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.3,
-                  ),
+                        color: AppTheme.accentLight,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.3,
+                      ),
                 ),
               ],
             ),
@@ -1917,19 +2137,21 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                   Text(
                     '$activeSegments/$segmentCount',
                     style: FluentTheme.of(context).typography.caption?.copyWith(
-                      color: AppTheme.textSecondary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
+                          color: AppTheme.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
           ],
-          
+
           // 剩余时间
-          if (!isUnknownSize && widget.task.remainingTime != null && widget.task.remainingTime!.inSeconds > 0) ...[
+          if (!isUnknownSize &&
+              widget.task.remainingTime != null &&
+              widget.task.remainingTime!.inSeconds > 0) ...[
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1942,24 +2164,24 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                 Text(
                   widget.task.formattedRemainingTime,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: AppTheme.textSecondary,
-                    fontSize: 11,
-                  ),
+                        color: AppTheme.textSecondary,
+                        fontSize: 11,
+                      ),
                 ),
               ],
             ),
             const SizedBox(width: 8),
           ],
-          
+
           // 分隔线
           Container(
             width: 1,
             height: 16,
             color: AppTheme.borderSubtle.withValues(alpha: 0.5),
           ),
-          
+
           const SizedBox(width: 8),
-          
+
           // 已下载/总大小
           Expanded(
             child: Text(
@@ -1967,10 +2189,10 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                   ? t.downloadSizeUnknown(widget.task.formattedDownloadedSize)
                   : '${widget.task.formattedDownloadedSize} / ${widget.task.formattedFileSize}',
               style: FluentTheme.of(context).typography.caption?.copyWith(
-                color: AppTheme.textSecondary,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
+                    color: AppTheme.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
               textAlign: TextAlign.right,
             ),
           ),
@@ -1988,7 +2210,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
     final reasonLabel = FailureReasonLocalizer.localized(t, reasonKey);
     final suggestion = FailureReasonLocalizer.suggestion(t, reasonKey);
     final rawError = widget.task.error ?? '';
-    
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -2016,18 +2238,22 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                   children: [
                     Text(
                       t.downloadFailedTitle,
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: AppTheme.statusError,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style:
+                          FluentTheme.of(context).typography.caption?.copyWith(
+                                color: AppTheme.statusError,
+                                fontWeight: FontWeight.w600,
+                              ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       reasonLabel,
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: AppTheme.statusError.withValues(alpha: 0.8),
-                        fontSize: 11,
-                      ),
+                      style: FluentTheme.of(context)
+                          .typography
+                          .caption
+                          ?.copyWith(
+                            color: AppTheme.statusError.withValues(alpha: 0.8),
+                            fontSize: 11,
+                          ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -2035,10 +2261,13 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                       const SizedBox(height: 2),
                       Text(
                         rawError,
-                        style: FluentTheme.of(context).typography.caption?.copyWith(
-                          color: AppTheme.textTertiary,
-                          fontSize: 10,
-                        ),
+                        style: FluentTheme.of(context)
+                            .typography
+                            .caption
+                            ?.copyWith(
+                              color: AppTheme.textTertiary,
+                              fontSize: 10,
+                            ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -2047,10 +2276,13 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                       const SizedBox(height: 4),
                       Text(
                         suggestion,
-                        style: FluentTheme.of(context).typography.caption?.copyWith(
-                          color: AppTheme.textSecondary,
-                          fontSize: 10,
-                        ),
+                        style: FluentTheme.of(context)
+                            .typography
+                            .caption
+                            ?.copyWith(
+                              color: AppTheme.textSecondary,
+                              fontSize: 10,
+                            ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -2084,17 +2316,20 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                   Expanded(
                     child: Text(
                       t.downloadFailedSegmentsHint(failedCount),
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: AppTheme.accentLight,
-                        fontSize: 10,
-                      ),
+                      style:
+                          FluentTheme.of(context).typography.caption?.copyWith(
+                                color: AppTheme.accentLight,
+                                fontSize: 10,
+                              ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   GestureDetector(
-                    onTap: () => downloadService.retryFailedSegments(widget.task.id),
+                    onTap: () =>
+                        downloadService.retryFailedSegments(widget.task.id),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: AppTheme.accentLight.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(4),
@@ -2114,11 +2349,14 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                           const SizedBox(width: 4),
                           Text(
                             t.downloadRetryButton,
-                            style: FluentTheme.of(context).typography.caption?.copyWith(
-                              color: AppTheme.accentLight,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: FluentTheme.of(context)
+                                .typography
+                                .caption
+                                ?.copyWith(
+                                  color: AppTheme.accentLight,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
                           ),
                         ],
                       ),
@@ -2162,6 +2400,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
       },
     );
   }
+
   Color _getStatusColor() {
     switch (widget.task.status) {
       case DownloadStatus.pending:
@@ -2178,26 +2417,25 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
         return AppTheme.accentLight;
     }
   }
-
 }
 
 /// 现代简约风格分段进度条绘制器
 class _FlatSegmentProgressPainter extends CustomPainter {
   final List<SegmentInfo> segments;
   final int totalSize;
-  
+
   _FlatSegmentProgressPainter({
     required this.segments,
     required this.totalSize,
   });
-  
+
   @override
   void paint(Canvas canvas, Size size) {
     if (totalSize == 0 || segments.isEmpty) return;
-    
+
     final width = size.width;
     final height = size.height;
-    
+
     // 绘制每个分段
     for (int i = 0; i < segments.length; i++) {
       final segment = segments[i];
@@ -2205,15 +2443,16 @@ class _FlatSegmentProgressPainter extends CustomPainter {
       final endRatio = segment.endByte / totalSize;
       final segmentWidth = (endRatio - startRatio) * width;
       final startX = startRatio * width;
-      
+
       // 计算分段内的进度
       final segmentSize = segment.endByte - segment.startByte;
       double progressRatio = 0.0;
       if (segmentSize > 0) {
         progressRatio = (segment.downloadedBytes / segmentSize).clamp(0.0, 1.0);
       }
-      final progressWidth = (segmentWidth * progressRatio).clamp(0.0, segmentWidth);
-      
+      final progressWidth =
+          (segmentWidth * progressRatio).clamp(0.0, segmentWidth);
+
       // 选择颜色
       Color color;
       switch (segment.status) {
@@ -2232,29 +2471,30 @@ class _FlatSegmentProgressPainter extends CustomPainter {
         default:
           color = AppTheme.textTertiary.withValues(alpha: 0.15);
       }
-      
+
       // 绘制已下载部分 - 使用精确的像素对齐
       if (progressWidth > 0) {
         final progressPaint = Paint()
           ..color = color
           ..style = PaintingStyle.fill
           ..isAntiAlias = false; // 禁用抗锯齿，确保像素完美对齐
-        
+
         canvas.drawRect(
           Rect.fromLTWH(startX, 0, progressWidth, height),
           progressPaint,
         );
       }
-      
+
       // 只在非完成分段之间绘制分割线
       if (i < segments.length - 1) {
         final nextSegment = segments[i + 1];
-        
+
         // 两个分段都是完成状态时，不显示分割线
-        if (segment.status == 'completed' && nextSegment.status == 'completed') {
+        if (segment.status == 'completed' &&
+            nextSegment.status == 'completed') {
           continue;
         }
-        
+
         // 其他情况显示分割线
         final gapX = startX + segmentWidth;
         final gapPaint = Paint()
@@ -2262,7 +2502,7 @@ class _FlatSegmentProgressPainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.0
           ..isAntiAlias = false; // 禁用抗锯齿
-        
+
         canvas.drawLine(
           Offset(gapX, 0),
           Offset(gapX, height),
@@ -2271,18 +2511,18 @@ class _FlatSegmentProgressPainter extends CustomPainter {
       }
     }
   }
-  
+
   @override
   bool shouldRepaint(covariant _FlatSegmentProgressPainter oldDelegate) {
     if (oldDelegate.segments.length != segments.length) return true;
     if (oldDelegate.totalSize != totalSize) return true;
-    
+
     for (int i = 0; i < segments.length; i++) {
       final oldSeg = oldDelegate.segments[i];
       final newSeg = segments[i];
-      
+
       if (oldSeg.status != newSeg.status) return true;
-      
+
       final segmentSize = newSeg.endByte - newSeg.startByte;
       if (segmentSize > 0) {
         final oldProgress = oldSeg.downloadedBytes / segmentSize;
@@ -2290,7 +2530,7 @@ class _FlatSegmentProgressPainter extends CustomPainter {
         if ((newProgress - oldProgress).abs() > 0.001) return true;
       }
     }
-    
+
     return false;
   }
 }
@@ -2383,15 +2623,16 @@ class _HoverableUrlState extends State<_HoverableUrl> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: AppTheme.textTertiary,
-              fontSize: 11,
-              decoration: _isHovered ? TextDecoration.underline : TextDecoration.none,
-              decorationColor: AppTheme.textTertiary.withValues(alpha: 0.7),
-            ),
+                  color: AppTheme.textTertiary,
+                  fontSize: 11,
+                  decoration: _isHovered
+                      ? TextDecoration.underline
+                      : TextDecoration.none,
+                  decorationColor: AppTheme.textTertiary.withValues(alpha: 0.7),
+                ),
           ),
         ),
       ),
     );
   }
 }
-

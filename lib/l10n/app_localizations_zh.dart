@@ -631,6 +631,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsHttpVersionHttp3Only => '强制 HTTP/3（自动回退）';
 
   @override
+  String get settingsDownloadCardHttpBadgeTitle => '下载卡片协议徽标';
+
+  @override
+  String get settingsDownloadCardHttpBadgeSubtitle => '在每个下载卡片显示 HTTP 版本和目标连通性';
+
+  @override
   String get settingsDefaultUserAgentTitle => '默认 User-Agent';
 
   @override
@@ -722,6 +728,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String settingsProxyEnabledMessage(Object host, Object port) {
     return '已启用代理: $host:$port';
   }
+
+  @override
+  String get settingsProxyEnabledSystemMessage => '已启用代理：跟随系统设置';
 
   @override
   String get settingsProxyDisabledMessage => '已禁用代理';
