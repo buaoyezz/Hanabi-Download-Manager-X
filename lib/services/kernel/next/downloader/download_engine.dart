@@ -61,6 +61,7 @@ class DownloadEngine {
   final Map<String, List<Isolate>> _taskIsolates = {};
   final Map<String, ReceivePort> _progressPorts = {};
   final Map<String, _Semaphore> _taskSemaphores = {};
+  final Set<String> _dynamicSplitTasksInFlight = {};
 
   final Map<String, int> _lastDownloaded = {};
   final Map<String, DateTime> _lastUpdateTime = {};
@@ -429,10 +430,18 @@ class DownloadEngine {
         }
 
         final pendingSegments = task.segments
-            .where((s) => s.status != SegmentStatus.completed)
+            .where((s) =>
+                s.status == SegmentStatus.pending ||
+                s.status == SegmentStatus.failed)
             .toList();
 
         if (pendingSegments.isEmpty) {
+          final hasActiveDownloads = task.segments
+              .any((s) => s.status == SegmentStatus.downloading);
+          if (hasActiveDownloads) {
+            await Future.delayed(const Duration(milliseconds: 100));
+            continue;
+          }
           break;
         }
 
@@ -479,6 +488,13 @@ class DownloadEngine {
             'Started ${futures.length} segment downloads concurrently (max $actualThreads threads)');
 
         await Future.wait(futures);
+
+        final hasDynamicSegmentsInFlight = task.segments
+            .any((s) => s.status == SegmentStatus.downloading);
+        if (hasDynamicSegmentsInFlight) {
+          await Future.delayed(const Duration(milliseconds: 100));
+          continue;
+        }
 
         if (_shouldFallbackToSingleThread(task)) {
           progressTimer.cancel();
@@ -580,129 +596,139 @@ class DownloadEngine {
   }
 
   // 动态分段：检测慢分段并拆分
-  void _checkAndSplitSlowSegments(Task task) async {
+  Future<void> _checkAndSplitSlowSegments(Task task) async {
     if (!config.enableDynamicSegments) {
       _logger.debug('NSFX-Engine', 'Dynamic segments disabled');
       return;
     }
     if (task.status != TaskStatus.downloading) return;
-
-    final downloadingSegments = task.segments
-        .where((s) => s.status == SegmentStatus.downloading)
-        .toList();
-
-    if (downloadingSegments.isEmpty) {
-      _logger.debug('NSFX-Engine', 'No downloading segments');
-      return;
-    }
-
-    if (downloadingSegments.length < 2) {
+    if (!_dynamicSplitTasksInFlight.add(task.id)) {
       _logger.debug(
-          'NSFX-Engine', 'Only 1 downloading segment, cannot compare');
+          'NSFX-Engine', 'Dynamic segment split already in progress');
       return;
     }
 
-    final totalRemaining = downloadingSegments.fold<int>(
-        0, (sum, s) => sum + (s.size - s.downloadedBytes));
-    final avgRemaining = totalRemaining / downloadingSegments.length;
+    try {
+      final downloadingSegments = task.segments
+          .where((s) => s.status == SegmentStatus.downloading)
+          .toList();
 
-    _logger.info('NSFX-Engine',
-        'Dynamic segment check: ${downloadingSegments.length} downloading, avg remaining: ${(avgRemaining / 1024 / 1024).toStringAsFixed(2)} MB');
-
-    final slowSegments = downloadingSegments
-        .where((s) => (s.size - s.downloadedBytes) > avgRemaining * 1.5)
-        .where((s) =>
-            (s.size - s.downloadedBytes) >
-            5 * 1024 * 1024)
-        .toList();
-
-    if (slowSegments.isEmpty) {
-      _logger.info('NSFX-Engine',
-          'No slow segments found (threshold: ${(avgRemaining * 1.5 / 1024 / 1024).toStringAsFixed(2)} MB)');
-      return;
-    }
-
-    _logger.info(
-        'NSFX-Engine', 'Found ${slowSegments.length} slow segments to split');
-
-    if (task.segments.length >= 256) {
-      _logger.warning('NSFX-Engine', 'Max segments (256) reached');
-      return;
-    }
-
-    final tempDir = await _getTempDir(task);
-    int splitCount = 0;
-
-    for (final slowSeg in slowSegments) {
-      if (task.segments.length >= 256 || splitCount >= 5) break;
-
-      final remaining = slowSeg.size - slowSeg.downloadedBytes;
-      if (remaining < 5 * 1024 * 1024)
-        continue;
-
-      final currentDownloaded = slowSeg.downloadedBytes;
-      final midPoint = slowSeg.startByte + currentDownloaded + (remaining ~/ 2);
-
-      final newSegment = Segment(
-        index: task.segments.length,
-        startByte: midPoint,
-        endByte: slowSeg.endByte,
-      );
-
-      final oldEndByte = slowSeg.endByte;
-      final oldDownloadedBytes = slowSeg.downloadedBytes;
-      slowSeg.endByte = midPoint;
-
-      final newSegmentSize = slowSeg.endByte - slowSeg.startByte;
-      if (slowSeg.downloadedBytes > newSegmentSize) {
-        final excessBytes = slowSeg.downloadedBytes - newSegmentSize;
-        slowSeg.downloadedBytes = newSegmentSize;
-        task.downloadedSize -= excessBytes;
-        _logger.warning('NSFX-Engine',
-            'Segment ${slowSeg.index} downloadedBytes ($oldDownloadedBytes) exceeds new size ($newSegmentSize), adjusted and reduced total by ${(excessBytes / 1024 / 1024).toStringAsFixed(2)} MB');
+      if (downloadingSegments.isEmpty) {
+        _logger.debug('NSFX-Engine', 'No downloading segments');
+        return;
       }
 
-      final partFile =
-          await _resolveSegmentPartFile(tempDir, task, slowSeg.index);
-      if (await partFile.exists()) {
-        final fileSize = await partFile.length();
+      if (downloadingSegments.length < 2) {
+        _logger.debug(
+            'NSFX-Engine', 'Only 1 downloading segment, cannot compare');
+        return;
+      }
 
-        if (fileSize > newSegmentSize) {
+      final totalRemaining = downloadingSegments.fold<int>(
+          0, (sum, s) => sum + (s.size - s.downloadedBytes));
+      final avgRemaining = totalRemaining / downloadingSegments.length;
+
+      _logger.info('NSFX-Engine',
+          'Dynamic segment check: ${downloadingSegments.length} downloading, avg remaining: ${(avgRemaining / 1024 / 1024).toStringAsFixed(2)} MB');
+
+      final slowSegments = downloadingSegments
+          .where((s) => (s.size - s.downloadedBytes) > avgRemaining * 1.5)
+          .where((s) => (s.size - s.downloadedBytes) > 5 * 1024 * 1024)
+          .toList();
+
+      if (slowSegments.isEmpty) {
+        _logger.info('NSFX-Engine',
+            'No slow segments found (threshold: ${(avgRemaining * 1.5 / 1024 / 1024).toStringAsFixed(2)} MB)');
+        return;
+      }
+
+      _logger.info(
+          'NSFX-Engine', 'Found ${slowSegments.length} slow segments to split');
+
+      if (task.segments.length >= 256) {
+        _logger.warning('NSFX-Engine', 'Max segments (256) reached');
+        return;
+      }
+
+      final tempDir = await _getTempDir(task);
+      int splitCount = 0;
+
+      for (final slowSeg in slowSegments) {
+        if (task.segments.length >= 256 || splitCount >= 5) break;
+
+        final remaining = slowSeg.size - slowSeg.downloadedBytes;
+        if (remaining < 5 * 1024 * 1024) {
+          continue;
+        }
+
+        final currentDownloaded = slowSeg.downloadedBytes;
+        final midPoint =
+            slowSeg.startByte + currentDownloaded + (remaining ~/ 2);
+
+        final newSegment = Segment(
+          index: task.segments.length,
+          startByte: midPoint,
+          endByte: slowSeg.endByte,
+        );
+
+        final oldEndByte = slowSeg.endByte;
+        final oldDownloadedBytes = slowSeg.downloadedBytes;
+        slowSeg.endByte = midPoint;
+
+        final newSegmentSize = slowSeg.endByte - slowSeg.startByte;
+        if (slowSeg.downloadedBytes > newSegmentSize) {
+          final excessBytes = slowSeg.downloadedBytes - newSegmentSize;
+          slowSeg.downloadedBytes = newSegmentSize;
+          task.downloadedSize -= excessBytes;
           _logger.warning('NSFX-Engine',
-              'Segment ${slowSeg.index} temp file ($fileSize bytes) exceeds new size ($newSegmentSize bytes) after split, truncating');
-          try {
-            final raf = await partFile.open(mode: FileMode.writeOnlyAppend);
-            await raf.truncate(newSegmentSize);
-            await raf.close();
-            slowSeg.status = SegmentStatus.completed;
-            _logger.info('NSFX-Engine',
-                'Segment ${slowSeg.index} truncated to $newSegmentSize bytes and marked complete');
-          } catch (e) {
-            _logger.error('NSFX-Engine',
-                'Failed to truncate segment ${slowSeg.index}: $e');
-            slowSeg.endByte = oldEndByte;
-            slowSeg.downloadedBytes = oldDownloadedBytes;
-            task.downloadedSize +=
-                (oldDownloadedBytes - slowSeg.downloadedBytes);
-            continue;
+              'Segment ${slowSeg.index} downloadedBytes ($oldDownloadedBytes) exceeds new size ($newSegmentSize), adjusted and reduced total by ${(excessBytes / 1024 / 1024).toStringAsFixed(2)} MB');
+        }
+
+        final partFile =
+            await _resolveSegmentPartFile(tempDir, task, slowSeg.index);
+        if (await partFile.exists()) {
+          final fileSize = await partFile.length();
+
+          if (fileSize > newSegmentSize) {
+            _logger.warning('NSFX-Engine',
+                'Segment ${slowSeg.index} temp file ($fileSize bytes) exceeds new size ($newSegmentSize bytes) after split, truncating');
+            try {
+              final raf = await partFile.open(mode: FileMode.writeOnlyAppend);
+              await raf.truncate(newSegmentSize);
+              await raf.close();
+              slowSeg.status = SegmentStatus.completed;
+              _logger.info('NSFX-Engine',
+                  'Segment ${slowSeg.index} truncated to $newSegmentSize bytes and marked complete');
+            } catch (e) {
+              _logger.error('NSFX-Engine',
+                  'Failed to truncate segment ${slowSeg.index}: $e');
+              slowSeg.endByte = oldEndByte;
+              slowSeg.downloadedBytes = oldDownloadedBytes;
+              task.downloadedSize +=
+                  (oldDownloadedBytes - slowSeg.downloadedBytes);
+              continue;
+            }
           }
+        }
+
+        task.segments.add(newSegment);
+        splitCount++;
+
+        _logger.info('NSFX-Engine',
+            'Split segment ${slowSeg.index}: ${slowSeg.startByte}-$oldEndByte => ${slowSeg.startByte}-${slowSeg.endByte} + ${newSegment.startByte}-${newSegment.endByte} (remaining: ${(remaining / 1024 / 1024).toStringAsFixed(2)} MB, total segments: ${task.segments.length})');
+
+        if (slowSeg.status != SegmentStatus.completed) {
+          _startNewSegmentDownload(task, newSegment);
         }
       }
 
-      task.segments.add(newSegment);
-      splitCount++;
-
-      _logger.info('NSFX-Engine',
-          'Split segment ${slowSeg.index}: ${slowSeg.startByte}-$oldEndByte => ${slowSeg.startByte}-${slowSeg.endByte} + ${newSegment.startByte}-${newSegment.endByte} (remaining: ${(remaining / 1024 / 1024).toStringAsFixed(2)} MB, total segments: ${task.segments.length})');
-
-      if (slowSeg.status != SegmentStatus.completed) {
-        _startNewSegmentDownload(task, newSegment);
+      if (splitCount > 0) {
+        onProgress(task);
+        _logger.info('NSFX-Engine',
+            'Split $splitCount segments, total segments now: ${task.segments.length}');
       }
-    }
-
-    if (splitCount > 0) {
-      _logger.info('NSFX-Engine',
-          'Split $splitCount segments, total segments now: ${task.segments.length}');
+    } finally {
+      _dynamicSplitTasksInFlight.remove(task.id);
     }
   }
 
@@ -711,12 +737,11 @@ class DownloadEngine {
     final tempFile = _segmentPartFilePath(tempDir, task, segment.index);
     final headers = _buildHeaders(task);
 
-    segment.status = SegmentStatus.pending;
+    segment.status = SegmentStatus.downloading;
     final semaphore = _taskSemaphores[task.id];
     if (semaphore == null) {
       _logger.warning('NSFX-Engine',
           'Semaphore missing for task ${task.id}, starting segment without limit');
-      segment.status = SegmentStatus.downloading;
       await _downloadSegmentInIsolate(
         task: task,
         segment: segment,
@@ -729,9 +754,9 @@ class DownloadEngine {
     // ignore: unawaited_futures
     semaphore.run(() async {
       if (_cancelledTasks[task.id] == true || _pausedTasks[task.id] == true) {
+        segment.status = SegmentStatus.pending;
         return false;
       }
-      segment.status = SegmentStatus.downloading;
       return await _downloadSegmentInIsolate(
         task: task,
         segment: segment,
