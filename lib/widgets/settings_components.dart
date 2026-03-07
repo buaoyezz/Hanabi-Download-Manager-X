@@ -103,7 +103,7 @@ class _SettingsItemState extends State<SettingsItem> {
             overflow: TextOverflow.ellipsis,
             style: FluentTheme.of(context).typography.caption?.copyWith(
                   color: AppTheme.textTertiary,
-                  fontSize: 11,
+                  fontSize: 12,
                 ),
           ),
         ],
@@ -254,8 +254,8 @@ class StatusIndicator extends StatelessWidget {
                       style:
                           FluentTheme.of(context).typography.caption?.copyWith(
                                 color: color,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 12,
                               ),
                     ),
                   ],

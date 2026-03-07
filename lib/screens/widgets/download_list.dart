@@ -322,8 +322,8 @@ class _DownloadListState extends State<DownloadList> {
                     _getStatusFilterText(_filterStatus!),
                     style: FluentTheme.of(context).typography.caption?.copyWith(
                           color: AppTheme.accentLight,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
                         ),
                   ),
                   const SizedBox(width: 6),
@@ -356,8 +356,8 @@ class _DownloadListState extends State<DownloadList> {
                     _filterTag!,
                     style: FluentTheme.of(context).typography.caption?.copyWith(
                           color: AppTheme.accentLight,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
                         ),
                   ),
                   const SizedBox(width: 6),
@@ -484,8 +484,8 @@ class _DownloadListState extends State<DownloadList> {
                                   color: isSelected
                                       ? AppTheme.accentLight
                                       : AppTheme.textSecondary,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
                                 ),
                           ),
                         ),
@@ -594,7 +594,7 @@ class _DownloadListState extends State<DownloadList> {
                       style:
                           FluentTheme.of(context).typography.caption?.copyWith(
                                 color: AppTheme.textTertiary,
-                                fontSize: 11,
+                                fontSize: 12,
                               ),
                     ),
                   ],
@@ -1175,8 +1175,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                             .caption
                             ?.copyWith(
                               color: AppTheme.textSecondary,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w400,
                             ),
                       ),
                     ),
@@ -1231,8 +1231,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
         display,
         style: FluentTheme.of(context).typography.caption?.copyWith(
               color: AppTheme.accentLight,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
             ),
       ),
     );
@@ -1284,8 +1284,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
         text,
         style: FluentTheme.of(context).typography.caption?.copyWith(
               color: color,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
             ),
       ),
     );
@@ -1315,8 +1315,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
               tag,
               style: FluentTheme.of(context).typography.caption?.copyWith(
                     color: AppTheme.accentLight,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
                   ),
             ),
           );
@@ -1546,8 +1546,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                 '${_formatBytes((widget.task.fileSize! * progress).round())} / ${_formatBytes(widget.task.fileSize!)}',
                 style: FluentTheme.of(context).typography.caption?.copyWith(
                       color: AppTheme.textSecondary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
                     ),
               )
             else
@@ -1555,7 +1555,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                 t.downloadCalculatingSize,
                 style: FluentTheme.of(context).typography.caption?.copyWith(
                       color: AppTheme.textTertiary,
-                      fontSize: 11,
+                      fontSize: 12,
                     ),
               ),
 
@@ -1816,8 +1816,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                             .caption
                             ?.copyWith(
                               color: AppTheme.accentLight,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w500,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w400,
                             ),
                       ),
                     ],
@@ -1842,8 +1842,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
         '$count $label',
         style: FluentTheme.of(context).typography.caption?.copyWith(
               color: color,
-              fontSize: 9,
-              fontWeight: FontWeight.w500,
+              fontSize: 10,
+              fontWeight: FontWeight.w400,
             ),
       ),
     );
@@ -1911,7 +1911,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                 t.downloadSegmentLabel(segment.index + 1),
                 style: FluentTheme.of(context).typography.caption?.copyWith(
                       color: AppTheme.textTertiary,
-                      fontSize: 10,
+                      fontSize: 11,
                     ),
               ),
             ],
@@ -1931,8 +1931,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             segment.statusText,
             style: FluentTheme.of(context).typography.caption?.copyWith(
                   color: statusColor,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w400,
                 ),
             textAlign: TextAlign.center,
           ),
@@ -1958,8 +1958,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                   color: segment.speed > 0
                       ? AppTheme.accentLight
                       : AppTheme.textTertiary,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w400,
                 ),
             textAlign: TextAlign.right,
           ),
@@ -1977,8 +1977,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
               t.downloadSegmentRetryCount(segment.retryCount),
               style: FluentTheme.of(context).typography.caption?.copyWith(
                     color: AppTheme.statusWarning,
-                    fontSize: 8,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w400,
                   ),
             ),
           ),
@@ -2042,8 +2042,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                   : t.downloadSegmentsShowAll(totalCount - _maxVisibleSegments),
               style: FluentTheme.of(context).typography.caption?.copyWith(
                     color: AppTheme.accentLight,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
                   ),
             ),
           ],
@@ -2138,8 +2138,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                     '$activeSegments/$segmentCount',
                     style: FluentTheme.of(context).typography.caption?.copyWith(
                           color: AppTheme.textSecondary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
                         ),
                   ),
                 ],
@@ -2165,7 +2165,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                   widget.task.formattedRemainingTime,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
                         color: AppTheme.textSecondary,
-                        fontSize: 11,
+                        fontSize: 12,
                       ),
                 ),
               ],
@@ -2190,8 +2190,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                   : '${widget.task.formattedDownloadedSize} / ${widget.task.formattedFileSize}',
               style: FluentTheme.of(context).typography.caption?.copyWith(
                     color: AppTheme.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
                   ),
               textAlign: TextAlign.right,
             ),
@@ -2241,7 +2241,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                       style:
                           FluentTheme.of(context).typography.caption?.copyWith(
                                 color: AppTheme.statusError,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w500,
                               ),
                     ),
                     const SizedBox(height: 2),
@@ -2252,7 +2252,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                           .caption
                           ?.copyWith(
                             color: AppTheme.statusError.withValues(alpha: 0.8),
-                            fontSize: 11,
+                            fontSize: 12,
                           ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -2266,7 +2266,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                             .caption
                             ?.copyWith(
                               color: AppTheme.textTertiary,
-                              fontSize: 10,
+                              fontSize: 11,
                             ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -2281,7 +2281,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                             .caption
                             ?.copyWith(
                               color: AppTheme.textSecondary,
-                              fontSize: 10,
+                              fontSize: 11,
                             ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -2319,7 +2319,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                       style:
                           FluentTheme.of(context).typography.caption?.copyWith(
                                 color: AppTheme.accentLight,
-                                fontSize: 10,
+                                fontSize: 11,
                               ),
                     ),
                   ),
@@ -2354,8 +2354,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                                 .caption
                                 ?.copyWith(
                                   color: AppTheme.accentLight,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w400,
                                 ),
                           ),
                         ],
@@ -2624,7 +2624,7 @@ class _HoverableUrlState extends State<_HoverableUrl> {
             overflow: TextOverflow.ellipsis,
             style: FluentTheme.of(context).typography.caption?.copyWith(
                   color: AppTheme.textTertiary,
-                  fontSize: 11,
+                  fontSize: 12,
                   decoration: _isHovered
                       ? TextDecoration.underline
                       : TextDecoration.none,

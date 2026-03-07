@@ -16,10 +16,10 @@ enum NotificationType {
 
 /// 通知动作数据（用于点击跳转等）
 class NotificationAction {
-  final String? route;           // 跳转路由
-  final Map<String, dynamic>? params;  // 跳转参数
-  final String? actionId;        // 动作标识（用于自定义处理）
-  final dynamic data;            // 附加数据
+  final String? route; // 跳转路由
+  final Map<String, dynamic>? params; // 跳转参数
+  final String? actionId; // 动作标识（用于自定义处理）
+  final dynamic data; // 附加数据
 
   const NotificationAction({
     this.route,
@@ -44,9 +44,9 @@ class NotificationData {
   final Color? customBackgroundColor;
 
   // 点击交互属性
-  final VoidCallback? onTap;           // 点击回调
-  final NotificationAction? action;    // 动作数据（用于跳转等）
-  final bool dismissOnTap;             // 点击后是否自动关闭
+  final VoidCallback? onTap; // 点击回调
+  final NotificationAction? action; // 动作数据（用于跳转等）
+  final bool dismissOnTap; // 点击后是否自动关闭
 
   NotificationData({
     required this.id,
@@ -85,12 +85,15 @@ class _ModernNotificationCardState extends State<ModernNotificationCard>
     with TickerProviderStateMixin {
   late AnimationController _slideController;
   late AnimationController _positionController;
-  late AnimationController _progressController;  // 使用 AnimationController 替代 Timer
+  late AnimationController
+      _progressController; // 使用 AnimationController 替代 Timer
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
 
   double _currentYOffset = 0;
+  bool _isExpanded = false;
+  bool _isHovered = false;
 
   // 通知设置服务
   final _notificationSettings = NotificationSettingsService();
@@ -171,7 +174,8 @@ class _ModernNotificationCardState extends State<ModernNotificationCard>
 
     _positionController.addListener(() {
       setState(() {
-        _currentYOffset = oldOffset + (newOffset - oldOffset) * _positionController.value;
+        _currentYOffset =
+            oldOffset + (newOffset - oldOffset) * _positionController.value;
       });
     });
   }
@@ -181,8 +185,20 @@ class _ModernNotificationCardState extends State<ModernNotificationCard>
   }
 
   void _resumeProgress() {
-    if (_progressController.value < 1.0) {
+    if (!_isExpanded && _progressController.value < 1.0) {
       _progressController.forward();
+    }
+  }
+
+  void _toggleExpanded() {
+    setState(() {
+      _isExpanded = !_isExpanded;
+    });
+
+    if (_isExpanded) {
+      _pauseProgress();
+    } else if (!_isHovered) {
+      _resumeProgress();
     }
   }
 
@@ -213,12 +229,13 @@ class _ModernNotificationCardState extends State<ModernNotificationCard>
   }
 
   Color get _accentColor {
-    if (widget.data.type == NotificationType.custom && widget.data.customColor != null) {
+    if (widget.data.type == NotificationType.custom &&
+        widget.data.customColor != null) {
       return widget.data.customColor!;
     }
-    
+
     final isDark = fluent.FluentTheme.of(context).brightness == Brightness.dark;
-    
+
     switch (widget.data.type) {
       case NotificationType.success:
         return _notificationSettings.getSuccessColor(isDark);
@@ -232,27 +249,28 @@ class _ModernNotificationCardState extends State<ModernNotificationCard>
         return _notificationSettings.getInfoColor(isDark);
     }
   }
-  
+
   Color get _cardColor {
     final isDark = fluent.FluentTheme.of(context).brightness == Brightness.dark;
     return _notificationSettings.getCardColor(isDark);
   }
-  
+
   Color get _textPrimaryColor {
     final isDark = fluent.FluentTheme.of(context).brightness == Brightness.dark;
     return _notificationSettings.getTextPrimaryColor(isDark);
   }
-  
+
   Color get _textSecondaryColor {
     final isDark = fluent.FluentTheme.of(context).brightness == Brightness.dark;
     return _notificationSettings.getTextSecondaryColor(isDark);
   }
 
   IconData get _icon {
-    if (widget.data.type == NotificationType.custom && widget.data.customIcon != null) {
+    if (widget.data.type == NotificationType.custom &&
+        widget.data.customIcon != null) {
       return widget.data.customIcon!;
     }
-    
+
     switch (widget.data.type) {
       case NotificationType.success:
         return fluent.FluentIcons.completed_solid;
@@ -265,6 +283,56 @@ class _ModernNotificationCardState extends State<ModernNotificationCard>
       case NotificationType.custom:
         return fluent.FluentIcons.message;
     }
+  }
+
+  bool _doesTextOverflow(
+    String text,
+    TextStyle? style,
+    double maxWidth, {
+    required int maxLines,
+  }) {
+    if (text.isEmpty || maxWidth <= 0) {
+      return false;
+    }
+
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: style ?? DefaultTextStyle.of(context).style,
+      ),
+      maxLines: maxLines,
+      textDirection: Directionality.of(context),
+    )..layout(maxWidth: maxWidth);
+
+    return textPainter.didExceedMaxLines;
+  }
+
+  fluent.IconButton _buildActionButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return fluent.IconButton(
+      icon: Icon(
+        icon,
+        size: 10,
+        color: AppTheme.textTertiary,
+      ),
+      onPressed: onPressed,
+      style: fluent.ButtonStyle(
+        padding: WidgetStateProperty.all(
+          const EdgeInsets.all(4),
+        ),
+        backgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.isPressed) {
+            return AppTheme.bgLayer2.withValues(alpha: 0.6);
+          }
+          if (states.isHovered) {
+            return AppTheme.bgLayer2.withValues(alpha: 0.3);
+          }
+          return Colors.transparent;
+        }),
+      ),
+    );
   }
 
   @override
@@ -297,8 +365,14 @@ class _ModernNotificationCardState extends State<ModernNotificationCard>
           cursor: widget.data.onTap != null || widget.data.action != null
               ? SystemMouseCursors.click
               : SystemMouseCursors.basic,
-          onEnter: (_) => _pauseProgress(),
-          onExit: (_) => _resumeProgress(),
+          onEnter: (_) {
+            _isHovered = true;
+            _pauseProgress();
+          },
+          onExit: (_) {
+            _isHovered = false;
+            _resumeProgress();
+          },
           child: Container(
             width: 280,
             margin: const EdgeInsets.only(bottom: 8),
@@ -321,7 +395,8 @@ class _ModernNotificationCardState extends State<ModernNotificationCard>
               borderRadius: BorderRadius.circular(6),
               child: enableBlur
                   ? BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+                      filter: ImageFilter.blur(
+                          sigmaX: blurSigma, sigmaY: blurSigma),
                       child: _buildCardBody(),
                     )
                   : _buildCardBody(),
@@ -333,9 +408,25 @@ class _ModernNotificationCardState extends State<ModernNotificationCard>
   }
 
   Widget _buildCardBody() {
+    final titleStyle =
+        fluent.FluentTheme.of(context).typography.bodyStrong?.copyWith(
+              color: _textPrimaryColor,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+              letterSpacing: -0.2,
+            );
+    final messageStyle =
+        fluent.FluentTheme.of(context).typography.body?.copyWith(
+              color: _textSecondaryColor,
+              fontSize: 11,
+              height: 1.3,
+            );
+
     return Container(
       decoration: BoxDecoration(
-        color: _cardColor.withValues(alpha: _notificationSettings.enableBlur ? 0.92 : 1.0),
+        color: _cardColor.withValues(
+            alpha: _notificationSettings.enableBlur ? 0.92 : 1.0),
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
           color: _accentColor.withValues(alpha: 0.15),
@@ -347,82 +438,97 @@ class _ModernNotificationCardState extends State<ModernNotificationCard>
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(10, 10, 8, 10),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: _accentColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Icon(
-                    _icon,
-                    size: 14,
-                    color: _accentColor,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        widget.data.title,
-                        style: fluent.FluentTheme.of(context)
-                            .typography.bodyStrong?.copyWith(
-                          color: _textPrimaryColor,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          height: 1.3,
-                          letterSpacing: -0.2,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                double textMaxWidth = constraints.maxWidth - 24 - 8 - 6 - 28;
+                if (textMaxWidth < 80) {
+                  textMaxWidth = 80;
+                }
+
+                final titleOverflow = _doesTextOverflow(
+                  widget.data.title,
+                  titleStyle,
+                  textMaxWidth,
+                  maxLines: 1,
+                );
+                final messageOverflow = widget.data.message != null &&
+                    _doesTextOverflow(
+                      widget.data.message!,
+                      messageStyle,
+                      textMaxWidth,
+                      maxLines: 1,
+                    );
+                final canExpand = titleOverflow || messageOverflow;
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: _accentColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                      if (widget.data.message != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          widget.data.message!,
-                          style: fluent.FluentTheme.of(context)
-                              .typography.body?.copyWith(
-                            color: _textSecondaryColor,
-                            fontSize: 11,
-                            height: 1.3,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 4),
-                fluent.IconButton(
-                  icon: Icon(
-                    fluent.FluentIcons.chrome_close,
-                    size: 10,
-                    color: AppTheme.textTertiary,
-                  ),
-                  onPressed: _dismiss,
-                  style: fluent.ButtonStyle(
-                    padding: WidgetStateProperty.all(
-                      const EdgeInsets.all(4),
+                      child: Icon(
+                        _icon,
+                        size: 14,
+                        color: _accentColor,
+                      ),
                     ),
-                    backgroundColor: WidgetStateProperty.resolveWith((states) {
-                      if (states.isPressed) {
-                        return AppTheme.bgLayer2.withValues(alpha: 0.6);
-                      }
-                      if (states.isHovered) {
-                        return AppTheme.bgLayer2.withValues(alpha: 0.3);
-                      }
-                      return Colors.transparent;
-                    }),
-                  ),
-                ),
-              ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            widget.data.title,
+                            style: titleStyle,
+                            maxLines: _isExpanded ? null : 1,
+                            overflow: _isExpanded
+                                ? TextOverflow.visible
+                                : TextOverflow.ellipsis,
+                          ),
+                          if (widget.data.message != null) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              widget.data.message!,
+                              style: messageStyle,
+                              maxLines: _isExpanded ? null : 1,
+                              overflow: _isExpanded
+                                  ? TextOverflow.visible
+                                  : TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    SizedBox(
+                      width: 28,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildActionButton(
+                            icon: fluent.FluentIcons.chrome_close,
+                            onPressed: _dismiss,
+                          ),
+                          if (canExpand) ...[
+                            const SizedBox(height: 2),
+                            _buildActionButton(
+                              icon: _isExpanded
+                                  ? fluent.FluentIcons.chevron_up
+                                  : fluent.FluentIcons.chevron_down,
+                              onPressed: _toggleExpanded,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
           // 进度条 - 使用 AnimatedBuilder 监听进度动画
@@ -516,7 +622,8 @@ class NotificationManagerState extends State<NotificationManager> {
     });
   }
 
-  void showSuccess(String title, {
+  void showSuccess(
+    String title, {
     String? message,
     VoidCallback? onTap,
     NotificationAction? action,
@@ -532,7 +639,8 @@ class NotificationManagerState extends State<NotificationManager> {
     );
   }
 
-  void showWarning(String title, {
+  void showWarning(
+    String title, {
     String? message,
     VoidCallback? onTap,
     NotificationAction? action,
@@ -548,7 +656,8 @@ class NotificationManagerState extends State<NotificationManager> {
     );
   }
 
-  void showError(String title, {
+  void showError(
+    String title, {
     String? message,
     VoidCallback? onTap,
     NotificationAction? action,
@@ -564,7 +673,8 @@ class NotificationManagerState extends State<NotificationManager> {
     );
   }
 
-  void showInfo(String title, {
+  void showInfo(
+    String title, {
     String? message,
     VoidCallback? onTap,
     NotificationAction? action,
@@ -626,15 +736,20 @@ class NotificationManagerState extends State<NotificationManager> {
         widget.child,
         if (_notificationSettings.enabled)
           Positioned(
-            top: _notificationSettings.position == NotificationPosition.topRight ? 48 : null, // titlebar 下方
-            bottom: _notificationSettings.position == NotificationPosition.bottomRight ? 16 : null,
+            top: _notificationSettings.position == NotificationPosition.topRight
+                ? 48
+                : null, // titlebar 下方
+            bottom: _notificationSettings.position ==
+                    NotificationPosition.bottomRight
+                ? 16
+                : null,
             right: 16,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
               children: List.generate(_notifications.length, (index) {
                 final notification = _notifications[index];
-                
+
                 return ModernNotificationCard(
                   key: ValueKey(notification.id),
                   data: notification,
@@ -737,9 +852,11 @@ class _FloatingMessageState extends State<FloatingMessage>
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                 decoration: BoxDecoration(
-                  color: (widget.backgroundColor ?? AppTheme.surfaceCard).withValues(alpha: 0.95),
+                  color: (widget.backgroundColor ?? AppTheme.surfaceCard)
+                      .withValues(alpha: 0.95),
                   borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                   border: Border.all(
                     color: AppTheme.borderSubtle.withValues(alpha: 0.5),
@@ -765,11 +882,14 @@ class _FloatingMessageState extends State<FloatingMessage>
                     ],
                     Text(
                       widget.message,
-                      style: fluent.FluentTheme.of(context).typography.body?.copyWith(
-                        color: widget.textColor ?? AppTheme.textPrimary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: fluent.FluentTheme.of(context)
+                          .typography
+                          .body
+                          ?.copyWith(
+                            color: widget.textColor ?? AppTheme.textPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
                     ),
                   ],
                 ),

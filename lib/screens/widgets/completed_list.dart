@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:ui';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
@@ -84,13 +83,44 @@ enum FileCategory {
       case FileCategory.all:
         return [];
       case FileCategory.video:
-        return ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.mpg', '.mpeg'];
+        return [
+          '.mp4',
+          '.avi',
+          '.mkv',
+          '.mov',
+          '.wmv',
+          '.flv',
+          '.webm',
+          '.m4v',
+          '.mpg',
+          '.mpeg'
+        ];
       case FileCategory.audio:
-        return ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.wma', '.m4a', '.ape'];
+        return [
+          '.mp3',
+          '.wav',
+          '.flac',
+          '.aac',
+          '.ogg',
+          '.wma',
+          '.m4a',
+          '.ape'
+        ];
       case FileCategory.archive:
         return ['.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz', '.iso'];
       case FileCategory.document:
-        return ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.md', '.rtf'];
+        return [
+          '.pdf',
+          '.doc',
+          '.docx',
+          '.xls',
+          '.xlsx',
+          '.ppt',
+          '.pptx',
+          '.txt',
+          '.md',
+          '.rtf'
+        ];
       case FileCategory.program:
         return ['.exe', '.msi', '.apk', '.dmg', '.deb', '.rpm', '.appimage'];
       case FileCategory.other:
@@ -100,21 +130,23 @@ enum FileCategory {
 
   static FileCategory fromFileName(String fileName) {
     final dotIndex = fileName.lastIndexOf('.');
-    
+
     // 如果没有扩展名或扩展名在开头，返回 other
     if (dotIndex == -1 || dotIndex == 0 || dotIndex == fileName.length - 1) {
       return FileCategory.other;
     }
-    
+
     final ext = fileName.toLowerCase().substring(dotIndex);
-    
+
     for (final category in FileCategory.values) {
-      if (category == FileCategory.all || category == FileCategory.other) continue;
+      if (category == FileCategory.all || category == FileCategory.other) {
+        continue;
+      }
       if (category.extensions.contains(ext)) {
         return category;
       }
     }
-    
+
     return FileCategory.other;
   }
 }
@@ -181,7 +213,8 @@ class _CompletedListState extends State<CompletedList> {
           return false;
         },
         builder: (context, completedTasks, child) {
-          final hasLoaded = context.select<IntegratedDownloadService, bool>((s) => s.hasLoadedOnce);
+          final hasLoaded = context
+              .select<IntegratedDownloadService, bool>((s) => s.hasLoadedOnce);
 
           // 按完成时间排序，最新的在前面
           completedTasks.sort((a, b) {
@@ -209,7 +242,9 @@ class _CompletedListState extends State<CompletedList> {
           final customTasksByIndex = <int, List<DownloadTask>>{};
           for (var i = 0; i < _customCategories.length; i++) {
             final category = _customCategories[i];
-            final tasks = completedTasks.where((task) => category.matches(task.fileName)).toList();
+            final tasks = completedTasks
+                .where((task) => category.matches(task.fileName))
+                .toList();
             if (tasks.isNotEmpty) {
               customTasksByIndex[i] = tasks;
             }
@@ -218,7 +253,8 @@ class _CompletedListState extends State<CompletedList> {
           // 构建标签列表（只包含有文件的分类）
           final tabs = <FileCategory>[FileCategory.all];
           for (final category in FileCategory.values) {
-            if (category != FileCategory.all && tasksByCategory.containsKey(category)) {
+            if (category != FileCategory.all &&
+                tasksByCategory.containsKey(category)) {
               tabs.add(category);
             }
           }
@@ -245,16 +281,20 @@ class _CompletedListState extends State<CompletedList> {
 
           // 应用搜索过滤
           if (_searchQuery.isNotEmpty) {
-            currentTasks = currentTasks.where((t) => 
-              t.fileName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-              t.url.toLowerCase().contains(_searchQuery.toLowerCase())
-            ).toList();
+            currentTasks = currentTasks
+                .where((t) =>
+                    t.fileName
+                        .toLowerCase()
+                        .contains(_searchQuery.toLowerCase()) ||
+                    t.url.toLowerCase().contains(_searchQuery.toLowerCase()))
+                .toList();
           }
 
           return Column(
             children: [
               _buildHeader(context, completedTasks.length),
-              _buildTabBar(context, tabs, tasksByCategory, customTasksByIndex, completedTasks.length),
+              _buildTabBar(context, tabs, tasksByCategory, customTasksByIndex,
+                  completedTasks.length),
               _buildBatchActionsBar(context, currentTasks),
               Expanded(
                 child: currentTasks.isEmpty
@@ -305,7 +345,8 @@ class _CompletedListState extends State<CompletedList> {
       ),
       child: Row(
         children: [
-          Icon(CustomIcons.FluentIcons.searchIcon, size: 14, color: AppTheme.accentLight),
+          Icon(CustomIcons.FluentIcons.searchIcon,
+              size: 14, color: AppTheme.accentLight),
           const SizedBox(width: 8),
           Expanded(
             child: TextBox(
@@ -313,7 +354,10 @@ class _CompletedListState extends State<CompletedList> {
               placeholder: t.completedSearchPlaceholder,
               onChanged: (value) => setState(() => _searchQuery = value),
               decoration: WidgetStateProperty.all(const BoxDecoration()),
-              style: FluentTheme.of(context).typography.body?.copyWith(fontSize: 13),
+              style: FluentTheme.of(context)
+                  .typography
+                  .body
+                  ?.copyWith(fontSize: 13),
               autofocus: true,
             ),
           ),
@@ -360,15 +404,15 @@ class _CompletedListState extends State<CompletedList> {
           Text(
             t.completedNoResultsTitle,
             style: FluentTheme.of(context).typography.subtitle?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+                  color: AppTheme.textSecondary,
+                ),
           ),
           const SizedBox(height: 8),
           Text(
             t.completedNoResultsSubtitle,
             style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: AppTheme.textTertiary,
-            ),
+                  color: AppTheme.textTertiary,
+                ),
           ),
         ],
       ),
@@ -394,7 +438,8 @@ class _CompletedListState extends State<CompletedList> {
           child: Row(
             children: [
               Expanded(
-                child: SingleChildScrollView(
+                child: SmoothSingleChildScrollView(
+                  config: SmoothScrollConfig.fast,
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
@@ -414,7 +459,8 @@ class _CompletedListState extends State<CompletedList> {
                             label: category.label(t),
                             count: count,
                             isSelected: isSelected,
-                            onTap: () => setState(() => _currentTabIndex = index),
+                            onTap: () =>
+                                setState(() => _currentTabIndex = index),
                           ),
                         );
                       }),
@@ -423,7 +469,8 @@ class _CompletedListState extends State<CompletedList> {
                         final customIndex = entry.key;
                         final category = entry.value;
                         final tabIndex = tabs.length + customIndex;
-                        final count = customTasksByIndex[customIndex]?.length ?? 0;
+                        final count =
+                            customTasksByIndex[customIndex]?.length ?? 0;
                         final isSelected = _currentTabIndex == tabIndex;
 
                         return Padding(
@@ -433,7 +480,8 @@ class _CompletedListState extends State<CompletedList> {
                             label: category.name,
                             count: count,
                             isSelected: isSelected,
-                            onTap: () => setState(() => _currentTabIndex = tabIndex),
+                            onTap: () =>
+                                setState(() => _currentTabIndex = tabIndex),
                             onDelete: () => _deleteCustomCategory(customIndex),
                           ),
                         );
@@ -446,9 +494,13 @@ class _CompletedListState extends State<CompletedList> {
               // 搜索按钮
               IconButton(
                 icon: Icon(
-                  _showSearch ? CustomIcons.FluentIcons.searchIcon : CustomIcons.FluentIcons.searchIcon,
+                  _showSearch
+                      ? CustomIcons.FluentIcons.searchIcon
+                      : CustomIcons.FluentIcons.searchIcon,
                   size: 14,
-                  color: _showSearch ? AppTheme.accentLight : AppTheme.textSecondary,
+                  color: _showSearch
+                      ? AppTheme.accentLight
+                      : AppTheme.textSecondary,
                 ),
                 onPressed: () => setState(() => _showSearch = !_showSearch),
                 style: ButtonStyle(
@@ -467,7 +519,8 @@ class _CompletedListState extends State<CompletedList> {
               const SizedBox(width: 4),
               // 新建自定义分类按钮
               IconButton(
-                icon: Icon(CustomIcons.FluentIcons.add, size: 14, color: AppTheme.textSecondary),
+                icon: Icon(CustomIcons.FluentIcons.add,
+                    size: 14, color: AppTheme.textSecondary),
                 onPressed: _showCreateCategoryDialog,
                 style: ButtonStyle(
                   padding: WidgetStateProperty.all(const EdgeInsets.all(8)),
@@ -523,7 +576,7 @@ class _CompletedListState extends State<CompletedList> {
               child: Text(
                 t.completedCreateCategoryHint,
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   color: AppTheme.textTertiary,
                 ),
               ),
@@ -539,7 +592,7 @@ class _CompletedListState extends State<CompletedList> {
             onPressed: () async {
               final name = nameController.text.trim();
               final extensionsText = extensionsController.text.trim();
-              
+
               if (name.isEmpty || extensionsText.isEmpty) {
                 NotificationManager.of(context)?.showWarning(
                   t.completedCreateCategoryInputErrorTitle,
@@ -573,9 +626,9 @@ class _CompletedListState extends State<CompletedList> {
               Navigator.pop(context);
 
               NotificationManager.of(context)?.showSuccess(
-                  t.completedCreateCategorySuccessTitle,
-                  message: t.completedCreateCategorySuccessMessage(name),
-                );
+                t.completedCreateCategorySuccessTitle,
+                message: t.completedCreateCategorySuccessMessage(name),
+              );
             },
             child: Text(t.completedCreateButton),
           ),
@@ -600,7 +653,8 @@ class _CompletedListState extends State<CompletedList> {
       ),
       child: Row(
         children: [
-          Icon(CustomIcons.FluentIcons.list,
+          Icon(
+            CustomIcons.FluentIcons.list,
             size: 14,
             color: AppTheme.accentLight,
           ),
@@ -608,9 +662,9 @@ class _CompletedListState extends State<CompletedList> {
           Text(
             t.completedBatchActionsLabel(tasks.length),
             style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: AppTheme.textSecondary,
-              fontSize: 11,
-            ),
+                  color: AppTheme.textSecondary,
+                  fontSize: 11,
+                ),
           ),
           const Spacer(),
           Button(
@@ -620,7 +674,8 @@ class _CompletedListState extends State<CompletedList> {
               children: [
                 Icon(CustomIcons.FluentIcons.getIcon('edit_20'), size: 12),
                 const SizedBox(width: 6),
-                Text(t.completedBatchRenameButton, style: const TextStyle(fontSize: 12)),
+                Text(t.completedBatchRenameButton,
+                    style: const TextStyle(fontSize: 12)),
               ],
             ),
           ),
@@ -632,7 +687,8 @@ class _CompletedListState extends State<CompletedList> {
               children: [
                 Icon(CustomIcons.FluentIcons.folder_open, size: 12),
                 const SizedBox(width: 6),
-                Text(t.completedBatchMoveButton, style: const TextStyle(fontSize: 12)),
+                Text(t.completedBatchMoveButton,
+                    style: const TextStyle(fontSize: 12)),
               ],
             ),
           ),
@@ -644,7 +700,8 @@ class _CompletedListState extends State<CompletedList> {
   Future<void> _batchMoveTasks(List<DownloadTask> tasks) async {
     if (tasks.isEmpty) return;
 
-    final useNewKernel = context.read<ClientConfigService>()
+    final useNewKernel = context
+        .read<ClientConfigService>()
         .getBool('kernel.use_new_kernel', defaultValue: true);
     if (!useNewKernel) {
       NotificationManager.of(context)?.showWarning(
@@ -700,7 +757,8 @@ class _CompletedListState extends State<CompletedList> {
   Future<void> _batchRenameTasks(List<DownloadTask> tasks) async {
     if (tasks.isEmpty) return;
 
-    final useNewKernel = context.read<ClientConfigService>()
+    final useNewKernel = context
+        .read<ClientConfigService>()
         .getBool('kernel.use_new_kernel', defaultValue: true);
     if (!useNewKernel) {
       NotificationManager.of(context)?.showWarning(
@@ -823,7 +881,7 @@ class _CompletedListState extends State<CompletedList> {
             onPressed: () async {
               final configService = context.read<ClientConfigService>();
               await configService.removeCustomCategory(index);
-              
+
               // 重新加载分类
               _loadCustomCategories();
 
@@ -840,9 +898,9 @@ class _CompletedListState extends State<CompletedList> {
               Navigator.pop(context);
 
               NotificationManager.of(context)?.showSuccess(
-                  t.completedDeleteCategorySuccessTitle,
-                  message: t.completedDeleteCategorySuccessMessage(category.name),
-                );
+                t.completedDeleteCategorySuccessTitle,
+                message: t.completedDeleteCategorySuccessMessage(category.name),
+              );
             },
             child: Text(t.completedDeleteButton),
           ),
@@ -878,9 +936,9 @@ class _CompletedListState extends State<CompletedList> {
           Text(
             t.completedHeaderTitle,
             style: FluentTheme.of(context).typography.body?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
-            ),
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
           ),
           const SizedBox(width: 8),
           Container(
@@ -892,16 +950,18 @@ class _CompletedListState extends State<CompletedList> {
             child: Text(
               '$count',
               style: FluentTheme.of(context).typography.caption?.copyWith(
-                color: AppTheme.statusSuccess,
-                fontWeight: FontWeight.w600,
-                fontSize: 11,
-              ),
+                    color: AppTheme.statusSuccess,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
+                  ),
             ),
           ),
           const Spacer(),
           Button(
             onPressed: () async {
-              final folder = Directory("${Platform.environment['USERPROFILE']}\\Downloads").path;
+              final folder =
+                  Directory("${Platform.environment['USERPROFILE']}\\Downloads")
+                      .path;
               final target = folder.replaceAll('/', '\\');
               await Process.run('explorer', [target]);
             },
@@ -910,7 +970,8 @@ class _CompletedListState extends State<CompletedList> {
               children: [
                 Icon(CustomIcons.FluentIcons.folder_open, size: 12),
                 SizedBox(width: 6),
-                Text(t.completedOpenFolderButton, style: const TextStyle(fontSize: 12)),
+                Text(t.completedOpenFolderButton,
+                    style: const TextStyle(fontSize: 12)),
               ],
             ),
           ),
@@ -936,15 +997,15 @@ class _CompletedListState extends State<CompletedList> {
           Text(
             t.loadingTasks,
             style: FluentTheme.of(context).typography.body?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+                  color: AppTheme.textSecondary,
+                ),
           ),
           const SizedBox(height: 8),
           Text(
             t.loadingTasksHint,
             style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: AppTheme.textTertiary,
-            ),
+                  color: AppTheme.textTertiary,
+                ),
           ),
         ],
       ),
@@ -956,63 +1017,79 @@ class _CompletedListState extends State<CompletedList> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-            TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 1200),
-              tween: Tween(begin: 0.0, end: 1.0),
-              curve: Curves.elasticOut,
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: value,
+          TweenAnimationBuilder<double>(
+            duration: const Duration(milliseconds: 1200),
+            tween: Tween(begin: 0.0, end: 1.0),
+            curve: Curves.elasticOut,
+            builder: (context, value, child) {
+              return Transform.scale(
+                scale: value,
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.statusSuccess
+                            .withValues(alpha: 0.26 * value),
+                        blurRadius: 60 * value,
+                        spreadRadius: 10 * value,
+                      ),
+                    ],
+                  ),
                   child: Icon(
                     CustomIcons.FluentIcons.completed,
                     size: 40,
-                    color: AppTheme.statusSuccess.withValues(alpha: 0.6),
+                    color: AppTheme.statusSuccess.withValues(alpha: 0.7),
                   ),
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-            TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 800),
-              tween: Tween(begin: 0.0, end: 1.0),
-              curve: Curves.easeOutCubic,
-              builder: (context, value, child) {
-                return Transform.translate(
-                  offset: Offset(0, 20 * (1 - value)),
-                  child: Opacity(
-                    opacity: value,
-                    child: Text(
-                      t.completedEmptyTitle,
-                      style: FluentTheme.of(context).typography.subtitle?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 24),
+          TweenAnimationBuilder<double>(
+            duration: const Duration(milliseconds: 800),
+            tween: Tween(begin: 0.0, end: 1.0),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, child) {
+              return Transform.translate(
+                offset: Offset(0, 20 * (1 - value)),
+                child: Opacity(
+                  opacity: value,
+                  child: Text(
+                    t.completedEmptyTitle,
+                    style:
+                        FluentTheme.of(context).typography.subtitle?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimary,
+                            ),
                   ),
-                );
-              },
-            ),
-            const SizedBox(height: 8),
-            TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 1000),
-              tween: Tween(begin: 0.0, end: 1.0),
-              curve: Curves.easeOutCubic,
-              builder: (context, value, child) {
-                return Transform.translate(
-                  offset: Offset(0, 20 * (1 - value)),
-                  child: Opacity(
-                    opacity: value,
-                    child: Text(
-                      t.completedEmptySubtitle,
-                      style: FluentTheme.of(context).typography.body?.copyWith(
-                        color: AppTheme.textTertiary,
-                      ),
-                    ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 8),
+          TweenAnimationBuilder<double>(
+            duration: const Duration(milliseconds: 1000),
+            tween: Tween(begin: 0.0, end: 1.0),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, child) {
+              return Transform.translate(
+                offset: Offset(0, 20 * (1 - value)),
+                child: Opacity(
+                  opacity: value,
+                  child: Text(
+                    t.completedEmptySubtitle,
+                    style: FluentTheme.of(context).typography.body?.copyWith(
+                          color: AppTheme.textTertiary,
+                        ),
                   ),
-                );
-              },
-            ),
-          ],
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -1061,8 +1138,8 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
               padding: const EdgeInsets.only(top: 16),
               child: _buildStatistics(),
             ),
-            crossFadeState: _isExpanded 
-                ? CrossFadeState.showSecond 
+            crossFadeState: _isExpanded
+                ? CrossFadeState.showSecond
                 : CrossFadeState.showFirst,
             duration: const Duration(milliseconds: 300),
             sizeCurve: Curves.easeOutCubic,
@@ -1071,7 +1148,7 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
       ),
     );
   }
-  
+
   Widget _buildStatistics() {
     return Container(
       padding: const EdgeInsets.all(14),
@@ -1087,7 +1164,8 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
         children: [
           Row(
             children: [
-              Icon(CustomIcons.FluentIcons.chart,
+              Icon(
+                CustomIcons.FluentIcons.chart,
                 size: 14,
                 color: AppTheme.accentPrimary,
               ),
@@ -1095,10 +1173,10 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
               Text(
                 t.completedStatsTitle,
                 style: FluentTheme.of(context).typography.body?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
-                  fontSize: 12,
-                ),
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                      fontSize: 12,
+                    ),
               ),
             ],
           ),
@@ -1108,7 +1186,7 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
       ),
     );
   }
-  
+
   Widget _buildStatsGrid() {
     final stats = [
       // 第一行：重要统计
@@ -1150,7 +1228,7 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
         color: AppTheme.textSecondary,
       ),
     ];
-    
+
     return Wrap(
       spacing: 10,
       runSpacing: 10,
@@ -1168,16 +1246,17 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
   }
 
   Widget _buildTaskInfo() {
-    final tags = context.watch<ClientConfigService>().getTaskTags(widget.task.id);
+    final tags =
+        context.watch<ClientConfigService>().getTaskTags(widget.task.id);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           widget.task.fileName,
           style: FluentTheme.of(context).typography.body?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
-          ),
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+              ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -1193,9 +1272,9 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
             Text(
               widget.task.formattedFileSize,
               style: FluentTheme.of(context).typography.caption?.copyWith(
-                color: AppTheme.textTertiary,
-                fontSize: 11,
-              ),
+                    color: AppTheme.textTertiary,
+                    fontSize: 12,
+                  ),
             ),
             if (widget.task.endTime != null) ...[
               Container(
@@ -1207,9 +1286,9 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
               Text(
                 _formatDate(widget.task.endTime!),
                 style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: AppTheme.textTertiary,
-                  fontSize: 11,
-                ),
+                      color: AppTheme.textTertiary,
+                      fontSize: 12,
+                    ),
               ),
             ],
           ],
@@ -1232,10 +1311,10 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
                 child: Text(
                   tag,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: AppTheme.accentLight,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                  ),
+                        color: AppTheme.accentLight,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
                 ),
               );
             }).toList(),
@@ -1270,7 +1349,9 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
         ),
         const SizedBox(width: 6),
         _IconActionButton(
-          icon: _isExpanded ? CustomIcons.FluentIcons.chevron_up : CustomIcons.FluentIcons.chevron_down,
+          icon: _isExpanded
+              ? CustomIcons.FluentIcons.chevron_up
+              : CustomIcons.FluentIcons.chevron_down,
           color: AppTheme.textSecondary,
           onPressed: () => setState(() => _isExpanded = !_isExpanded),
         ),
@@ -1334,12 +1415,12 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final diff = now.difference(date);
-    
+
     if (diff.inMinutes < 1) return t.completedTimeJustNow;
     if (diff.inHours < 1) return t.completedTimeMinutesAgo(diff.inMinutes);
     if (diff.inDays < 1) return t.completedTimeHoursAgo(diff.inHours);
     if (diff.inDays < 7) return t.completedTimeDaysAgo(diff.inDays);
-    
+
     return t.completedTimeMonthDay(date.month, date.day);
   }
 
@@ -1357,7 +1438,8 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
       }
 
       final safePath = filePath.replaceAll('/', '\\');
-      await Process.start('cmd', ['/c', 'start', '', safePath], runInShell: true);
+      await Process.start('cmd', ['/c', 'start', '', safePath],
+          runInShell: true);
     } catch (e) {
       _showMessage(t.completedRunFileFailedMessage(e));
     }
@@ -1399,7 +1481,8 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
         return ContentDialog(
           title: Row(
             children: [
-              Icon(CustomIcons.FluentIcons.delete, size: 18, color: AppTheme.statusError),
+              Icon(CustomIcons.FluentIcons.delete,
+                  size: 18, color: AppTheme.statusError),
               const SizedBox(width: 8),
               Text(t.completedConfirmDeleteTitle),
             ],
@@ -1422,7 +1505,7 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
                 service.removeTask(widget.task.id);
                 Navigator.pop(dialogContext);
                 if (!mounted) return;
-                NotificationManager.of(this.context)?.showSuccess(
+                NotificationManager.of(context)?.showSuccess(
                   t.completedRemoveSuccessTitle,
                   message: t.completedRemoveSuccessMessage,
                 );
@@ -1448,7 +1531,8 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(CustomIcons.FluentIcons.delete, size: 12, color: Colors.white),
+                  Icon(CustomIcons.FluentIcons.delete,
+                      size: 12, color: Colors.white),
                   const SizedBox(width: 6),
                   Text(t.completedDeleteButton),
                 ],
@@ -1470,7 +1554,8 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
           if (mounted) {
             NotificationManager.of(context)?.showSuccess(
               t.completedDeleteSuccessTitle,
-              message: t.completedDeleteFileSuccessMessage(widget.task.fileName),
+              message:
+                  t.completedDeleteFileSuccessMessage(widget.task.fileName),
             );
           }
         } else {
@@ -1547,9 +1632,9 @@ class _ActionButtonState extends State<_ActionButton> {
               Text(
                 widget.label,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   color: _isHovered ? widget.color : AppTheme.textSecondary,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ],
@@ -1601,7 +1686,7 @@ class _StatItem extends StatelessWidget {
                 child: Text(
                   label,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 11,
                     color: AppTheme.textTertiary,
                   ),
                   maxLines: 1,
@@ -1615,7 +1700,7 @@ class _StatItem extends StatelessWidget {
             value,
             style: TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w500,
               color: AppTheme.textPrimary,
             ),
             maxLines: 1,
@@ -1678,7 +1763,6 @@ class _IconActionButtonState extends State<_IconActionButton> {
   }
 }
 
-
 /// Tab 按钮组件
 class _TabButton extends StatefulWidget {
   final IconData icon;
@@ -1699,7 +1783,8 @@ class _TabButton extends StatefulWidget {
   State<_TabButton> createState() => _TabButtonState();
 }
 
-class _TabButtonState extends State<_TabButton> with SingleTickerProviderStateMixin {
+class _TabButtonState extends State<_TabButton>
+    with SingleTickerProviderStateMixin {
   bool _isHovered = false;
   late AnimationController _controller;
 
@@ -1770,8 +1855,9 @@ class _TabButtonState extends State<_TabButton> with SingleTickerProviderStateMi
               Text(
                 widget.label,
                 style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w500,
+                  fontSize: 12,
+                  fontWeight:
+                      widget.isSelected ? FontWeight.w500 : FontWeight.w400,
                   color: widget.isSelected
                       ? AppTheme.accentPrimary
                       : AppTheme.textSecondary,
@@ -1789,8 +1875,8 @@ class _TabButtonState extends State<_TabButton> with SingleTickerProviderStateMi
                 child: Text(
                   '${widget.count}',
                   style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
                     color: widget.isSelected
                         ? AppTheme.accentPrimary
                         : AppTheme.textTertiary,
@@ -1827,7 +1913,8 @@ class _CustomTabButton extends StatefulWidget {
   State<_CustomTabButton> createState() => _CustomTabButtonState();
 }
 
-class _CustomTabButtonState extends State<_CustomTabButton> with SingleTickerProviderStateMixin {
+class _CustomTabButtonState extends State<_CustomTabButton>
+    with SingleTickerProviderStateMixin {
   bool _isHovered = false;
   late AnimationController _controller;
 
@@ -1898,8 +1985,9 @@ class _CustomTabButtonState extends State<_CustomTabButton> with SingleTickerPro
               Text(
                 widget.label,
                 style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: widget.isSelected ? FontWeight.w600 : FontWeight.w500,
+                  fontSize: 12,
+                  fontWeight:
+                      widget.isSelected ? FontWeight.w500 : FontWeight.w400,
                   color: widget.isSelected
                       ? AppTheme.accentPrimary
                       : AppTheme.textSecondary,
@@ -1917,8 +2005,8 @@ class _CustomTabButtonState extends State<_CustomTabButton> with SingleTickerPro
                 child: Text(
                   '${widget.count}',
                   style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
                     color: widget.isSelected
                         ? AppTheme.accentPrimary
                         : AppTheme.textTertiary,

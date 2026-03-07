@@ -19,6 +19,7 @@ import '../../../theme/app_theme.dart';
 import '../../../utils/constants.dart';
 import '../../../widgets/animated_notifications.dart';
 import '../../../widgets/safe_command_bar_button.dart';
+import '../../../widgets/smooth_scroll_wrapper.dart';
 
 class StatusPage extends StatefulWidget {
   const StatusPage({super.key});
@@ -32,14 +33,14 @@ class _StatusPageState extends State<StatusPage> {
   bool _kernelHealthy = false;
   String? _kernelVersion;
   bool _checkingKernel = false;
-  
+
   Map<String, dynamic>? _apiTestResults;
   bool _testingApi = false;
-  
+
   // 系统信息
   Map<String, dynamic>? _systemInfo;
   Map<String, dynamic>? _kernelStats;
-  
+
   // 自启动状态
   bool? _autoStartEnabled;
   bool? _autoStartPathCorrect;
@@ -64,34 +65,34 @@ class _StatusPageState extends State<StatusPage> {
       _loadKernelStats();
     });
   }
-  
+
   Future<void> _loadSystemInfo() async {
     final info = <String, dynamic>{};
     info['platform'] = Platform.operatingSystem;
     info['version'] = Platform.operatingSystemVersion;
     info['processors'] = Platform.numberOfProcessors;
     info['dart_version'] = Platform.version.split(' ').first;
-    
+
     if (!mounted) return;
     setState(() {
       _systemInfo = info;
     });
   }
-  
+
   Future<void> _checkAutoStartStatus() async {
     if (!Platform.isWindows) return;
-    
+
     if (!mounted) return;
     setState(() {
       _checkingAutoStart = true;
     });
-    
+
     try {
       final autoStartService = AutoStartService();
       final enabled = await autoStartService.isAutoStartEnabled();
       final pathCorrect = await autoStartService.isRegisteredPathCorrect();
       final registeredPath = await autoStartService.getRegisteredPath();
-      
+
       if (!mounted) return;
       setState(() {
         _autoStartEnabled = enabled;
@@ -106,15 +107,16 @@ class _StatusPageState extends State<StatusPage> {
       });
     }
   }
-  
+
   /// 下载浏览器扩展插件
   Future<void> _downloadExtension() async {
-    const extensionUrl = 'https://github.com/buaoyezz/Hanabi-Download-Manager-X/releases/download/V1.0.0/chrome_extension.zip';
-    
+    const extensionUrl =
+        'https://github.com/buaoyezz/Hanabi-Download-Manager-X/releases/download/V1.0.0/chrome_extension.zip';
+
     try {
       final downloadService = context.read<IntegratedDownloadService>();
       await downloadService.addTask(extensionUrl, 'chrome_extension.zip');
-      
+
       if (mounted) {
         NotificationManager.of(context)?.showSuccess(
           t.statusExtensionDownloadAddedTitle,
@@ -130,11 +132,12 @@ class _StatusPageState extends State<StatusPage> {
       }
     }
   }
-  
+
   /// 打开浏览器扩展商店页面
   Future<void> _openExtensionStore() async {
-    const storeUrl = 'https://microsoftedge.microsoft.com/addons/detail/nifalaonnaeobogcnhfoeaklpihcaeia';
-    
+    const storeUrl =
+        'https://microsoftedge.microsoft.com/addons/detail/nifalaonnaeobogcnhfoeaklpihcaeia';
+
     try {
       final uri = Uri.parse(storeUrl);
       if (await canLaunchUrl(uri)) {
@@ -178,9 +181,9 @@ class _StatusPageState extends State<StatusPage> {
     } catch (e) {
       if (!mounted) return;
       NotificationManager.of(context)?.showError(
-          t.statusAutoStartFixFailedTitle,
-          message: t.statusAutoStartFixErrorMessage(e),
-        );
+        t.statusAutoStartFixFailedTitle,
+        message: t.statusAutoStartFixErrorMessage(e),
+      );
     }
   }
 
@@ -208,7 +211,8 @@ class _StatusPageState extends State<StatusPage> {
       );
 
       stopwatch.stop();
-      appLogger.info('PopupTest', t.statusPopupTestSuccessLog(stopwatch.elapsedMilliseconds));
+      appLogger.info('PopupTest',
+          t.statusPopupTestSuccessLog(stopwatch.elapsedMilliseconds));
 
       if (!mounted) return;
       setState(() {
@@ -220,9 +224,9 @@ class _StatusPageState extends State<StatusPage> {
       });
 
       NotificationManager.of(context)?.showSuccess(
-          t.statusPopupTestSuccessTitle,
-          message: t.statusPopupTestSuccessToast(stopwatch.elapsedMilliseconds),
-        );
+        t.statusPopupTestSuccessTitle,
+        message: t.statusPopupTestSuccessToast(stopwatch.elapsedMilliseconds),
+      );
     } catch (e) {
       stopwatch.stop();
       appLogger.error('PopupTest', t.statusPopupTestFailedLog(e));
@@ -237,9 +241,9 @@ class _StatusPageState extends State<StatusPage> {
       });
 
       NotificationManager.of(context)?.showError(
-          t.statusPopupTestFailedTitle,
-          message: t.statusPopupTestFailedToast(e),
-        );
+        t.statusPopupTestFailedTitle,
+        message: t.statusPopupTestFailedToast(e),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -266,38 +270,43 @@ class _StatusPageState extends State<StatusPage> {
       );
 
       stopwatch.stop();
-      appLogger.info('PopupTest', t.statusPopupDialogTestCloseLog(stopwatch.elapsedMilliseconds));
+      appLogger.info('PopupTest',
+          t.statusPopupDialogTestCloseLog(stopwatch.elapsedMilliseconds));
     } catch (e) {
       stopwatch.stop();
       appLogger.error('PopupTest', t.statusPopupDialogTestFailedLog(e));
     }
   }
-  
+
   Future<void> _loadKernelStats() async {
     try {
       // 优先从 IntegratedDownloadService 获取真实数据
       final downloadService = context.read<IntegratedDownloadService>();
       final tasks = downloadService.tasks;
-      
+
       // 统计各状态的任务
       int totalDownloads = tasks.length;
-      int activeTasks = tasks.where((t) => 
-        t.status == DownloadStatus.downloading || 
-        t.status == DownloadStatus.pending
-      ).length;
-      int completedTasks = tasks.where((t) => t.status == DownloadStatus.completed).length;
-      int failedTasks = tasks.where((t) => t.status == DownloadStatus.failed).length;
-      
+      int activeTasks = tasks
+          .where((t) =>
+              t.status == DownloadStatus.downloading ||
+              t.status == DownloadStatus.pending)
+          .length;
+      int completedTasks =
+          tasks.where((t) => t.status == DownloadStatus.completed).length;
+      int failedTasks =
+          tasks.where((t) => t.status == DownloadStatus.failed).length;
+
       // 计算总下载量
       int totalDownloadedBytes = 0;
       for (final task in tasks) {
         if (task.status == DownloadStatus.completed && task.fileSize != null) {
           totalDownloadedBytes += task.fileSize!;
-        } else if (task.status == DownloadStatus.downloading && task.downloadedSize != null) {
+        } else if (task.status == DownloadStatus.downloading &&
+            task.downloadedSize != null) {
           totalDownloadedBytes += task.downloadedSize!;
         }
       }
-      
+
       if (!mounted) return;
       setState(() {
         _kernelStats = {
@@ -308,16 +317,19 @@ class _StatusPageState extends State<StatusPage> {
           'total_downloaded_bytes': totalDownloadedBytes,
         };
       });
-      
+
       // 如果是旧内核，尝试从 HTTP API 获取（作为备用）
       final clientConfig = context.read<ClientConfigService>();
-      final useNewKernel = clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
-      
+      final useNewKernel =
+          clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
+
       if (!useNewKernel) {
         try {
-          final response = await http.get(
-            Uri.parse('http://127.0.0.1:9710/download/statistics'),
-          ).timeout(const Duration(seconds: 2));
+          final response = await http
+              .get(
+                Uri.parse('http://127.0.0.1:9710/download/statistics'),
+              )
+              .timeout(const Duration(seconds: 2));
 
           if (response.statusCode == 200) {
             final result = jsonDecode(response.body);
@@ -345,14 +357,15 @@ class _StatusPageState extends State<StatusPage> {
 
   Future<void> _checkKernelHealth() async {
     if (_checkingKernel) return;
-    
+
     if (!mounted) return;
     setState(() {
       _checkingKernel = true;
     });
 
     final clientConfig = context.read<ClientConfigService>();
-    final useNewKernel = clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
+    final useNewKernel =
+        clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
 
     if (useNewKernel) {
       // 新内核：直接从 KernelManager 获取状态
@@ -368,9 +381,11 @@ class _StatusPageState extends State<StatusPage> {
 
     // 旧内核：通过 HTTP API 检查
     try {
-      final response = await http.get(
-        Uri.parse('http://127.0.0.1:9710/health'),
-      ).timeout(const Duration(seconds: 3));
+      final response = await http
+          .get(
+            Uri.parse('http://127.0.0.1:9710/health'),
+          )
+          .timeout(const Duration(seconds: 3));
 
       if (response.statusCode == 200) {
         final result = jsonDecode(response.body);
@@ -412,16 +427,18 @@ class _StatusPageState extends State<StatusPage> {
     final tests = <MapEntry<String, String>>[
       MapEntry(t.statusApiTestHealthCheck, 'http://127.0.0.1:9710/health'),
       MapEntry(t.statusApiTestGetTasks, 'http://127.0.0.1:9710/download/tasks'),
-      MapEntry(t.statusApiTestGetStatistics, 'http://127.0.0.1:9710/download/statistics'),
-      MapEntry(t.statusApiTestGetConfig, 'http://127.0.0.1:9710/settings/download-config'),
+      MapEntry(t.statusApiTestGetStatistics,
+          'http://127.0.0.1:9710/download/statistics'),
+      MapEntry(t.statusApiTestGetConfig,
+          'http://127.0.0.1:9710/settings/download-config'),
     ];
 
     for (final entry in tests) {
       try {
         final stopwatch = Stopwatch()..start();
         final response = await http.get(Uri.parse(entry.value)).timeout(
-          const Duration(seconds: 3),
-        );
+              const Duration(seconds: 3),
+            );
         stopwatch.stop();
 
         if (!mounted) return;
@@ -456,11 +473,14 @@ class _StatusPageState extends State<StatusPage> {
     final clientConfig = context.watch<ClientConfigService>();
     final networkService = context.watch<NetworkStatusService>();
     final appLogger = context.watch<AppLoggerService>();
-    
+
     // 判断内核
-    final useNewKernel = clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
-    final kernelRunning = useNewKernel ? kernelManager.isRunning : kernelService.isRunning;
-    final kernelName = useNewKernel ? kernelManager.kernelName : t.statusKernelLegacyName;
+    final useNewKernel =
+        clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
+    final kernelRunning =
+        useNewKernel ? kernelManager.isRunning : kernelService.isRunning;
+    final kernelName =
+        useNewKernel ? kernelManager.kernelName : t.statusKernelLegacyName;
 
     return ScaffoldPage(
       header: PageHeader(
@@ -483,7 +503,8 @@ class _StatusPageState extends State<StatusPage> {
                   color: AppTheme.accentPrimary.withValues(alpha: 0.3),
                 ),
               ),
-              child: const Icon(FluentIcons.health, size: 18, color: AppTheme.accentLight),
+              child: const Icon(FluentIcons.health,
+                  size: 18, color: AppTheme.accentLight),
             ),
             const SizedBox(width: 14),
             Text(t.statusPageTitle),
@@ -517,7 +538,8 @@ class _StatusPageState extends State<StatusPage> {
           ],
         ),
       ),
-      content: SingleChildScrollView(
+      content: SmoothSingleChildScrollView(
+        config: SmoothScrollConfig.fast,
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -531,7 +553,9 @@ class _StatusPageState extends State<StatusPage> {
                 _buildStatusItem(
                   context,
                   label: t.statusItemKernelService,
-                  value: kernelRunning ? t.statusValueRunning : t.statusValueStopped,
+                  value: kernelRunning
+                      ? t.statusValueRunning
+                      : t.statusValueStopped,
                   isOnline: kernelRunning,
                 ),
                 _buildStatusItem(
@@ -545,7 +569,9 @@ class _StatusPageState extends State<StatusPage> {
                   label: t.statusItemHttpService,
                   value: _kernelHealthy
                       ? t.statusValueHealthy
-                      : (useNewKernel ? t.statusValueBuiltIn : t.statusValueUnhealthy),
+                      : (useNewKernel
+                          ? t.statusValueBuiltIn
+                          : t.statusValueUnhealthy),
                   isOnline: useNewKernel ? kernelRunning : _kernelHealthy,
                 ),
                 _buildStatusItem(
@@ -627,7 +653,7 @@ class _StatusPageState extends State<StatusPage> {
                 children: _apiTestResults!.entries.map((entry) {
                   final result = entry.value;
                   final success = result['success'] as bool;
-                  
+
                   String value;
                   if (success) {
                     value = '${result['status']} (${result['time']}ms)';
@@ -717,7 +743,8 @@ class _StatusPageState extends State<StatusPage> {
                     _buildStatusItem(
                       context,
                       label: t.statusItemTotalDownloaded,
-                      value: _formatBytes(_kernelStats!['total_downloaded_bytes']),
+                      value:
+                          _formatBytes(_kernelStats!['total_downloaded_bytes']),
                       isInfo: true,
                     ),
                 ],
@@ -740,13 +767,15 @@ class _StatusPageState extends State<StatusPage> {
                 _buildStatusItem(
                   context,
                   label: t.statusItemErrorCount,
-                  value: '${appLogger.logs.where((log) => log.level == LogLevel.error).length}',
+                  value:
+                      '${appLogger.logs.where((log) => log.level == LogLevel.error).length}',
                   isInfo: true,
                 ),
                 _buildStatusItem(
                   context,
                   label: t.statusItemWarningCount,
-                  value: '${appLogger.logs.where((log) => log.level == LogLevel.warning).length}',
+                  value:
+                      '${appLogger.logs.where((log) => log.level == LogLevel.warning).length}',
                   isInfo: true,
                 ),
               ],
@@ -819,10 +848,11 @@ class _StatusPageState extends State<StatusPage> {
   String _formatBytes(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(2)} KB';
-    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+    if (bytes < 1024 * 1024 * 1024)
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
   }
-  
+
   Widget _buildAutoStartSection(BuildContext context) {
     if (!Platform.isWindows) {
       return _buildSection(
@@ -839,9 +869,9 @@ class _StatusPageState extends State<StatusPage> {
         ],
       );
     }
-    
+
     final children = <Widget>[];
-    
+
     if (_checkingAutoStart) {
       children.add(
         Container(
@@ -857,22 +887,26 @@ class _StatusPageState extends State<StatusPage> {
         _buildStatusItem(
           context,
           label: t.statusItemAutoStartStatus,
-          value: _autoStartEnabled == true ? t.statusValueEnabled : t.statusValueDisabled,
+          value: _autoStartEnabled == true
+              ? t.statusValueEnabled
+              : t.statusValueDisabled,
           isOnline: _autoStartEnabled == true,
         ),
       );
-      
+
       if (_autoStartEnabled == true) {
         // 路径正确性
         children.add(
           _buildStatusItem(
             context,
             label: t.statusItemRegistryPath,
-            value: _autoStartPathCorrect == true ? t.statusValueCorrect : t.statusValueNeedsUpdate,
+            value: _autoStartPathCorrect == true
+                ? t.statusValueCorrect
+                : t.statusValueNeedsUpdate,
             isOnline: _autoStartPathCorrect == true,
           ),
         );
-        
+
         // 显示注册的路径
         if (_registeredPath != null) {
           children.add(
@@ -884,7 +918,7 @@ class _StatusPageState extends State<StatusPage> {
             ),
           );
         }
-        
+
         // 显示当前路径
         children.add(
           _buildStatusItem(
@@ -894,7 +928,7 @@ class _StatusPageState extends State<StatusPage> {
             isInfo: true,
           ),
         );
-        
+
         // 如果路径不正确，显示修复按钮
         if (_autoStartPathCorrect == false) {
           children.add(const SizedBox(height: 12));
@@ -922,10 +956,11 @@ class _StatusPageState extends State<StatusPage> {
                       Expanded(
                         child: Text(
                           t.statusAutoStartOldRegistryTitle,
-                          style: FluentTheme.of(context).typography.body?.copyWith(
-                            color: AppTheme.statusWarning,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style:
+                              FluentTheme.of(context).typography.body?.copyWith(
+                                    color: AppTheme.statusWarning,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                         ),
                       ),
                     ],
@@ -934,8 +969,8 @@ class _StatusPageState extends State<StatusPage> {
                   Text(
                     t.statusAutoStartOldRegistryMessage,
                     style: FluentTheme.of(context).typography.caption?.copyWith(
-                      color: AppTheme.textSecondary,
-                    ),
+                          color: AppTheme.textSecondary,
+                        ),
                   ),
                   const SizedBox(height: 12),
                   FilledButton(
@@ -956,7 +991,7 @@ class _StatusPageState extends State<StatusPage> {
         }
       }
     }
-    
+
     return _buildSection(
       context,
       title: t.statusSectionAutoStart,
@@ -983,8 +1018,10 @@ class _StatusPageState extends State<StatusPage> {
             context,
             label: t.statusItemTestResult,
             value: _popupWindowTestResult!['success'] == true
-                ? t.statusPopupTestResultSuccess(_popupWindowTestResult!['time'])
-                : t.statusPopupTestResultFailed(_popupWindowTestResult!['error'] ?? t.statusValueUnknown),
+                ? t.statusPopupTestResultSuccess(
+                    _popupWindowTestResult!['time'])
+                : t.statusPopupTestResultFailed(
+                    _popupWindowTestResult!['error'] ?? t.statusValueUnknown),
             isOnline: _popupWindowTestResult!['success'] == true,
           ),
         ],
@@ -1006,7 +1043,9 @@ class _StatusPageState extends State<StatusPage> {
                     else
                       const Icon(FluentIcons.open_pane, size: 16),
                     const SizedBox(width: 8),
-                    Text(_testingPopupWindow ? t.statusPopupTesting : t.statusPopupTestButton),
+                    Text(_testingPopupWindow
+                        ? t.statusPopupTesting
+                        : t.statusPopupTestButton),
                   ],
                 ),
               ),
@@ -1051,10 +1090,10 @@ class _StatusPageState extends State<StatusPage> {
                   Text(
                     t.statusPopupTestInfoTitle,
                     style: FluentTheme.of(context).typography.body?.copyWith(
-                      color: AppTheme.accentLight,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
+                          color: AppTheme.accentLight,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
                   ),
                 ],
               ),
@@ -1062,10 +1101,10 @@ class _StatusPageState extends State<StatusPage> {
               Text(
                 t.statusPopupTestInfoBody,
                 style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: AppTheme.textSecondary,
-                  fontSize: 11,
-                  height: 1.5,
-                ),
+                      color: AppTheme.textSecondary,
+                      fontSize: 11,
+                      height: 1.5,
+                    ),
               ),
             ],
           ),
@@ -1105,9 +1144,9 @@ class _StatusPageState extends State<StatusPage> {
               Text(
                 title,
                 style: FluentTheme.of(context).typography.body?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
-                ),
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
               ),
             ],
           ),
@@ -1163,8 +1202,8 @@ class _StatusPageState extends State<StatusPage> {
             child: Text(
               label,
               style: FluentTheme.of(context).typography.caption?.copyWith(
-                color: AppTheme.textTertiary,
-              ),
+                    color: AppTheme.textTertiary,
+                  ),
             ),
           ),
           const SizedBox(width: 12),
@@ -1172,10 +1211,10 @@ class _StatusPageState extends State<StatusPage> {
             child: Text(
               value,
               style: FluentTheme.of(context).typography.body?.copyWith(
-                color: isInfo ? AppTheme.textPrimary : statusColor,
-                fontWeight: isInfo ? FontWeight.normal : FontWeight.w600,
-                fontSize: 13,
-              ),
+                    color: isInfo ? AppTheme.textPrimary : statusColor,
+                    fontWeight: isInfo ? FontWeight.normal : FontWeight.w600,
+                    fontSize: 13,
+                  ),
             ),
           ),
         ],

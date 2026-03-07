@@ -1,5 +1,14 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:scroll_animator/scroll_animator.dart';
+
+bool get _useAnimatedDesktopScroll =>
+    !kIsWeb &&
+    const {
+      TargetPlatform.windows,
+      TargetPlatform.linux,
+      TargetPlatform.macOS,
+    }.contains(defaultTargetPlatform);
 
 /// 平滑滚动配置
 class SmoothScrollConfig {
@@ -31,6 +40,17 @@ class SmoothScrollConfig {
   );
 }
 
+ScrollController createSmoothScrollController({
+  SmoothScrollConfig config = SmoothScrollConfig.defaults,
+}) {
+  if (_useAnimatedDesktopScroll) {
+    return AnimatedScrollController(
+      animationFactory: config.animationFactory,
+    );
+  }
+  return ScrollController();
+}
+
 /// 平滑滚动的 ListView - 使用 scroll_animator
 class SmoothListView extends StatefulWidget {
   final int? itemCount;
@@ -38,8 +58,11 @@ class SmoothListView extends StatefulWidget {
   final List<Widget>? children;
   final EdgeInsetsGeometry? padding;
   final SmoothScrollConfig config;
+  final ScrollController? controller;
+  final ScrollPhysics? physics;
   final Axis scrollDirection;
   final bool shrinkWrap;
+  final bool reverse;
   final double? cacheExtent;
   final bool addRepaintBoundaries;
   final bool addAutomaticKeepAlives;
@@ -49,9 +72,13 @@ class SmoothListView extends StatefulWidget {
     required this.itemCount,
     required this.itemBuilder,
     this.padding,
-    this.config = const SmoothScrollConfig(animationFactory: ChromiumEaseInOut()),
+    this.config =
+        const SmoothScrollConfig(animationFactory: ChromiumEaseInOut()),
+    this.controller,
+    this.physics,
     this.scrollDirection = Axis.vertical,
     this.shrinkWrap = false,
+    this.reverse = false,
     this.cacheExtent,
     this.addRepaintBoundaries = true,
     this.addAutomaticKeepAlives = true,
@@ -61,9 +88,13 @@ class SmoothListView extends StatefulWidget {
     super.key,
     required this.children,
     this.padding,
-    this.config = const SmoothScrollConfig(animationFactory: ChromiumEaseInOut()),
+    this.config =
+        const SmoothScrollConfig(animationFactory: ChromiumEaseInOut()),
+    this.controller,
+    this.physics,
     this.scrollDirection = Axis.vertical,
     this.shrinkWrap = false,
+    this.reverse = false,
     this.cacheExtent,
     this.addRepaintBoundaries = true,
     this.addAutomaticKeepAlives = true,
@@ -75,19 +106,22 @@ class SmoothListView extends StatefulWidget {
 }
 
 class _SmoothListViewState extends State<SmoothListView> {
-  late AnimatedScrollController _scrollController;
+  late ScrollController _scrollController;
+  late bool _ownsController;
 
   @override
   void initState() {
     super.initState();
-    _scrollController = AnimatedScrollController(
-      animationFactory: widget.config.animationFactory,
-    );
+    _ownsController = widget.controller == null;
+    _scrollController = widget.controller ??
+        createSmoothScrollController(config: widget.config);
   }
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    if (_ownsController) {
+      _scrollController.dispose();
+    }
     super.dispose();
   }
 
@@ -96,13 +130,16 @@ class _SmoothListViewState extends State<SmoothListView> {
     return ListView.builder(
       controller: _scrollController,
       padding: widget.padding,
+      physics: widget.physics,
       scrollDirection: widget.scrollDirection,
       shrinkWrap: widget.shrinkWrap,
+      reverse: widget.reverse,
       cacheExtent: widget.cacheExtent ?? 500,
       addRepaintBoundaries: widget.addRepaintBoundaries,
       addAutomaticKeepAlives: widget.addAutomaticKeepAlives,
       itemCount: widget.itemCount ?? widget.children?.length ?? 0,
-      itemBuilder: widget.itemBuilder ?? (context, index) => widget.children![index],
+      itemBuilder:
+          widget.itemBuilder ?? (context, index) => widget.children![index],
     );
   }
 }
@@ -112,34 +149,46 @@ class SmoothSingleChildScrollView extends StatefulWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final SmoothScrollConfig config;
+  final ScrollController? controller;
+  final ScrollPhysics? physics;
   final Axis scrollDirection;
+  final bool reverse;
 
   const SmoothSingleChildScrollView({
     super.key,
     required this.child,
     this.padding,
-    this.config = const SmoothScrollConfig(animationFactory: ChromiumEaseInOut()),
+    this.config =
+        const SmoothScrollConfig(animationFactory: ChromiumEaseInOut()),
+    this.controller,
+    this.physics,
     this.scrollDirection = Axis.vertical,
+    this.reverse = false,
   });
 
   @override
-  State<SmoothSingleChildScrollView> createState() => _SmoothSingleChildScrollViewState();
+  State<SmoothSingleChildScrollView> createState() =>
+      _SmoothSingleChildScrollViewState();
 }
 
-class _SmoothSingleChildScrollViewState extends State<SmoothSingleChildScrollView> {
-  late AnimatedScrollController _scrollController;
+class _SmoothSingleChildScrollViewState
+    extends State<SmoothSingleChildScrollView> {
+  late ScrollController _scrollController;
+  late bool _ownsController;
 
   @override
   void initState() {
     super.initState();
-    _scrollController = AnimatedScrollController(
-      animationFactory: widget.config.animationFactory,
-    );
+    _ownsController = widget.controller == null;
+    _scrollController = widget.controller ??
+        createSmoothScrollController(config: widget.config);
   }
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    if (_ownsController) {
+      _scrollController.dispose();
+    }
     super.dispose();
   }
 
@@ -148,7 +197,9 @@ class _SmoothSingleChildScrollViewState extends State<SmoothSingleChildScrollVie
     return SingleChildScrollView(
       controller: _scrollController,
       padding: widget.padding,
+      physics: widget.physics,
       scrollDirection: widget.scrollDirection,
+      reverse: widget.reverse,
       child: widget.child,
     );
   }

@@ -6,6 +6,8 @@ import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
 
 import '../../../widgets/animated_notifications.dart';
+import '../../../widgets/smooth_scroll_wrapper.dart';
+
 class WebCheckPage extends StatefulWidget {
   const WebCheckPage({super.key});
 
@@ -17,7 +19,7 @@ class _WebCheckPageState extends State<WebCheckPage> {
   final _urlController = TextEditingController();
   bool _isChecking = false;
   Map<String, dynamic>? _result;
-  
+
   // 局域网扫描
   bool _isScanning = false;
   Map<String, dynamic>? _scanResult;
@@ -50,7 +52,8 @@ class _WebCheckPageState extends State<WebCheckPage> {
 
     // 检查是否使用新内核
     final config = context.read<ClientConfigService>();
-    final useNewKernel = config.getBool('kernel.use_new_kernel', defaultValue: true);
+    final useNewKernel =
+        config.getBool('kernel.use_new_kernel', defaultValue: true);
     if (useNewKernel) {
       _showError(t.webCheckErrorUnsupportedKernel);
       return;
@@ -95,7 +98,8 @@ class _WebCheckPageState extends State<WebCheckPage> {
   Future<void> _scanLan() async {
     // 检查是否使用新内核
     final config = context.read<ClientConfigService>();
-    final useNewKernel = config.getBool('kernel.use_new_kernel', defaultValue: true);
+    final useNewKernel =
+        config.getBool('kernel.use_new_kernel', defaultValue: true);
     if (useNewKernel) {
       _showError(t.webCheckErrorLanUnsupportedKernel);
       return;
@@ -136,7 +140,8 @@ class _WebCheckPageState extends State<WebCheckPage> {
         children: [
           _buildHeader(),
           Expanded(
-            child: ListView(
+            child: SmoothListView(
+              config: SmoothScrollConfig.fast,
               padding: const EdgeInsets.all(20),
               children: [
                 _buildInputSection(),
@@ -185,9 +190,9 @@ class _WebCheckPageState extends State<WebCheckPage> {
           Text(
             t.webCheckHeaderTitle,
             style: FluentTheme.of(context).typography.body?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
-            ),
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
           ),
         ],
       ),
@@ -210,8 +215,8 @@ class _WebCheckPageState extends State<WebCheckPage> {
           Text(
             t.webCheckInputTitle,
             style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-              color: AppTheme.textPrimary,
-            ),
+                  color: AppTheme.textPrimary,
+                ),
           ),
           const SizedBox(height: 12),
           TextBox(
@@ -227,9 +232,9 @@ class _WebCheckPageState extends State<WebCheckPage> {
           Text(
             t.webCheckInputHint,
             style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: AppTheme.textTertiary,
-              fontSize: 11,
-            ),
+                  color: AppTheme.textTertiary,
+                  fontSize: 11,
+                ),
           ),
           const SizedBox(height: 16),
           FilledButton(
@@ -269,11 +274,13 @@ class _WebCheckPageState extends State<WebCheckPage> {
           const SizedBox(height: 16),
           _buildSSLCard(),
         ],
-        if (_result!['redirects'] != null && (_result!['redirects'] as List).isNotEmpty) ...[
+        if (_result!['redirects'] != null &&
+            (_result!['redirects'] as List).isNotEmpty) ...[
           const SizedBox(height: 16),
           _buildRedirectsCard(),
         ],
-        if (_result!['cookies'] != null && (_result!['cookies'] as List).isNotEmpty) ...[
+        if (_result!['cookies'] != null &&
+            (_result!['cookies'] as List).isNotEmpty) ...[
           const SizedBox(height: 16),
           _buildCookiesCard(),
         ],
@@ -307,16 +314,17 @@ class _WebCheckPageState extends State<WebCheckPage> {
               children: [
                 Text(
                   t.webCheckErrorCardTitle,
-                  style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                    color: AppTheme.statusError,
-                  ),
+                  style:
+                      FluentTheme.of(context).typography.bodyStrong?.copyWith(
+                            color: AppTheme.statusError,
+                          ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   error,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
+                        color: AppTheme.textSecondary,
+                      ),
                 ),
               ],
             ),
@@ -357,30 +365,32 @@ class _WebCheckPageState extends State<WebCheckPage> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(AppTheme.radiusRound),
                 ),
                 child: Text(
                   '$statusCode',
-                  style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                    color: statusColor,
-                    fontSize: 16,
-                  ),
+                  style:
+                      FluentTheme.of(context).typography.bodyStrong?.copyWith(
+                            color: statusColor,
+                            fontSize: 16,
+                          ),
                 ),
               ),
               const SizedBox(width: 12),
               Text(
                 statusText,
                 style: FluentTheme.of(context).typography.body?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
+                      color: AppTheme.textSecondary,
+                    ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          
+
           // 性能指标
           if (responseTime != null || dnsTime != null) ...[
             Container(
@@ -392,26 +402,30 @@ class _WebCheckPageState extends State<WebCheckPage> {
               child: Row(
                 children: [
                   if (dnsTime != null) ...[
-                    const Icon(FluentIcons.server, size: 16, color: AppTheme.accentLight),
+                    const Icon(FluentIcons.server,
+                        size: 16, color: AppTheme.accentLight),
                     const SizedBox(width: 8),
                     Text(
                       t.webCheckDnsTime(dnsTime),
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: AppTheme.textSecondary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style:
+                          FluentTheme.of(context).typography.caption?.copyWith(
+                                color: AppTheme.textSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
                     ),
                     const SizedBox(width: 20),
                   ],
                   if (responseTime != null) ...[
-                    const Icon(FluentIcons.lightning_bolt, size: 16, color: AppTheme.accentLight),
+                    const Icon(FluentIcons.lightning_bolt,
+                        size: 16, color: AppTheme.accentLight),
                     const SizedBox(width: 8),
                     Text(
                       t.webCheckResponseTime(responseTime),
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: AppTheme.textSecondary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style:
+                          FluentTheme.of(context).typography.caption?.copyWith(
+                                color: AppTheme.textSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
                     ),
                   ],
                 ],
@@ -419,15 +433,21 @@ class _WebCheckPageState extends State<WebCheckPage> {
             ),
             const SizedBox(height: 16),
           ],
-          
+
           // 连接信息
-          if (hostname.isNotEmpty) _buildInfoRow(t.webCheckInfoHostname, hostname),
-          if (ipAddress.isNotEmpty) _buildInfoRow(t.webCheckInfoIpAddress, ipAddress),
+          if (hostname.isNotEmpty)
+            _buildInfoRow(t.webCheckInfoHostname, hostname),
+          if (ipAddress.isNotEmpty)
+            _buildInfoRow(t.webCheckInfoIpAddress, ipAddress),
           if (port != null) _buildInfoRow(t.webCheckInfoPort, '$port'),
-          if (protocol.isNotEmpty) _buildInfoRow(t.webCheckInfoProtocol, protocol.toUpperCase()),
+          if (protocol.isNotEmpty)
+            _buildInfoRow(t.webCheckInfoProtocol, protocol.toUpperCase()),
           _buildInfoRow(t.webCheckInfoFinalUrl, finalUrl),
-          if (contentType.isNotEmpty) _buildInfoRow(t.webCheckInfoContentType, contentType),
-          if (contentLength.isNotEmpty) _buildInfoRow(t.webCheckInfoContentLength, _formatBytes(contentLength)),
+          if (contentType.isNotEmpty)
+            _buildInfoRow(t.webCheckInfoContentType, contentType),
+          if (contentLength.isNotEmpty)
+            _buildInfoRow(
+                t.webCheckInfoContentLength, _formatBytes(contentLength)),
           if (server.isNotEmpty) _buildInfoRow(t.webCheckInfoServer, server),
         ],
       ),
@@ -460,8 +480,8 @@ class _WebCheckPageState extends State<WebCheckPage> {
               Text(
                 t.webCheckRedirectHistoryTitle(redirects.length),
                 style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                  color: AppTheme.textPrimary,
-                ),
+                      color: AppTheme.textPrimary,
+                    ),
               ),
             ],
           ),
@@ -514,7 +534,8 @@ class _WebCheckPageState extends State<WebCheckPage> {
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                     color: AppTheme.statusWarning.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(AppTheme.radiusRound),
@@ -534,16 +555,16 @@ class _WebCheckPageState extends State<WebCheckPage> {
             Text(
               t.webCheckRedirectFrom(url),
               style: FluentTheme.of(context).typography.caption?.copyWith(
-                color: AppTheme.textTertiary,
-              ),
+                    color: AppTheme.textTertiary,
+                  ),
             ),
             if (location.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(
                 t.webCheckRedirectTo(location),
                 style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
+                      color: AppTheme.textSecondary,
+                    ),
               ),
             ],
           ],
@@ -570,8 +591,8 @@ class _WebCheckPageState extends State<WebCheckPage> {
           Text(
             t.webCheckHeadersTitle,
             style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-              color: AppTheme.textPrimary,
-            ),
+                  color: AppTheme.textPrimary,
+                ),
           ),
           const SizedBox(height: 16),
           ...headers.entries.map((entry) {
@@ -600,13 +621,14 @@ class _WebCheckPageState extends State<WebCheckPage> {
         children: [
           Row(
             children: [
-              const Icon(FluentIcons.lock, size: 16, color: AppTheme.statusSuccess),
+              const Icon(FluentIcons.lock,
+                  size: 16, color: AppTheme.statusSuccess),
               const SizedBox(width: 8),
               Text(
                 t.webCheckSslTitle,
                 style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                  color: AppTheme.textPrimary,
-                ),
+                      color: AppTheme.textPrimary,
+                    ),
               ),
             ],
           ),
@@ -615,18 +637,26 @@ class _WebCheckPageState extends State<WebCheckPage> {
             Text(
               t.webCheckSslError(sslInfo['error']),
               style: FluentTheme.of(context).typography.caption?.copyWith(
-                color: AppTheme.statusError,
-              ),
+                    color: AppTheme.statusError,
+                  ),
             )
           else ...[
-            if (sslInfo['version'] != null) _buildInfoRow(t.webCheckSslVersion, sslInfo['version']),
-            if (sslInfo['cipher'] != null) _buildInfoRow(t.webCheckSslCipher, sslInfo['cipher']),
-            if (sslInfo['subject'] != null && sslInfo['subject']['commonName'] != null)
-              _buildInfoRow(t.webCheckSslSubject, sslInfo['subject']['commonName']),
-            if (sslInfo['issuer'] != null && sslInfo['issuer']['commonName'] != null)
-              _buildInfoRow(t.webCheckSslIssuer, sslInfo['issuer']['commonName']),
-            if (sslInfo['not_before'] != null) _buildInfoRow(t.webCheckSslNotBefore, sslInfo['not_before']),
-            if (sslInfo['not_after'] != null) _buildInfoRow(t.webCheckSslNotAfter, sslInfo['not_after']),
+            if (sslInfo['version'] != null)
+              _buildInfoRow(t.webCheckSslVersion, sslInfo['version']),
+            if (sslInfo['cipher'] != null)
+              _buildInfoRow(t.webCheckSslCipher, sslInfo['cipher']),
+            if (sslInfo['subject'] != null &&
+                sslInfo['subject']['commonName'] != null)
+              _buildInfoRow(
+                  t.webCheckSslSubject, sslInfo['subject']['commonName']),
+            if (sslInfo['issuer'] != null &&
+                sslInfo['issuer']['commonName'] != null)
+              _buildInfoRow(
+                  t.webCheckSslIssuer, sslInfo['issuer']['commonName']),
+            if (sslInfo['not_before'] != null)
+              _buildInfoRow(t.webCheckSslNotBefore, sslInfo['not_before']),
+            if (sslInfo['not_after'] != null)
+              _buildInfoRow(t.webCheckSslNotAfter, sslInfo['not_after']),
           ],
         ],
       ),
@@ -651,13 +681,14 @@ class _WebCheckPageState extends State<WebCheckPage> {
         children: [
           Row(
             children: [
-              const Icon(FluentIcons.database, size: 16, color: AppTheme.statusWarning),
+              const Icon(FluentIcons.database,
+                  size: 16, color: AppTheme.statusWarning),
               const SizedBox(width: 8),
               Text(
                 t.webCheckCookiesTitle(cookies.length),
                 style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                  color: AppTheme.textPrimary,
-                ),
+                      color: AppTheme.textPrimary,
+                    ),
               ),
             ],
           ),
@@ -676,28 +707,34 @@ class _WebCheckPageState extends State<WebCheckPage> {
                   children: [
                     Text(
                       cookie['name'] ?? '',
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: AppTheme.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style:
+                          FluentTheme.of(context).typography.caption?.copyWith(
+                                color: AppTheme.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       cookie['value'] ?? '',
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: AppTheme.textTertiary,
-                      ),
+                      style:
+                          FluentTheme.of(context).typography.caption?.copyWith(
+                                color: AppTheme.textTertiary,
+                              ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (cookie['domain'] != null && cookie['domain'].toString().isNotEmpty) ...[
+                    if (cookie['domain'] != null &&
+                        cookie['domain'].toString().isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
                         t.webCheckCookieDomain(cookie['domain']),
-                        style: FluentTheme.of(context).typography.caption?.copyWith(
-                          color: AppTheme.textTertiary,
-                          fontSize: 11,
-                        ),
+                        style: FluentTheme.of(context)
+                            .typography
+                            .caption
+                            ?.copyWith(
+                              color: AppTheme.textTertiary,
+                              fontSize: 11,
+                            ),
                       ),
                     ],
                   ],
@@ -725,13 +762,14 @@ class _WebCheckPageState extends State<WebCheckPage> {
         children: [
           Row(
             children: [
-              const Icon(FluentIcons.network_tower, size: 16, color: AppTheme.accentLight),
+              const Icon(FluentIcons.network_tower,
+                  size: 16, color: AppTheme.accentLight),
               const SizedBox(width: 8),
               Text(
                 t.webCheckLanScanTitle,
                 style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                  color: AppTheme.textPrimary,
-                ),
+                      color: AppTheme.textPrimary,
+                    ),
               ),
               const Spacer(),
               ToggleSwitch(
@@ -750,8 +788,8 @@ class _WebCheckPageState extends State<WebCheckPage> {
           Text(
             t.webCheckLanScanSubtitle,
             style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: AppTheme.textTertiary,
-            ),
+                  color: AppTheme.textTertiary,
+                ),
           ),
           const SizedBox(height: 16),
           FilledButton(
@@ -805,13 +843,14 @@ class _WebCheckPageState extends State<WebCheckPage> {
         children: [
           Row(
             children: [
-              const Icon(FluentIcons.devices3, size: 16, color: AppTheme.statusSuccess),
+              const Icon(FluentIcons.devices3,
+                  size: 16, color: AppTheme.statusSuccess),
               const SizedBox(width: 8),
               Text(
                 t.webCheckLanDevicesTitle(total),
                 style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                  color: AppTheme.textPrimary,
-                ),
+                      color: AppTheme.textPrimary,
+                    ),
               ),
             ],
           ),
@@ -819,20 +858,21 @@ class _WebCheckPageState extends State<WebCheckPage> {
           Text(
             t.webCheckLanNetworkLabel(network),
             style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: AppTheme.textTertiary,
-            ),
+                  color: AppTheme.textTertiary,
+                ),
           ),
           Text(
             t.webCheckLanLocalIpLabel(localIp),
             style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: AppTheme.textTertiary,
-            ),
+                  color: AppTheme.textTertiary,
+                ),
           ),
           const SizedBox(height: 16),
           Wrap(
             spacing: 12,
             runSpacing: 12,
-            children: devices.map((device) => _buildDeviceCard(device)).toList(),
+            children:
+                devices.map((device) => _buildDeviceCard(device)).toList(),
           ),
         ],
       ),
@@ -848,12 +888,12 @@ class _WebCheckPageState extends State<WebCheckPage> {
       width: 200,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isLocal 
+        color: isLocal
             ? AppTheme.accentPrimary.withValues(alpha: 0.15)
             : AppTheme.bgLayer2.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(AppTheme.radiusSm),
         border: Border.all(
-          color: isLocal 
+          color: isLocal
               ? AppTheme.accentPrimary.withValues(alpha: 0.3)
               : AppTheme.borderSubtle.withValues(alpha: 0.3),
         ),
@@ -872,7 +912,8 @@ class _WebCheckPageState extends State<WebCheckPage> {
               const SizedBox(width: 8),
               if (isLocal)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: AppTheme.accentPrimary.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(AppTheme.radiusRound),
@@ -880,10 +921,10 @@ class _WebCheckPageState extends State<WebCheckPage> {
                   child: Text(
                     t.webCheckLanLocalBadge,
                     style: FluentTheme.of(context).typography.caption?.copyWith(
-                      color: AppTheme.accentLight,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
+                          color: AppTheme.accentLight,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                 ),
             ],
@@ -892,17 +933,17 @@ class _WebCheckPageState extends State<WebCheckPage> {
           Text(
             ip,
             style: FluentTheme.of(context).typography.body?.copyWith(
-              color: AppTheme.textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
           ),
           if (hostname != null) ...[
             const SizedBox(height: 4),
             Text(
               hostname,
               style: FluentTheme.of(context).typography.caption?.copyWith(
-                color: AppTheme.textTertiary,
-              ),
+                    color: AppTheme.textTertiary,
+                  ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -923,16 +964,16 @@ class _WebCheckPageState extends State<WebCheckPage> {
             child: Text(
               label,
               style: FluentTheme.of(context).typography.caption?.copyWith(
-                color: AppTheme.textTertiary,
-              ),
+                    color: AppTheme.textTertiary,
+                  ),
             ),
           ),
           Expanded(
             child: SelectableText(
               value,
               style: FluentTheme.of(context).typography.caption?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
+                    color: AppTheme.textSecondary,
+                  ),
             ),
           ),
         ],
@@ -970,7 +1011,8 @@ class _WebCheckPageState extends State<WebCheckPage> {
       final size = int.parse(bytes);
       if (size < 1024) return '$size B';
       if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(2)} KB';
-      if (size < 1024 * 1024 * 1024) return '${(size / (1024 * 1024)).toStringAsFixed(2)} MB';
+      if (size < 1024 * 1024 * 1024)
+        return '${(size / (1024 * 1024)).toStringAsFixed(2)} MB';
       return '${(size / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
     } catch (e) {
       return bytes;

@@ -7,6 +7,7 @@ import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
 import '../../widgets/animated_notifications.dart';
+import '../../widgets/smooth_scroll_wrapper.dart';
 
 enum _DuplicateAction {
   useExisting,
@@ -28,7 +29,8 @@ class AddDownloadDialog extends StatefulWidget {
   State<AddDownloadDialog> createState() => _AddDownloadDialogState();
 }
 
-class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTickerProviderStateMixin {
+class _AddDownloadDialogState extends State<AddDownloadDialog>
+    with SingleTickerProviderStateMixin {
   final _urlController = TextEditingController();
   final _fileNameController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -46,7 +48,8 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
     if (widget.initialUrl != null && widget.initialUrl!.trim().isNotEmpty) {
       _urlController.text = widget.initialUrl!.trim();
     }
-    if (widget.initialFileName != null && widget.initialFileName!.trim().isNotEmpty) {
+    if (widget.initialFileName != null &&
+        widget.initialFileName!.trim().isNotEmpty) {
       _fileNameController.text = widget.initialFileName!.trim();
     }
     // 监听 URL 变化，自动解析文件名
@@ -54,7 +57,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
     if (_urlController.text.trim().isNotEmpty) {
       _onUrlChanged();
     }
-    
+
     // 初始化动画
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 400),
@@ -73,13 +76,14 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
       setState(() => _parsedFileName = null);
       return;
     }
-    
+
     try {
       final uri = Uri.parse(url);
       final path = uri.path;
       if (path.isNotEmpty) {
         final segments = path.split('/');
-        final lastSegment = segments.lastWhere((s) => s.isNotEmpty, orElse: () => '');
+        final lastSegment =
+            segments.lastWhere((s) => s.isNotEmpty, orElse: () => '');
         if (lastSegment.isNotEmpty && lastSegment.contains('.')) {
           // 解码 URL 编码的文件名
           final decodedName = Uri.decodeComponent(lastSegment);
@@ -188,18 +192,18 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
                 Text(
                   t.addDownloadTitle,
                   style: FluentTheme.of(context).typography.subtitle?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 18,
-                    color: AppTheme.textPrimary,
-                  ),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 18,
+                        color: AppTheme.textPrimary,
+                      ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   t.addDownloadSubtitle,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: AppTheme.textTertiary,
-                    fontSize: 12,
-                  ),
+                        color: AppTheme.textTertiary,
+                        fontSize: 12,
+                      ),
                 ),
               ],
             ),
@@ -212,7 +216,8 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
   Widget _buildContent(BuildContext context) {
     return Form(
       key: _formKey,
-      child: SingleChildScrollView(
+      child: SmoothSingleChildScrollView(
+        config: SmoothScrollConfig.fast,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,10 +260,10 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
             Text(
               t.addDownloadUrlLabel,
               style: FluentTheme.of(context).typography.body?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-                fontSize: 13,
-              ),
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                    fontSize: 13,
+                  ),
             ),
             const SizedBox(width: 6),
             Container(
@@ -270,10 +275,10 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
               child: Text(
                 t.addDownloadRequiredBadge,
                 style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: AppTheme.statusError,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
+                      color: AppTheme.statusError,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
             ),
           ],
@@ -300,13 +305,14 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
                 maxLines: 3,
                 minLines: 2,
                 style: FluentTheme.of(context).typography.body?.copyWith(
-                  fontSize: 13,
-                  height: 1.5,
-                ),
-                placeholderStyle: FluentTheme.of(context).typography.body?.copyWith(
-                  color: AppTheme.textTertiary.withValues(alpha: 0.6),
-                  fontSize: 13,
-                ),
+                      fontSize: 13,
+                      height: 1.5,
+                    ),
+                placeholderStyle:
+                    FluentTheme.of(context).typography.body?.copyWith(
+                          color: AppTheme.textTertiary.withValues(alpha: 0.6),
+                          fontSize: 13,
+                        ),
                 decoration: WidgetStateProperty.all(
                   BoxDecoration(
                     color: Colors.transparent,
@@ -363,19 +369,19 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
                 Text(
                   t.addDownloadParsedFileNameTitle,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: AppTheme.statusSuccess,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
+                        color: AppTheme.statusSuccess,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   _parsedFileName!,
                   style: FluentTheme.of(context).typography.body?.copyWith(
-                    color: AppTheme.textPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
+                        color: AppTheme.textPrimary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -406,26 +412,33 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
         child: Row(
           children: [
             Icon(
-              _showAdvanced ? FluentIcons.chevron_down : FluentIcons.chevron_right,
+              _showAdvanced
+                  ? FluentIcons.chevron_down
+                  : FluentIcons.chevron_right,
               size: 12,
-              color: _showAdvanced ? AppTheme.accentLight : AppTheme.textSecondary,
+              color:
+                  _showAdvanced ? AppTheme.accentLight : AppTheme.textSecondary,
             ),
             const SizedBox(width: 8),
             Text(
               t.addDownloadAdvancedToggle,
               style: FluentTheme.of(context).typography.body?.copyWith(
-                color: _showAdvanced ? AppTheme.accentLight : AppTheme.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
+                    color: _showAdvanced
+                        ? AppTheme.accentLight
+                        : AppTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
             ),
             const Spacer(),
             Text(
-              _showAdvanced ? t.addDownloadAdvancedExpandedHint : t.addDownloadAdvancedCollapsedHint,
+              _showAdvanced
+                  ? t.addDownloadAdvancedExpandedHint
+                  : t.addDownloadAdvancedCollapsedHint,
               style: FluentTheme.of(context).typography.caption?.copyWith(
-                color: AppTheme.textTertiary,
-                fontSize: 11,
-              ),
+                    color: AppTheme.textTertiary,
+                    fontSize: 11,
+                  ),
             ),
           ],
         ),
@@ -448,10 +461,10 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
             Text(
               t.addDownloadFileNameLabel,
               style: FluentTheme.of(context).typography.body?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-                fontSize: 13,
-              ),
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                    fontSize: 13,
+                  ),
             ),
             const SizedBox(width: 6),
             Container(
@@ -463,10 +476,10 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
               child: Text(
                 t.addDownloadOptionalBadge,
                 style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: AppTheme.textTertiary,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
+                      color: AppTheme.textTertiary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
             ),
           ],
@@ -485,12 +498,12 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
             controller: _fileNameController,
             placeholder: t.addDownloadFileNamePlaceholder,
             style: FluentTheme.of(context).typography.body?.copyWith(
-              fontSize: 13,
-            ),
+                  fontSize: 13,
+                ),
             placeholderStyle: FluentTheme.of(context).typography.body?.copyWith(
-              color: AppTheme.textTertiary.withValues(alpha: 0.6),
-              fontSize: 13,
-            ),
+                  color: AppTheme.textTertiary.withValues(alpha: 0.6),
+                  fontSize: 13,
+                ),
             decoration: WidgetStateProperty.all(
               const BoxDecoration(
                 color: Colors.transparent,
@@ -543,25 +556,29 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
               Text(
                 t.addDownloadFeatureTitle,
                 style: FluentTheme.of(context).typography.body?.copyWith(
-                  color: AppTheme.accentLight,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
+                      color: AppTheme.accentLight,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          _buildFeatureItem(context, FluentIcons.split_object, t.addDownloadFeature1Title, t.addDownloadFeature1Desc),
+          _buildFeatureItem(context, FluentIcons.split_object,
+              t.addDownloadFeature1Title, t.addDownloadFeature1Desc),
           const SizedBox(height: 8),
-          _buildFeatureItem(context, FluentIcons.sync, t.addDownloadFeature2Title, t.addDownloadFeature2Desc),
+          _buildFeatureItem(context, FluentIcons.sync,
+              t.addDownloadFeature2Title, t.addDownloadFeature2Desc),
           const SizedBox(height: 8),
-          _buildFeatureItem(context, FluentIcons.processing, t.addDownloadFeature3Title, t.addDownloadFeature3Desc),
+          _buildFeatureItem(context, FluentIcons.processing,
+              t.addDownloadFeature3Title, t.addDownloadFeature3Desc),
         ],
       ),
     );
   }
 
-  Widget _buildFeatureItem(BuildContext context, IconData icon, String title, String description) {
+  Widget _buildFeatureItem(
+      BuildContext context, IconData icon, String title, String description) {
     return Row(
       children: [
         Icon(
@@ -577,17 +594,17 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
               Text(
                 title,
                 style: FluentTheme.of(context).typography.body?.copyWith(
-                  color: AppTheme.textPrimary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
+                      color: AppTheme.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
               ),
               Text(
                 description,
                 style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: AppTheme.textTertiary,
-                  fontSize: 11,
-                ),
+                      color: AppTheme.textTertiary,
+                      fontSize: 11,
+                    ),
               ),
             ],
           ),
@@ -682,7 +699,8 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
             child: Text(t.downloadDuplicateAddNewButton),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, _DuplicateAction.useExisting),
+            onPressed: () =>
+                Navigator.pop(context, _DuplicateAction.useExisting),
             child: Text(t.downloadDuplicateUseExistingButton),
           ),
         ],
@@ -700,8 +718,8 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
 
     final url = _urlController.text.trim();
     // 允许测试URL或正常的HTTP/HTTPS链接
-    if (!url.startsWith('test_task_') && 
-        !url.startsWith('http://') && 
+    if (!url.startsWith('test_task_') &&
+        !url.startsWith('http://') &&
         !url.startsWith('https://')) {
       await _showErrorDialog(t.addDownloadErrorInvalidUrl);
       return;
@@ -710,7 +728,8 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
     // 获取文件名：优先使用用户输入，否则使用自动解析的，最后使用默认名称
     String fileName = _fileNameController.text.trim();
     if (fileName.isEmpty) {
-      fileName = _parsedFileName ?? 'download_${DateTime.now().millisecondsSinceEpoch}';
+      fileName = _parsedFileName ??
+          'download_${DateTime.now().millisecondsSinceEpoch}';
     }
 
     final downloadService = context.read<IntegratedDownloadService>();
@@ -738,7 +757,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
 
     try {
       downloadService.addTask(url, fileName);
-      
+
       if (mounted) {
         Navigator.pop(context);
         _showSuccessMessage(fileName);
@@ -764,21 +783,21 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
                 color: AppTheme.statusError.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
-            child: const Icon(
-              FluentIcons.error_badge,
-              size: 16,
-              color: AppTheme.statusError,
+              child: const Icon(
+                FluentIcons.error_badge,
+                size: 16,
+                color: AppTheme.statusError,
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Text(t.addDownloadErrorTitle),
-        ],
-      ),
+            const SizedBox(width: 12),
+            Text(t.addDownloadErrorTitle),
+          ],
+        ),
         content: Text(
           message,
           style: FluentTheme.of(context).typography.body?.copyWith(
-            color: AppTheme.textSecondary,
-          ),
+                color: AppTheme.textSecondary,
+              ),
         ),
         actions: [
           FilledButton(
@@ -801,5 +820,4 @@ class _AddDownloadDialogState extends State<AddDownloadDialog> with SingleTicker
       );
     }
   }
-
 }

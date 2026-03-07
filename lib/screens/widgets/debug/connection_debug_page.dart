@@ -7,6 +7,7 @@ import '../../../services/kernel/kernel_manager.dart';
 import '../../../services/kernel/kernel_interface.dart';
 import '../../../theme/app_theme.dart';
 import '../../../utils/fluent_icons.dart';
+import '../../../widgets/smooth_scroll_wrapper.dart';
 
 /// 连接测试结果
 class _ConnectionTestResult {
@@ -47,10 +48,12 @@ class ConnectionDebugPage extends StatefulWidget {
 }
 
 class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
-  final _urlController = TextEditingController(text: 'https://dl.google.com/chrome/install/latest/chrome_installer.exe');
+  final _urlController = TextEditingController(
+      text: 'https://dl.google.com/chrome/install/latest/chrome_installer.exe');
   final List<_ConnectionTestResult> _results = [];
   bool _isTesting = false;
-  final ScrollController _scrollController = ScrollController();
+  final ScrollController _scrollController =
+      createSmoothScrollController(config: SmoothScrollConfig.fast);
 
   @override
   void dispose() {
@@ -77,7 +80,8 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
       final config = await kernelManager.getConfig();
       if (config?.proxy != null && config!.proxy!.enabled) {
         proxyConfig = config.proxy;
-        final host = proxyConfig!.host.isNotEmpty ? proxyConfig.host : '127.0.0.1';
+        final host =
+            proxyConfig!.host.isNotEmpty ? proxyConfig.host : '127.0.0.1';
         proxyInfo = '$host:${proxyConfig.port}';
       }
     } catch (_) {}
@@ -93,7 +97,8 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
 
       // 应用代理
       if (proxyConfig != null && proxyConfig.enabled) {
-        final host = proxyConfig.host.isNotEmpty ? proxyConfig.host : '127.0.0.1';
+        final host =
+            proxyConfig.host.isNotEmpty ? proxyConfig.host : '127.0.0.1';
         client.findProxy = (_) => 'PROXY $host:${proxyConfig!.port}';
       }
 
@@ -102,7 +107,8 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
       request.headers.set('User-Agent', 'NSFX/2.0 Connection Debug');
       request.headers.set('Accept', '*/*');
 
-      final response = await request.close().timeout(const Duration(seconds: 15));
+      final response =
+          await request.close().timeout(const Duration(seconds: 15));
 
       final statusCode = response.statusCode;
       final contentLength = response.contentLength;
@@ -115,7 +121,8 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
           ? '${_resolveLocalIp()}:${connectionInfo!.localPort}'
           : _resolveLocalIp();
       final remoteAddr = connectionInfo?.remoteAddress.address ?? uri.host;
-      final remotePort = connectionInfo?.remotePort ?? (uri.scheme == 'https' ? 443 : 80);
+      final remotePort =
+          connectionInfo?.remotePort ?? (uri.scheme == 'https' ? 443 : 80);
 
       // 读取一小部分数据来测量传输
       int bytesReceived = 0;
@@ -194,7 +201,8 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
         children: [
           _buildHeader(),
           Expanded(
-            child: ListView(
+            child: SmoothListView(
+              config: SmoothScrollConfig.fast,
               controller: _scrollController,
               padding: const EdgeInsets.all(20),
               children: [
@@ -237,14 +245,15 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
           Text(
             t.connectionDebugTitle,
             style: FluentTheme.of(context).typography.body?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
-            ),
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
           ),
           const Spacer(),
           if (_results.isNotEmpty)
             IconButton(
-              icon: Icon(FluentIcons.delete, size: 14, color: AppTheme.textTertiary),
+              icon: Icon(FluentIcons.delete,
+                  size: 14, color: AppTheme.textTertiary),
               onPressed: _clearResults,
             ),
         ],
@@ -269,16 +278,16 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
           Text(
             t.connectionDebugTestTitle,
             style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-              color: AppTheme.textPrimary,
-            ),
+                  color: AppTheme.textPrimary,
+                ),
           ),
           const SizedBox(height: 4),
           Text(
             t.connectionDebugTestSubtitle,
             style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: AppTheme.textTertiary,
-              fontSize: 11,
-            ),
+                  color: AppTheme.textTertiary,
+                  fontSize: 11,
+                ),
           ),
           const SizedBox(height: 12),
           TextBox(
@@ -320,26 +329,33 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
               const SizedBox(width: 12),
               // 快捷测试按钮
               Button(
-                onPressed: _isTesting ? null : () {
-                  _urlController.text = 'https://dl.google.com/chrome/install/latest/chrome_installer.exe';
-                  _runTest();
-                },
+                onPressed: _isTesting
+                    ? null
+                    : () {
+                        _urlController.text =
+                            'https://dl.google.com/chrome/install/latest/chrome_installer.exe';
+                        _runTest();
+                      },
                 child: const Text('Google'),
               ),
               const SizedBox(width: 8),
               Button(
-                onPressed: _isTesting ? null : () {
-                  _urlController.text = 'https://github.com';
-                  _runTest();
-                },
+                onPressed: _isTesting
+                    ? null
+                    : () {
+                        _urlController.text = 'https://github.com';
+                        _runTest();
+                      },
                 child: const Text('GitHub'),
               ),
               const SizedBox(width: 8),
               Button(
-                onPressed: _isTesting ? null : () {
-                  _urlController.text = 'https://www.baidu.com';
-                  _runTest();
-                },
+                onPressed: _isTesting
+                    ? null
+                    : () {
+                        _urlController.text = 'https://www.baidu.com';
+                        _runTest();
+                      },
                 child: const Text('Baidu'),
               ),
             ],
@@ -359,22 +375,24 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
           child: Text(
             t.connectionDebugResults(_results.length),
             style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+                  color: AppTheme.textSecondary,
+                ),
           ),
         ),
         ..._results.map((r) => Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: _buildResultCard(r),
-        )),
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildResultCard(r),
+            )),
       ],
     );
   }
 
   Widget _buildResultCard(_ConnectionTestResult result) {
     final t = AppLocalizations.of(context)!;
-    final statusColor = result.connected ? AppTheme.statusSuccess : AppTheme.statusError;
-    final statusText = result.connected ? t.connectionDebugSuccess : t.connectionDebugFailed;
+    final statusColor =
+        result.connected ? AppTheme.statusSuccess : AppTheme.statusError;
+    final statusText =
+        result.connected ? t.connectionDebugSuccess : t.connectionDebugFailed;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -403,16 +421,18 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
               Text(
                 statusText,
                 style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                  color: statusColor,
-                  fontSize: 13,
-                ),
+                      color: statusColor,
+                      fontSize: 13,
+                    ),
               ),
               if (result.connected) ...[
                 const SizedBox(width: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: _getStatusCodeColor(result.statusCode).withValues(alpha: 0.15),
+                    color: _getStatusCodeColor(result.statusCode)
+                        .withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(AppTheme.radiusRound),
                   ),
                   child: Text(
@@ -429,9 +449,9 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
               Text(
                 '${result.elapsed.inMilliseconds}ms',
                 style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: AppTheme.textTertiary,
-                  fontSize: 11,
-                ),
+                      color: AppTheme.textTertiary,
+                      fontSize: 11,
+                    ),
               ),
             ],
           ),
@@ -441,9 +461,9 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
           Text(
             result.url,
             style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: AppTheme.textSecondary,
-              fontSize: 11,
-            ),
+                  color: AppTheme.textSecondary,
+                  fontSize: 11,
+                ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -459,14 +479,24 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
               spacing: 16,
               runSpacing: 8,
               children: [
-                _buildInfoChip(FluentIcons.arrow_download_20, t.connectionDebugReceived, _formatBytes(result.bytesReceived)),
+                _buildInfoChip(
+                    FluentIcons.arrow_download_20,
+                    t.connectionDebugReceived,
+                    _formatBytes(result.bytesReceived)),
                 if (result.contentLength > 0)
-                  _buildInfoChip(FluentIcons.hard_drive, t.connectionDebugFileSize, _formatBytes(result.contentLength)),
+                  _buildInfoChip(
+                      FluentIcons.hard_drive,
+                      t.connectionDebugFileSize,
+                      _formatBytes(result.contentLength)),
                 _buildInfoChip(
                   FluentIcons.split,
                   'Range',
-                  result.supportsRange ? t.connectionDebugRangeSupported : t.connectionDebugRangeNotSupported,
-                  color: result.supportsRange ? AppTheme.statusSuccess : AppTheme.statusWarning,
+                  result.supportsRange
+                      ? t.connectionDebugRangeSupported
+                      : t.connectionDebugRangeNotSupported,
+                  color: result.supportsRange
+                      ? AppTheme.statusSuccess
+                      : AppTheme.statusWarning,
                 ),
               ],
             ),
@@ -484,9 +514,9 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
               child: Text(
                 result.error!,
                 style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: AppTheme.statusError,
-                  fontSize: 11,
-                ),
+                      color: AppTheme.statusError,
+                      fontSize: 11,
+                    ),
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -517,7 +547,8 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
             color: AppTheme.accentLight,
           ),
           // 箭头
-          Expanded(child: _buildArrow(hasProxy ? t.connectionDebugProxy : null)),
+          Expanded(
+              child: _buildArrow(hasProxy ? t.connectionDebugProxy : null)),
           // 代理节点（如果有）
           if (hasProxy) ...[
             _buildNodeBadge(
@@ -533,7 +564,9 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
             label: result.remoteAddress.isNotEmpty
                 ? '${result.remoteAddress}:${result.remotePort}'
                 : t.connectionDebugUnknown,
-            color: result.connected ? AppTheme.statusSuccess : AppTheme.statusError,
+            color: result.connected
+                ? AppTheme.statusSuccess
+                : AppTheme.statusError,
           ),
         ],
       ),
@@ -583,7 +616,8 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
                 color: AppTheme.borderDefault,
               ),
             ),
-            Icon(FluentIcons.chevron_right_20, size: 12, color: AppTheme.textTertiary),
+            Icon(FluentIcons.chevron_right_20,
+                size: 12, color: AppTheme.textTertiary),
           ],
         ),
         if (label != null)
@@ -601,7 +635,8 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
     );
   }
 
-  Widget _buildInfoChip(IconData icon, String label, String value, {Color? color}) {
+  Widget _buildInfoChip(IconData icon, String label, String value,
+      {Color? color}) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [

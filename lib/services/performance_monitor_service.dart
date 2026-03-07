@@ -1,7 +1,11 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:ffi';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:ffi/ffi.dart';
+import 'package:win32/win32.dart';
 
 /// 帧数据
 class FrameData {
@@ -20,12 +24,12 @@ class FrameData {
   });
 
   Map<String, dynamic> toJson() => {
-    'timestamp': timestamp.toIso8601String(),
-    'buildTime_ms': buildTime.inMicroseconds / 1000,
-    'rasterTime_ms': rasterTime.inMicroseconds / 1000,
-    'totalTime_ms': totalTime.inMicroseconds / 1000,
-    'isJank': isJank,
-  };
+        'timestamp': timestamp.toIso8601String(),
+        'buildTime_ms': buildTime.inMicroseconds / 1000,
+        'rasterTime_ms': rasterTime.inMicroseconds / 1000,
+        'totalTime_ms': totalTime.inMicroseconds / 1000,
+        'isJank': isJank,
+      };
 
   @override
   String toString() {
@@ -50,10 +54,10 @@ class RebuildData {
   }) : lastRebuild = lastRebuild ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
-    'widgetName': widgetName,
-    'count': count,
-    'lastRebuild': lastRebuild.toIso8601String(),
-  };
+        'widgetName': widgetName,
+        'count': count,
+        'lastRebuild': lastRebuild.toIso8601String(),
+      };
 }
 
 /// 性能统计摘要
@@ -70,6 +74,9 @@ class PerformanceStats {
   final double jankRate;
   final int totalRebuilds;
   final int trackedWidgets;
+  final double appCpuPercent;
+  final double appMemoryMb;
+  final double peakAppMemoryMb;
 
   PerformanceStats({
     required this.totalFrames,
@@ -84,27 +91,34 @@ class PerformanceStats {
     required this.jankRate,
     this.totalRebuilds = 0,
     this.trackedWidgets = 0,
+    this.appCpuPercent = 0,
+    this.appMemoryMb = 0,
+    this.peakAppMemoryMb = 0,
   });
 
   Map<String, dynamic> toJson() => {
-    'totalFrames': totalFrames,
-    'jankFrames': jankFrames,
-    'avgBuildTime_ms': avgBuildTime,
-    'avgRasterTime_ms': avgRasterTime,
-    'avgTotalTime_ms': avgTotalTime,
-    'maxBuildTime_ms': maxBuildTime,
-    'maxRasterTime_ms': maxRasterTime,
-    'maxTotalTime_ms': maxTotalTime,
-    'fps': fps,
-    'jankRate_percent': jankRate,
-    'totalRebuilds': totalRebuilds,
-    'trackedWidgets': trackedWidgets,
-  };
+        'totalFrames': totalFrames,
+        'jankFrames': jankFrames,
+        'avgBuildTime_ms': avgBuildTime,
+        'avgRasterTime_ms': avgRasterTime,
+        'avgTotalTime_ms': avgTotalTime,
+        'maxBuildTime_ms': maxBuildTime,
+        'maxRasterTime_ms': maxRasterTime,
+        'maxTotalTime_ms': maxTotalTime,
+        'fps': fps,
+        'jankRate_percent': jankRate,
+        'totalRebuilds': totalRebuilds,
+        'trackedWidgets': trackedWidgets,
+        'appCpuPercent': appCpuPercent,
+        'appMemoryMb': appMemoryMb,
+        'peakAppMemoryMb': peakAppMemoryMb,
+      };
 }
 
 /// 性能监控服务
 class PerformanceMonitorService extends ChangeNotifier {
-  static final PerformanceMonitorService _instance = PerformanceMonitorService._internal();
+  static final PerformanceMonitorService _instance =
+      PerformanceMonitorService._internal();
   factory PerformanceMonitorService() => _instance;
   PerformanceMonitorService._internal();
 
@@ -122,7 +136,8 @@ class PerformanceMonitorService extends ChangeNotifier {
 
   // 重建次数追踪
   final Map<String, RebuildData> _rebuildTracker = {};
-  Map<String, RebuildData> get rebuildTracker => Map.unmodifiable(_rebuildTracker);
+  Map<String, RebuildData> get rebuildTracker =>
+      Map.unmodifiable(_rebuildTracker);
   int _totalRebuilds = 0;
   int get totalRebuilds => _totalRebuilds;
 
@@ -144,6 +159,35 @@ class PerformanceMonitorService extends ChangeNotifier {
   DateTime? _lastFpsUpdate;
   Timer? _fpsTimer;
 
+  // 进程资源占用
+  Timer? _resourceTimer;
+  int _resourceSubscribers = 0;
+  DateTime? _lastProcessSampleTime;
+  int? _lastProcessCpuTime100ns;
+  double _currentAppCpuPercent = 0;
+  double _currentAppMemoryMb = 0;
+  double _peakAppMemoryMb = 0;
+
+  double get currentAppCpuPercent => _currentAppCpuPercent;
+  double get currentAppMemoryMb => _currentAppMemoryMb;
+  double get peakAppMemoryMb => _peakAppMemoryMb;
+
+  void attachResourceSampling() {
+    _resourceSubscribers++;
+    _refreshProcessMetrics(notify: false);
+    _ensureResourceTimer();
+    notifyListeners();
+  }
+
+  void detachResourceSampling() {
+    if (_resourceSubscribers > 0) {
+      _resourceSubscribers--;
+    }
+    if (_resourceSubscribers == 0 && !_isMonitoring) {
+      _stopResourceTimer();
+    }
+  }
+
   /// 开始监控
   void startMonitoring() {
     if (_isMonitoring) return;
@@ -161,6 +205,8 @@ class PerformanceMonitorService extends ChangeNotifier {
     _fpsTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       _updateFps();
     });
+    _refreshProcessMetrics(notify: false);
+    _ensureResourceTimer();
 
     debugPrint('[PerformanceMonitor] Started monitoring');
     notifyListeners();
@@ -177,6 +223,9 @@ class PerformanceMonitorService extends ChangeNotifier {
     // 停止定时器
     _fpsTimer?.cancel();
     _fpsTimer = null;
+    if (_resourceSubscribers == 0) {
+      _stopResourceTimer();
+    }
 
     debugPrint('[PerformanceMonitor] Stopped monitoring');
     notifyListeners();
@@ -272,6 +321,9 @@ class PerformanceMonitorService extends ChangeNotifier {
         jankRate: 0,
         totalRebuilds: _totalRebuilds,
         trackedWidgets: _rebuildTracker.length,
+        appCpuPercent: _currentAppCpuPercent,
+        appMemoryMb: _currentAppMemoryMb,
+        peakAppMemoryMb: _peakAppMemoryMb,
       );
     }
 
@@ -309,6 +361,9 @@ class PerformanceMonitorService extends ChangeNotifier {
       jankRate: (jankFrames / totalFrames) * 100,
       totalRebuilds: _totalRebuilds,
       trackedWidgets: _rebuildTracker.length,
+      appCpuPercent: _currentAppCpuPercent,
+      appMemoryMb: _currentAppMemoryMb,
+      peakAppMemoryMb: _peakAppMemoryMb,
     );
   }
 
@@ -331,14 +386,24 @@ class PerformanceMonitorService extends ChangeNotifier {
     buffer.writeln('Jank Frames: ${stats.jankFrames}');
     buffer.writeln('Jank Rate: ${stats.jankRate.toStringAsFixed(2)}%');
     buffer.writeln('Current FPS: ${stats.fps.toStringAsFixed(1)}');
+    buffer.writeln('App CPU: ${stats.appCpuPercent.toStringAsFixed(1)}%');
+    buffer.writeln('App Memory: ${stats.appMemoryMb.toStringAsFixed(1)} MB');
+    buffer.writeln(
+        'Peak App Memory: ${stats.peakAppMemoryMb.toStringAsFixed(1)} MB');
     buffer.writeln();
-    buffer.writeln('Average Build Time: ${stats.avgBuildTime.toStringAsFixed(2)} ms');
-    buffer.writeln('Average Raster Time: ${stats.avgRasterTime.toStringAsFixed(2)} ms');
-    buffer.writeln('Average Total Time: ${stats.avgTotalTime.toStringAsFixed(2)} ms');
+    buffer.writeln(
+        'Average Build Time: ${stats.avgBuildTime.toStringAsFixed(2)} ms');
+    buffer.writeln(
+        'Average Raster Time: ${stats.avgRasterTime.toStringAsFixed(2)} ms');
+    buffer.writeln(
+        'Average Total Time: ${stats.avgTotalTime.toStringAsFixed(2)} ms');
     buffer.writeln();
-    buffer.writeln('Max Build Time: ${stats.maxBuildTime.toStringAsFixed(2)} ms');
-    buffer.writeln('Max Raster Time: ${stats.maxRasterTime.toStringAsFixed(2)} ms');
-    buffer.writeln('Max Total Time: ${stats.maxTotalTime.toStringAsFixed(2)} ms');
+    buffer
+        .writeln('Max Build Time: ${stats.maxBuildTime.toStringAsFixed(2)} ms');
+    buffer.writeln(
+        'Max Raster Time: ${stats.maxRasterTime.toStringAsFixed(2)} ms');
+    buffer
+        .writeln('Max Total Time: ${stats.maxTotalTime.toStringAsFixed(2)} ms');
     buffer.writeln();
 
     // 重建次数统计
@@ -353,7 +418,8 @@ class PerformanceMonitorService extends ChangeNotifier {
       buffer.writeln('Top Rebuilding Widgets:');
       for (var i = 0; i < topRebuilds.length; i++) {
         final rebuild = topRebuilds[i];
-        buffer.writeln('  ${i + 1}. ${rebuild.widgetName}: ${rebuild.count} rebuilds');
+        buffer.writeln(
+            '  ${i + 1}. ${rebuild.widgetName}: ${rebuild.count} rebuilds');
       }
       buffer.writeln();
     }
@@ -408,6 +474,12 @@ class PerformanceMonitorService extends ChangeNotifier {
     _currentTotalTime = 0;
     _currentIsJank = false;
     _frameCount = 0;
+    _currentAppCpuPercent = 0;
+    _currentAppMemoryMb = 0;
+    _peakAppMemoryMb = 0;
+    _lastProcessCpuTime100ns = null;
+    _lastProcessSampleTime = null;
+    _refreshProcessMetrics(notify: false);
     notifyListeners();
   }
 
@@ -421,6 +493,91 @@ class PerformanceMonitorService extends ChangeNotifier {
   @override
   void dispose() {
     stopMonitoring();
+    _stopResourceTimer();
     super.dispose();
+  }
+
+  void _ensureResourceTimer() {
+    if (_resourceTimer != null) {
+      return;
+    }
+
+    _resourceTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _refreshProcessMetrics();
+    });
+  }
+
+  void _stopResourceTimer() {
+    _resourceTimer?.cancel();
+    _resourceTimer = null;
+  }
+
+  void _refreshProcessMetrics({bool notify = true}) {
+    _currentAppMemoryMb = ProcessInfo.currentRss / (1024 * 1024);
+    if (_currentAppMemoryMb > _peakAppMemoryMb) {
+      _peakAppMemoryMb = _currentAppMemoryMb;
+    }
+
+    if (Platform.isWindows) {
+      final now = DateTime.now();
+      final cpuTime100ns = _readCurrentProcessCpuTime100ns();
+      if (_lastProcessSampleTime != null && _lastProcessCpuTime100ns != null) {
+        final elapsedMicros =
+            now.difference(_lastProcessSampleTime!).inMicroseconds;
+        final processDelta100ns = cpuTime100ns - _lastProcessCpuTime100ns!;
+        if (elapsedMicros > 0 && processDelta100ns >= 0) {
+          final wallTime100ns = elapsedMicros * 10;
+          final totalCpuCapacity100ns =
+              wallTime100ns * Platform.numberOfProcessors;
+          if (totalCpuCapacity100ns > 0) {
+            _currentAppCpuPercent =
+                (processDelta100ns / totalCpuCapacity100ns) * 100;
+          }
+        }
+      }
+      _lastProcessSampleTime = now;
+      _lastProcessCpuTime100ns = cpuTime100ns;
+    } else {
+      _currentAppCpuPercent = 0;
+    }
+
+    if (notify) {
+      notifyListeners();
+    }
+  }
+
+  int _readCurrentProcessCpuTime100ns() {
+    if (!Platform.isWindows) {
+      return 0;
+    }
+
+    final creationTime = calloc<FILETIME>();
+    final exitTime = calloc<FILETIME>();
+    final kernelTime = calloc<FILETIME>();
+    final userTime = calloc<FILETIME>();
+
+    try {
+      final result = GetProcessTimes(
+        GetCurrentProcess(),
+        creationTime,
+        exitTime,
+        kernelTime,
+        userTime,
+      );
+      if (result == 0) {
+        return _lastProcessCpuTime100ns ?? 0;
+      }
+
+      return _fileTimeToInt(kernelTime.ref) + _fileTimeToInt(userTime.ref);
+    } finally {
+      calloc.free(creationTime);
+      calloc.free(exitTime);
+      calloc.free(kernelTime);
+      calloc.free(userTime);
+    }
+  }
+
+  int _fileTimeToInt(FILETIME fileTime) {
+    return (fileTime.dwHighDateTime << 32) | fileTime.dwLowDateTime;
   }
 }

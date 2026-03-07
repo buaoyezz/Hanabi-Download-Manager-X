@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../services/update_service.dart';
 import '../../theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
+import '../../widgets/smooth_scroll_wrapper.dart';
 
 class UpdateDialog extends StatelessWidget {
   final UpdateInfo updateInfo;
@@ -233,7 +234,8 @@ class UpdateDialog extends StatelessWidget {
                     behavior: ScrollConfiguration.of(context).copyWith(
                       physics: const BouncingScrollPhysics(),
                     ),
-                    child: SingleChildScrollView(
+                    child: SmoothSingleChildScrollView(
+                      config: SmoothScrollConfig.fast,
                       physics: const BouncingScrollPhysics(),
                       padding: const EdgeInsets.all(16),
                       child: SelectableText(
@@ -381,7 +383,8 @@ class CurrentVersionDialog extends StatelessWidget {
                     behavior: ScrollConfiguration.of(context).copyWith(
                       physics: const BouncingScrollPhysics(),
                     ),
-                    child: SingleChildScrollView(
+                    child: SmoothSingleChildScrollView(
+                      config: SmoothScrollConfig.fast,
                       physics: const BouncingScrollPhysics(),
                       padding: const EdgeInsets.all(16),
                       child: SelectableText(

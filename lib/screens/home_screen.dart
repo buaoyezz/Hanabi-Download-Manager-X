@@ -19,6 +19,7 @@ import '../models/download_task.dart';
 import '../theme/app_theme.dart';
 import '../main.dart';
 import '../widgets/animated_notifications.dart';
+import '../widgets/smooth_scroll_wrapper.dart';
 import '../l10n/app_localizations.dart';
 import 'widgets/download_list.dart';
 import 'widgets/add_download_dialog.dart';
@@ -776,7 +777,8 @@ class _HomeScreenState extends State<HomeScreen>
                 color: AppTheme.borderSubtle.withValues(alpha: 0.5),
               ),
             ),
-            child: SingleChildScrollView(
+            child: SmoothSingleChildScrollView(
+              config: SmoothScrollConfig.fast,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1142,8 +1144,8 @@ class _HomeScreenState extends State<HomeScreen>
           '$count',
           style: TextStyle(
             color: color,
-            fontWeight: FontWeight.w600,
-            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            fontSize: 12,
           ),
         ),
       ],
@@ -1310,10 +1312,10 @@ class _HomeScreenState extends State<HomeScreen>
           Color bgColor = colors.normal;
           Color iconColor = colors.iconNormal;
 
-          if (states.isPressing) {
+          if (states.isPressed) {
             bgColor = colors.mouseDown;
             iconColor = colors.iconMouseDown;
-          } else if (states.isHovering) {
+          } else if (states.isHovered) {
             bgColor = colors.mouseOver;
             iconColor = colors.iconMouseOver;
           }

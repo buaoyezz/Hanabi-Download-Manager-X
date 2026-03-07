@@ -8,6 +8,7 @@ import '../../services/notification_settings_service.dart';
 import '../../services/window_effect_service.dart';
 import '../../widgets/settings_components.dart';
 import '../../widgets/animated_notifications.dart';
+import '../../widgets/smooth_scroll_wrapper.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/fluent_icons.dart' as CustomIcons;
 import '../../l10n/app_localizations.dart';
@@ -27,12 +28,14 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
   @override
   void initState() {
     super.initState();
+    _performanceMonitor.attachResourceSampling();
     _performanceMonitor.addListener(_onUpdate);
   }
 
   @override
   void dispose() {
     _performanceMonitor.removeListener(_onUpdate);
+    _performanceMonitor.detachResourceSampling();
     super.dispose();
   }
 
@@ -45,7 +48,8 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
     final stats = _performanceMonitor.getStats();
     final isMonitoring = _performanceMonitor.isMonitoring;
 
-    return SingleChildScrollView(
+    return SmoothSingleChildScrollView(
+      config: SmoothScrollConfig.fast,
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -97,16 +101,16 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
               Text(
                 t.performanceMonitorTitle,
                 style: FluentTheme.of(context).typography.subtitle?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
               Text(
                 isMonitoring
                     ? t.performanceMonitorStatusRunning
                     : t.performanceMonitorStatusIdle,
                 style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
+                      color: AppTheme.textSecondary,
+                    ),
               ),
             ],
           ),
@@ -134,7 +138,9 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
                 size: 16,
               ),
               const SizedBox(width: 8),
-              Text(isMonitoring ? t.performanceMonitorButtonStop : t.performanceMonitorButtonStart),
+              Text(isMonitoring
+                  ? t.performanceMonitorButtonStop
+                  : t.performanceMonitorButtonStart),
             ],
           ),
         ),
@@ -148,6 +154,9 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
     final rasterTime = _performanceMonitor.currentRasterTime;
     final totalTime = _performanceMonitor.currentTotalTime;
     final isJank = _performanceMonitor.currentIsJank;
+    final appCpu = _performanceMonitor.currentAppCpuPercent;
+    final appMemory = _performanceMonitor.currentAppMemoryMb;
+    final peakMemory = _performanceMonitor.peakAppMemoryMb;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -175,13 +184,14 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
               Text(
                 t.performanceMonitorRealtimeTitle,
                 style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                  color: isJank ? Colors.red : null,
-                ),
+                      color: isJank ? Colors.red : null,
+                    ),
               ),
               if (isJank) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                     color: Colors.red.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(4),
@@ -189,24 +199,60 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
                   child: Text(
                     t.performanceMonitorJankBadge,
                     style: FluentTheme.of(context).typography.caption?.copyWith(
-                      color: Colors.red,
-                      fontWeight: FontWeight.bold,
-                    ),
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                 ),
               ],
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(child: _buildMetricCard(context, t.performanceMonitorMetricFps, fps.toStringAsFixed(1), _getFpsColor(fps))),
-              const SizedBox(width: 12),
-              Expanded(child: _buildMetricCard(context, t.performanceMonitorMetricBuild, '${buildTime.toStringAsFixed(2)} ms', _getTimeColor(buildTime))),
-              const SizedBox(width: 12),
-              Expanded(child: _buildMetricCard(context, t.performanceMonitorMetricRaster, '${rasterTime.toStringAsFixed(2)} ms', _getTimeColor(rasterTime))),
-              const SizedBox(width: 12),
-              Expanded(child: _buildMetricCard(context, t.performanceMonitorMetricTotal, '${totalTime.toStringAsFixed(2)} ms', _getTimeColor(totalTime))),
+          _buildMetricGrid(
+            context,
+            [
+              _buildMetricCard(
+                context,
+                t.performanceMonitorMetricFps,
+                fps.toStringAsFixed(1),
+                _getFpsColor(fps),
+              ),
+              _buildMetricCard(
+                context,
+                t.performanceMonitorMetricBuild,
+                '${buildTime.toStringAsFixed(2)} ms',
+                _getTimeColor(buildTime),
+              ),
+              _buildMetricCard(
+                context,
+                t.performanceMonitorMetricRaster,
+                '${rasterTime.toStringAsFixed(2)} ms',
+                _getTimeColor(rasterTime),
+              ),
+              _buildMetricCard(
+                context,
+                t.performanceMonitorMetricTotal,
+                '${totalTime.toStringAsFixed(2)} ms',
+                _getTimeColor(totalTime),
+              ),
+              _buildMetricCard(
+                context,
+                _processCpuLabel(context),
+                '${appCpu.toStringAsFixed(1)}%',
+                _getCpuColor(appCpu),
+              ),
+              _buildMetricCard(
+                context,
+                _processMemoryLabel(context),
+                _formatMemoryMb(appMemory),
+                AppTheme.accentPrimary,
+              ),
+              _buildMetricCard(
+                context,
+                _processPeakMemoryLabel(context),
+                _formatMemoryMb(peakMemory),
+                Colors.orange,
+              ),
             ],
           ),
         ],
@@ -214,7 +260,8 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
     );
   }
 
-  Widget _buildMetricCard(BuildContext context, String label, String value, Color color) {
+  Widget _buildMetricCard(
+      BuildContext context, String label, String value, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -229,20 +276,48 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
           Text(
             label,
             style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: AppTheme.textSecondary,
-            ),
+                  color: AppTheme.textSecondary,
+                ),
           ),
           const SizedBox(height: 4),
           Text(
             value,
             style: FluentTheme.of(context).typography.bodyLarge?.copyWith(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Consolas',
-            ),
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Consolas',
+                ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildMetricGrid(BuildContext context, List<Widget> cards) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 12.0;
+        const minCardWidth = 148.0;
+        final availableWidth = constraints.maxWidth;
+        final rawColumns =
+            ((availableWidth + spacing) / (minCardWidth + spacing)).floor();
+        final columns = rawColumns.clamp(1, 4);
+        final cardWidth = ((availableWidth - (columns - 1) * spacing) / columns)
+            .clamp(minCardWidth, availableWidth)
+            .toDouble();
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final card in cards)
+              SizedBox(
+                width: cardWidth,
+                child: card,
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -251,21 +326,39 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
       title: t.performanceMonitorStatsTitle,
       icon: CustomIcons.FluentIcons.chart,
       children: [
-        _buildStatRow(context, t.performanceMonitorStatTotalFrames, '${stats.totalFrames}'),
-        _buildStatRow(context, t.performanceMonitorStatJankFrames, '${stats.jankFrames}',
+        _buildStatRow(context, t.performanceMonitorStatTotalFrames,
+            '${stats.totalFrames}'),
+        _buildStatRow(
+            context, t.performanceMonitorStatJankFrames, '${stats.jankFrames}',
             valueColor: stats.jankFrames > 0 ? Colors.orange : null),
-        _buildStatRow(context, t.performanceMonitorStatJankRate, '${stats.jankRate.toStringAsFixed(2)}%',
+        _buildStatRow(context, t.performanceMonitorStatJankRate,
+            '${stats.jankRate.toStringAsFixed(2)}%',
             valueColor: _getJankRateColor(stats.jankRate)),
         const Divider(),
-        _buildStatRow(context, t.performanceMonitorStatAvgBuildTime, '${stats.avgBuildTime.toStringAsFixed(2)} ms'),
-        _buildStatRow(context, t.performanceMonitorStatAvgRasterTime, '${stats.avgRasterTime.toStringAsFixed(2)} ms'),
-        _buildStatRow(context, t.performanceMonitorStatAvgTotalTime, '${stats.avgTotalTime.toStringAsFixed(2)} ms'),
+        _buildStatRow(context, t.performanceMonitorStatAvgBuildTime,
+            '${stats.avgBuildTime.toStringAsFixed(2)} ms'),
+        _buildStatRow(context, t.performanceMonitorStatAvgRasterTime,
+            '${stats.avgRasterTime.toStringAsFixed(2)} ms'),
+        _buildStatRow(context, t.performanceMonitorStatAvgTotalTime,
+            '${stats.avgTotalTime.toStringAsFixed(2)} ms'),
         const Divider(),
-        _buildStatRow(context, t.performanceMonitorStatMaxBuildTime, '${stats.maxBuildTime.toStringAsFixed(2)} ms',
+        _buildStatRow(context, _processCpuLabel(context),
+            '${stats.appCpuPercent.toStringAsFixed(1)}%',
+            valueColor: _getCpuColor(stats.appCpuPercent)),
+        _buildStatRow(context, _processMemoryLabel(context),
+            _formatMemoryMb(stats.appMemoryMb)),
+        _buildStatRow(context, _processPeakMemoryLabel(context),
+            _formatMemoryMb(stats.peakAppMemoryMb),
+            valueColor: Colors.orange),
+        const Divider(),
+        _buildStatRow(context, t.performanceMonitorStatMaxBuildTime,
+            '${stats.maxBuildTime.toStringAsFixed(2)} ms',
             valueColor: _getTimeColor(stats.maxBuildTime)),
-        _buildStatRow(context, t.performanceMonitorStatMaxRasterTime, '${stats.maxRasterTime.toStringAsFixed(2)} ms',
+        _buildStatRow(context, t.performanceMonitorStatMaxRasterTime,
+            '${stats.maxRasterTime.toStringAsFixed(2)} ms',
             valueColor: _getTimeColor(stats.maxRasterTime)),
-        _buildStatRow(context, t.performanceMonitorStatMaxTotalTime, '${stats.maxTotalTime.toStringAsFixed(2)} ms',
+        _buildStatRow(context, t.performanceMonitorStatMaxTotalTime,
+            '${stats.maxTotalTime.toStringAsFixed(2)} ms',
             valueColor: _getTimeColor(stats.maxTotalTime)),
       ],
     );
@@ -278,9 +371,11 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
       title: t.performanceMonitorRebuildTitle,
       icon: CustomIcons.FluentIcons.refresh,
       children: [
-        _buildStatRow(context, t.performanceMonitorRebuildTotal, '${stats.totalRebuilds}',
+        _buildStatRow(
+            context, t.performanceMonitorRebuildTotal, '${stats.totalRebuilds}',
             valueColor: stats.totalRebuilds > 100 ? Colors.orange : null),
-        _buildStatRow(context, t.performanceMonitorRebuildTracked, '${stats.trackedWidgets}'),
+        _buildStatRow(context, t.performanceMonitorRebuildTracked,
+            '${stats.trackedWidgets}'),
         if (topRebuilds.isNotEmpty) ...[
           const Divider(),
           Padding(
@@ -288,9 +383,9 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
             child: Text(
               t.performanceMonitorRebuildTopTitle,
               style: FluentTheme.of(context).typography.caption?.copyWith(
-                color: AppTheme.textSecondary,
-                fontWeight: FontWeight.w600,
-              ),
+                    color: AppTheme.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
           ),
           ...topRebuilds.map((rebuild) => _buildRebuildRow(context, rebuild)),
@@ -303,8 +398,8 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
                 t.performanceMonitorRebuildEmpty,
                 textAlign: TextAlign.center,
                 style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: AppTheme.textTertiary,
-                ),
+                      color: AppTheme.textTertiary,
+                    ),
               ),
             ),
           ),
@@ -331,8 +426,8 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
             child: Text(
               rebuild.widgetName,
               style: FluentTheme.of(context).typography.caption?.copyWith(
-                color: AppTheme.textPrimary,
-              ),
+                    color: AppTheme.textPrimary,
+                  ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -347,10 +442,12 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
             child: Text(
               '${rebuild.count}',
               style: FluentTheme.of(context).typography.caption?.copyWith(
-                color: isHighFrequency ? Colors.orange : AppTheme.accentPrimary,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Consolas',
-              ),
+                    color: isHighFrequency
+                        ? Colors.orange
+                        : AppTheme.accentPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Consolas',
+                  ),
             ),
           ),
         ],
@@ -358,7 +455,8 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
     );
   }
 
-  Widget _buildStatRow(BuildContext context, String label, String value, {Color? valueColor}) {
+  Widget _buildStatRow(BuildContext context, String label, String value,
+      {Color? valueColor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -371,9 +469,9 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
           Text(
             value,
             style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-              color: valueColor,
-              fontFamily: 'Consolas',
-            ),
+                  color: valueColor,
+                  fontFamily: 'Consolas',
+                ),
           ),
         ],
       ),
@@ -398,8 +496,8 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
                   child: Text(
                     t.performanceMonitorFrameChartEmpty,
                     style: FluentTheme.of(context).typography.caption?.copyWith(
-                      color: AppTheme.textTertiary,
-                    ),
+                          color: AppTheme.textTertiary,
+                        ),
                   ),
                 )
               : CustomPaint(
@@ -411,11 +509,14 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildLegend(context, t.performanceMonitorLegendNormal, AppTheme.statusSuccess),
+            _buildLegend(context, t.performanceMonitorLegendNormal,
+                AppTheme.statusSuccess),
             const SizedBox(width: 16),
-            _buildLegend(context, t.performanceMonitorLegendJankMs(16.67), Colors.red),
+            _buildLegend(
+                context, t.performanceMonitorLegendJankMs(16.67), Colors.red),
             const SizedBox(width: 16),
-            _buildLegend(context, t.performanceMonitorLegendFpsThreshold, Colors.orange),
+            _buildLegend(
+                context, t.performanceMonitorLegendFpsThreshold, Colors.orange),
           ],
         ),
       ],
@@ -438,9 +539,9 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
         Text(
           label,
           style: FluentTheme.of(context).typography.caption?.copyWith(
-            color: AppTheme.textSecondary,
-            fontSize: 10,
-          ),
+                color: AppTheme.textSecondary,
+                fontSize: 10,
+              ),
         ),
       ],
     );
@@ -453,9 +554,16 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
       title: t.performanceMonitorSettingsTitle,
       icon: CustomIcons.FluentIcons.settings,
       children: [
-        _buildStatRow(context, t.performanceMonitorSettingsModeLabel, _getPerformanceModeName(_notificationSettings.performanceMode)),
-        _buildStatRow(context, t.performanceMonitorSettingsBlurLabel, _notificationSettings.enableBlur ? t.performanceMonitorValueEnabled : t.performanceMonitorValueDisabled),
-        _buildStatRow(context, t.performanceMonitorSettingsBlurStrengthLabel, '${_notificationSettings.blurSigma.toStringAsFixed(1)}'),
+        _buildStatRow(context, t.performanceMonitorSettingsModeLabel,
+            _getPerformanceModeName(_notificationSettings.performanceMode)),
+        _buildStatRow(
+            context,
+            t.performanceMonitorSettingsBlurLabel,
+            _notificationSettings.enableBlur
+                ? t.performanceMonitorValueEnabled
+                : t.performanceMonitorValueDisabled),
+        _buildStatRow(context, t.performanceMonitorSettingsBlurStrengthLabel,
+            _notificationSettings.blurSigma.toStringAsFixed(1)),
         const Divider(),
         _buildStatRow(
           context,
@@ -463,9 +571,12 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
           windowEffect.effectEnabled
               ? t.performanceMonitorWindowEffectEnabled(windowEffect.effectMode)
               : t.performanceMonitorValueDisabled,
-          valueColor: windowEffect.effectEnabled ? Colors.orange : AppTheme.statusSuccess,
+          valueColor: windowEffect.effectEnabled
+              ? Colors.orange
+              : AppTheme.statusSuccess,
         ),
-        _buildStatRow(context, t.performanceMonitorSettingsAcrylicOpacityLabel, '${windowEffect.alpha}'),
+        _buildStatRow(context, t.performanceMonitorSettingsAcrylicOpacityLabel,
+            '${windowEffect.alpha}'),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(12),
@@ -487,7 +598,9 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
                     ? CustomIcons.FluentIcons.lightbulb
                     : CustomIcons.FluentIcons.completed_solid,
                 size: 16,
-                color: windowEffect.effectEnabled ? Colors.orange : AppTheme.statusSuccess,
+                color: windowEffect.effectEnabled
+                    ? Colors.orange
+                    : AppTheme.statusSuccess,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -496,8 +609,10 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
                       ? t.performanceMonitorWindowEffectHintEnabled
                       : t.performanceMonitorWindowEffectHintDisabled,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: windowEffect.effectEnabled ? Colors.orange.darker : AppTheme.statusSuccess,
-                  ),
+                        color: windowEffect.effectEnabled
+                            ? Colors.orange.darker
+                            : AppTheme.statusSuccess,
+                      ),
                 ),
               ),
             ],
@@ -548,7 +663,8 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
                 ? null
                 : () {
                     _performanceMonitor.clearHistory();
-                    _showInfoBar(context, t.performanceMonitorToastClearedTitle, t.performanceMonitorToastClearedMessage);
+                    _showInfoBar(context, t.performanceMonitorToastClearedTitle,
+                        t.performanceMonitorToastClearedMessage);
                   },
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -568,7 +684,10 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
     try {
       final log = _performanceMonitor.exportLog();
       final dir = await getApplicationDocumentsDirectory();
-      final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').substring(0, 19);
+      final timestamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .substring(0, 19);
       final file = File('${dir.path}/hanabi_performance_$timestamp.txt');
       await file.writeAsString(log);
 
@@ -601,7 +720,8 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
     );
   }
 
-  void _showInfoBar(BuildContext context, String title, String message, {bool isError = false}) {
+  void _showInfoBar(BuildContext context, String title, String message,
+      {bool isError = false}) {
     if (isError) {
       NotificationManager.of(context)?.showError(title, message: message);
     } else {
@@ -625,6 +745,35 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
     if (rate <= 1) return AppTheme.statusSuccess;
     if (rate <= 5) return Colors.orange;
     return Colors.red;
+  }
+
+  Color _getCpuColor(double cpuPercent) {
+    if (cpuPercent <= 25) return AppTheme.statusSuccess;
+    if (cpuPercent <= 60) return Colors.orange;
+    return Colors.red;
+  }
+
+  String _formatMemoryMb(double memoryMb) {
+    return '${memoryMb.toStringAsFixed(1)} MB';
+  }
+
+  bool _isZhUi(BuildContext context) {
+    return Localizations.localeOf(context)
+        .languageCode
+        .toLowerCase()
+        .startsWith('zh');
+  }
+
+  String _processCpuLabel(BuildContext context) {
+    return _isZhUi(context) ? '软件 CPU' : 'App CPU';
+  }
+
+  String _processMemoryLabel(BuildContext context) {
+    return _isZhUi(context) ? '软件内存' : 'App Memory';
+  }
+
+  String _processPeakMemoryLabel(BuildContext context) {
+    return _isZhUi(context) ? '峰值内存' : 'Peak Memory';
   }
 
   String _getPerformanceModeName(NotificationPerformanceMode mode) {

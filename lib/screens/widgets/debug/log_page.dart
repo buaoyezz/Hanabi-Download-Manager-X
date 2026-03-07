@@ -14,6 +14,7 @@ import '../../../theme/app_theme.dart';
 import '../../../utils/fluent_icons.dart';
 import '../../../utils/failure_reason_localizer.dart';
 import '../../../widgets/safe_command_bar_button.dart';
+import '../../../widgets/smooth_scroll_wrapper.dart';
 
 /// 自定义正则规则
 class CustomRegexRule {
@@ -70,16 +71,18 @@ class LogDisplayItem {
   bool isExpanded;
   bool isBookmarked;
 
-  LogDisplayItem(this.logs, {
-    this.count = 1, 
+  LogDisplayItem(
+    this.logs, {
+    this.count = 1,
     this.isExpanded = false,
     this.repeatedLogs,
     this.isBookmarked = false,
   });
-  
+
   LogEntry get primaryLog => logs.first;
-  
-  String get id => '${primaryLog.timestamp.millisecondsSinceEpoch}_${primaryLog.message.hashCode}';
+
+  String get id =>
+      '${primaryLog.timestamp.millisecondsSinceEpoch}_${primaryLog.message.hashCode}';
 }
 
 class LogPage extends StatefulWidget {
@@ -98,133 +101,145 @@ class _LogPageState extends State<LogPage> {
   bool _useRegexSearch = false;
   bool _showStats = true;
   bool _showFailureStats = true;
-  final ScrollController _scrollController = ScrollController();
+  final ScrollController _scrollController =
+      createSmoothScrollController(config: SmoothScrollConfig.fast);
   final TextEditingController _searchController = TextEditingController();
-  
+
   // 内置正则表达式（用于去重）
-  final RegExp _logPrefixRegex = RegExp(r'^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}[.,]\d{3}\s-\s.*?\s-\s[A-Z]+\s-\s');
-  final RegExp _portRegex = RegExp(r'(port\s*[:=]?\s*)\d+', caseSensitive: false);
-  final RegExp _threadRegex = RegExp(r'(线程|Thread\s*)\d+', caseSensitive: false);
-  final RegExp _segmentRegex = RegExp(r'(分段|[Ss]egment)\s*#?\d+', caseSensitive: false);
+  final RegExp _logPrefixRegex = RegExp(
+      r'^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}[.,]\d{3}\s-\s.*?\s-\s[A-Z]+\s-\s');
+  final RegExp _portRegex =
+      RegExp(r'(port\s*[:=]?\s*)\d+', caseSensitive: false);
+  final RegExp _threadRegex =
+      RegExp(r'(线程|Thread\s*)\d+', caseSensitive: false);
+  final RegExp _segmentRegex =
+      RegExp(r'(分段|[Ss]egment)\s*#?\d+', caseSensitive: false);
   final RegExp _taskIdRegex = RegExp(r'\b[a-f0-9]{16,32}\b');
   final RegExp _progressRegex = RegExp(r'\b\d+(\.\d+)?%');
-  final RegExp _speedRegex = RegExp(r'\b\d+(\.\d+)?\s*(KB|MB|GB|B)/s\b', caseSensitive: false);
-  final RegExp _sizeRegex = RegExp(r'\b\d+(\.\d+)?\s*(KB|MB|GB|TB|B)\b', caseSensitive: false);
+  final RegExp _speedRegex =
+      RegExp(r'\b\d+(\.\d+)?\s*(KB|MB|GB|B)/s\b', caseSensitive: false);
+  final RegExp _sizeRegex =
+      RegExp(r'\b\d+(\.\d+)?\s*(KB|MB|GB|TB|B)\b', caseSensitive: false);
   final RegExp _timestampRegex = RegExp(r'\b\d{2}:\d{2}:\d{2}([.,]\d{3})?\b');
   final RegExp _pidRegex = RegExp(r'(PID|pid)[:=\s]*\d+');
-  final RegExp _attemptRegex = RegExp(r'(attempt|尝试)\s*\d+(/\d+)?', caseSensitive: false);
-  final RegExp _durationRegex = RegExp(r'\b\d+(\.\d+)?\s*(ms|s|秒|毫秒)\b', caseSensitive: false);
+  final RegExp _attemptRegex =
+      RegExp(r'(attempt|尝试)\s*\d+(/\d+)?', caseSensitive: false);
+  final RegExp _durationRegex =
+      RegExp(r'\b\d+(\.\d+)?\s*(ms|s|秒|毫秒)\b', caseSensitive: false);
   final RegExp _windowSizeRegex = RegExp(r'\b\d+x\d+\b');
-  
+
   // 内置高亮规则（始终启用）
   List<_BuiltinHighlightRule> get _builtinRules => [
-    // URL 高亮
-    _BuiltinHighlightRule(
-      name: t.logRuleUrl,
-      pattern: r'https?://[^\s<>"{}|\\^`\[\]]+',
-      color: const Color(0xFF60CDFF),
-      type: _HighlightType.url,
-    ),
-    // 文件路径 (Windows)
-    _BuiltinHighlightRule(
-      name: t.logRuleFilePath,
-      pattern: r'[A-Za-z]:\\[^\s<>"{}|*?]+',
-      color: const Color(0xFF89D185),
-      type: _HighlightType.path,
-    ),
-    // 文件路径 (Unix)
-    _BuiltinHighlightRule(
-      name: t.logRuleFilePath,
-      pattern: r'(?<!\w)/(?:[\w.-]+/)+[\w.-]+',
-      color: const Color(0xFF89D185),
-      type: _HighlightType.path,
-    ),
-    // IP 地址（含端口）
-    _BuiltinHighlightRule(
-      name: t.logRuleIpAddress,
-      pattern: r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?::\d{1,5})?\b',
-      color: const Color(0xFFDCDCAA),
-      type: _HighlightType.ip,
-    ),
-    // 数值（带单位：大小、速度、时间、百分比）
-    _BuiltinHighlightRule(
-      name: t.logRuleNumber,
-      pattern: r'\b\d+(?:\.\d+)?\s*(?:KB/s|MB/s|GB/s|KB|MB|GB|TB|B|ms|s|秒|毫秒|%)\b',
-      color: const Color(0xFFB5CEA8),
-      type: _HighlightType.number,
-    ),
-    // 任务ID / Hash
-    _BuiltinHighlightRule(
-      name: t.logRuleIdHash,
-      pattern: r'\b[a-f0-9]{8,32}\b',
-      color: const Color(0xFFCE9178),
-      type: _HighlightType.id,
-    ),
-    // 错误关键词
-    _BuiltinHighlightRule(
-      name: t.logRuleError,
-      pattern: r'\b(?:error|failed|failure|exception|critical|fatal|crash|panic|错误|失败|异常|崩溃)\b',
-      color: const Color(0xFFFF6B6B),
-      type: _HighlightType.error,
-    ),
-    // 成功关键词
-    _BuiltinHighlightRule(
-      name: t.logRuleSuccess,
-      pattern: r'\b(?:success(?:ful(?:ly)?)?|completed|done|passed|healthy|ok|成功|完成|通过|健康)\b',
-      color: const Color(0xFF6CCB5F),
-      type: _HighlightType.success,
-    ),
-    // 警告关键词
-    _BuiltinHighlightRule(
-      name: t.logRuleWarning,
-      pattern: r'\b(?:warning|warn|timeout|retry|retrying|注意|警告|超时|重试)\b',
-      color: const Color(0xFFFFB900),
-      type: _HighlightType.warning,
-    ),
-    // HTTP 方法
-    _BuiltinHighlightRule(
-      name: t.logRuleHttpMethod,
-      pattern: r'\b(?:GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\b',
-      color: const Color(0xFF569CD6),
-      type: _HighlightType.httpMethod,
-    ),
-    // HTTP 状态码（仅在上下文中匹配，避免误匹配普通数字）
-    _BuiltinHighlightRule(
-      name: t.logRuleHttpStatus,
-      pattern: r'(?:status|HTTP|响应)\s*[:=]?\s*[1-5]\d{2}\b',
-      color: const Color(0xFFD7BA7D),
-      type: _HighlightType.httpStatus,
-    ),
-    // 时间戳
-    _BuiltinHighlightRule(
-      name: t.logRuleTime,
-      pattern: r'\b\d{2}:\d{2}:\d{2}(?:[.,]\d{3})?\b',
-      color: const Color(0xFF9CDCFE),
-      type: _HighlightType.time,
-    ),
-    // 步骤指示器 [1/4] [2/4] 等
-    _BuiltinHighlightRule(
-      name: t.logRuleStep,
-      pattern: r'\[\d+/\d+\]',
-      color: const Color(0xFFD4A0FF),
-      type: _HighlightType.step,
-    ),
-    // 进程 PID
-    _BuiltinHighlightRule(
-      name: t.logRulePid,
-      pattern: r'\bPID[:=\s]*\d+\b',
-      color: const Color(0xFF9CDCFE),
-      type: _HighlightType.pid,
-    ),
-    // 键值对 key=value / key: value（限制 key 长度避免回溯）
-    _BuiltinHighlightRule(
-      name: t.logRuleKeyValue,
-      pattern: r'\b\w{1,30}\s*=\s*(?:"[^"]{0,100}"|\S{1,100})',
-      color: const Color(0xFFCE9178),
-      type: _HighlightType.keyValue,
-    ),
-  ];
-  
+        // URL 高亮
+        _BuiltinHighlightRule(
+          name: t.logRuleUrl,
+          pattern: r'https?://[^\s<>"{}|\\^`\[\]]+',
+          color: const Color(0xFF60CDFF),
+          type: _HighlightType.url,
+        ),
+        // 文件路径 (Windows)
+        _BuiltinHighlightRule(
+          name: t.logRuleFilePath,
+          pattern: r'[A-Za-z]:\\[^\s<>"{}|*?]+',
+          color: const Color(0xFF89D185),
+          type: _HighlightType.path,
+        ),
+        // 文件路径 (Unix)
+        _BuiltinHighlightRule(
+          name: t.logRuleFilePath,
+          pattern: r'(?<!\w)/(?:[\w.-]+/)+[\w.-]+',
+          color: const Color(0xFF89D185),
+          type: _HighlightType.path,
+        ),
+        // IP 地址（含端口）
+        _BuiltinHighlightRule(
+          name: t.logRuleIpAddress,
+          pattern: r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?::\d{1,5})?\b',
+          color: const Color(0xFFDCDCAA),
+          type: _HighlightType.ip,
+        ),
+        // 数值（带单位：大小、速度、时间、百分比）
+        _BuiltinHighlightRule(
+          name: t.logRuleNumber,
+          pattern:
+              r'\b\d+(?:\.\d+)?\s*(?:KB/s|MB/s|GB/s|KB|MB|GB|TB|B|ms|s|秒|毫秒|%)\b',
+          color: const Color(0xFFB5CEA8),
+          type: _HighlightType.number,
+        ),
+        // 任务ID / Hash
+        _BuiltinHighlightRule(
+          name: t.logRuleIdHash,
+          pattern: r'\b[a-f0-9]{8,32}\b',
+          color: const Color(0xFFCE9178),
+          type: _HighlightType.id,
+        ),
+        // 错误关键词
+        _BuiltinHighlightRule(
+          name: t.logRuleError,
+          pattern:
+              r'\b(?:error|failed|failure|exception|critical|fatal|crash|panic|错误|失败|异常|崩溃)\b',
+          color: const Color(0xFFFF6B6B),
+          type: _HighlightType.error,
+        ),
+        // 成功关键词
+        _BuiltinHighlightRule(
+          name: t.logRuleSuccess,
+          pattern:
+              r'\b(?:success(?:ful(?:ly)?)?|completed|done|passed|healthy|ok|成功|完成|通过|健康)\b',
+          color: const Color(0xFF6CCB5F),
+          type: _HighlightType.success,
+        ),
+        // 警告关键词
+        _BuiltinHighlightRule(
+          name: t.logRuleWarning,
+          pattern: r'\b(?:warning|warn|timeout|retry|retrying|注意|警告|超时|重试)\b',
+          color: const Color(0xFFFFB900),
+          type: _HighlightType.warning,
+        ),
+        // HTTP 方法
+        _BuiltinHighlightRule(
+          name: t.logRuleHttpMethod,
+          pattern: r'\b(?:GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\b',
+          color: const Color(0xFF569CD6),
+          type: _HighlightType.httpMethod,
+        ),
+        // HTTP 状态码（仅在上下文中匹配，避免误匹配普通数字）
+        _BuiltinHighlightRule(
+          name: t.logRuleHttpStatus,
+          pattern: r'(?:status|HTTP|响应)\s*[:=]?\s*[1-5]\d{2}\b',
+          color: const Color(0xFFD7BA7D),
+          type: _HighlightType.httpStatus,
+        ),
+        // 时间戳
+        _BuiltinHighlightRule(
+          name: t.logRuleTime,
+          pattern: r'\b\d{2}:\d{2}:\d{2}(?:[.,]\d{3})?\b',
+          color: const Color(0xFF9CDCFE),
+          type: _HighlightType.time,
+        ),
+        // 步骤指示器 [1/4] [2/4] 等
+        _BuiltinHighlightRule(
+          name: t.logRuleStep,
+          pattern: r'\[\d+/\d+\]',
+          color: const Color(0xFFD4A0FF),
+          type: _HighlightType.step,
+        ),
+        // 进程 PID
+        _BuiltinHighlightRule(
+          name: t.logRulePid,
+          pattern: r'\bPID[:=\s]*\d+\b',
+          color: const Color(0xFF9CDCFE),
+          type: _HighlightType.pid,
+        ),
+        // 键值对 key=value / key: value（限制 key 长度避免回溯）
+        _BuiltinHighlightRule(
+          name: t.logRuleKeyValue,
+          pattern: r'\b\w{1,30}\s*=\s*(?:"[^"]{0,100}"|\S{1,100})',
+          color: const Color(0xFFCE9178),
+          type: _HighlightType.keyValue,
+        ),
+      ];
+
   // 内置规则启用状态
   final Map<_HighlightType, bool> _builtinRuleEnabled = {
     _HighlightType.url: true,
@@ -242,18 +257,18 @@ class _LogPageState extends State<LogPage> {
     _HighlightType.pid: false, // 默认关闭
     _HighlightType.keyValue: false, // 默认关闭，避免太多高亮
   };
-  
+
   // 状态管理
   final Set<String> _expandedGroupIds = {};
   final Set<String> _bookmarkedIds = {};
-  
+
   // 去重归一化缓存（message hashCode -> normalized string）
   final Map<int, String> _dedupCache = {};
   int _dedupCacheVersion = -1;
-  
+
   // 自定义正则规则（从配置加载）
   List<CustomRegexRule> _customRules = [];
-  
+
   // 时间范围筛选
   DateTime? _startTime;
   DateTime? _endTime;
@@ -270,19 +285,21 @@ class _LogPageState extends State<LogPage> {
     final config = context.read<ClientConfigService>();
     final rules = config.getLogRegexRules();
     final builtinStates = config.getLogBuiltinRuleStates();
-    
+
     setState(() {
-      _customRules = rules.map((r) => CustomRegexRule(
-        name: r['name'] as String,
-        pattern: r['pattern'] as String,
-        enabled: r['enabled'] as bool? ?? true,
-        highlightColor: Color(r['color'] as int? ?? 0xFF60CDFF),
-      )).toList();
-      
+      _customRules = rules
+          .map((r) => CustomRegexRule(
+                name: r['name'] as String,
+                pattern: r['pattern'] as String,
+                enabled: r['enabled'] as bool? ?? true,
+                highlightColor: Color(r['color'] as int? ?? 0xFF60CDFF),
+              ))
+          .toList();
+
       _showStats = config.getLogShowStats();
       _showFailureStats = config.getLogShowFailureStats();
       _autoScroll = config.getLogAutoScroll();
-      
+
       // 恢复内置规则启用状态
       for (final entry in builtinStates.entries) {
         try {
@@ -300,13 +317,15 @@ class _LogPageState extends State<LogPage> {
 
   Future<void> _saveRegexRules() async {
     final config = context.read<ClientConfigService>();
-    final rules = _customRules.map((r) => {
-      'name': r.name,
-      'pattern': r.pattern,
-      'enabled': r.enabled,
-      'color': r.highlightColor?.value ?? 0xFF60CDFF,
-    }).toList();
-    
+    final rules = _customRules
+        .map((r) => {
+              'name': r.name,
+              'pattern': r.pattern,
+              'enabled': r.enabled,
+              'color': r.highlightColor?.value ?? 0xFF60CDFF,
+            })
+        .toList();
+
     await config.saveLogRegexRules(rules);
   }
 
@@ -325,16 +344,24 @@ class _LogPageState extends State<LogPage> {
     _searchController.dispose();
     super.dispose();
   }
-  
+
   // 计算日志统计
   LogStats _calculateStats(List<LogEntry> logs, List<LogDisplayItem> grouped) {
     int debug = 0, info = 0, warning = 0, error = 0;
     for (var log in logs) {
       switch (log.level) {
-        case LogLevel.debug: debug++; break;
-        case LogLevel.info: info++; break;
-        case LogLevel.warning: warning++; break;
-        case LogLevel.error: error++; break;
+        case LogLevel.debug:
+          debug++;
+          break;
+        case LogLevel.info:
+          info++;
+          break;
+        case LogLevel.warning:
+          warning++;
+          break;
+        case LogLevel.error:
+          error++;
+          break;
       }
     }
     return LogStats(
@@ -368,7 +395,8 @@ class _LogPageState extends State<LogPage> {
       _dedupCacheVersion = logVersion;
     }
     final key = entry.message.hashCode ^ entry.source.hashCode;
-    return _dedupCache.putIfAbsent(key, () => _normalizeForDedup(entry.message));
+    return _dedupCache.putIfAbsent(
+        key, () => _normalizeForDedup(entry.message));
   }
 
   String _normalizeForDedup(String message) {
@@ -402,10 +430,10 @@ class _LogPageState extends State<LogPage> {
 
   List<LogDisplayItem> _groupLogs(List<LogEntry> logs, int logVersion) {
     if (logs.isEmpty) return [];
-    
+
     final List<LogDisplayItem> grouped = [];
     int i = 0;
-    
+
     while (i < logs.length) {
       int bestPatternLength = 0;
       int bestRepeatCount = 1;
@@ -415,17 +443,18 @@ class _LogPageState extends State<LogPage> {
         // 检查当前长度为len的模式是否重复
         int currentCount = 1;
         int checkIndex = i + len;
-        
+
         while (checkIndex + len <= logs.length) {
           bool matches = true;
           for (int k = 0; k < len; k++) {
             final original = logs[i + k];
             final candidate = logs[checkIndex + k];
-            
+
             // 使用缓存的标准化消息进行比较
             final originalMsg = _cachedNormalizeForDedup(original, logVersion);
-            final candidateMsg = _cachedNormalizeForDedup(candidate, logVersion);
-            
+            final candidateMsg =
+                _cachedNormalizeForDedup(candidate, logVersion);
+
             if (originalMsg != candidateMsg ||
                 original.level != candidate.level ||
                 original.source != candidate.source) {
@@ -433,7 +462,7 @@ class _LogPageState extends State<LogPage> {
               break;
             }
           }
-          
+
           if (matches) {
             currentCount++;
             checkIndex += len;
@@ -441,31 +470,32 @@ class _LogPageState extends State<LogPage> {
             break;
           }
         }
-        
+
         if (currentCount > 1) {
-           int currentTotalLen = len * currentCount;
-           int bestTotalLen = bestPatternLength * bestRepeatCount;
-           
-           if (currentTotalLen > bestTotalLen) {
-             bestPatternLength = len;
-             bestRepeatCount = currentCount;
-           }
+          int currentTotalLen = len * currentCount;
+          int bestTotalLen = bestPatternLength * bestRepeatCount;
+
+          if (currentTotalLen > bestTotalLen) {
+            bestPatternLength = len;
+            bestRepeatCount = currentCount;
+          }
         }
       }
-      
+
       if (bestPatternLength > 0) {
         // 发现重复模式
         final patternLogs = logs.sublist(i, i + bestPatternLength);
-        
+
         // 收集所有重复的日志组
         List<List<LogEntry>> allRepeatedGroups = [];
         for (int k = 0; k < bestRepeatCount; k++) {
           int startIndex = i + k * bestPatternLength;
-          allRepeatedGroups.add(logs.sublist(startIndex, startIndex + bestPatternLength));
+          allRepeatedGroups
+              .add(logs.sublist(startIndex, startIndex + bestPatternLength));
         }
-        
+
         final item = LogDisplayItem(
-          patternLogs, 
+          patternLogs,
           count: bestRepeatCount,
           repeatedLogs: allRepeatedGroups,
         );
@@ -478,7 +508,7 @@ class _LogPageState extends State<LogPage> {
         i++;
       }
     }
-    
+
     return grouped;
   }
 
@@ -498,17 +528,22 @@ class _LogPageState extends State<LogPage> {
 
     if (selectedPath != null && mounted) {
       try {
-        final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+        final timestamp = DateTime.now()
+            .toIso8601String()
+            .replaceAll(':', '-')
+            .split('.')
+            .first;
         final file = File('$selectedPath\\log_export_$timestamp.txt');
-        
+
         final logs = context.read<AppLoggerService>().logs;
         final buffer = StringBuffer();
         for (var log in logs) {
-          buffer.writeln('[${log.formattedTime}] [${log.levelString}] [${log.source}] ${log.message}');
+          buffer.writeln(
+              '[${log.formattedTime}] [${log.levelString}] [${log.source}] ${log.message}');
         }
-        
+
         await file.writeAsString(buffer.toString());
-        
+
         if (mounted) {
           showDialog(
             context: context,
@@ -566,7 +601,8 @@ class _LogPageState extends State<LogPage> {
           .replaceAll(':', '-')
           .split('.')
           .first;
-      final exportRoot = Directory(p.join(selectedPath, 'hanabi_diagnostics_$timestamp'));
+      final exportRoot =
+          Directory(p.join(selectedPath, 'hanabi_diagnostics_$timestamp'));
       final configDir = Directory(p.join(exportRoot.path, 'config'));
       final logsDir = Directory(p.join(exportRoot.path, 'logs'));
 
@@ -578,14 +614,17 @@ class _LogPageState extends State<LogPage> {
       await config.exportAllConfigs(configDir.path);
 
       // 额外导出内核配置（如存在）
-      final kernelConfigFile = File(p.join(config.baseDir, 'kernel', 'config.json'));
+      final kernelConfigFile =
+          File(p.join(config.baseDir, 'kernel', 'config.json'));
       if (await kernelConfigFile.exists()) {
-        await kernelConfigFile.copy(p.join(configDir.path, 'kernel_config.json'));
+        await kernelConfigFile
+            .copy(p.join(configDir.path, 'kernel_config.json'));
       }
 
       // 导出日志文件
       final docsDir = await getApplicationDocumentsDirectory();
-      final logDir = Directory(p.join(docsDir.path, 'HanabiDownloadManagerX', 'logs'));
+      final logDir =
+          Directory(p.join(docsDir.path, 'HanabiDownloadManagerX', 'logs'));
       if (await logDir.exists()) {
         await for (final entity in logDir.list()) {
           if (entity is File) {
@@ -665,7 +704,8 @@ class _LogPageState extends State<LogPage> {
         }
       }
 
-      await File(p.join(exportRoot.path, 'summary.txt')).writeAsString(summary.toString());
+      await File(p.join(exportRoot.path, 'summary.txt'))
+          .writeAsString(summary.toString());
 
       if (mounted) {
         showDialog(
@@ -724,7 +764,8 @@ class _LogPageState extends State<LogPage> {
                   color: AppTheme.accentPrimary.withValues(alpha: 0.3),
                 ),
               ),
-              child: Icon(FluentIcons.text_document, size: 18, color: AppTheme.accentLight),
+              child: Icon(FluentIcons.text_document,
+                  size: 18, color: AppTheme.accentLight),
             ),
             const SizedBox(width: 14),
             Text(t.logPageTitle),
@@ -735,19 +776,25 @@ class _LogPageState extends State<LogPage> {
           primaryItems: [
             SafeCommandBarButton(
               icon: Icon(FluentIcons.filter),
-              label: Text(_filterLevel == null ? t.logFilterLevelLabel : _filterLevel!.name.toUpperCase()),
+              label: Text(_filterLevel == null
+                  ? t.logFilterLevelLabel
+                  : _filterLevel!.name.toUpperCase()),
               onPressed: () => _showFilterMenu(context),
             ),
             SafeCommandBarButton(
               icon: Icon(FluentIcons.source),
-              label: Text(_filterTags.isNotEmpty 
-                ? _filterTags.length == 1 ? _filterTags.first : t.logFilterTagCount(_filterTags.length)
-                : _filterSource ?? t.logFilterSourceLabel),
+              label: Text(_filterTags.isNotEmpty
+                  ? _filterTags.length == 1
+                      ? _filterTags.first
+                      : t.logFilterTagCount(_filterTags.length)
+                  : _filterSource ?? t.logFilterSourceLabel),
               onPressed: () => _showSourceFilterMenu(context),
             ),
             SafeCommandBarButton(
               icon: Icon(FluentIcons.clock),
-              label: Text(_startTime != null || _endTime != null ? t.logFilterTimeSelectedLabel : t.logFilterTimeLabel),
+              label: Text(_startTime != null || _endTime != null
+                  ? t.logFilterTimeSelectedLabel
+                  : t.logFilterTimeLabel),
               onPressed: () => _showTimeRangeDialog(context),
             ),
             SafeCommandBarButton(
@@ -758,11 +805,14 @@ class _LogPageState extends State<LogPage> {
           ],
           secondaryItems: [
             SafeCommandBarButton(
-              icon: Icon(_autoScroll ? FluentIcons.chevron_down : FluentIcons.pause),
+              icon: Icon(
+                  _autoScroll ? FluentIcons.chevron_down : FluentIcons.pause),
               label: Text(_autoScroll ? t.logAutoScrollOn : t.logAutoScrollOff),
               onPressed: () {
                 setState(() => _autoScroll = !_autoScroll);
-                context.read<ClientConfigService>().setLogAutoScroll(_autoScroll);
+                context
+                    .read<ClientConfigService>()
+                    .setLogAutoScroll(_autoScroll);
               },
             ),
             SafeCommandBarButton(
@@ -774,11 +824,16 @@ class _LogPageState extends State<LogPage> {
               },
             ),
             SafeCommandBarButton(
-              icon: Icon(_showFailureStats ? FluentIcons.warning : FluentIcons.hide3),
-              label: Text(_showFailureStats ? t.logFailureStatsShow : t.logFailureStatsHide),
+              icon: Icon(
+                  _showFailureStats ? FluentIcons.warning : FluentIcons.hide3),
+              label: Text(_showFailureStats
+                  ? t.logFailureStatsShow
+                  : t.logFailureStatsHide),
               onPressed: () {
                 setState(() => _showFailureStats = !_showFailureStats);
-                context.read<ClientConfigService>().setLogShowFailureStats(_showFailureStats);
+                context
+                    .read<ClientConfigService>()
+                    .setLogShowFailureStats(_showFailureStats);
               },
             ),
             const CommandBarSeparator(),
@@ -812,10 +867,13 @@ class _LogPageState extends State<LogPage> {
 
           // 应用时间范围过滤
           if (_startTime != null) {
-            logs = logs.where((log) => log.timestamp.isAfter(_startTime!)).toList();
+            logs = logs
+                .where((log) => log.timestamp.isAfter(_startTime!))
+                .toList();
           }
           if (_endTime != null) {
-            logs = logs.where((log) => log.timestamp.isBefore(_endTime!)).toList();
+            logs =
+                logs.where((log) => log.timestamp.isBefore(_endTime!)).toList();
           }
 
           // 应用级别过滤
@@ -826,19 +884,26 @@ class _LogPageState extends State<LogPage> {
           // 应用来源过滤
           if (_filterTags.isNotEmpty) {
             // 精确匹配选中的 tag
-            logs = logs.where((log) => _filterTags.contains(log.source)).toList();
+            logs =
+                logs.where((log) => _filterTags.contains(log.source)).toList();
           } else if (_filterSource != null) {
             // 分类标签定义（与对话框保持一致）
             const appTagNames = {'App', 'Update', 'PopupTest'};
             const systemTagNames = {'Console', 'Zone'};
             if (_filterSource == 'Kernel') {
-              logs = logs.where((log) => 
-                !appTagNames.contains(log.source) && !systemTagNames.contains(log.source)
-              ).toList();
+              logs = logs
+                  .where((log) =>
+                      !appTagNames.contains(log.source) &&
+                      !systemTagNames.contains(log.source))
+                  .toList();
             } else if (_filterSource == 'App') {
-              logs = logs.where((log) => appTagNames.contains(log.source)).toList();
+              logs = logs
+                  .where((log) => appTagNames.contains(log.source))
+                  .toList();
             } else if (_filterSource == 'System') {
-              logs = logs.where((log) => systemTagNames.contains(log.source)).toList();
+              logs = logs
+                  .where((log) => systemTagNames.contains(log.source))
+                  .toList();
             } else {
               logs = logs.where((log) => log.source == _filterSource).toList();
             }
@@ -849,19 +914,33 @@ class _LogPageState extends State<LogPage> {
             if (_useRegexSearch) {
               try {
                 final regex = RegExp(_searchQuery, caseSensitive: false);
-                logs = logs.where((log) => regex.hasMatch(log.message) || regex.hasMatch(log.source)).toList();
+                logs = logs
+                    .where((log) =>
+                        regex.hasMatch(log.message) ||
+                        regex.hasMatch(log.source))
+                    .toList();
               } catch (_) {
                 // 正则无效时回退到普通搜索
-                logs = logs.where((log) =>
-                  log.message.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                  log.source.toLowerCase().contains(_searchQuery.toLowerCase())
-                ).toList();
+                logs = logs
+                    .where((log) =>
+                        log.message
+                            .toLowerCase()
+                            .contains(_searchQuery.toLowerCase()) ||
+                        log.source
+                            .toLowerCase()
+                            .contains(_searchQuery.toLowerCase()))
+                    .toList();
               }
             } else {
-              logs = logs.where((log) =>
-                log.message.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                log.source.toLowerCase().contains(_searchQuery.toLowerCase())
-              ).toList();
+              logs = logs
+                  .where((log) =>
+                      log.message
+                          .toLowerCase()
+                          .contains(_searchQuery.toLowerCase()) ||
+                      log.source
+                          .toLowerCase()
+                          .contains(_searchQuery.toLowerCase()))
+                  .toList();
             }
           }
 
@@ -869,7 +948,8 @@ class _LogPageState extends State<LogPage> {
           final stats = _calculateStats(logs, groupedLogs);
 
           // 自动滚动
-          WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+          WidgetsBinding.instance
+              .addPostFrameCallback((_) => _scrollToBottom());
 
           return Column(
             children: [
@@ -881,27 +961,32 @@ class _LogPageState extends State<LogPage> {
                     Expanded(
                       child: TextBox(
                         controller: _searchController,
-                        placeholder: _useRegexSearch ? t.logSearchPlaceholderRegex : t.logSearchPlaceholder,
+                        placeholder: _useRegexSearch
+                            ? t.logSearchPlaceholderRegex
+                            : t.logSearchPlaceholder,
                         prefix: Padding(
                           padding: const EdgeInsets.only(left: 10),
                           child: Icon(
-                            _useRegexSearch ? FluentIcons.code : FluentIcons.searchIcon,
+                            _useRegexSearch
+                                ? FluentIcons.code
+                                : FluentIcons.searchIcon,
                             size: 14,
-                            color: _searchQuery.isNotEmpty 
-                              ? AppTheme.accentLight 
-                              : AppTheme.textTertiary,
+                            color: _searchQuery.isNotEmpty
+                                ? AppTheme.accentLight
+                                : AppTheme.textTertiary,
                           ),
                         ),
                         suffix: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: Icon(FluentIcons.clear, size: 12),
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() => _searchQuery = '');
-                              },
-                            )
-                          : null,
-                        onChanged: (value) => setState(() => _searchQuery = value),
+                            ? IconButton(
+                                icon: Icon(FluentIcons.clear, size: 12),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _searchQuery = '');
+                                },
+                              )
+                            : null,
+                        onChanged: (value) =>
+                            setState(() => _searchQuery = value),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -909,72 +994,79 @@ class _LogPageState extends State<LogPage> {
                       checked: _useRegexSearch,
                       onChanged: (v) => setState(() => _useRegexSearch = v),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         child: Text(
                           '.*',
                           style: TextStyle(
                             fontFamily: 'Courier New',
                             fontWeight: FontWeight.w600,
-                            color: _useRegexSearch ? AppTheme.accentLight : AppTheme.textTertiary,
+                            color: _useRegexSearch
+                                ? AppTheme.accentLight
+                                : AppTheme.textTertiary,
                           ),
                         ),
                       ),
-                          ),
-                        ],
-                      ),
                     ),
+                  ],
+                ),
+              ),
 
               // 统一信息栏（统计 + 筛选标签）
               if (_showStats) _buildInfoBar(stats),
 
               // 下载失败统计
-              if (_showStats && _showFailureStats) _buildFailureStatsBar(failureStats),
+              if (_showStats && _showFailureStats)
+                _buildFailureStatsBar(failureStats),
 
               // 日志列表
               Expanded(
                 child: logs.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              color: AppTheme.bgLayer2.withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(16),
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 64,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                color: AppTheme.bgLayer2.withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Icon(
+                                FluentIcons.document,
+                                size: 28,
+                                color: AppTheme.textTertiary
+                                    .withValues(alpha: 0.5),
+                              ),
                             ),
-                            child: Icon(
-                              FluentIcons.document,
-                              size: 28,
-                              color: AppTheme.textTertiary.withValues(alpha: 0.5),
+                            const SizedBox(height: 16),
+                            Text(
+                              t.logEmptyTitle,
+                              style: TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 14,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            t.logEmptyTitle,
-                            style: TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 14,
+                            const SizedBox(height: 4),
+                            Text(
+                              t.logEmptySubtitle,
+                              style: TextStyle(
+                                color: AppTheme.textTertiary,
+                                fontSize: 12,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            t.logEmptySubtitle,
-                            style: TextStyle(
-                              color: AppTheme.textTertiary,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
+                      )
+                    : SmoothListView.builder(
+                        config: SmoothScrollConfig.fast,
+                        controller: _scrollController,
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        itemCount: groupedLogs.length,
+                        itemBuilder: (context, index) =>
+                            _buildLogEntry(context, groupedLogs[index]),
                       ),
-                    )
-                  : ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      itemCount: groupedLogs.length,
-                      itemBuilder: (context, index) => _buildLogEntry(context, groupedLogs[index]),
-                    ),
               ),
             ],
           );
@@ -985,10 +1077,12 @@ class _LogPageState extends State<LogPage> {
 
   /// 构建统一的信息栏（统计 + 筛选标签整合）
   Widget _buildInfoBar(LogStats stats) {
-    final hasActiveFilters = _filterLevel != null || _filterSource != null || 
-                             _filterTags.isNotEmpty ||
-                             _startTime != null || _endTime != null;
-    
+    final hasActiveFilters = _filterLevel != null ||
+        _filterSource != null ||
+        _filterTags.isNotEmpty ||
+        _startTime != null ||
+        _endTime != null;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Container(
@@ -996,9 +1090,9 @@ class _LogPageState extends State<LogPage> {
           color: AppTheme.surfaceCard.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
           border: Border.all(
-            color: hasActiveFilters 
-              ? AppTheme.accentPrimary.withValues(alpha: 0.3)
-              : AppTheme.borderSubtle.withValues(alpha: 0.5),
+            color: hasActiveFilters
+                ? AppTheme.accentPrimary.withValues(alpha: 0.3)
+                : AppTheme.borderSubtle.withValues(alpha: 0.5),
           ),
         ),
         child: Column(
@@ -1010,26 +1104,34 @@ class _LogPageState extends State<LogPage> {
               child: Row(
                 children: [
                   // 统计项
-                  _buildStatChip(t.logStatTotal, stats.total, AppTheme.textSecondary, isTotal: true),
+                  _buildStatChip(
+                      t.logStatTotal, stats.total, AppTheme.textSecondary,
+                      isTotal: true),
                   const SizedBox(width: 6),
-                  _buildStatChip('D', stats.debug, const Color(0xFFB794F6), level: LogLevel.debug),
+                  _buildStatChip('D', stats.debug, const Color(0xFFB794F6),
+                      level: LogLevel.debug),
                   const SizedBox(width: 6),
-                  _buildStatChip('I', stats.info, Colors.blue, level: LogLevel.info),
+                  _buildStatChip('I', stats.info, Colors.blue,
+                      level: LogLevel.info),
                   const SizedBox(width: 6),
-                  _buildStatChip('W', stats.warning, Colors.orange, level: LogLevel.warning),
+                  _buildStatChip('W', stats.warning, Colors.orange,
+                      level: LogLevel.warning),
                   const SizedBox(width: 6),
-                  _buildStatChip('E', stats.error, Colors.red, level: LogLevel.error),
+                  _buildStatChip('E', stats.error, Colors.red,
+                      level: LogLevel.error),
                   const Spacer(),
                   // 归档信息
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: AppTheme.bgLayer2.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                     ),
                     child: Text(
                       t.logGroupedCount(stats.groupedCount),
-                      style: TextStyle(color: AppTheme.textTertiary, fontSize: 11),
+                      style:
+                          TextStyle(color: AppTheme.textTertiary, fontSize: 11),
                     ),
                   ),
                 ],
@@ -1042,7 +1144,8 @@ class _LogPageState extends State<LogPage> {
                 padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
                 child: Row(
                   children: [
-                    Icon(FluentIcons.filter, size: 12, color: AppTheme.accentLight),
+                    Icon(FluentIcons.filter,
+                        size: 12, color: AppTheme.accentLight),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Wrap(
@@ -1071,7 +1174,10 @@ class _LogPageState extends State<LogPage> {
                             _buildFilterTag(
                               _formatTimeRange(),
                               AppTheme.statusInfo,
-                              () => setState(() { _startTime = null; _endTime = null; }),
+                              () => setState(() {
+                                _startTime = null;
+                                _endTime = null;
+                              }),
                             ),
                         ],
                       ),
@@ -1086,17 +1192,23 @@ class _LogPageState extends State<LogPage> {
                         _endTime = null;
                       }),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: AppTheme.bgLayer2.withValues(alpha: 0.8),
-                          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.radiusSm),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(FluentIcons.clear, size: 10, color: AppTheme.textTertiary),
+                            Icon(FluentIcons.clear,
+                                size: 10, color: AppTheme.textTertiary),
                             const SizedBox(width: 4),
-                            Text(t.logClearFiltersButton, style: TextStyle(fontSize: 11, color: AppTheme.textTertiary)),
+                            Text(t.logClearFiltersButton,
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppTheme.textTertiary)),
                           ],
                         ),
                       ),
@@ -1133,7 +1245,8 @@ class _LogPageState extends State<LogPage> {
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
               child: Row(
                 children: [
-                  Icon(FluentIcons.warning, size: 14, color: AppTheme.statusWarning),
+                  Icon(FluentIcons.warning,
+                      size: 14, color: AppTheme.statusWarning),
                   const SizedBox(width: 8),
                   Text(
                     t.logFailureStatsTitle,
@@ -1164,11 +1277,13 @@ class _LogPageState extends State<LogPage> {
                     final label = _localizedReason(entry.key);
                     final color = _getReasonColor(entry.key);
                     return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                        border: Border.all(color: color.withValues(alpha: 0.3), width: 0.5),
+                        border: Border.all(
+                            color: color.withValues(alpha: 0.3), width: 0.5),
                       ),
                       child: Text(
                         '$label · ${entry.value}',
@@ -1241,7 +1356,8 @@ class _LogPageState extends State<LogPage> {
                 decoration: BoxDecoration(
                   color: reasonColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                  border: Border.all(color: reasonColor.withValues(alpha: 0.3), width: 0.5),
+                  border: Border.all(
+                      color: reasonColor.withValues(alpha: 0.3), width: 0.5),
                 ),
                 child: Text(
                   _localizedReason(record.reason),
@@ -1308,15 +1424,17 @@ class _LogPageState extends State<LogPage> {
       return '${_startTime!.hour}:${_startTime!.minute.toString().padLeft(2, '0')} - ${_endTime!.hour}:${_endTime!.minute.toString().padLeft(2, '0')}';
     } else if (_startTime != null) {
       final diff = DateTime.now().difference(_startTime!);
-      if (diff.inMinutes < 60) return t.logTimeRangeRecentMinutes(diff.inMinutes);
+      if (diff.inMinutes < 60)
+        return t.logTimeRangeRecentMinutes(diff.inMinutes);
       return t.logTimeRangeRecentHours(diff.inHours);
     }
     return t.logTimeRangeLabel;
   }
 
-  Widget _buildStatChip(String label, int count, Color color, {LogLevel? level, bool isTotal = false}) {
+  Widget _buildStatChip(String label, int count, Color color,
+      {LogLevel? level, bool isTotal = false}) {
     final isSelected = level != null && _filterLevel == level;
-    
+
     return GestureDetector(
       onTap: () {
         if (isTotal) {
@@ -1329,13 +1447,13 @@ class _LogPageState extends State<LogPage> {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: isSelected 
-            ? color.withValues(alpha: 0.25)
-            : (count > 0 ? color.withValues(alpha: 0.1) : Colors.transparent),
+          color: isSelected
+              ? color.withValues(alpha: 0.25)
+              : (count > 0 ? color.withValues(alpha: 0.1) : Colors.transparent),
           borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-          border: isSelected 
-            ? Border.all(color: color.withValues(alpha: 0.5), width: 1)
-            : null,
+          border: isSelected
+              ? Border.all(color: color.withValues(alpha: 0.5), width: 1)
+              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1398,7 +1516,8 @@ class _LogPageState extends State<LogPage> {
           const SizedBox(width: 4),
           GestureDetector(
             onTap: onRemove,
-            child: Icon(FluentIcons.chrome_close, size: 10, color: color.withValues(alpha: 0.8)),
+            child: Icon(FluentIcons.chrome_close,
+                size: 10, color: color.withValues(alpha: 0.8)),
           ),
         ],
       ),
@@ -1425,9 +1544,9 @@ class _LogPageState extends State<LogPage> {
             color: AppTheme.surfaceCard.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             border: Border.all(
-              color: isBookmarked 
-                ? AppTheme.statusWarning.withValues(alpha: 0.4)
-                : AppTheme.borderSubtle.withValues(alpha: 0.3),
+              color: isBookmarked
+                  ? AppTheme.statusWarning.withValues(alpha: 0.4)
+                  : AppTheme.borderSubtle.withValues(alpha: 0.3),
               width: isBookmarked ? 1 : 0.5,
             ),
           ),
@@ -1450,7 +1569,7 @@ class _LogPageState extends State<LogPage> {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    
+
                     // 日志内容
                     Expanded(
                       child: Column(
@@ -1463,7 +1582,7 @@ class _LogPageState extends State<LogPage> {
                         ],
                       ),
                     ),
-                    
+
                     // 右侧操作区
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
@@ -1475,9 +1594,14 @@ class _LogPageState extends State<LogPage> {
                           height: 28,
                           child: IconButton(
                             icon: Icon(
-                              isBookmarked ? FluentIcons.single_bookmark_solid : FluentIcons.single_bookmark,
+                              isBookmarked
+                                  ? FluentIcons.single_bookmark_solid
+                                  : FluentIcons.single_bookmark,
                               size: 12,
-                              color: isBookmarked ? AppTheme.statusWarning : AppTheme.textTertiary.withValues(alpha: 0.6),
+                              color: isBookmarked
+                                  ? AppTheme.statusWarning
+                                  : AppTheme.textTertiary
+                                      .withValues(alpha: 0.6),
                             ),
                             onPressed: () {
                               setState(() {
@@ -1490,7 +1614,7 @@ class _LogPageState extends State<LogPage> {
                             },
                           ),
                         ),
-                        
+
                         // 重复计数
                         if (item.count > 1)
                           GestureDetector(
@@ -1504,12 +1628,15 @@ class _LogPageState extends State<LogPage> {
                               });
                             },
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: AppTheme.accentPrimary.withValues(alpha: 0.15),
+                                color: AppTheme.accentPrimary
+                                    .withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
-                                  color: AppTheme.accentPrimary.withValues(alpha: 0.25),
+                                  color: AppTheme.accentPrimary
+                                      .withValues(alpha: 0.25),
                                   width: 0.5,
                                 ),
                               ),
@@ -1517,7 +1644,9 @@ class _LogPageState extends State<LogPage> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
-                                    item.isExpanded ? FluentIcons.chevron_up : FluentIcons.chevron_down,
+                                    item.isExpanded
+                                        ? FluentIcons.chevron_up
+                                        : FluentIcons.chevron_down,
                                     size: 8,
                                     color: AppTheme.accentLight,
                                   ),
@@ -1540,9 +1669,11 @@ class _LogPageState extends State<LogPage> {
                   ],
                 ),
               ),
-              
+
               // 展开的重复日志
-              if (item.isExpanded && item.count > 1 && item.repeatedLogs != null) ...[
+              if (item.isExpanded &&
+                  item.count > 1 &&
+                  item.repeatedLogs != null) ...[
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(23, 0, 10, 10),
@@ -1579,18 +1710,22 @@ class _LogPageState extends State<LogPage> {
                           ],
                         ),
                       ),
-                      for (int k = 1; k < item.repeatedLogs!.length && k <= 50; k++)
+                      for (int k = 1;
+                          k < item.repeatedLogs!.length && k <= 50;
+                          k++)
                         for (var log in item.repeatedLogs![k])
                           Padding(
                             padding: const EdgeInsets.only(bottom: 3),
-                            child: _buildSingleLogRow(context, log, isExpandedItem: true),
+                            child: _buildSingleLogRow(context, log,
+                                isExpandedItem: true),
                           ),
                       if (item.repeatedLogs!.length > 51)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
                             t.logRepeatedMore(item.repeatedLogs!.length - 51),
-                            style: TextStyle(color: AppTheme.textTertiary, fontSize: 10),
+                            style: TextStyle(
+                                color: AppTheme.textTertiary, fontSize: 10),
                           ),
                         ),
                     ],
@@ -1613,18 +1748,22 @@ class _LogPageState extends State<LogPage> {
           onPressed: () {
             final buffer = StringBuffer();
             for (var log in item.logs) {
-              buffer.writeln('[${log.formattedTime}] [${log.levelString}] [${log.source}] ${log.message}');
+              buffer.writeln(
+                  '[${log.formattedTime}] [${log.levelString}] [${log.source}] ${log.message}');
             }
-            if (item.count > 1) buffer.writeln(t.logContextRepeated(item.count));
+            if (item.count > 1)
+              buffer.writeln(t.logContextRepeated(item.count));
             Clipboard.setData(ClipboardData(text: buffer.toString().trim()));
             Navigator.pop(ctx);
           },
         ),
         MenuFlyoutItem(
-          leading: Icon(_bookmarkedIds.contains(item.id) 
-            ? FluentIcons.single_bookmark_solid 
-            : FluentIcons.single_bookmark),
-          text: Text(_bookmarkedIds.contains(item.id) ? t.logContextRemoveBookmark : t.logContextAddBookmark),
+          leading: Icon(_bookmarkedIds.contains(item.id)
+              ? FluentIcons.single_bookmark_solid
+              : FluentIcons.single_bookmark),
+          text: Text(_bookmarkedIds.contains(item.id)
+              ? t.logContextRemoveBookmark
+              : t.logContextAddBookmark),
           onPressed: () {
             setState(() {
               if (_bookmarkedIds.contains(item.id)) {
@@ -1659,14 +1798,19 @@ class _LogPageState extends State<LogPage> {
 
   Color _getLevelColor(LogLevel level) {
     switch (level) {
-      case LogLevel.debug: return const Color(0xFFB794F6); // 淡紫色
-      case LogLevel.info: return Colors.blue;
-      case LogLevel.warning: return Colors.orange;
-      case LogLevel.error: return Colors.red;
+      case LogLevel.debug:
+        return const Color(0xFFB794F6); // 淡紫色
+      case LogLevel.info:
+        return Colors.blue;
+      case LogLevel.warning:
+        return Colors.orange;
+      case LogLevel.error:
+        return Colors.red;
     }
   }
 
-  Widget _buildSingleLogRow(BuildContext context, LogEntry log, {bool isExpandedItem = false}) {
+  Widget _buildSingleLogRow(BuildContext context, LogEntry log,
+      {bool isExpandedItem = false}) {
     final levelColor = _getLevelColor(log.level);
     final displayMessage = _stripLogPrefix(log.message);
     final alpha = isExpandedItem ? 0.6 : 1.0;
@@ -1740,7 +1884,8 @@ class _LogPageState extends State<LogPage> {
                     text: Text(t.logContextCopySingle),
                     onPressed: () {
                       Clipboard.setData(ClipboardData(
-                        text: '[${log.formattedTime}] [${log.levelString}] [${log.source}] ${log.message}',
+                        text:
+                            '[${log.formattedTime}] [${log.levelString}] [${log.source}] ${log.message}',
                       ));
                       Navigator.pop(ctx);
                     },
@@ -1764,7 +1909,7 @@ class _LogPageState extends State<LogPage> {
   Widget _buildHighlightedMessage(String message, double alpha) {
     // 收集所有匹配
     final List<_HighlightMatch> matches = [];
-    
+
     // 1. 内置规则高亮
     for (final rule in _builtinRules) {
       if (_builtinRuleEnabled[rule.type] != true) continue;
@@ -1780,7 +1925,7 @@ class _LogPageState extends State<LogPage> {
         }
       } catch (_) {}
     }
-    
+
     // 2. 自定义规则高亮
     for (final rule in _customRules.where((r) => r.enabled)) {
       try {
@@ -1799,9 +1944,9 @@ class _LogPageState extends State<LogPage> {
     // 3. 搜索高亮（优先级最高）
     if (_searchQuery.isNotEmpty) {
       try {
-        final searchRegex = _useRegexSearch 
-          ? RegExp(_searchQuery, caseSensitive: false)
-          : RegExp(RegExp.escape(_searchQuery), caseSensitive: false);
+        final searchRegex = _useRegexSearch
+            ? RegExp(_searchQuery, caseSensitive: false)
+            : RegExp(RegExp.escape(_searchQuery), caseSensitive: false);
         for (final match in searchRegex.allMatches(message)) {
           matches.add(_HighlightMatch(
             start: match.start,
@@ -1836,20 +1981,21 @@ class _LogPageState extends State<LogPage> {
       if (!a.isSearch && b.isSearch) return 1;
       return 0;
     });
-    
+
     final spans = <TextSpan>[];
     int lastEnd = 0;
 
     for (final match in matches) {
       if (match.start < lastEnd) continue; // 跳过重叠
-      
+
       if (match.start > lastEnd) {
         spans.add(TextSpan(
           text: message.substring(lastEnd, match.start),
-          style: TextStyle(color: AppTheme.textPrimary.withValues(alpha: alpha)),
+          style:
+              TextStyle(color: AppTheme.textPrimary.withValues(alpha: alpha)),
         ));
       }
-      
+
       // 根据类型决定样式
       TextStyle highlightStyle;
       if (match.isSearch) {
@@ -1913,7 +2059,7 @@ class _LogPageState extends State<LogPage> {
           color: match.color,
         );
       }
-      
+
       spans.add(TextSpan(
         text: message.substring(match.start, match.end),
         style: highlightStyle,
@@ -1941,45 +2087,50 @@ class _LogPageState extends State<LogPage> {
       context: context,
       builder: (ctx) => ContentDialog(
         title: Text(t.logFilterLevelTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final item in [
-              (null, t.logFilterAllLabel, AppTheme.textPrimary),
-              (LogLevel.debug, 'DEBUG', const Color(0xFFB794F6)), // 淡紫色
-              (LogLevel.info, 'INFO', Colors.blue),
-              (LogLevel.warning, 'WARNING', Colors.orange),
-              (LogLevel.error, 'ERROR', Colors.red),
-            ])
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: RadioButton(
-                  checked: _filterLevel == item.$1,
-                  onChanged: (_) {
-                    setState(() => _filterLevel = item.$1);
-                    Navigator.pop(ctx);
-                  },
-                  content: Row(
-                    children: [
-                      if (item.$1 != null)
-                        Container(
-                          width: 10,
-                          height: 10,
-                          margin: const EdgeInsets.only(right: 8),
-                          decoration: BoxDecoration(
-                            color: item.$3,
-                            shape: BoxShape.circle,
+        content: RadioGroup<LogLevel?>(
+          groupValue: _filterLevel,
+          onChanged: (value) {
+            setState(() => _filterLevel = value);
+            Navigator.pop(ctx);
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final item in [
+                (null, t.logFilterAllLabel, AppTheme.textPrimary),
+                (LogLevel.debug, 'DEBUG', const Color(0xFFB794F6)), // 淡紫色
+                (LogLevel.info, 'INFO', Colors.blue),
+                (LogLevel.warning, 'WARNING', Colors.orange),
+                (LogLevel.error, 'ERROR', Colors.red),
+              ])
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: RadioButton<LogLevel?>(
+                    value: item.$1,
+                    content: Row(
+                      children: [
+                        if (item.$1 != null)
+                          Container(
+                            width: 10,
+                            height: 10,
+                            margin: const EdgeInsets.only(right: 8),
+                            decoration: BoxDecoration(
+                              color: item.$3,
+                              shape: BoxShape.circle,
+                            ),
                           ),
-                        ),
-                      Text(item.$2),
-                    ],
+                        Text(item.$2),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
         actions: [
-          Button(onPressed: () => Navigator.pop(ctx), child: Text(t.logDialogClose)),
+          Button(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(t.logDialogClose)),
         ],
       ),
     );
@@ -1992,7 +2143,7 @@ class _LogPageState extends State<LogPage> {
     for (final log in logger.logs) {
       sourceCounts[log.source] = (sourceCounts[log.source] ?? 0) + 1;
     }
-    
+
     // 分类标签
     // App 类：应用程序逻辑
     const appTagNames = {'App', 'Update', 'PopupTest'};
@@ -2001,34 +2152,42 @@ class _LogPageState extends State<LogPage> {
     // 其余归为 Kernel 类（下载核心）
     final kernelTags = sourceCounts.keys
         .where((s) => !appTagNames.contains(s) && !systemTagNames.contains(s))
-        .toList()..sort();
+        .toList()
+      ..sort();
     final appTags = sourceCounts.keys
         .where((s) => appTagNames.contains(s))
-        .toList()..sort();
+        .toList()
+      ..sort();
     final systemTags = sourceCounts.keys
         .where((s) => systemTagNames.contains(s))
-        .toList()..sort();
-    
+        .toList()
+      ..sort();
+
     var tempFilterSource = _filterSource;
     var tempFilterTags = Set<String>.from(_filterTags);
     var kernelExpanded = false;
     var appExpanded = false;
     var systemExpanded = false;
-    
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           final isAll = tempFilterSource == null && tempFilterTags.isEmpty;
-          final isKernelAll = tempFilterSource == 'Kernel' && tempFilterTags.isEmpty;
+          final isKernelAll =
+              tempFilterSource == 'Kernel' && tempFilterTags.isEmpty;
           final isAppAll = tempFilterSource == 'App' && tempFilterTags.isEmpty;
-          final isSystemAll = tempFilterSource == 'System' && tempFilterTags.isEmpty;
-          
+          final isSystemAll =
+              tempFilterSource == 'System' && tempFilterTags.isEmpty;
+
           // 计算分类下选中的 tag 数
-          final kernelSelectedCount = tempFilterTags.where((t) => kernelTags.contains(t)).length;
-          final appSelectedCount = tempFilterTags.where((t) => appTags.contains(t)).length;
-          final systemSelectedCount = tempFilterTags.where((t) => systemTags.contains(t)).length;
-          
+          final kernelSelectedCount =
+              tempFilterTags.where((t) => kernelTags.contains(t)).length;
+          final appSelectedCount =
+              tempFilterTags.where((t) => appTags.contains(t)).length;
+          final systemSelectedCount =
+              tempFilterTags.where((t) => systemTags.contains(t)).length;
+
           Widget buildTagRow(String tag, int count) {
             final selected = tempFilterTags.contains(tag);
             return GestureDetector(
@@ -2043,12 +2202,13 @@ class _LogPageState extends State<LogPage> {
                 });
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 margin: const EdgeInsets.only(bottom: 2),
                 decoration: BoxDecoration(
-                  color: selected 
-                    ? AppTheme.accentPrimary.withValues(alpha: 0.15)
-                    : Colors.transparent,
+                  color: selected
+                      ? AppTheme.accentPrimary.withValues(alpha: 0.15)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                 ),
                 child: Row(
@@ -2068,20 +2228,25 @@ class _LogPageState extends State<LogPage> {
                     ),
                     const SizedBox(width: 6),
                     Expanded(
-                      child: Text(tag, style: TextStyle(
-                        fontSize: 13,
-                        color: selected ? AppTheme.accentLight : AppTheme.textPrimary,
-                      )),
+                      child: Text(tag,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: selected
+                                ? AppTheme.accentLight
+                                : AppTheme.textPrimary,
+                          )),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: AppTheme.bgLayer2.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         '$count',
-                        style: TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+                        style: TextStyle(
+                            fontSize: 11, color: AppTheme.textTertiary),
                       ),
                     ),
                   ],
@@ -2089,7 +2254,7 @@ class _LogPageState extends State<LogPage> {
               ),
             );
           }
-          
+
           Widget buildCategoryHeader({
             required String title,
             required String subtitle,
@@ -2106,17 +2271,20 @@ class _LogPageState extends State<LogPage> {
                 GestureDetector(
                   onTap: onToggleExpand,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
                       color: isAllSelected
-                        ? AppTheme.accentPrimary.withValues(alpha: 0.1)
-                        : Colors.transparent,
+                          ? AppTheme.accentPrimary.withValues(alpha: 0.1)
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                     ),
                     child: Row(
                       children: [
                         Icon(
-                          expanded ? FluentIcons.chevron_down : FluentIcons.chevron_right,
+                          expanded
+                              ? FluentIcons.chevron_down
+                              : FluentIcons.chevron_right,
                           size: 12,
                           color: AppTheme.textTertiary,
                         ),
@@ -2127,30 +2295,38 @@ class _LogPageState extends State<LogPage> {
                             children: [
                               Row(
                                 children: [
-                                  Text(title, style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
-                                    color: isAllSelected ? AppTheme.accentLight : AppTheme.textPrimary,
-                                  )),
+                                  Text(title,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                        color: isAllSelected
+                                            ? AppTheme.accentLight
+                                            : AppTheme.textPrimary,
+                                      )),
                                   const SizedBox(width: 6),
                                   if (selectedCount > 0 && !isAllSelected)
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 5, vertical: 1),
                                       decoration: BoxDecoration(
-                                        color: AppTheme.accentPrimary.withValues(alpha: 0.2),
+                                        color: AppTheme.accentPrimary
+                                            .withValues(alpha: 0.2),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
                                         '$selectedCount/$tagCount',
-                                        style: TextStyle(fontSize: 10, color: AppTheme.accentLight),
+                                        style: TextStyle(
+                                            fontSize: 10,
+                                            color: AppTheme.accentLight),
                                       ),
                                     ),
                                 ],
                               ),
-                              Text(subtitle, style: TextStyle(
-                                fontSize: 11,
-                                color: AppTheme.textTertiary,
-                              )),
+                              Text(subtitle,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppTheme.textTertiary,
+                                  )),
                             ],
                           ),
                         ),
@@ -2158,21 +2334,28 @@ class _LogPageState extends State<LogPage> {
                         GestureDetector(
                           onTap: onSelectAll,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: isAllSelected
-                                ? AppTheme.accentPrimary.withValues(alpha: 0.2)
-                                : AppTheme.bgLayer2.withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                                  ? AppTheme.accentPrimary
+                                      .withValues(alpha: 0.2)
+                                  : AppTheme.bgLayer2.withValues(alpha: 0.5),
+                              borderRadius:
+                                  BorderRadius.circular(AppTheme.radiusSm),
                               border: isAllSelected
-                                ? Border.all(color: AppTheme.accentPrimary.withValues(alpha: 0.3))
-                                : null,
+                                  ? Border.all(
+                                      color: AppTheme.accentPrimary
+                                          .withValues(alpha: 0.3))
+                                  : null,
                             ),
                             child: Text(
                               t.logFilterAllLabel,
                               style: TextStyle(
                                 fontSize: 11,
-                                color: isAllSelected ? AppTheme.accentLight : AppTheme.textSecondary,
+                                color: isAllSelected
+                                    ? AppTheme.accentLight
+                                    : AppTheme.textSecondary,
                               ),
                             ),
                           ),
@@ -2184,12 +2367,13 @@ class _LogPageState extends State<LogPage> {
               ],
             );
           }
-          
+
           return ContentDialog(
             title: Text(t.logSourceFilterTitle),
             content: ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 420, maxWidth: 340),
-              child: SingleChildScrollView(
+              child: SmoothSingleChildScrollView(
+                config: SmoothScrollConfig.fast,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2203,43 +2387,55 @@ class _LogPageState extends State<LogPage> {
                         });
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 8),
                         decoration: BoxDecoration(
                           color: isAll
-                            ? AppTheme.accentPrimary.withValues(alpha: 0.15)
-                            : Colors.transparent,
-                          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                              ? AppTheme.accentPrimary.withValues(alpha: 0.15)
+                              : Colors.transparent,
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.radiusSm),
                         ),
                         child: Row(
                           children: [
-                            RadioButton(
-                              checked: isAll,
+                            RadioGroup<bool>(
+                              groupValue: isAll,
                               onChanged: (_) {
                                 setDialogState(() {
                                   tempFilterSource = null;
                                   tempFilterTags.clear();
                                 });
                               },
+                              child: const RadioButton<bool>(value: true),
                             ),
                             const SizedBox(width: 8),
-                            Text(t.logFilterAllLabel, style: TextStyle(
-                              fontSize: 13,
-                              color: isAll ? AppTheme.accentLight : AppTheme.textPrimary,
-                            )),
+                            Text(t.logFilterAllLabel,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: isAll
+                                      ? AppTheme.accentLight
+                                      : AppTheme.textPrimary,
+                                )),
                             const Spacer(),
-                            Text(t.logSourceTotalCount(sourceCounts.values.fold<int>(0, (a, b) => a + b)),
-                              style: TextStyle(fontSize: 11, color: AppTheme.textTertiary)),
+                            Text(
+                                t.logSourceTotalCount(sourceCounts.values
+                                    .fold<int>(0, (a, b) => a + b)),
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppTheme.textTertiary)),
                           ],
                         ),
                       ),
                     ),
-                    
+
                     const SizedBox(height: 6),
-                    Divider(style: DividerThemeData(
-                      decoration: BoxDecoration(color: AppTheme.borderSubtle.withValues(alpha: 0.3)),
+                    Divider(
+                        style: DividerThemeData(
+                      decoration: BoxDecoration(
+                          color: AppTheme.borderSubtle.withValues(alpha: 0.3)),
                     )),
                     const SizedBox(height: 6),
-                    
+
                     // Kernel 分类
                     buildCategoryHeader(
                       title: t.logSourceCategoryKernel,
@@ -2248,7 +2444,8 @@ class _LogPageState extends State<LogPage> {
                       selectedCount: kernelSelectedCount,
                       expanded: kernelExpanded,
                       isAllSelected: isKernelAll,
-                      onToggleExpand: () => setDialogState(() => kernelExpanded = !kernelExpanded),
+                      onToggleExpand: () => setDialogState(
+                          () => kernelExpanded = !kernelExpanded),
                       onSelectAll: () {
                         setDialogState(() {
                           tempFilterSource = 'Kernel';
@@ -2268,13 +2465,15 @@ class _LogPageState extends State<LogPage> {
                           ],
                         ),
                       ),
-                    
+
                     const SizedBox(height: 6),
-                    Divider(style: DividerThemeData(
-                      decoration: BoxDecoration(color: AppTheme.borderSubtle.withValues(alpha: 0.3)),
+                    Divider(
+                        style: DividerThemeData(
+                      decoration: BoxDecoration(
+                          color: AppTheme.borderSubtle.withValues(alpha: 0.3)),
                     )),
                     const SizedBox(height: 6),
-                    
+
                     // App 分类
                     buildCategoryHeader(
                       title: t.logSourceCategoryApp,
@@ -2283,7 +2482,8 @@ class _LogPageState extends State<LogPage> {
                       selectedCount: appSelectedCount,
                       expanded: appExpanded,
                       isAllSelected: isAppAll,
-                      onToggleExpand: () => setDialogState(() => appExpanded = !appExpanded),
+                      onToggleExpand: () =>
+                          setDialogState(() => appExpanded = !appExpanded),
                       onSelectAll: () {
                         setDialogState(() {
                           tempFilterSource = 'App';
@@ -2302,15 +2502,17 @@ class _LogPageState extends State<LogPage> {
                           ],
                         ),
                       ),
-                    
+
                     // System 分类（仅在有系统标签时显示）
                     if (systemTags.isNotEmpty) ...[
                       const SizedBox(height: 6),
-                      Divider(style: DividerThemeData(
-                        decoration: BoxDecoration(color: AppTheme.borderSubtle.withValues(alpha: 0.3)),
+                      Divider(
+                          style: DividerThemeData(
+                        decoration: BoxDecoration(
+                            color:
+                                AppTheme.borderSubtle.withValues(alpha: 0.3)),
                       )),
                       const SizedBox(height: 6),
-                      
                       buildCategoryHeader(
                         title: t.logSourceCategorySystem,
                         subtitle: t.logSourceSystemSubtitle(systemTags.length),
@@ -2318,7 +2520,8 @@ class _LogPageState extends State<LogPage> {
                         selectedCount: systemSelectedCount,
                         expanded: systemExpanded,
                         isAllSelected: isSystemAll,
-                        onToggleExpand: () => setDialogState(() => systemExpanded = !systemExpanded),
+                        onToggleExpand: () => setDialogState(
+                            () => systemExpanded = !systemExpanded),
                         onSelectAll: () {
                           setDialogState(() {
                             tempFilterSource = 'System';
@@ -2367,7 +2570,7 @@ class _LogPageState extends State<LogPage> {
   void _showTimeRangeDialog(BuildContext context) {
     DateTime? tempStart = _startTime;
     DateTime? tempEnd = _endTime;
-    
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -2377,7 +2580,8 @@ class _LogPageState extends State<LogPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(t.logTimeRangeQuickSelectLabel, style: TextStyle(fontWeight: FontWeight.w600)),
+              Text(t.logTimeRangeQuickSelectLabel,
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
@@ -2410,8 +2614,10 @@ class _LogPageState extends State<LogPage> {
                         Text(t.logTimeRangeStartLabel),
                         const SizedBox(height: 4),
                         Text(
-                          tempStart?.toString().substring(0, 19) ?? t.logTimeRangeNotSet,
-                          style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                          tempStart?.toString().substring(0, 19) ??
+                              t.logTimeRangeNotSet,
+                          style: TextStyle(
+                              color: AppTheme.textSecondary, fontSize: 12),
                         ),
                       ],
                     ),
@@ -2423,8 +2629,10 @@ class _LogPageState extends State<LogPage> {
                         Text(t.logTimeRangeEndLabel),
                         const SizedBox(height: 4),
                         Text(
-                          tempEnd?.toString().substring(0, 19) ?? t.logTimeRangeNow,
-                          style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                          tempEnd?.toString().substring(0, 19) ??
+                              t.logTimeRangeNow,
+                          style: TextStyle(
+                              color: AppTheme.textSecondary, fontSize: 12),
                         ),
                       ],
                     ),
@@ -2436,7 +2644,10 @@ class _LogPageState extends State<LogPage> {
           actions: [
             Button(
               onPressed: () {
-                setDialogState(() { tempStart = null; tempEnd = null; });
+                setDialogState(() {
+                  tempStart = null;
+                  tempEnd = null;
+                });
               },
               child: Text(t.logDialogClear),
             ),
@@ -2465,7 +2676,8 @@ class _LogPageState extends State<LogPage> {
           content: SizedBox(
             width: 450,
             height: 400,
-            child: SingleChildScrollView(
+            child: SmoothSingleChildScrollView(
+              config: SmoothScrollConfig.fast,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2473,9 +2685,11 @@ class _LogPageState extends State<LogPage> {
                   // 内置规则
                   Row(
                     children: [
-                      Icon(FluentIcons.lightning_bolt, size: 14, color: AppTheme.accentLight),
+                      Icon(FluentIcons.lightning_bolt,
+                          size: 14, color: AppTheme.accentLight),
                       const SizedBox(width: 6),
-                      Text(t.logRulesBuiltinTitle, style: TextStyle(fontWeight: FontWeight.w600)),
+                      Text(t.logRulesBuiltinTitle,
+                          style: TextStyle(fontWeight: FontWeight.w600)),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -2483,7 +2697,8 @@ class _LogPageState extends State<LogPage> {
                     spacing: 6,
                     runSpacing: 6,
                     children: [
-                      for (final type in _HighlightType.values.where((t) => t != _HighlightType.custom))
+                      for (final type in _HighlightType.values
+                          .where((t) => t != _HighlightType.custom))
                         _buildBuiltinRuleChip(type, setDialogState),
                     ],
                   ),
@@ -2497,12 +2712,15 @@ class _LogPageState extends State<LogPage> {
                   // 自定义规则
                   Row(
                     children: [
-                      Icon(FluentIcons.code, size: 14, color: AppTheme.accentLight),
+                      Icon(FluentIcons.code,
+                          size: 14, color: AppTheme.accentLight),
                       const SizedBox(width: 6),
-                      Text(t.logRulesCustomTitle, style: TextStyle(fontWeight: FontWeight.w600)),
+                      Text(t.logRulesCustomTitle,
+                          style: TextStyle(fontWeight: FontWeight.w600)),
                       const Spacer(),
                       Button(
-                        onPressed: () => _showAddCustomRuleDialog(ctx, setDialogState),
+                        onPressed: () =>
+                            _showAddCustomRuleDialog(ctx, setDialogState),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -2525,7 +2743,8 @@ class _LogPageState extends State<LogPage> {
                       child: Center(
                         child: Text(
                           t.logRulesCustomEmpty,
-                          style: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
+                          style: TextStyle(
+                              color: AppTheme.textTertiary, fontSize: 12),
                         ),
                       ),
                     )
@@ -2536,8 +2755,11 @@ class _LogPageState extends State<LogPage> {
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: AppTheme.surfaceCard.withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                          border: Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.3)),
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.radiusMd),
+                          border: Border.all(
+                              color:
+                                  AppTheme.borderSubtle.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           children: [
@@ -2545,7 +2767,8 @@ class _LogPageState extends State<LogPage> {
                               checked: _customRules[i].enabled,
                               onChanged: (v) {
                                 setDialogState(() {
-                                  _customRules[i] = _customRules[i].copyWith(enabled: v);
+                                  _customRules[i] =
+                                      _customRules[i].copyWith(enabled: v);
                                 });
                                 setState(() {});
                                 _saveRegexRules();
@@ -2556,7 +2779,8 @@ class _LogPageState extends State<LogPage> {
                               width: 14,
                               height: 14,
                               decoration: BoxDecoration(
-                                color: _customRules[i].highlightColor ?? AppTheme.accentLight,
+                                color: _customRules[i].highlightColor ??
+                                    AppTheme.accentLight,
                                 borderRadius: BorderRadius.circular(3),
                               ),
                             ),
@@ -2567,7 +2791,9 @@ class _LogPageState extends State<LogPage> {
                                 children: [
                                   Text(
                                     _customRules[i].name,
-                                    style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 13),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
@@ -2583,7 +2809,8 @@ class _LogPageState extends State<LogPage> {
                               ),
                             ),
                             IconButton(
-                              icon: Icon(FluentIcons.delete, size: 14, color: AppTheme.statusError),
+                              icon: Icon(FluentIcons.delete,
+                                  size: 14, color: AppTheme.statusError),
                               onPressed: () {
                                 setDialogState(() {
                                   _customRules.removeAt(i);
@@ -2606,23 +2833,36 @@ class _LogPageState extends State<LogPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(t.logRulesLegendTitle, style: TextStyle(color: AppTheme.textTertiary, fontSize: 11)),
+                        Text(t.logRulesLegendTitle,
+                            style: TextStyle(
+                                color: AppTheme.textTertiary, fontSize: 11)),
                         const SizedBox(height: 6),
                         Wrap(
                           spacing: 12,
                           runSpacing: 4,
                           children: [
-                            _buildLegendItem(t.logRulesLegendUrl, const Color(0xFF60CDFF)),
-                            _buildLegendItem(t.logRulesLegendPath, const Color(0xFF89D185)),
-                            _buildLegendItem(t.logRulesLegendIp, const Color(0xFFDCDCAA)),
-                            _buildLegendItem(t.logRulesLegendNumber, const Color(0xFFB5CEA8)),
-                            _buildLegendItem(t.logRulesLegendError, const Color(0xFFFF6B6B)),
-                            _buildLegendItem(t.logRulesLegendSuccess, const Color(0xFF6CCB5F)),
-                            _buildLegendItem(t.logRulesLegendWarning, const Color(0xFFFFB900)),
-                            _buildLegendItem(t.logRulesLegendHttp, const Color(0xFF569CD6)),
-                            _buildLegendItem(t.logRulesLegendStep, const Color(0xFFD4A0FF)),
-                            _buildLegendItem(t.logRulesLegendPid, const Color(0xFF9CDCFE)),
-                            _buildLegendItem(t.logRulesLegendKeyValue, const Color(0xFFCE9178)),
+                            _buildLegendItem(
+                                t.logRulesLegendUrl, const Color(0xFF60CDFF)),
+                            _buildLegendItem(
+                                t.logRulesLegendPath, const Color(0xFF89D185)),
+                            _buildLegendItem(
+                                t.logRulesLegendIp, const Color(0xFFDCDCAA)),
+                            _buildLegendItem(t.logRulesLegendNumber,
+                                const Color(0xFFB5CEA8)),
+                            _buildLegendItem(
+                                t.logRulesLegendError, const Color(0xFFFF6B6B)),
+                            _buildLegendItem(t.logRulesLegendSuccess,
+                                const Color(0xFF6CCB5F)),
+                            _buildLegendItem(t.logRulesLegendWarning,
+                                const Color(0xFFFFB900)),
+                            _buildLegendItem(
+                                t.logRulesLegendHttp, const Color(0xFF569CD6)),
+                            _buildLegendItem(
+                                t.logRulesLegendStep, const Color(0xFFD4A0FF)),
+                            _buildLegendItem(
+                                t.logRulesLegendPid, const Color(0xFF9CDCFE)),
+                            _buildLegendItem(t.logRulesLegendKeyValue,
+                                const Color(0xFFCE9178)),
                           ],
                         ),
                       ],
@@ -2633,17 +2873,21 @@ class _LogPageState extends State<LogPage> {
             ),
           ),
           actions: [
-            Button(onPressed: () => Navigator.pop(ctx), child: Text(t.logDialogClose)),
+            Button(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(t.logDialogClose)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildBuiltinRuleChip(_HighlightType type, StateSetter setDialogState) {
-    final rule = _builtinRules.firstWhere((r) => r.type == type, orElse: () => _builtinRules.first);
+  Widget _buildBuiltinRuleChip(
+      _HighlightType type, StateSetter setDialogState) {
+    final rule = _builtinRules.firstWhere((r) => r.type == type,
+        orElse: () => _builtinRules.first);
     final enabled = _builtinRuleEnabled[type] ?? false;
-    
+
     return GestureDetector(
       onTap: () {
         setDialogState(() {
@@ -2656,10 +2900,14 @@ class _LogPageState extends State<LogPage> {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: enabled ? rule.color.withValues(alpha: 0.2) : AppTheme.bgLayer2.withValues(alpha: 0.5),
+          color: enabled
+              ? rule.color.withValues(alpha: 0.2)
+              : AppTheme.bgLayer2.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: enabled ? rule.color.withValues(alpha: 0.5) : AppTheme.borderSubtle.withValues(alpha: 0.3),
+            color: enabled
+                ? rule.color.withValues(alpha: 0.5)
+                : AppTheme.borderSubtle.withValues(alpha: 0.3),
           ),
         ),
         child: Row(
@@ -2701,16 +2949,18 @@ class _LogPageState extends State<LogPage> {
           ),
         ),
         const SizedBox(width: 4),
-        Text(label, style: TextStyle(color: AppTheme.textSecondary, fontSize: 10)),
+        Text(label,
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 10)),
       ],
     );
   }
 
-  void _showAddCustomRuleDialog(BuildContext parentCtx, StateSetter parentSetState) {
+  void _showAddCustomRuleDialog(
+      BuildContext parentCtx, StateSetter parentSetState) {
     final nameController = TextEditingController();
     final patternController = TextEditingController();
     Color selectedColor = AppTheme.accentLight;
-    
+
     final colors = [
       const Color(0xFF60CDFF),
       const Color(0xFF89D185),
@@ -2723,7 +2973,7 @@ class _LogPageState extends State<LogPage> {
       const Color(0xFFFFB900),
       const Color(0xFF569CD6),
     ];
-    
+
     showDialog(
       context: parentCtx,
       builder: (ctx) => StatefulBuilder(
@@ -2764,11 +3014,15 @@ class _LogPageState extends State<LogPage> {
                           color: color,
                           borderRadius: BorderRadius.circular(6),
                           border: selectedColor == color
-                            ? Border.all(color: Colors.white, width: 2)
-                            : null,
+                              ? Border.all(color: Colors.white, width: 2)
+                              : null,
                           boxShadow: selectedColor == color
-                            ? [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 8)]
-                            : null,
+                              ? [
+                                  BoxShadow(
+                                      color: color.withValues(alpha: 0.5),
+                                      blurRadius: 8)
+                                ]
+                              : null,
                         ),
                       ),
                     ),
@@ -2777,10 +3031,13 @@ class _LogPageState extends State<LogPage> {
             ],
           ),
           actions: [
-            Button(onPressed: () => Navigator.pop(ctx), child: Text(t.logDialogCancel)),
+            Button(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(t.logDialogCancel)),
             FilledButton(
               onPressed: () {
-                if (nameController.text.isNotEmpty && patternController.text.isNotEmpty) {
+                if (nameController.text.isNotEmpty &&
+                    patternController.text.isNotEmpty) {
                   // 验证正则表达式
                   try {
                     RegExp(patternController.text);
@@ -2802,7 +3059,9 @@ class _LogPageState extends State<LogPage> {
                         title: Text(t.logAddRuleInvalidTitle),
                         content: Text(t.logAddRuleInvalidMessage(e)),
                         actions: [
-                          Button(onPressed: () => Navigator.pop(c), child: Text(t.logDialogOk)),
+                          Button(
+                              onPressed: () => Navigator.pop(c),
+                              child: Text(t.logDialogOk)),
                         ],
                       ),
                     );
@@ -2875,7 +3134,9 @@ class _LogPageState extends State<LogPage> {
           ],
         ),
         actions: [
-          Button(onPressed: () => Navigator.pop(ctx), child: Text(t.logDialogCancel)),
+          Button(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(t.logDialogCancel)),
         ],
       ),
     );
@@ -2888,7 +3149,9 @@ class _LogPageState extends State<LogPage> {
         title: Text(t.logClearConfirmTitle),
         content: Text(t.logClearConfirmMessage),
         actions: [
-          Button(onPressed: () => Navigator.pop(ctx), child: Text(t.logDialogCancel)),
+          Button(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(t.logDialogCancel)),
           FilledButton(
             style: ButtonStyle(
               backgroundColor: WidgetStateProperty.all(AppTheme.statusError),
@@ -2910,9 +3173,12 @@ class _LogPageState extends State<LogPage> {
     final logger = context.read<AppLoggerService>();
     var logs = logger.logs;
 
-    if (_startTime != null) logs = logs.where((l) => l.timestamp.isAfter(_startTime!)).toList();
-    if (_endTime != null) logs = logs.where((l) => l.timestamp.isBefore(_endTime!)).toList();
-    if (_filterLevel != null) logs = logs.where((l) => l.level == _filterLevel).toList();
+    if (_startTime != null)
+      logs = logs.where((l) => l.timestamp.isAfter(_startTime!)).toList();
+    if (_endTime != null)
+      logs = logs.where((l) => l.timestamp.isBefore(_endTime!)).toList();
+    if (_filterLevel != null)
+      logs = logs.where((l) => l.level == _filterLevel).toList();
     if (_filterSource != null) {
       if (_filterSource == 'Kernel') {
         // Kernel 类别包含所有下载核心相关的来源
@@ -2924,7 +3190,10 @@ class _LogPageState extends State<LogPage> {
       }
     }
     if (_searchQuery.isNotEmpty) {
-      logs = logs.where((l) => l.message.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+      logs = logs
+          .where((l) =>
+              l.message.toLowerCase().contains(_searchQuery.toLowerCase()))
+          .toList();
     }
 
     await _doExport(context, logs, 'filtered');
@@ -2940,9 +3209,12 @@ class _LogPageState extends State<LogPage> {
     await _doExport(context, logs, 'bookmarked');
   }
 
-  Future<void> _doExport(BuildContext context, List<LogEntry> logs, String suffix) async {
+  Future<void> _doExport(
+      BuildContext context, List<LogEntry> logs, String suffix) async {
     String initialPath = 'C:\\';
-    try { initialPath = Directory.current.path; } catch (_) {}
+    try {
+      initialPath = Directory.current.path;
+    } catch (_) {}
 
     final selectedPath = await showDialog<String>(
       context: context,
@@ -2952,28 +3224,36 @@ class _LogPageState extends State<LogPage> {
 
     if (selectedPath != null && mounted) {
       try {
-        final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.').first;
+        final timestamp = DateTime.now()
+            .toIso8601String()
+            .replaceAll(':', '-')
+            .split('.')
+            .first;
         final file = File('$selectedPath\\log_${suffix}_$timestamp.txt');
-        
+
         final buffer = StringBuffer();
         buffer.writeln(t.logExportFileHeader(timestamp));
         buffer.writeln(t.logExportFileTotal(logs.length));
         buffer.writeln('');
-        
+
         for (var log in logs) {
-          buffer.writeln('[${log.formattedTime}] [${log.levelString}] [${log.source}] ${log.message}');
+          buffer.writeln(
+              '[${log.formattedTime}] [${log.levelString}] [${log.source}] ${log.message}');
         }
-        
+
         await file.writeAsString(buffer.toString());
-        
+
         if (mounted) {
           await showDialog(
             context: context,
             builder: (ctx) => ContentDialog(
               title: Text(t.logExportSuccessTitle),
-              content: Text(t.logExportSavedCountMessage(logs.length, file.path)),
+              content:
+                  Text(t.logExportSavedCountMessage(logs.length, file.path)),
               actions: [
-                Button(onPressed: () => Navigator.pop(ctx), child: Text(t.logDialogOk)),
+                Button(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: Text(t.logDialogOk)),
               ],
             ),
           );
@@ -2986,7 +3266,9 @@ class _LogPageState extends State<LogPage> {
               title: Text(t.logExportFailedTitle),
               content: Text(t.logExportErrorMessage(e)),
               actions: [
-                Button(onPressed: () => Navigator.pop(ctx), child: Text(t.logDialogOk)),
+                Button(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: Text(t.logDialogOk)),
               ],
             ),
           );
@@ -3037,7 +3319,7 @@ class _BuiltinHighlightRule {
   final String pattern;
   final Color color;
   final _HighlightType type;
-  
+
   const _BuiltinHighlightRule({
     required this.name,
     required this.pattern,

@@ -7,6 +7,7 @@ import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/fluent_icons.dart' as CustomIcons;
 import '../../widgets/animated_notifications.dart';
+import '../../widgets/smooth_scroll_wrapper.dart';
 
 /// 开发者设置页面 - Fluent 2 简约设计
 class DeveloperSettingsPage extends StatefulWidget {
@@ -20,7 +21,8 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
     with SingleTickerProviderStateMixin {
   late DeveloperModeService _devMode;
   final TextEditingController _customTitleController = TextEditingController();
-  final TextEditingController _customMessageController = TextEditingController();
+  final TextEditingController _customMessageController =
+      TextEditingController();
   late AnimationController _animController;
 
   AppLocalizations get _t => AppLocalizations.of(context)!;
@@ -79,7 +81,8 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
 
   Widget _buildContent() {
     final t = _t;
-    return SingleChildScrollView(
+    return SmoothSingleChildScrollView(
+      config: SmoothScrollConfig.fast,
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,10 +113,10 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
       child: Text(
         title,
         style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-          color: AppTheme.textSecondary,
-          fontSize: 13,
-          letterSpacing: 0.5,
-        ),
+              color: AppTheme.textSecondary,
+              fontSize: 13,
+              letterSpacing: 0.5,
+            ),
       ),
     );
   }
@@ -155,9 +158,9 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
                 Text(
                   t.settingsDeveloperModeTitle,
                   style: FluentTheme.of(context).typography.body?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
-                  ),
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary,
+                      ),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -165,8 +168,8 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
                       ? t.developerModeEnabledSubtitle
                       : t.developerModeDisabledSubtitle,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
+                        color: AppTheme.textSecondary,
+                      ),
                 ),
               ],
             ),
@@ -200,21 +203,24 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
         // 根据可用宽度决定列数：窄屏2列，宽屏3列
         final columns = constraints.maxWidth >= 680 ? 3 : 2;
         final spacing = 10.0;
-        final cardWidth = (constraints.maxWidth - spacing * (columns - 1)) / columns;
+        final cardWidth =
+            (constraints.maxWidth - spacing * (columns - 1)) / columns;
 
         return Wrap(
           spacing: spacing,
           runSpacing: spacing,
-          children: tools.map((tool) => SizedBox(
-            width: cardWidth,
-            child: _buildToolCard(
-              icon: tool.icon,
-              title: tool.title,
-              subtitle: tool.subtitle,
-              isEnabled: tool.isEnabled,
-              onChanged: tool.onChanged,
-            ),
-          )).toList(),
+          children: tools
+              .map((tool) => SizedBox(
+                    width: cardWidth,
+                    child: _buildToolCard(
+                      icon: tool.icon,
+                      title: tool.title,
+                      subtitle: tool.subtitle,
+                      isEnabled: tool.isEnabled,
+                      onChanged: tool.onChanged,
+                    ),
+                  ))
+              .toList(),
         );
       },
     );
@@ -233,7 +239,9 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
           if (mounted) {
             NotificationManager.of(context)?.showSuccess(
               v ? t.developerToolLogShownTitle : t.developerToolLogHiddenTitle,
-              message: v ? t.developerToolLogShownMessage : t.developerToolLogHiddenMessage,
+              message: v
+                  ? t.developerToolLogShownMessage
+                  : t.developerToolLogHiddenMessage,
             );
           }
         },
@@ -247,8 +255,12 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
           _devMode.setShowStatusPage(v);
           if (mounted) {
             NotificationManager.of(context)?.showSuccess(
-              v ? t.developerToolStatusShownTitle : t.developerToolStatusHiddenTitle,
-              message: v ? t.developerToolStatusShownMessage : t.developerToolStatusHiddenMessage,
+              v
+                  ? t.developerToolStatusShownTitle
+                  : t.developerToolStatusHiddenTitle,
+              message: v
+                  ? t.developerToolStatusShownMessage
+                  : t.developerToolStatusHiddenMessage,
             );
           }
         },
@@ -262,8 +274,12 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
           _devMode.setShowWebCheckPage(v);
           if (mounted) {
             NotificationManager.of(context)?.showSuccess(
-              v ? t.developerToolWebCheckShownTitle : t.developerToolWebCheckHiddenTitle,
-              message: v ? t.developerToolWebCheckShownMessage : t.developerToolWebCheckHiddenMessage,
+              v
+                  ? t.developerToolWebCheckShownTitle
+                  : t.developerToolWebCheckHiddenTitle,
+              message: v
+                  ? t.developerToolWebCheckShownMessage
+                  : t.developerToolWebCheckHiddenMessage,
             );
           }
         },
@@ -277,8 +293,12 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
           _devMode.setShowPerformanceMonitorPage(v);
           if (mounted) {
             NotificationManager.of(context)?.showSuccess(
-              v ? t.developerToolPerformanceShownTitle : t.developerToolPerformanceHiddenTitle,
-              message: v ? t.developerToolPerformanceShownMessage : t.developerToolPerformanceHiddenMessage,
+              v
+                  ? t.developerToolPerformanceShownTitle
+                  : t.developerToolPerformanceHiddenTitle,
+              message: v
+                  ? t.developerToolPerformanceShownMessage
+                  : t.developerToolPerformanceHiddenMessage,
             );
           }
         },
@@ -292,8 +312,12 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
           _devMode.setShowConnectionDebugPage(v);
           if (mounted) {
             NotificationManager.of(context)?.showSuccess(
-              v ? t.developerToolConnectionDebugShownTitle : t.developerToolConnectionDebugHiddenTitle,
-              message: v ? t.developerToolConnectionDebugShownMessage : t.developerToolConnectionDebugHiddenMessage,
+              v
+                  ? t.developerToolConnectionDebugShownTitle
+                  : t.developerToolConnectionDebugHiddenTitle,
+              message: v
+                  ? t.developerToolConnectionDebugShownMessage
+                  : t.developerToolConnectionDebugHiddenMessage,
             );
           }
         },
@@ -341,7 +365,9 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
                 child: Icon(
                   icon,
                   size: 17,
-                  color: isEnabled ? AppTheme.accentPrimary : AppTheme.textTertiary,
+                  color: isEnabled
+                      ? AppTheme.accentPrimary
+                      : AppTheme.textTertiary,
                 ),
               ),
               const SizedBox(width: 10),
@@ -352,19 +378,22 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
                     Text(
                       title,
                       style: FluentTheme.of(context).typography.body?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: isEnabled ? AppTheme.textPrimary : AppTheme.textSecondary,
-                        fontSize: 13,
-                      ),
+                            fontWeight: FontWeight.w500,
+                            color: isEnabled
+                                ? AppTheme.textPrimary
+                                : AppTheme.textSecondary,
+                            fontSize: 13,
+                          ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       subtitle,
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: AppTheme.textTertiary,
-                        fontSize: 11,
-                      ),
+                      style:
+                          FluentTheme.of(context).typography.caption?.copyWith(
+                                color: AppTheme.textTertiary,
+                                fontSize: 11,
+                              ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -423,9 +452,9 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
               Text(
                 t.developerTestNotificationTitle,
                 style: FluentTheme.of(context).typography.body?.copyWith(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 13,
-                ),
+                      fontWeight: FontWeight.w500,
+                      fontSize: 13,
+                    ),
               ),
             ],
           ),
@@ -543,9 +572,9 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
               Text(
                 t.developerTestPopupTitle,
                 style: FluentTheme.of(context).typography.body?.copyWith(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 13,
-                ),
+                      fontWeight: FontWeight.w500,
+                      fontSize: 13,
+                    ),
               ),
             ],
           ),
@@ -611,9 +640,9 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
           Text(
             t.developerTestPopupHint,
             style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: AppTheme.textTertiary,
-              fontSize: 11,
-            ),
+                  color: AppTheme.textTertiary,
+                  fontSize: 11,
+                ),
           ),
         ],
       ),
@@ -641,7 +670,8 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
           const SizedBox(width: 8),
           Text(
             success
-                ? t.developerTestPopupResultSuccess(_popupWindowTestResult!['time'])
+                ? t.developerTestPopupResultSuccess(
+                    _popupWindowTestResult!['time'])
                 : t.developerTestPopupResultFailed,
             style: TextStyle(
               color: success ? AppTheme.statusSuccess : AppTheme.statusError,
@@ -674,7 +704,8 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
       );
 
       stopwatch.stop();
-      appLogger.info('PopupTest', '弹窗窗口创建成功，耗时: ${stopwatch.elapsedMilliseconds}ms');
+      appLogger.info(
+          'PopupTest', '弹窗窗口创建成功，耗时: ${stopwatch.elapsedMilliseconds}ms');
 
       if (!mounted) return;
       setState(() {
@@ -718,7 +749,8 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
       );
 
       stopwatch.stop();
-      appLogger.info('PopupTest', 'Dialog 弹窗关闭，总耗时: ${stopwatch.elapsedMilliseconds}ms');
+      appLogger.info(
+          'PopupTest', 'Dialog 弹窗关闭，总耗时: ${stopwatch.elapsedMilliseconds}ms');
     } catch (e) {
       stopwatch.stop();
       appLogger.error('PopupTest', 'Dialog 弹窗失败: $e');
