@@ -113,7 +113,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
     return FadeTransition(
       opacity: _fadeAnimation,
       child: ContentDialog(
-        constraints: const BoxConstraints(maxWidth: 600),
+        constraints: const BoxConstraints(maxWidth: 520),
         style: ContentDialogThemeData(
           decoration: BoxDecoration(
             color: AppTheme.surfaceCard.withValues(alpha: 0.95),
@@ -140,7 +140,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
 
   Widget _buildHeader(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 12),
       decoration: const BoxDecoration(
         border: Border(
           bottom: BorderSide(
@@ -153,8 +153,8 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
         children: [
           // 图标容器
           Container(
-            width: 48,
-            height: 48,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -179,11 +179,11 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
             ),
             child: const Icon(
               FluentIcons.download,
-              size: 22,
+              size: 20,
               color: AppTheme.accentLight,
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           // 标题和描述
           Expanded(
             child: Column(
@@ -197,7 +197,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
                         color: AppTheme.textPrimary,
                       ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   t.addDownloadSubtitle,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
@@ -222,10 +222,10 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
             // URL 输入框
             _buildUrlInput(context),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
             // 自动解析的文件名提示
             if (_parsedFileName != null && _fileNameController.text.isEmpty)
               _buildParsedFileNameHint(context),
@@ -233,12 +233,9 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
             _buildAdvancedToggle(context),
             // 高级选项内容
             if (_showAdvanced) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               _buildFileNameInput(context),
             ],
-            const SizedBox(height: 20),
-            // 功能提示卡片
-            _buildFeatureCard(context),
           ],
         ),
       ),
@@ -302,8 +299,8 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
               child: TextBox(
                 controller: _urlController,
                 placeholder: t.addDownloadUrlPlaceholder,
-                maxLines: 3,
-                minLines: 2,
+                maxLines: 2,
+                minLines: 1,
                 style: FluentTheme.of(context).typography.body?.copyWith(
                       fontSize: 13,
                       height: 1.5,
@@ -318,7 +315,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
                     color: Colors.transparent,
                   ),
                 ),
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(12),
               ),
             ),
           ),
@@ -516,110 +513,13 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
     );
   }
 
-  Widget _buildFeatureCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppTheme.accentPrimary.withValues(alpha: 0.08),
-            AppTheme.accentLight.withValues(alpha: 0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.accentPrimary.withValues(alpha: 0.2),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: AppTheme.accentPrimary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Icon(
-                  FluentIcons.lightbulb,
-                  size: 12,
-                  color: AppTheme.accentLight,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                t.addDownloadFeatureTitle,
-                style: FluentTheme.of(context).typography.body?.copyWith(
-                      color: AppTheme.accentLight,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _buildFeatureItem(context, FluentIcons.split_object,
-              t.addDownloadFeature1Title, t.addDownloadFeature1Desc),
-          const SizedBox(height: 8),
-          _buildFeatureItem(context, FluentIcons.sync,
-              t.addDownloadFeature2Title, t.addDownloadFeature2Desc),
-          const SizedBox(height: 8),
-          _buildFeatureItem(context, FluentIcons.processing,
-              t.addDownloadFeature3Title, t.addDownloadFeature3Desc),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFeatureItem(
-      BuildContext context, IconData icon, String title, String description) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 14,
-          color: AppTheme.accentLight.withValues(alpha: 0.8),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: FluentTheme.of(context).typography.body?.copyWith(
-                      color: AppTheme.textPrimary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-              ),
-              Text(
-                description,
-                style: FluentTheme.of(context).typography.caption?.copyWith(
-                      color: AppTheme.textTertiary,
-                      fontSize: 11,
-                    ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   List<Widget> _buildActions(BuildContext context) {
     return [
       Button(
         onPressed: _isLoading ? null : () => Navigator.pop(context),
         style: ButtonStyle(
           padding: WidgetStateProperty.all(
-            const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
           ),
         ),
         child: Text(t.addDownloadCancelButton),
@@ -628,7 +528,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
         onPressed: _isLoading ? null : _handleSubmit,
         style: ButtonStyle(
           padding: WidgetStateProperty.all(
-            const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+            const EdgeInsets.symmetric(horizontal: 22, vertical: 9),
           ),
           backgroundColor: WidgetStateProperty.resolveWith((states) {
             if (states.isDisabled) {
