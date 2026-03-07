@@ -158,7 +158,6 @@
   "homeNavCompleted": "已完成",
   "homeNavLog": "日志",
   "homeNavStatus": "状态",
-  "homeNavWebCheck": "Web检测",
   "homeNavOnlineStats": "在线统计",
   "homeNavPerformance": "性能监控",
   "homeNavConnectionDebug": "连接调试",
@@ -379,16 +378,12 @@
   "settingsKernelNsfxTitle": "NSFX",
   "settingsKernelNsfxSubtitle": "切换到新内核",
   "settingsKernelNsfxHint": "NSFX Kernel: 高效 | 简洁 | 新思路",
-  "settingsKernelSodaHint": "旧内核用于兼容性",
   "settingsKernelSwitchedTitle": "内核已切换",
   "settingsKernelSwitchedMessage": "当前使用: {kernelName}",
-  "settingsKernelSwitchedLegacyMessage": "已切换到旧内核",
   "settingsKernelSwitchFailedTitle": "切换失败",
   "settingsKernelSwitchFailedNewMessage": "无法启动新内核，请稍后重试",
-  "settingsKernelSwitchFailedLegacyMessage": "无法启动旧内核，请稍后重试",
   "settingsStatusTitle": "系统状态",
   "settingsStatusKernelNsfx": "NSFX Kernel",
-  "settingsStatusKernelSoda": "Soda 内核（旧版）",
   "settingsStatusBrowserExtension": "Browser Extension",
   "settingsModeDescriptionAuto": "智能动态分段，根据文件大小自动优化 (推荐)",
   "settingsModeDescriptionThreadsOnly": "手动设置线程数，分段数自动计算",
@@ -410,8 +405,6 @@
   "settingsDeveloperShowStatusSubtitle": "在导航栏显示系统状态监控",
   "settingsDeveloperShowOnlineStatsTitle": "显示在线统计页面",
   "settingsDeveloperShowOnlineStatsSubtitle": "在导航栏显示在线用户统计",
-  "settingsDeveloperShowWebCheckTitle": "显示 Web 检测页面",
-  "settingsDeveloperShowWebCheckSubtitle": "在导航栏显示网站状态检测工具",
   "settingsDeveloperShowConnectionDebugTitle": "显示连接调试页面",
   "settingsDeveloperShowConnectionDebugSubtitle": "在导航栏显示连接诊断工具",
   "settingsDeveloperPageHint": "调试页面会占用系统资源，建议仅在需要时启用",
@@ -1223,145 +1216,15 @@
       "name": {}
     }
   },
-  "webCheckHeaderTitle": "Web 状态检测",
-  "webCheckInputTitle": "输入 URL",
-  "webCheckInputPlaceholder": "example.com 或 https://example.com",
-  "webCheckInputHint": "提示：可以直接输入域名，会自动添加 https:// 前缀",
-  "webCheckStartButton": "开始检测",
-  "webCheckChecking": "检测中...",
-  "webCheckErrorEmptyUrl": "请输入 URL",
-  "webCheckErrorUnsupportedKernel": "Web 检测功能暂不支持新版内核，请在设置中切换到旧版内核",
-  "webCheckErrorInvalidUrl": "URL 格式无效",
-  "webCheckErrorCheckFailed": "检测失败: {error}",
-  "@webCheckErrorCheckFailed": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "webCheckErrorLanUnsupportedKernel": "局域网扫描功能暂不支持新版内核，请在设置中切换到旧版内核",
-  "webCheckErrorScanFailed": "扫描失败: {error}",
-  "@webCheckErrorScanFailed": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "webCheckErrorCardTitle": "检测失败",
-  "webCheckDnsTime": "DNS: {ms}ms",
-  "@webCheckDnsTime": {
-    "placeholders": {
-      "ms": {}
-    }
-  },
-  "webCheckResponseTime": "响应: {ms}ms",
-  "@webCheckResponseTime": {
-    "placeholders": {
-      "ms": {}
-    }
-  },
-  "webCheckInfoHostname": "主机名",
-  "webCheckInfoIpAddress": "IP 地址",
-  "webCheckInfoPort": "端口",
-  "webCheckInfoProtocol": "协议",
-  "webCheckInfoFinalUrl": "最终 URL",
-  "webCheckInfoContentType": "Content-Type",
-  "webCheckInfoContentLength": "Content-Length",
-  "webCheckInfoServer": "Server",
-  "webCheckRedirectHistoryTitle": "重定向历史 ({count})",
-  "@webCheckRedirectHistoryTitle": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "webCheckRedirectFrom": "从: {url}",
-  "@webCheckRedirectFrom": {
-    "placeholders": {
-      "url": {}
-    }
-  },
-  "webCheckRedirectTo": "到: {url}",
-  "@webCheckRedirectTo": {
-    "placeholders": {
-      "url": {}
-    }
-  },
-  "webCheckHeadersTitle": "响应头",
-  "webCheckSslTitle": "SSL/TLS 信息",
-  "webCheckSslError": "SSL 错误: {error}",
-  "@webCheckSslError": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "webCheckSslVersion": "版本",
-  "webCheckSslCipher": "加密套件",
-  "webCheckSslSubject": "证书主体",
-  "webCheckSslIssuer": "证书颁发者",
-  "webCheckSslNotBefore": "有效期开始",
-  "webCheckSslNotAfter": "有效期结束",
-  "webCheckCookiesTitle": "Cookies ({count})",
-  "@webCheckCookiesTitle": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "webCheckCookieDomain": "Domain: {domain}",
-  "@webCheckCookieDomain": {
-    "placeholders": {
-      "domain": {}
-    }
-  },
-  "webCheckLanScanTitle": "局域网扫描",
-  "webCheckAutoScan": "自动扫描",
-  "webCheckLanScanSubtitle": "扫描当前局域网中的所有在线设备",
-  "webCheckScanning": "扫描中...",
-  "webCheckScanStart": "开始扫描",
-  "webCheckLanDevicesTitle": "发现 {count} 台设备",
-  "@webCheckLanDevicesTitle": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "webCheckLanNetworkLabel": "网段: {network}",
-  "@webCheckLanNetworkLabel": {
-    "placeholders": {
-      "network": {}
-    }
-  },
-  "webCheckLanLocalIpLabel": "本机 IP: {ip}",
-  "@webCheckLanLocalIpLabel": {
-    "placeholders": {
-      "ip": {}
-    }
-  },
-  "webCheckLanLocalBadge": "本机",
-  "webCheckStatusUnknown": "未知",
-  "webCheckStatusOk": "OK",
-  "webCheckStatusMovedPermanently": "永久重定向",
-  "webCheckStatusFound": "已找到",
-  "webCheckStatusNotModified": "未修改",
-  "webCheckStatusBadRequest": "错误请求",
-  "webCheckStatusUnauthorized": "未授权",
-  "webCheckStatusForbidden": "禁止访问",
-  "webCheckStatusNotFound": "未找到",
-  "webCheckStatusInternalServerError": "服务器内部错误",
-  "webCheckStatusBadGateway": "错误网关",
-  "webCheckStatusServiceUnavailable": "服务不可用",
-  "webCheckStatusWithCode": "状态 {code}",
-  "@webCheckStatusWithCode": {
-    "placeholders": {
-      "code": {}
-    }
-  },
   "statusPageTitle": "系统状态",
   "statusPageRefresh": "刷新",
   "statusPageTestApi": "测试 API",
   "statusPageClearLogs": "清空日志",
   "statusSectionKernel": "下载核心状态",
-  "statusItemKernelService": "核心服务",
+  "statusItemKernelRuntime": "内核运行时",
   "statusValueRunning": "运行中",
   "statusValueStopped": "已停止",
   "statusItemKernelCurrent": "当前内核",
-  "statusKernelLegacyName": "旧版内核",
   "statusItemHttpService": "HTTP 服务",
   "statusValueHealthy": "正常",
   "statusValueBuiltIn": "内置",
@@ -1960,8 +1823,6 @@
   },
   "completedBatchRenameButton": "批量重命名",
   "completedBatchMoveButton": "批量移动",
-  "completedBatchMoveUnavailableTitle": "批量移动不可用",
-  "completedBatchMoveUnavailableMessage": "旧内核暂不支持批量移动",
   "completedBatchMoveSuccessTitle": "批量移动完成",
   "completedBatchMoveSuccessMessage": "已移动 {count} 个文件",
   "@completedBatchMoveSuccessMessage": {
@@ -1976,8 +1837,6 @@
       "failed": {}
     }
   },
-  "completedBatchRenameUnavailableTitle": "批量重命名不可用",
-  "completedBatchRenameUnavailableMessage": "旧内核暂不支持批量重命名",
   "completedBatchRenameTitle": "批量重命名",
   "completedBatchRenameHint": "将前缀/后缀应用到当前列表中的文件名",
   "completedBatchRenamePrefixLabel": "前缀",

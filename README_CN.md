@@ -19,11 +19,11 @@
 
 ## 项目简介
 
-Hanabi Download Manager X 是一个基于 Flutter 开发的跨平台下载管理器，支持双内核架构（NSFX 和 Soda），提供多线程并发下载、断点续传等功能。
+Hanabi Download Manager X 是一个基于 Flutter 开发的跨平台下载管理器，现已完全切换到 NSFX 下载内核，提供多线程并发下载、断点续传等功能。
 
 ### 技术栈迁移
 
-从 Python + Flet 架构迁移至 Flutter，提升了跨平台兼容性和用户体验。
+从 Python + Flet 架构迁移至 Flutter，提升了跨平台兼容性和用户体验；旧版 Python 下载内核现已彻底移除。
 
 ---
 
@@ -34,9 +34,8 @@ Hanabi Download Manager X 是一个基于 Flutter 开发的跨平台下载管理
 - Fluent Design - 现代化设计语言
 - 响应式布局 - 适配多种屏幕尺寸
 
-### 双内核架构
+### NSFX 架构
 - **NSFX (Next Speed Force X)** - 新一代高性能下载内核 (v2.2.0)
-- **Soda Download Kernel** - 稳定的 Python 下载内核 (v1.5.9)
 - HTTP Range 支持 - 实现断点续传
 - 动态分段算法 - 优化下载效率
 
@@ -70,7 +69,6 @@ Hanabi Download Manager X 是一个基于 Flutter 开发的跨平台下载管理
 ### 系统要求
 
 - Flutter SDK 3.0.0+
-- Python 3.12.6+
 - Windows 10/11
 
 ### 开发环境配置
@@ -122,79 +120,29 @@ flutter build windows --release
 
 ## 架构设计
 
-### 整体架构图
+### 整体架构
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         用户界面层 (UI Layer)                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │  HomeScreen  │  │ SettingsPage │  │  LogViewer   │          │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘          │
-└─────────┼──────────────────┼──────────────────┼─────────────────┘
-          │                  │                  │
-┌─────────┼──────────────────┼──────────────────┼─────────────────┐
-│         │         服务层 (Service Layer)       │                 │
-│  ┌──────▼──────────────────▼──────────────────▼─────────┐       │
-│  │         IntegratedDownloadService (统一下载服务)       │       │
-│  │  - 任务管理  - 状态同步  - 进度追踪  - 错误处理        │       │
-│  └──────┬────────────────────────────────────┬──────────┘       │
-│         │                                    │                  │
-│  ┌──────▼──────────┐              ┌─────────▼──────────┐        │
-│  │  KernelService  │              │  KernelManager     │        │
-│  │  (Legacy Soda)  │              │  (双内核管理器)     │        │
-│  └──────┬──────────┘              └─────────┬──────────┘        │
-│         │                                    │                  │
-│         │                         ┌──────────┴──────────┐       │
-│         │                         │                     │       │
-│         │                  ┌──────▼──────┐      ┌──────▼──────┐│
-│         │                  │ SodaKernel  │      │ NsfxKernel  ││
-│         │                  │  (Legacy)   │      │   (Next)    ││
-│         │                  └─────────────┘      └─────────────┘│
-│         │                                                       │
-│  ┌──────┴───────────────────────────────────────────────┐      │
-│  │              辅助服务 (Helper Services)               │      │
-│  │  • NetworkStatusService    • SystemTrayService       │      │
-│  │  • UpdateService           • WindowEffectService     │      │
-│  │  • PipeListenerService     • PopupProgressService    │      │
-│  │  • NotificationSettings    • LocalizationService     │      │
-│  └───────────────────────────────────────────────────────┘      │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-┌─────────────────────────────┼─────────────────────────────────┐
-│                    内核层 (Kernel Layer)                       │
-│  ┌──────────────────────────▼──────────────────────────┐      │
-│  │         Soda Download Kernel (Python)               │      │
-│  │         soda_bridge_server.py (HTTP API)            │      │
-│  │  • HTTP/HTTPS 协议  • 多线程下载  • 断点续传         │      │
-│  │  • 动态分段算法      • 智能重试    • 速度控制         │      │
-│  └─────────────────────────────────────────────────────┘      │
-│  ┌──────────────────────────────────────────────────────┐     │
-│  │         NSFX Kernel (Next Generation)               │      │
-│  │         WebSocket + HTTP API                        │      │
-│  │  • 实时进度推送      • 更高性能    • 更低延迟         │      │
-│  │  • 智能分段优化      • 内存优化    • 并发控制         │      │
-│  └──────────────────────────┬──────────────────────────┘      │
-└─────────────────────────────┼─────────────────────────────────┘
-                              │
-                    ┌─────────▼─────────┐
-                    │   网络层 (Network) │
-                    │   HTTP/HTTPS      │
-                    └───────────────────┘
+UI 层 (Flutter)
+    ↓
+IntegratedDownloadService
+    ↓
+KernelManager (NSFX 运行时管理)
+    ↓
+HTTP + WebSocket API (127.0.0.1:9710)
+    ↓
+网络层 (HTTP/HTTPS)
 ```
 
-### 服务层架构
+### 核心组件
 
-#### 核心服务
+| 组件 | 职责 |
+|------|------|
+| `IntegratedDownloadService` | 统一下载任务管理、状态同步、进度追踪 |
+| `KernelManager` | NSFX 生命周期管理、接口转发、事件流订阅 |
+| `NsfxKernel` | 下载引擎、动态分段、实时进度推送 |
 
-| 服务 | 职责 | 依赖 |
-|------|------|------|
-| `IntegratedDownloadService` | 统一下载任务管理、状态同步、进度追踪 | KernelService, KernelManager |
-| `KernelService` | Legacy Soda 内核管理 (Python) | - |
-| `KernelManager` | 双内核管理器，支持动态切换 | SodaKernel, NsfxKernel |
-| `SodaKernel` | Soda 内核接口实现 | - |
-| `NsfxKernel` | NSFX 内核接口实现 | - |
-
-#### 辅助服务
+### 辅助服务
 
 | 服务 | 职责 |
 |------|------|
@@ -209,197 +157,39 @@ flutter build windows --release
 | `AppLoggerService` | 日志记录 |
 | `ClientConfigService` | 配置管理 |
 
-### 数据流
-
-```
-用户操作 → UI 组件 → IntegratedDownloadService
-                              ↓
-                    读取配置 (kernel.use_new_kernel)
-                              ↓
-              ┌───────────────┴───────────────┐
-              ↓                               ↓
-      KernelManager                   KernelService (Legacy)
-      (NsfxKernel/SodaKernel)                ↓
-              ↓                          HTTP API (9710)
-         WebSocket + HTTP API                ↓
-              ↓                          Python 内核
-         实时进度推送                         ↓
-              ↓                          轮询更新
-              ↓                               ↓
-         进度回调 ←──────────────────────────┘
-              ↓
-    IntegratedDownloadService (状态更新)
-              ↓
-         UI 更新 (进度条、速度、状态)
-```
-
 ---
 
 ## 内核协议
 
-### 双内核架构说明
+Hanabi 现仅保留 NSFX 下载内核，本地服务默认监听 `127.0.0.1:9710`。
 
-Hanabi 支持两种下载内核，可在设置中动态切换：
+### REST API
 
-1. **Soda Download Kernel (Legacy)** - Python 实现，稳定可靠
-2. **NSFX Kernel (Next Generation)** - 新一代内核，性能更优
+- `POST /download/add` - 添加下载任务
+- `POST /download/pause` - 暂停任务
+- `POST /download/resume` - 恢复任务
+- `POST /download/cancel` - 取消任务
+- `GET /download/tasks` - 获取任务列表
+- `GET /download/statistics` - 获取运行统计
+- `GET /settings/download-config` - 获取下载配置
+- `POST /settings/download-config` - 更新下载配置
+- `GET /health` - 健康检查
 
-两种内核都通过 **HTTP REST API** 进行通信，NSFX 额外支持 **WebSocket** 实时推送。
+### WebSocket
 
-### Soda 内核通信协议 (端口 9710)
-
-#### 1. REST API 端点
-
-所有内核共享相同的 API 接口设计，确保无缝切换。
-
-##### 1.1 添加下载任务
-
-```http
-POST /download/add
-Content-Type: application/json
-
-{
-  "url": "https://example.com/file.zip",
-  "filename": "file.zip",
-  "save_path": "C:/Downloads",
-  "threads": 8,
-  "headers": {
-    "User-Agent": "Hanabi/1.0"
-  }
-}
-```
-
-响应：
-```json
-{
-  "success": true,
-  "data": {
-    "id": "uuid-string"
-  }
-}
-```
-
-##### 1.2 暂停/恢复/取消任务
-
-```http
-POST /download/pause
-POST /download/resume
-POST /download/cancel
-Content-Type: application/json
-
-{
-  "id": "task-id"
-}
-```
-
-##### 1.3 获取任务列表
-
-```http
-GET /download/tasks
-```
-
-响应：
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "uuid-string",
-      "url": "https://example.com/file.zip",
-      "filename": "file.zip",
-      "filepath": "C:/Downloads/file.zip",
-      "status": "downloading",
-      "progress": 45.5,
-      "speed": 1048576,
-      "downloadedSize": 47185920,
-      "totalSize": 104857600,
-      "threadCount": 8,
-      "segments": [...]
-    }
-  ]
-}
-```
-
-##### 1.4 配置管理
-
-```http
-GET /settings/download-config
-POST /settings/download-config
-Content-Type: application/json
-
-{
-  "threads": 8,
-  "segments": 8,
-  "mode": "auto",
-  "max_concurrent_tasks": 3,
-  "segment_speed_limit": 0,
-  "enable_dynamic_segments": true,
-  "proxy": {
-    "enabled": false,
-    "type": "http",
-    "host": "",
-    "port": 8080
-  }
-}
-```
-
-#### 2. NSFX 内核特性 (WebSocket 推送)
-
-NSFX 内核在 Soda 基础上增加了 WebSocket 实时推送功能：
+NSFX 使用 WebSocket 推送实时进度：
 
 ```
-连接地址：ws://localhost:9710/ws/progress
+ws://127.0.0.1:9710/ws/progress
 ```
 
-推送消息格式：
-```json
-{
-  "type": "progress",
-  "task": {
-    "id": "uuid-string",
-    "progress": 45.5,
-    "speed": 1048576,
-    "downloadedSize": 47185920,
-    "totalSize": 104857600
-  }
-}
-```
-
-#### 3. 内核启动流程
-
-##### Soda 内核 (Legacy)
-
-1. 检查 Python 环境
-2. 启动 `soda_bridge_server.py` (开发模式) 或 `soda_bridge_server.exe` (生产模式)
-3. 监听端口 9710
-4. 健康检查：`GET /health`
-
-##### NSFX 内核 (Next)
-
-1. 通过 KernelManager 启动
-2. 建立 WebSocket 连接
-3. 订阅进度和完成事件流
-4. 实时推送更新到 UI
-
-#### 4. 断点续传机制
-
-两种内核都使用 HTTP Range 请求实现断点续传：
-
-1. **HEAD 请求**获取文件大小和是否支持 Range
-2. **动态分段**：根据文件大小和线程数计算分段
-3. **并发下载**：每个分段独立下载
-4. **进度持久化**：保存到本地数据库
-5. **智能重试**：失败分段自动重试
-6. **文件合并**：所有分段完成后合并
-
-#### 5. 配置文件
+### 配置文件
 
 客户端配置位于 `AppData/Roaming/hanabi_download_managerx/config.json`：
 
 ```json
 {
   "kernel": {
-    "use_new_kernel": true,
     "threads": 8,
     "max_concurrent_tasks": 3
   },

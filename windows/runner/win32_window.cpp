@@ -4,7 +4,6 @@
 #include <cstdio>
 #include <flutter_windows.h>
 #include <windowsx.h>
-#include <tlhelp32.h>
 
 #include "resource.h"
 
@@ -271,55 +270,7 @@ Win32Window::MessageHandler(HWND hwnd,
                             LPARAM const lparam) noexcept {
   switch (message) {
     case WM_CLOSE:
-      // Clean up kernel processes before closing
-      OutputDebugStringA("=== WM_CLOSE: Cleaning up kernel processes ===");
-      {
-        HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-        if (snapshot != INVALID_HANDLE_VALUE) {
-          PROCESSENTRY32W pe32;
-          pe32.dwSize = sizeof(PROCESSENTRY32W);
-          
-          if (Process32FirstW(snapshot, &pe32)) {
-            do {
-              // Kill soda_kernel.exe
-              if (_wcsicmp(pe32.szExeFile, L"soda_kernel.exe") == 0) {
-                HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, pe32.th32ProcessID);
-                if (hProcess) {
-                  TerminateProcess(hProcess, 0);
-                  CloseHandle(hProcess);
-                  OutputDebugStringA("Killed soda_kernel.exe");
-                }
-              }
-              // Kill python.exe (our kernel server)
-              else if (_wcsicmp(pe32.szExeFile, L"python.exe") == 0) {
-                HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, pe32.th32ProcessID);
-                if (hProcess) {
-                  TerminateProcess(hProcess, 0);
-                  CloseHandle(hProcess);
-                  OutputDebugStringA("Killed python.exe");
-                }
-              }
-            } while (Process32NextW(snapshot, &pe32));
-          }
-          CloseHandle(snapshot);
-        }
-        
-        // Also run taskkill to ensure port 9710 is freed
-        STARTUPINFOA si = {sizeof(si)};
-        PROCESS_INFORMATION pi;
-        si.dwFlags = STARTF_USESHOWWINDOW;
-        si.wShowWindow = SW_HIDE;
-        
-        // Kill any process on port 9710
-        char cmdLine[] = "cmd.exe /c for /f \"tokens=5\" %a in ('netstat -ano ^| findstr :9710 ^| findstr LISTENING') do taskkill /F /PID %a >nul 2>&1";
-        CreateProcessA(NULL, cmdLine, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
-        if (pi.hProcess) {
-          WaitForSingleObject(pi.hProcess, 1000);
-          CloseHandle(pi.hProcess);
-          CloseHandle(pi.hThread);
-        }
-      }
-      OutputDebugStringA("=== Kernel cleanup complete ===");
+      OutputDebugStringA("=== WM_CLOSE ===");
       break;
       
     case WM_DESTROY:

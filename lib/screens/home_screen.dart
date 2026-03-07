@@ -4,12 +4,15 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import '../main.dart'
-    show isWindowMaximized, maximizeWindowProperly, restoreWindowProperly;
+    show
+        isWindowMaximized,
+        maximizeWindowProperly,
+        restoreWindowProperly,
+        systemTrayService;
 import '../utils/fluent_icons.dart' as CustomIcons;
 import '../services/integrated_download_service.dart';
 import '../services/developer_mode_service.dart';
 import '../services/app_logger_service.dart';
-import '../services/kernel_service.dart';
 import '../services/kernel/kernel_manager.dart';
 import '../services/window_effect_service.dart';
 import '../services/client_config_service.dart';
@@ -17,7 +20,6 @@ import '../services/update_service.dart';
 import '../services/performance_monitor_service.dart';
 import '../models/download_task.dart';
 import '../theme/app_theme.dart';
-import '../main.dart';
 import '../widgets/animated_notifications.dart';
 import '../widgets/smooth_scroll_wrapper.dart';
 import '../l10n/app_localizations.dart';
@@ -28,7 +30,6 @@ import 'widgets/settings_page.dart';
 import 'widgets/about_page.dart';
 import 'widgets/debug/log_page.dart';
 import 'widgets/debug/status_page.dart';
-import 'widgets/debug/web_check_page.dart';
 import 'widgets/debug/connection_debug_page.dart';
 import 'widgets/performance_monitor_page.dart';
 import 'widgets/update_dialog.dart';
@@ -60,7 +61,6 @@ class _HomeScreenState extends State<HomeScreen>
   static const String _pageCompleted = 'completed';
   static const String _pageLog = 'log';
   static const String _pageStatus = 'status';
-  static const String _pageWebCheck = 'web_check';
   static const String _pagePerformance = 'performance';
   static const String _pageConnectionDebug = 'connection_debug';
   static const String _pageSettings = 'settings';
@@ -69,7 +69,6 @@ class _HomeScreenState extends State<HomeScreen>
   static const Set<String> _debugPageIds = {
     _pageLog,
     _pageStatus,
-    _pageWebCheck,
     _pagePerformance,
     _pageConnectionDebug,
     _pageSettings,
@@ -79,7 +78,6 @@ class _HomeScreenState extends State<HomeScreen>
   static const Set<String> _bottomPageIds = {
     _pageLog,
     _pageStatus,
-    _pageWebCheck,
     _pagePerformance,
     _pageConnectionDebug,
     _pageSettings,
@@ -108,8 +106,6 @@ class _HomeScreenState extends State<HomeScreen>
         context.select<DeveloperModeService, bool>((s) => s.showLogPage);
     final showStatusPage =
         context.select<DeveloperModeService, bool>((s) => s.showStatusPage);
-    final showWebCheckPage =
-        context.select<DeveloperModeService, bool>((s) => s.showWebCheckPage);
     final showPerformanceMonitorPage =
         context.select<DeveloperModeService, bool>(
             (s) => s.showPerformanceMonitorPage);
@@ -148,15 +144,6 @@ class _HomeScreenState extends State<HomeScreen>
         icon: CustomIcons.FluentIcons.health,
         title: t.homeNavStatus,
         body: const StatusPage(key: ValueKey('status_page')),
-      ));
-    }
-
-    if (showWebCheckPage) {
-      bottomItems.add(NavigationItem(
-        id: _pageWebCheck,
-        icon: CustomIcons.FluentIcons.globe,
-        title: t.homeNavWebCheck,
-        body: const WebCheckPage(key: ValueKey('web_check_page')),
       ));
     }
 
@@ -437,10 +424,6 @@ class _HomeScreenState extends State<HomeScreen>
     }
 
     final navItems = _getNavItems(context);
-    // 优化：合并多个 select 为一个 tuple，减少独立订阅数量
-    // 每个 select 都是一个独立的监听器，多个 select 可能导致同一帧内多次重建
-    final kernelIsRunning =
-        context.select<KernelService, bool>((s) => s.isRunning);
     final kernelManagerIsRunning =
         context.select<KernelManager, bool>((s) => s.isRunning);
 
@@ -492,8 +475,8 @@ class _HomeScreenState extends State<HomeScreen>
                 _buildEdgeSidebar(context, navItems, sidebarOpacity),
                 // 右侧：内容区（左上角圆角，覆盖在 shell 背景上）
                 Expanded(
-                  child: _buildContentArea(context, isTransparent,
-                      kernelIsRunning, kernelManagerIsRunning, navItems),
+                  child: _buildContentArea(
+                      context, isTransparent, kernelManagerIsRunning, navItems),
                 ),
               ],
             ),
@@ -523,12 +506,8 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   /// 内容区域 - 根据窗口效果设置决定是否使用模糊
-  Widget _buildContentArea(
-      BuildContext context,
-      bool isTransparent,
-      bool kernelIsRunning,
-      bool kernelManagerIsRunning,
-      List<NavigationItem> navItems) {
+  Widget _buildContentArea(BuildContext context, bool isTransparent,
+      bool kernelManagerIsRunning, List<NavigationItem> navItems) {
     // 优化：使用 read 而非 select，因为 build() 中已经 select 了这些值
     // 这里只需要读取当前值，不需要再次订阅监听
     final effectService = context.read<WindowEffectService>();
@@ -547,8 +526,7 @@ class _HomeScreenState extends State<HomeScreen>
         ),
       ),
       clipBehavior: Clip.hardEdge,
-      child:
-          _buildPageContent(kernelIsRunning, kernelManagerIsRunning, navItems),
+      child: _buildPageContent(kernelManagerIsRunning, navItems),
     );
 
     // 优化：移除内容区独立的 BackdropFilter，由外层 shell 统一处理模糊
@@ -708,10 +686,9 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildPageContent(bool kernelIsRunning, bool kernelManagerIsRunning,
-      List<NavigationItem> navItems) {
-    // 检查新内核或旧内核是否在运行
-    final isKernelRunning = kernelManagerIsRunning || kernelIsRunning;
+  Widget _buildPageContent(
+      bool kernelManagerIsRunning, List<NavigationItem> navItems) {
+    final isKernelRunning = kernelManagerIsRunning;
 
     // 如果内核正在运行，或者当前页面是调试页面（日志、状态、Web检测、在线统计、性能监控），直接显示页面
     final currentPageId = navItems[_currentIndex].id;
@@ -746,23 +723,10 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildLoadingIndicator() {
-    return Consumer2<KernelService, KernelManager>(
-      builder: (context, kernelService, kernelManager, child) {
-        // 优先使用新内核的状态
-        final useNewKernel = context
-            .read<ClientConfigService>()
-            .getBool('kernel.use_new_kernel', defaultValue: true);
-
-        double progress;
-        String status;
-
-        if (useNewKernel) {
-          progress = kernelManager.startupProgress;
-          status = kernelManager.startupStatus;
-        } else {
-          progress = kernelService.startupProgress;
-          status = kernelService.startupStatus;
-        }
+    return Consumer<KernelManager>(
+      builder: (context, kernelManager, child) {
+        final progress = kernelManager.startupProgress;
+        final status = kernelManager.startupStatus;
 
         final percentage = (progress * 100).toInt();
 
@@ -889,24 +853,10 @@ class _HomeScreenState extends State<HomeScreen>
                       FilledButton(
                         onPressed: () async {
                           // 重试启动
-                          final config = Provider.of<ClientConfigService>(
+                          final kernelManager = Provider.of<KernelManager>(
                               context,
                               listen: false);
-                          final useNewKernel = config.getBool(
-                              'kernel.use_new_kernel',
-                              defaultValue: true);
-
-                          if (useNewKernel) {
-                            final kernelManager = Provider.of<KernelManager>(
-                                context,
-                                listen: false);
-                            await kernelManager.start(type: KernelType.next);
-                          } else {
-                            final kernelService = Provider.of<KernelService>(
-                                context,
-                                listen: false);
-                            await kernelService.startKernel();
-                          }
+                          await kernelManager.start();
                         },
                         child: Row(
                           mainAxisSize: MainAxisSize.min,

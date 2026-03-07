@@ -283,9 +283,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get homeNavStatus => '状态';
 
   @override
-  String get homeNavWebCheck => 'Web检测';
-
-  @override
   String get homeNavOnlineStats => '在线统计';
 
   @override
@@ -859,9 +856,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsKernelNsfxHint => 'NSFX Kernel: 高效 | 简洁 | 新思路';
 
   @override
-  String get settingsKernelSodaHint => '旧内核用于兼容性';
-
-  @override
   String get settingsKernelSwitchedTitle => '内核已切换';
 
   @override
@@ -870,25 +864,16 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get settingsKernelSwitchedLegacyMessage => '已切换到旧内核';
-
-  @override
   String get settingsKernelSwitchFailedTitle => '切换失败';
 
   @override
   String get settingsKernelSwitchFailedNewMessage => '无法启动新内核，请稍后重试';
 
   @override
-  String get settingsKernelSwitchFailedLegacyMessage => '无法启动旧内核，请稍后重试';
-
-  @override
   String get settingsStatusTitle => '系统状态';
 
   @override
   String get settingsStatusKernelNsfx => 'NSFX Kernel';
-
-  @override
-  String get settingsStatusKernelSoda => 'Soda 内核（旧版）';
 
   @override
   String get settingsStatusBrowserExtension => 'Browser Extension';
@@ -952,12 +937,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsDeveloperShowOnlineStatsSubtitle => '在导航栏显示在线用户统计';
-
-  @override
-  String get settingsDeveloperShowWebCheckTitle => '显示 Web 检测页面';
-
-  @override
-  String get settingsDeveloperShowWebCheckSubtitle => '在导航栏显示网站状态检测工具';
 
   @override
   String get settingsDeveloperShowConnectionDebugTitle => '显示连接调试页面';
@@ -2644,212 +2623,6 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get webCheckHeaderTitle => 'Web 状态检测';
-
-  @override
-  String get webCheckInputTitle => '输入 URL';
-
-  @override
-  String get webCheckInputPlaceholder => 'example.com 或 https://example.com';
-
-  @override
-  String get webCheckInputHint => '提示：可以直接输入域名，会自动添加 https:// 前缀';
-
-  @override
-  String get webCheckStartButton => '开始检测';
-
-  @override
-  String get webCheckChecking => '检测中...';
-
-  @override
-  String get webCheckErrorEmptyUrl => '请输入 URL';
-
-  @override
-  String get webCheckErrorUnsupportedKernel => 'Web 检测功能暂不支持新版内核，请在设置中切换到旧版内核';
-
-  @override
-  String get webCheckErrorInvalidUrl => 'URL 格式无效';
-
-  @override
-  String webCheckErrorCheckFailed(Object error) {
-    return '检测失败: $error';
-  }
-
-  @override
-  String get webCheckErrorLanUnsupportedKernel =>
-      '局域网扫描功能暂不支持新版内核，请在设置中切换到旧版内核';
-
-  @override
-  String webCheckErrorScanFailed(Object error) {
-    return '扫描失败: $error';
-  }
-
-  @override
-  String get webCheckErrorCardTitle => '检测失败';
-
-  @override
-  String webCheckDnsTime(Object ms) {
-    return 'DNS: ${ms}ms';
-  }
-
-  @override
-  String webCheckResponseTime(Object ms) {
-    return '响应: ${ms}ms';
-  }
-
-  @override
-  String get webCheckInfoHostname => '主机名';
-
-  @override
-  String get webCheckInfoIpAddress => 'IP 地址';
-
-  @override
-  String get webCheckInfoPort => '端口';
-
-  @override
-  String get webCheckInfoProtocol => '协议';
-
-  @override
-  String get webCheckInfoFinalUrl => '最终 URL';
-
-  @override
-  String get webCheckInfoContentType => 'Content-Type';
-
-  @override
-  String get webCheckInfoContentLength => 'Content-Length';
-
-  @override
-  String get webCheckInfoServer => 'Server';
-
-  @override
-  String webCheckRedirectHistoryTitle(Object count) {
-    return '重定向历史 ($count)';
-  }
-
-  @override
-  String webCheckRedirectFrom(Object url) {
-    return '从: $url';
-  }
-
-  @override
-  String webCheckRedirectTo(Object url) {
-    return '到: $url';
-  }
-
-  @override
-  String get webCheckHeadersTitle => '响应头';
-
-  @override
-  String get webCheckSslTitle => 'SSL/TLS 信息';
-
-  @override
-  String webCheckSslError(Object error) {
-    return 'SSL 错误: $error';
-  }
-
-  @override
-  String get webCheckSslVersion => '版本';
-
-  @override
-  String get webCheckSslCipher => '加密套件';
-
-  @override
-  String get webCheckSslSubject => '证书主体';
-
-  @override
-  String get webCheckSslIssuer => '证书颁发者';
-
-  @override
-  String get webCheckSslNotBefore => '有效期开始';
-
-  @override
-  String get webCheckSslNotAfter => '有效期结束';
-
-  @override
-  String webCheckCookiesTitle(Object count) {
-    return 'Cookies ($count)';
-  }
-
-  @override
-  String webCheckCookieDomain(Object domain) {
-    return 'Domain: $domain';
-  }
-
-  @override
-  String get webCheckLanScanTitle => '局域网扫描';
-
-  @override
-  String get webCheckAutoScan => '自动扫描';
-
-  @override
-  String get webCheckLanScanSubtitle => '扫描当前局域网中的所有在线设备';
-
-  @override
-  String get webCheckScanning => '扫描中...';
-
-  @override
-  String get webCheckScanStart => '开始扫描';
-
-  @override
-  String webCheckLanDevicesTitle(Object count) {
-    return '发现 $count 台设备';
-  }
-
-  @override
-  String webCheckLanNetworkLabel(Object network) {
-    return '网段: $network';
-  }
-
-  @override
-  String webCheckLanLocalIpLabel(Object ip) {
-    return '本机 IP: $ip';
-  }
-
-  @override
-  String get webCheckLanLocalBadge => '本机';
-
-  @override
-  String get webCheckStatusUnknown => '未知';
-
-  @override
-  String get webCheckStatusOk => 'OK';
-
-  @override
-  String get webCheckStatusMovedPermanently => '永久重定向';
-
-  @override
-  String get webCheckStatusFound => '已找到';
-
-  @override
-  String get webCheckStatusNotModified => '未修改';
-
-  @override
-  String get webCheckStatusBadRequest => '错误请求';
-
-  @override
-  String get webCheckStatusUnauthorized => '未授权';
-
-  @override
-  String get webCheckStatusForbidden => '禁止访问';
-
-  @override
-  String get webCheckStatusNotFound => '未找到';
-
-  @override
-  String get webCheckStatusInternalServerError => '服务器内部错误';
-
-  @override
-  String get webCheckStatusBadGateway => '错误网关';
-
-  @override
-  String get webCheckStatusServiceUnavailable => '服务不可用';
-
-  @override
-  String webCheckStatusWithCode(Object code) {
-    return '状态 $code';
-  }
-
-  @override
   String get statusPageTitle => '系统状态';
 
   @override
@@ -2865,7 +2638,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get statusSectionKernel => '下载核心状态';
 
   @override
-  String get statusItemKernelService => '核心服务';
+  String get statusItemKernelRuntime => '内核运行时';
 
   @override
   String get statusValueRunning => '运行中';
@@ -2875,9 +2648,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get statusItemKernelCurrent => '当前内核';
-
-  @override
-  String get statusKernelLegacyName => '旧版内核';
 
   @override
   String get statusItemHttpService => 'HTTP 服务';
@@ -3971,12 +3741,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get completedBatchMoveButton => '批量移动';
 
   @override
-  String get completedBatchMoveUnavailableTitle => '批量移动不可用';
-
-  @override
-  String get completedBatchMoveUnavailableMessage => '旧内核暂不支持批量移动';
-
-  @override
   String get completedBatchMoveSuccessTitle => '批量移动完成';
 
   @override
@@ -3988,12 +3752,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String completedBatchMovePartialMessage(Object success, Object failed) {
     return '成功 $success 个，失败 $failed 个';
   }
-
-  @override
-  String get completedBatchRenameUnavailableTitle => '批量重命名不可用';
-
-  @override
-  String get completedBatchRenameUnavailableMessage => '旧内核暂不支持批量重命名';
 
   @override
   String get completedBatchRenameTitle => '批量重命名';

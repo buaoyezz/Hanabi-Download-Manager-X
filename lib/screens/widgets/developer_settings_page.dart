@@ -202,7 +202,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
       builder: (context, constraints) {
         // 根据可用宽度决定列数：窄屏2列，宽屏3列
         final columns = constraints.maxWidth >= 680 ? 3 : 2;
-        final spacing = 10.0;
+        const spacing = 10.0;
         final cardWidth =
             (constraints.maxWidth - spacing * (columns - 1)) / columns;
 
@@ -261,25 +261,6 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
               message: v
                   ? t.developerToolStatusShownMessage
                   : t.developerToolStatusHiddenMessage,
-            );
-          }
-        },
-      ),
-      _ToolItem(
-        icon: CustomIcons.FluentIcons.globe,
-        title: t.developerToolWebCheckTitle,
-        subtitle: t.developerToolWebCheckSubtitle,
-        isEnabled: _devMode.showWebCheckPage,
-        onChanged: (v) {
-          _devMode.setShowWebCheckPage(v);
-          if (mounted) {
-            NotificationManager.of(context)?.showSuccess(
-              v
-                  ? t.developerToolWebCheckShownTitle
-                  : t.developerToolWebCheckHiddenTitle,
-              message: v
-                  ? t.developerToolWebCheckShownMessage
-                  : t.developerToolWebCheckHiddenMessage,
             );
           }
         },

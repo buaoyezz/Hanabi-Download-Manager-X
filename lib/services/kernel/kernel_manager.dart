@@ -1,13 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'kernel_interface.dart';
-import 'legacy/soda_kernel.dart';
 import 'next/nsfx_kernel.dart';
-
-enum KernelType {
-  legacy,
-  next,
-}
 
 class KernelManager extends ChangeNotifier {
   static final KernelManager _instance = KernelManager._internal();
@@ -15,24 +9,22 @@ class KernelManager extends ChangeNotifier {
   KernelManager._internal();
 
   KernelInterface? _kernel;
-  KernelType _currentType = KernelType.next;
   bool _isStarting = false;
   double _startupProgress = 0;
   String _startupStatus = '';
 
   KernelInterface? get kernel => _kernel;
-  KernelType get currentType => _currentType;
   bool get isRunning => _kernel?.isRunning ?? false;
   bool get isStarting => _isStarting;
   double get startupProgress => _startupProgress;
   String get startupStatus => _startupStatus;
-  String get kernelName => _kernel?.name ?? 'None';
+  String get kernelName => _kernel?.name ?? 'NSFX (Next Speed Force X)';
 
   Stream<DownloadTask>? get onProgress => _kernel?.onProgress;
   Stream<DownloadTask>? get onComplete => _kernel?.onComplete;
   Stream<DownloadStatistics>? get onStatistics => _kernel?.onStatistics;
 
-  Future<bool> start({KernelType? type}) async {
+  Future<bool> start() async {
     if (_isStarting) return false;
     if (_kernel?.isRunning == true) return true;
 
@@ -42,20 +34,11 @@ class KernelManager extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final targetType = type ?? _currentType;
-      
-      // 如果切换内核类型，先停止旧内核
-      if (_kernel != null && _currentType != targetType) {
-        await stop();
-      }
-
-      _currentType = targetType;
-
       _startupProgress = 0.2;
       _startupStatus = '正在创建内核实例...';
       notifyListeners();
 
-      _kernel = _createKernel(targetType);
+      _kernel ??= NsfxKernel();
 
       _startupProgress = 0.4;
       _startupStatus = '正在启动内核...';
@@ -72,7 +55,6 @@ class KernelManager extends ChangeNotifier {
       }
 
       return success;
-
     } catch (e) {
       _startupProgress = 0;
       _startupStatus = '启动出错: $e';
@@ -90,24 +72,6 @@ class KernelManager extends ChangeNotifier {
       _kernel = null;
     }
     notifyListeners();
-  }
-
-  Future<bool> switchKernel(KernelType type) async {
-    if (type == _currentType && _kernel?.isRunning == true) {
-      return true;
-    }
-
-    await stop();
-    return await start(type: type);
-  }
-
-  KernelInterface _createKernel(KernelType type) {
-    switch (type) {
-      case KernelType.legacy:
-        return SodaKernel();
-      case KernelType.next:
-        return NsfxKernel();
-    }
   }
 
   // 代理方法，方便直接调用
@@ -193,12 +157,13 @@ class KernelManager extends ChangeNotifier {
     String? password,
   }) async {
     return await _kernel?.testProxyConnection(
-      type: type,
-      host: host,
-      port: port,
-      username: username,
-      password: password,
-    ) ?? false;
+          type: type,
+          host: host,
+          port: port,
+          username: username,
+          password: password,
+        ) ??
+        false;
   }
 
   @override

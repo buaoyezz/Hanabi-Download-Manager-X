@@ -20,10 +20,6 @@ import '../utils/constants.dart';
 ///   ├── kernel/               (NSFX 内核数据 - 纯 Dart)
 ///   │   ├── tasks.json
 ///   │   └── config.json
-///   └── legacy/               (Soda 内核数据 - Python，已弃用)
-///       ├── tasks.json
-///       ├── segments.json
-///       └── config.json
 class ClientConfigService extends ChangeNotifier {
   static final ClientConfigService _instance = ClientConfigService._internal();
   factory ClientConfigService() => _instance;

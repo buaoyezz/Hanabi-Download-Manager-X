@@ -7,7 +7,6 @@
 #include <string.h>
 #include <dwmapi.h>
 #include <windows.h>
-#include <tlhelp32.h>
 #include <shobjidl.h>
 #include <shlobj.h>
 #include <flutter/method_channel.h>
@@ -144,28 +143,6 @@ bool FlutterWindow::OnCreate() {
 
 void FlutterWindow::OnDestroy() {
   LogA("=== FlutterWindow::OnDestroy START ===");
-
-  // Use Windows API to kill process - no CMD flash!
-  HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-  if (snapshot != INVALID_HANDLE_VALUE) {
-    PROCESSENTRY32W pe32;
-    pe32.dwSize = sizeof(PROCESSENTRY32W);
-
-    if (Process32FirstW(snapshot, &pe32)) {
-      do {
-        if (_wcsicmp(pe32.szExeFile, L"soda_kernel.exe") == 0) {
-          HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, pe32.th32ProcessID);
-          if (hProcess) {
-            TerminateProcess(hProcess, 0);
-            CloseHandle(hProcess);
-            LogA("Terminated soda_kernel.exe");
-          }
-        }
-      } while (Process32NextW(snapshot, &pe32));
-    }
-    CloseHandle(snapshot);
-  }
-
   LogA("=== FlutterWindow::OnDestroy END ===");
 
   if (flutter_controller_) {

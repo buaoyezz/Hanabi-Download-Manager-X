@@ -420,10 +420,6 @@ class PluginAppLocalizations extends AppLocalizations {
   String get homeNavStatus => _string('homeNavStatus', _fallback.homeNavStatus);
 
   @override
-  String get homeNavWebCheck =>
-      _string('homeNavWebCheck', _fallback.homeNavWebCheck);
-
-  @override
   String get homeNavOnlineStats =>
       _string('homeNavOnlineStats', _fallback.homeNavOnlineStats);
 
@@ -1210,10 +1206,6 @@ class PluginAppLocalizations extends AppLocalizations {
       _string('settingsKernelNsfxHint', _fallback.settingsKernelNsfxHint);
 
   @override
-  String get settingsKernelSodaHint =>
-      _string('settingsKernelSodaHint', _fallback.settingsKernelSodaHint);
-
-  @override
   String get settingsKernelSwitchedTitle => _string(
       'settingsKernelSwitchedTitle', _fallback.settingsKernelSwitchedTitle);
 
@@ -1222,11 +1214,6 @@ class PluginAppLocalizations extends AppLocalizations {
       'settingsKernelSwitchedMessage',
       {'kernelName': kernelName},
       _fallback.settingsKernelSwitchedMessage(kernelName));
-
-  @override
-  String get settingsKernelSwitchedLegacyMessage => _string(
-      'settingsKernelSwitchedLegacyMessage',
-      _fallback.settingsKernelSwitchedLegacyMessage);
 
   @override
   String get settingsKernelSwitchFailedTitle => _string(
@@ -1239,21 +1226,12 @@ class PluginAppLocalizations extends AppLocalizations {
       _fallback.settingsKernelSwitchFailedNewMessage);
 
   @override
-  String get settingsKernelSwitchFailedLegacyMessage => _string(
-      'settingsKernelSwitchFailedLegacyMessage',
-      _fallback.settingsKernelSwitchFailedLegacyMessage);
-
-  @override
   String get settingsStatusTitle =>
       _string('settingsStatusTitle', _fallback.settingsStatusTitle);
 
   @override
   String get settingsStatusKernelNsfx =>
       _string('settingsStatusKernelNsfx', _fallback.settingsStatusKernelNsfx);
-
-  @override
-  String get settingsStatusKernelSoda =>
-      _string('settingsStatusKernelSoda', _fallback.settingsStatusKernelSoda);
 
   @override
   String get settingsStatusBrowserExtension => _string(
@@ -1352,16 +1330,6 @@ class PluginAppLocalizations extends AppLocalizations {
   String get settingsDeveloperShowOnlineStatsSubtitle => _string(
       'settingsDeveloperShowOnlineStatsSubtitle',
       _fallback.settingsDeveloperShowOnlineStatsSubtitle);
-
-  @override
-  String get settingsDeveloperShowWebCheckTitle => _string(
-      'settingsDeveloperShowWebCheckTitle',
-      _fallback.settingsDeveloperShowWebCheckTitle);
-
-  @override
-  String get settingsDeveloperShowWebCheckSubtitle => _string(
-      'settingsDeveloperShowWebCheckSubtitle',
-      _fallback.settingsDeveloperShowWebCheckSubtitle);
 
   @override
   String get settingsDeveloperShowConnectionDebugTitle => _string(
@@ -3740,261 +3708,6 @@ class PluginAppLocalizations extends AppLocalizations {
       _fallback.completedDeleteCategorySuccessMessage(name));
 
   @override
-  String get webCheckHeaderTitle =>
-      _string('webCheckHeaderTitle', _fallback.webCheckHeaderTitle);
-
-  @override
-  String get webCheckInputTitle =>
-      _string('webCheckInputTitle', _fallback.webCheckInputTitle);
-
-  @override
-  String get webCheckInputPlaceholder =>
-      _string('webCheckInputPlaceholder', _fallback.webCheckInputPlaceholder);
-
-  @override
-  String get webCheckInputHint =>
-      _string('webCheckInputHint', _fallback.webCheckInputHint);
-
-  @override
-  String get webCheckStartButton =>
-      _string('webCheckStartButton', _fallback.webCheckStartButton);
-
-  @override
-  String get webCheckChecking =>
-      _string('webCheckChecking', _fallback.webCheckChecking);
-
-  @override
-  String get webCheckErrorEmptyUrl =>
-      _string('webCheckErrorEmptyUrl', _fallback.webCheckErrorEmptyUrl);
-
-  @override
-  String get webCheckErrorUnsupportedKernel => _string(
-      'webCheckErrorUnsupportedKernel',
-      _fallback.webCheckErrorUnsupportedKernel);
-
-  @override
-  String get webCheckErrorInvalidUrl =>
-      _string('webCheckErrorInvalidUrl', _fallback.webCheckErrorInvalidUrl);
-
-  @override
-  String webCheckErrorCheckFailed(Object error) => _format(
-      'webCheckErrorCheckFailed',
-      {'error': error},
-      _fallback.webCheckErrorCheckFailed(error));
-
-  @override
-  String get webCheckErrorLanUnsupportedKernel => _string(
-      'webCheckErrorLanUnsupportedKernel',
-      _fallback.webCheckErrorLanUnsupportedKernel);
-
-  @override
-  String webCheckErrorScanFailed(Object error) => _format(
-      'webCheckErrorScanFailed',
-      {'error': error},
-      _fallback.webCheckErrorScanFailed(error));
-
-  @override
-  String get webCheckErrorCardTitle =>
-      _string('webCheckErrorCardTitle', _fallback.webCheckErrorCardTitle);
-
-  @override
-  String webCheckDnsTime(Object ms) =>
-      _format('webCheckDnsTime', {'ms': ms}, _fallback.webCheckDnsTime(ms));
-
-  @override
-  String webCheckResponseTime(Object ms) => _format(
-      'webCheckResponseTime', {'ms': ms}, _fallback.webCheckResponseTime(ms));
-
-  @override
-  String get webCheckInfoHostname =>
-      _string('webCheckInfoHostname', _fallback.webCheckInfoHostname);
-
-  @override
-  String get webCheckInfoIpAddress =>
-      _string('webCheckInfoIpAddress', _fallback.webCheckInfoIpAddress);
-
-  @override
-  String get webCheckInfoPort =>
-      _string('webCheckInfoPort', _fallback.webCheckInfoPort);
-
-  @override
-  String get webCheckInfoProtocol =>
-      _string('webCheckInfoProtocol', _fallback.webCheckInfoProtocol);
-
-  @override
-  String get webCheckInfoFinalUrl =>
-      _string('webCheckInfoFinalUrl', _fallback.webCheckInfoFinalUrl);
-
-  @override
-  String get webCheckInfoContentType =>
-      _string('webCheckInfoContentType', _fallback.webCheckInfoContentType);
-
-  @override
-  String get webCheckInfoContentLength =>
-      _string('webCheckInfoContentLength', _fallback.webCheckInfoContentLength);
-
-  @override
-  String get webCheckInfoServer =>
-      _string('webCheckInfoServer', _fallback.webCheckInfoServer);
-
-  @override
-  String webCheckRedirectHistoryTitle(Object count) => _format(
-      'webCheckRedirectHistoryTitle',
-      {'count': count},
-      _fallback.webCheckRedirectHistoryTitle(count));
-
-  @override
-  String webCheckRedirectFrom(Object url) => _format('webCheckRedirectFrom',
-      {'url': url}, _fallback.webCheckRedirectFrom(url));
-
-  @override
-  String webCheckRedirectTo(Object url) => _format(
-      'webCheckRedirectTo', {'url': url}, _fallback.webCheckRedirectTo(url));
-
-  @override
-  String get webCheckHeadersTitle =>
-      _string('webCheckHeadersTitle', _fallback.webCheckHeadersTitle);
-
-  @override
-  String get webCheckSslTitle =>
-      _string('webCheckSslTitle', _fallback.webCheckSslTitle);
-
-  @override
-  String webCheckSslError(Object error) => _format(
-      'webCheckSslError', {'error': error}, _fallback.webCheckSslError(error));
-
-  @override
-  String get webCheckSslVersion =>
-      _string('webCheckSslVersion', _fallback.webCheckSslVersion);
-
-  @override
-  String get webCheckSslCipher =>
-      _string('webCheckSslCipher', _fallback.webCheckSslCipher);
-
-  @override
-  String get webCheckSslSubject =>
-      _string('webCheckSslSubject', _fallback.webCheckSslSubject);
-
-  @override
-  String get webCheckSslIssuer =>
-      _string('webCheckSslIssuer', _fallback.webCheckSslIssuer);
-
-  @override
-  String get webCheckSslNotBefore =>
-      _string('webCheckSslNotBefore', _fallback.webCheckSslNotBefore);
-
-  @override
-  String get webCheckSslNotAfter =>
-      _string('webCheckSslNotAfter', _fallback.webCheckSslNotAfter);
-
-  @override
-  String webCheckCookiesTitle(Object count) => _format('webCheckCookiesTitle',
-      {'count': count}, _fallback.webCheckCookiesTitle(count));
-
-  @override
-  String webCheckCookieDomain(Object domain) => _format('webCheckCookieDomain',
-      {'domain': domain}, _fallback.webCheckCookieDomain(domain));
-
-  @override
-  String get webCheckLanScanTitle =>
-      _string('webCheckLanScanTitle', _fallback.webCheckLanScanTitle);
-
-  @override
-  String get webCheckAutoScan =>
-      _string('webCheckAutoScan', _fallback.webCheckAutoScan);
-
-  @override
-  String get webCheckLanScanSubtitle =>
-      _string('webCheckLanScanSubtitle', _fallback.webCheckLanScanSubtitle);
-
-  @override
-  String get webCheckScanning =>
-      _string('webCheckScanning', _fallback.webCheckScanning);
-
-  @override
-  String get webCheckScanStart =>
-      _string('webCheckScanStart', _fallback.webCheckScanStart);
-
-  @override
-  String webCheckLanDevicesTitle(Object count) => _format(
-      'webCheckLanDevicesTitle',
-      {'count': count},
-      _fallback.webCheckLanDevicesTitle(count));
-
-  @override
-  String webCheckLanNetworkLabel(Object network) => _format(
-      'webCheckLanNetworkLabel',
-      {'network': network},
-      _fallback.webCheckLanNetworkLabel(network));
-
-  @override
-  String webCheckLanLocalIpLabel(Object ip) => _format(
-      'webCheckLanLocalIpLabel',
-      {'ip': ip},
-      _fallback.webCheckLanLocalIpLabel(ip));
-
-  @override
-  String get webCheckLanLocalBadge =>
-      _string('webCheckLanLocalBadge', _fallback.webCheckLanLocalBadge);
-
-  @override
-  String get webCheckStatusUnknown =>
-      _string('webCheckStatusUnknown', _fallback.webCheckStatusUnknown);
-
-  @override
-  String get webCheckStatusOk =>
-      _string('webCheckStatusOk', _fallback.webCheckStatusOk);
-
-  @override
-  String get webCheckStatusMovedPermanently => _string(
-      'webCheckStatusMovedPermanently',
-      _fallback.webCheckStatusMovedPermanently);
-
-  @override
-  String get webCheckStatusFound =>
-      _string('webCheckStatusFound', _fallback.webCheckStatusFound);
-
-  @override
-  String get webCheckStatusNotModified =>
-      _string('webCheckStatusNotModified', _fallback.webCheckStatusNotModified);
-
-  @override
-  String get webCheckStatusBadRequest =>
-      _string('webCheckStatusBadRequest', _fallback.webCheckStatusBadRequest);
-
-  @override
-  String get webCheckStatusUnauthorized => _string(
-      'webCheckStatusUnauthorized', _fallback.webCheckStatusUnauthorized);
-
-  @override
-  String get webCheckStatusForbidden =>
-      _string('webCheckStatusForbidden', _fallback.webCheckStatusForbidden);
-
-  @override
-  String get webCheckStatusNotFound =>
-      _string('webCheckStatusNotFound', _fallback.webCheckStatusNotFound);
-
-  @override
-  String get webCheckStatusInternalServerError => _string(
-      'webCheckStatusInternalServerError',
-      _fallback.webCheckStatusInternalServerError);
-
-  @override
-  String get webCheckStatusBadGateway =>
-      _string('webCheckStatusBadGateway', _fallback.webCheckStatusBadGateway);
-
-  @override
-  String get webCheckStatusServiceUnavailable => _string(
-      'webCheckStatusServiceUnavailable',
-      _fallback.webCheckStatusServiceUnavailable);
-
-  @override
-  String webCheckStatusWithCode(Object code) => _format(
-      'webCheckStatusWithCode',
-      {'code': code},
-      _fallback.webCheckStatusWithCode(code));
-
-  @override
   String get statusPageTitle =>
       _string('statusPageTitle', _fallback.statusPageTitle);
 
@@ -4015,8 +3728,8 @@ class PluginAppLocalizations extends AppLocalizations {
       _string('statusSectionKernel', _fallback.statusSectionKernel);
 
   @override
-  String get statusItemKernelService =>
-      _string('statusItemKernelService', _fallback.statusItemKernelService);
+  String get statusItemKernelRuntime =>
+      _string('statusItemKernelRuntime', _fallback.statusItemKernelRuntime);
 
   @override
   String get statusValueRunning =>
@@ -4029,10 +3742,6 @@ class PluginAppLocalizations extends AppLocalizations {
   @override
   String get statusItemKernelCurrent =>
       _string('statusItemKernelCurrent', _fallback.statusItemKernelCurrent);
-
-  @override
-  String get statusKernelLegacyName =>
-      _string('statusKernelLegacyName', _fallback.statusKernelLegacyName);
 
   @override
   String get statusItemHttpService =>
@@ -5449,16 +5158,6 @@ class PluginAppLocalizations extends AppLocalizations {
       _string('completedBatchMoveButton', _fallback.completedBatchMoveButton);
 
   @override
-  String get completedBatchMoveUnavailableTitle => _string(
-      'completedBatchMoveUnavailableTitle',
-      _fallback.completedBatchMoveUnavailableTitle);
-
-  @override
-  String get completedBatchMoveUnavailableMessage => _string(
-      'completedBatchMoveUnavailableMessage',
-      _fallback.completedBatchMoveUnavailableMessage);
-
-  @override
   String get completedBatchMoveSuccessTitle => _string(
       'completedBatchMoveSuccessTitle',
       _fallback.completedBatchMoveSuccessTitle);
@@ -5475,16 +5174,6 @@ class PluginAppLocalizations extends AppLocalizations {
           'completedBatchMovePartialMessage',
           {'success': success, 'failed': failed},
           _fallback.completedBatchMovePartialMessage(success, failed));
-
-  @override
-  String get completedBatchRenameUnavailableTitle => _string(
-      'completedBatchRenameUnavailableTitle',
-      _fallback.completedBatchRenameUnavailableTitle);
-
-  @override
-  String get completedBatchRenameUnavailableMessage => _string(
-      'completedBatchRenameUnavailableMessage',
-      _fallback.completedBatchRenameUnavailableMessage);
 
   @override
   String get completedBatchRenameTitle =>

@@ -18,7 +18,6 @@
 
 - Flutter SDK 3.0.0+
 - Dart SDK 3.0.0+
-- Python 3.12.6+ (用于旧内核)
 - Git
 - Visual Studio Code (推荐) 或 Android Studio
 

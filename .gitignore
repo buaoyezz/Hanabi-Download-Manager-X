@@ -73,9 +73,6 @@ x.zzbuaoye.top/
 # Chrome extension (Open Sources)
 # chrome_extension/
 
-# Legacy Python kernel (replaced by Dart implementation but keep)
-# python/
-
 # Python
 __pycache__/
 *.py[cod]
@@ -117,9 +114,6 @@ test_downloads/
 *.part
 *.crdownload
 test_server/
-
-# Kernel executable (will be built)
-assets/kernel/soda_kernel.exe
 
 # Windows
 Thumbs.db

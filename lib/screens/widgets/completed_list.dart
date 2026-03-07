@@ -700,17 +700,6 @@ class _CompletedListState extends State<CompletedList> {
   Future<void> _batchMoveTasks(List<DownloadTask> tasks) async {
     if (tasks.isEmpty) return;
 
-    final useNewKernel = context
-        .read<ClientConfigService>()
-        .getBool('kernel.use_new_kernel', defaultValue: true);
-    if (!useNewKernel) {
-      NotificationManager.of(context)?.showWarning(
-        t.completedBatchMoveUnavailableTitle,
-        message: t.completedBatchMoveUnavailableMessage,
-      );
-      return;
-    }
-
     String initialPath = 'C:\\';
     try {
       initialPath = Directory.current.path;
@@ -756,17 +745,6 @@ class _CompletedListState extends State<CompletedList> {
 
   Future<void> _batchRenameTasks(List<DownloadTask> tasks) async {
     if (tasks.isEmpty) return;
-
-    final useNewKernel = context
-        .read<ClientConfigService>()
-        .getBool('kernel.use_new_kernel', defaultValue: true);
-    if (!useNewKernel) {
-      NotificationManager.of(context)?.showWarning(
-        t.completedBatchRenameUnavailableTitle,
-        message: t.completedBatchRenameUnavailableMessage,
-      );
-      return;
-    }
 
     final prefixController = TextEditingController();
     final suffixController = TextEditingController();

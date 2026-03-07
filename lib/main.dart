@@ -16,7 +16,6 @@ import 'package:flutter/foundation.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 import 'package:scroll_animator/scroll_animator.dart';
 import 'services/integrated_download_service.dart';
-import 'services/kernel_service.dart';
 import 'services/kernel/kernel_manager.dart';
 import 'services/download_listener_service.dart';
 import 'services/clipboard_listener_service.dart';
@@ -234,7 +233,6 @@ void main(List<String> args) async {
     // 检查是否是开机自启动（启动参数 --autostart）
     final bool isAutoStart = args.contains('--autostart');
 
-    final kernelService = KernelService();
     final kernelManager = KernelManager();
 
     // 初始化服务
@@ -287,12 +285,9 @@ void main(List<String> args) async {
     runApp(
       MultiProvider(
         providers: [
-          ChangeNotifierProvider.value(value: kernelService),
           ChangeNotifierProvider.value(value: kernelManager),
-          ChangeNotifierProxyProvider<KernelService, IntegratedDownloadService>(
-            create: (context) => IntegratedDownloadService(kernelService),
-            update: (context, kernel, previous) =>
-                previous ?? IntegratedDownloadService(kernel),
+          ChangeNotifierProvider(
+            create: (context) => IntegratedDownloadService(),
           ),
           ChangeNotifierProvider.value(value: appLogger),
           ChangeNotifierProvider.value(value: DownloadFailureStatsService()),
@@ -460,61 +455,31 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   Future<void> _initSystemTray() async {
-    final kernelService = context.read<KernelService>();
     final isAutoStart = context.read<bool>();
     await systemTrayService.initialize(
-      kernelService: kernelService,
       showWindow: !isAutoStart, // 只在非自启动时显示窗口
     );
   }
 
   Future<void> _initKernel() async {
     final kernelManager = context.read<KernelManager>();
-    final kernelService = context.read<KernelService>();
     final appLogger = AppLoggerService();
-    final clientConfig = context.read<ClientConfigService>();
-
-    // 读取用户选择的内核类型
-    final useNewKernel =
-        clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
 
     try {
-      if (useNewKernel) {
-        // 使用新的 NSFX 内核（默认）
-        appLogger.info('App', 'Starting NSFX kernel (new)...');
-        final success = await kernelManager.start(type: KernelType.next);
+      appLogger.info('App', 'Starting NSFX kernel...');
+      final success = await kernelManager.start().timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          appLogger.error('App', 'Kernel startup timeout after 30 seconds');
+          return false;
+        },
+      );
 
-        if (success) {
-          appLogger.info('App', 'NSFX kernel started successfully');
-        } else {
-          appLogger.error('App',
-              'Failed to start NSFX kernel, falling back to legacy kernel');
-          // 回退到旧内核
-          await kernelService.startKernel().timeout(
-            const Duration(seconds: 30),
-            onTimeout: () {
-              appLogger.error('App', 'Legacy kernel startup timeout');
-              return false;
-            },
-          );
-        }
-      } else {
-        // 使用旧的 Python 内核
-        appLogger.info('App', 'Starting legacy kernel...');
-        final success = await kernelService.startKernel().timeout(
-          const Duration(seconds: 30),
-          onTimeout: () {
-            appLogger.error('App', 'Kernel startup timeout after 30 seconds');
-            return false;
-          },
-        );
-
-        if (!success && mounted) {
-          appLogger.error('App', 'Failed to start download kernel');
-          _showKernelError();
-        } else if (success) {
-          appLogger.info('App', 'Download kernel started successfully');
-        }
+      if (!success && mounted) {
+        appLogger.error('App', 'Failed to start download kernel');
+        _showKernelError();
+      } else if (success) {
+        appLogger.info('App', 'NSFX kernel started successfully');
       }
     } catch (e) {
       appLogger.error('App', 'Error starting kernel: $e');
@@ -587,7 +552,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   Future<void> _cleanup() async {
     // Cache dependencies before async gaps.
     final kernelManager = context.read<KernelManager>();
-    final kernelService = context.read<KernelService>();
 
     // 保存窗口状态
     try {
@@ -636,13 +600,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       // 忽略错误
     }
 
-    // 停止旧kernel服务
-    try {
-      await kernelService.stopKernel();
-    } catch (e) {
-      // 忽略错误，确保清理继续
-    }
-
     systemTrayService.dispose();
   }
 
@@ -662,13 +619,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       // 忽略错误
     }
 
-    // 异步清理旧 kernel（不等待）
-    try {
-      final kernelService = context.read<KernelService>();
-      kernelService.stopKernel();
-    } catch (e) {
-      // 忽略错误
-    }
     super.dispose();
   }
 

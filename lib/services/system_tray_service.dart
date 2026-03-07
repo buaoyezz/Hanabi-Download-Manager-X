@@ -3,27 +3,24 @@ import 'package:system_tray/system_tray.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:path/path.dart' as path;
 import 'logger_service.dart';
-import 'kernel_service.dart';
 import 'client_config_service.dart';
+import 'kernel/kernel_manager.dart';
 
 class SystemTrayService {
   final SystemTray _systemTray = SystemTray();
   bool _isInitialized = false;
   final _logger = LoggerService();
-  KernelService? _kernelService;
 
   Future<void> initialize({
-    KernelService? kernelService,
-    bool showWindow = true,  // 是否在初始化后显示窗口
+    bool showWindow = true, // 是否在初始化后显示窗口
   }) async {
     if (_isInitialized) return;
 
-    _kernelService = kernelService;
-
     try {
       final iconPath = await _getIconPath();
-      _logger.info('System tray init, iconPath=$iconPath, showWindow=$showWindow');
-      
+      _logger
+          .info('System tray init, iconPath=$iconPath, showWindow=$showWindow');
+
       await _systemTray.initSystemTray(
         title: "Hanabi Download ManagerX",
         iconPath: iconPath,
@@ -44,11 +41,11 @@ class SystemTrayService {
       final Menu menu = Menu();
       await menu.buildFrom([
         MenuItemLabel(
-          label: '显示主界面', 
+          label: '显示主界面',
           onClicked: (menuItem) => showMainWindow(),
         ),
         MenuItemLabel(
-          label: '退出', 
+          label: '退出',
           onClicked: (menuItem) => exitApp(),
         ),
       ]);
@@ -56,7 +53,7 @@ class SystemTrayService {
 
       _isInitialized = true;
       _logger.info('System tray initialized with native menu');
-      
+
       // 根据参数决定是否显示窗口
       if (showWindow) {
         showMainWindow();
@@ -71,12 +68,12 @@ class SystemTrayService {
   void updateToolTip(bool isVisible) {
     final config = ClientConfigService();
     final showStatus = config.getShowTrayRunningStatus();
-    
+
     String tooltip = "Hanabi Download ManagerX";
     if (showStatus && !isVisible) {
       tooltip += " - 正在后台运行";
     }
-    
+
     _systemTray.setToolTip(tooltip);
   }
 
@@ -84,9 +81,10 @@ class SystemTrayService {
     if (Platform.isWindows) {
       final exePath = Platform.resolvedExecutable;
       final exeDir = path.dirname(exePath);
-      
+
       final possiblePaths = [
-        path.join(exeDir, 'data', 'flutter_assets', 'assets', 'logo', 'logo.ico'),
+        path.join(
+            exeDir, 'data', 'flutter_assets', 'assets', 'logo', 'logo.ico'),
         path.join(Directory.current.path, 'assets', 'logo', 'logo.ico'),
       ];
 
@@ -96,7 +94,7 @@ class SystemTrayService {
         }
       }
     }
-    
+
     return '';
   }
 
@@ -115,15 +113,12 @@ class SystemTrayService {
 
   Future<void> exitApp() async {
     _logger.info('Exit app from tray - cleaning up kernel...');
-    
-    // 先停止 kernel
-    if (_kernelService != null) {
-      await _kernelService!.stopKernel();
-    }
-    
+
+    await KernelManager().stop();
+
     _logger.info('Kernel cleaned up, closing window...');
     appWindow.close();
-    
+
     // 强制退出进程
     await Future.delayed(const Duration(milliseconds: 500));
     exit(0);

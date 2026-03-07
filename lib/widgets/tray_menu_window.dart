@@ -3,7 +3,7 @@ import 'package:bitsdojo_window/bitsdojo_window.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/constants.dart';
-import '../services/kernel_service.dart';
+import '../services/kernel/kernel_manager.dart';
 import 'package:provider/provider.dart';
 import '../utils/fluent_icons.dart' as CustomIcons;
 
@@ -27,9 +27,9 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
 
   @override
   Widget build(BuildContext context) {
-    final kernelService = context.watch<KernelService>();
+    final kernelManager = context.watch<KernelManager>();
     final t = AppLocalizations.of(context)!;
-    
+
     return Container(
       width: 280,
       decoration: BoxDecoration(
@@ -55,14 +55,14 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
           children: [
             // 头部
             _buildHeader(context),
-            
+
             // 分隔线
             Container(
               height: 1,
               margin: const EdgeInsets.symmetric(horizontal: 12),
               color: AppTheme.borderSubtle.withValues(alpha: 0.3),
             ),
-            
+
             // 菜单项
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -83,28 +83,29 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
                     index: 1,
                     icon: CustomIcons.FluentIcons.status_circle_checkmark,
                     title: t.trayMenuKernelTitle,
-                    subtitle: kernelService.isRunning
+                    subtitle: kernelManager.isRunning
                         ? t.trayMenuKernelSubtitleRunning
                         : t.trayMenuKernelSubtitleStopped,
                     trailing: Container(
                       width: 8,
                       height: 8,
                       decoration: BoxDecoration(
-                        color: kernelService.isRunning 
-                          ? AppTheme.statusSuccess 
-                          : AppTheme.textTertiary,
+                        color: kernelManager.isRunning
+                            ? AppTheme.statusSuccess
+                            : AppTheme.textTertiary,
                         shape: BoxShape.circle,
                       ),
                     ),
                   ),
-                  
+
                   // 分隔线
                   Container(
                     height: 1,
-                    margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    margin:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     color: AppTheme.borderSubtle.withValues(alpha: 0.2),
                   ),
-                  
+
                   _buildMenuItem(
                     index: 2,
                     icon: CustomIcons.FluentIcons.chrome_close,
@@ -148,7 +149,8 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
                 color: AppTheme.accentPrimary.withValues(alpha: 0.3),
               ),
             ),
-            child: Icon(CustomIcons.FluentIcons.download,
+            child: Icon(
+              CustomIcons.FluentIcons.download,
               size: 20,
               color: AppTheme.accentLight,
             ),
@@ -194,7 +196,7 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
     VoidCallback? onTap,
   }) {
     final isHovered = _hoveredIndex == index;
-    
+
     return MouseRegion(
       onEnter: (_) => setState(() => _hoveredIndex = index),
       onExit: (_) => setState(() => _hoveredIndex = null),
@@ -205,9 +207,9 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: isHovered 
-              ? AppTheme.bgLayer2.withValues(alpha: 0.8)
-              : Colors.transparent,
+            color: isHovered
+                ? AppTheme.bgLayer2.withValues(alpha: 0.8)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(AppTheme.radiusSm),
           ),
           child: Row(
@@ -218,8 +220,10 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
                 height: 32,
                 decoration: BoxDecoration(
                   color: isHovered
-                    ? (iconColor ?? AppTheme.accentPrimary).withValues(alpha: 0.15)
-                    : (iconColor ?? AppTheme.accentPrimary).withValues(alpha: 0.1),
+                      ? (iconColor ?? AppTheme.accentPrimary)
+                          .withValues(alpha: 0.15)
+                      : (iconColor ?? AppTheme.accentPrimary)
+                          .withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                 ),
                 child: Icon(
@@ -239,7 +243,9 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: isHovered ? AppTheme.textPrimary : AppTheme.textSecondary,
+                        color: isHovered
+                            ? AppTheme.textPrimary
+                            : AppTheme.textSecondary,
                       ),
                     ),
                     if (subtitle != null) ...[
@@ -263,7 +269,9 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
                 Icon(
                   CustomIcons.FluentIcons.chevron_right,
                   size: 12,
-                  color: isHovered ? AppTheme.textSecondary : AppTheme.textTertiary,
+                  color: isHovered
+                      ? AppTheme.textSecondary
+                      : AppTheme.textTertiary,
                 ),
             ],
           ),

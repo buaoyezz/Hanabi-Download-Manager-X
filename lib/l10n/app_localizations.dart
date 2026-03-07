@@ -584,12 +584,6 @@ abstract class AppLocalizations {
   /// **'状态'**
   String get homeNavStatus;
 
-  /// No description provided for @homeNavWebCheck.
-  ///
-  /// In zh, this message translates to:
-  /// **'Web检测'**
-  String get homeNavWebCheck;
-
   /// No description provided for @homeNavOnlineStats.
   ///
   /// In zh, this message translates to:
@@ -1682,12 +1676,6 @@ abstract class AppLocalizations {
   /// **'NSFX Kernel: 高效 | 简洁 | 新思路'**
   String get settingsKernelNsfxHint;
 
-  /// No description provided for @settingsKernelSodaHint.
-  ///
-  /// In zh, this message translates to:
-  /// **'旧内核用于兼容性'**
-  String get settingsKernelSodaHint;
-
   /// No description provided for @settingsKernelSwitchedTitle.
   ///
   /// In zh, this message translates to:
@@ -1699,12 +1687,6 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'当前使用: {kernelName}'**
   String settingsKernelSwitchedMessage(Object kernelName);
-
-  /// No description provided for @settingsKernelSwitchedLegacyMessage.
-  ///
-  /// In zh, this message translates to:
-  /// **'已切换到旧内核'**
-  String get settingsKernelSwitchedLegacyMessage;
 
   /// No description provided for @settingsKernelSwitchFailedTitle.
   ///
@@ -1718,12 +1700,6 @@ abstract class AppLocalizations {
   /// **'无法启动新内核，请稍后重试'**
   String get settingsKernelSwitchFailedNewMessage;
 
-  /// No description provided for @settingsKernelSwitchFailedLegacyMessage.
-  ///
-  /// In zh, this message translates to:
-  /// **'无法启动旧内核，请稍后重试'**
-  String get settingsKernelSwitchFailedLegacyMessage;
-
   /// No description provided for @settingsStatusTitle.
   ///
   /// In zh, this message translates to:
@@ -1735,12 +1711,6 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'NSFX Kernel'**
   String get settingsStatusKernelNsfx;
-
-  /// No description provided for @settingsStatusKernelSoda.
-  ///
-  /// In zh, this message translates to:
-  /// **'Soda 内核（旧版）'**
-  String get settingsStatusKernelSoda;
 
   /// No description provided for @settingsStatusBrowserExtension.
   ///
@@ -1867,18 +1837,6 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'在导航栏显示在线用户统计'**
   String get settingsDeveloperShowOnlineStatsSubtitle;
-
-  /// No description provided for @settingsDeveloperShowWebCheckTitle.
-  ///
-  /// In zh, this message translates to:
-  /// **'显示 Web 检测页面'**
-  String get settingsDeveloperShowWebCheckTitle;
-
-  /// No description provided for @settingsDeveloperShowWebCheckSubtitle.
-  ///
-  /// In zh, this message translates to:
-  /// **'在导航栏显示网站状态检测工具'**
-  String get settingsDeveloperShowWebCheckSubtitle;
 
   /// No description provided for @settingsDeveloperShowConnectionDebugTitle.
   ///
@@ -5027,360 +4985,6 @@ abstract class AppLocalizations {
   /// **'已删除分类：{name}'**
   String completedDeleteCategorySuccessMessage(Object name);
 
-  /// No description provided for @webCheckHeaderTitle.
-  ///
-  /// In zh, this message translates to:
-  /// **'Web 状态检测'**
-  String get webCheckHeaderTitle;
-
-  /// No description provided for @webCheckInputTitle.
-  ///
-  /// In zh, this message translates to:
-  /// **'输入 URL'**
-  String get webCheckInputTitle;
-
-  /// No description provided for @webCheckInputPlaceholder.
-  ///
-  /// In zh, this message translates to:
-  /// **'example.com 或 https://example.com'**
-  String get webCheckInputPlaceholder;
-
-  /// No description provided for @webCheckInputHint.
-  ///
-  /// In zh, this message translates to:
-  /// **'提示：可以直接输入域名，会自动添加 https:// 前缀'**
-  String get webCheckInputHint;
-
-  /// No description provided for @webCheckStartButton.
-  ///
-  /// In zh, this message translates to:
-  /// **'开始检测'**
-  String get webCheckStartButton;
-
-  /// No description provided for @webCheckChecking.
-  ///
-  /// In zh, this message translates to:
-  /// **'检测中...'**
-  String get webCheckChecking;
-
-  /// No description provided for @webCheckErrorEmptyUrl.
-  ///
-  /// In zh, this message translates to:
-  /// **'请输入 URL'**
-  String get webCheckErrorEmptyUrl;
-
-  /// No description provided for @webCheckErrorUnsupportedKernel.
-  ///
-  /// In zh, this message translates to:
-  /// **'Web 检测功能暂不支持新版内核，请在设置中切换到旧版内核'**
-  String get webCheckErrorUnsupportedKernel;
-
-  /// No description provided for @webCheckErrorInvalidUrl.
-  ///
-  /// In zh, this message translates to:
-  /// **'URL 格式无效'**
-  String get webCheckErrorInvalidUrl;
-
-  /// No description provided for @webCheckErrorCheckFailed.
-  ///
-  /// In zh, this message translates to:
-  /// **'检测失败: {error}'**
-  String webCheckErrorCheckFailed(Object error);
-
-  /// No description provided for @webCheckErrorLanUnsupportedKernel.
-  ///
-  /// In zh, this message translates to:
-  /// **'局域网扫描功能暂不支持新版内核，请在设置中切换到旧版内核'**
-  String get webCheckErrorLanUnsupportedKernel;
-
-  /// No description provided for @webCheckErrorScanFailed.
-  ///
-  /// In zh, this message translates to:
-  /// **'扫描失败: {error}'**
-  String webCheckErrorScanFailed(Object error);
-
-  /// No description provided for @webCheckErrorCardTitle.
-  ///
-  /// In zh, this message translates to:
-  /// **'检测失败'**
-  String get webCheckErrorCardTitle;
-
-  /// No description provided for @webCheckDnsTime.
-  ///
-  /// In zh, this message translates to:
-  /// **'DNS: {ms}ms'**
-  String webCheckDnsTime(Object ms);
-
-  /// No description provided for @webCheckResponseTime.
-  ///
-  /// In zh, this message translates to:
-  /// **'响应: {ms}ms'**
-  String webCheckResponseTime(Object ms);
-
-  /// No description provided for @webCheckInfoHostname.
-  ///
-  /// In zh, this message translates to:
-  /// **'主机名'**
-  String get webCheckInfoHostname;
-
-  /// No description provided for @webCheckInfoIpAddress.
-  ///
-  /// In zh, this message translates to:
-  /// **'IP 地址'**
-  String get webCheckInfoIpAddress;
-
-  /// No description provided for @webCheckInfoPort.
-  ///
-  /// In zh, this message translates to:
-  /// **'端口'**
-  String get webCheckInfoPort;
-
-  /// No description provided for @webCheckInfoProtocol.
-  ///
-  /// In zh, this message translates to:
-  /// **'协议'**
-  String get webCheckInfoProtocol;
-
-  /// No description provided for @webCheckInfoFinalUrl.
-  ///
-  /// In zh, this message translates to:
-  /// **'最终 URL'**
-  String get webCheckInfoFinalUrl;
-
-  /// No description provided for @webCheckInfoContentType.
-  ///
-  /// In zh, this message translates to:
-  /// **'Content-Type'**
-  String get webCheckInfoContentType;
-
-  /// No description provided for @webCheckInfoContentLength.
-  ///
-  /// In zh, this message translates to:
-  /// **'Content-Length'**
-  String get webCheckInfoContentLength;
-
-  /// No description provided for @webCheckInfoServer.
-  ///
-  /// In zh, this message translates to:
-  /// **'Server'**
-  String get webCheckInfoServer;
-
-  /// No description provided for @webCheckRedirectHistoryTitle.
-  ///
-  /// In zh, this message translates to:
-  /// **'重定向历史 ({count})'**
-  String webCheckRedirectHistoryTitle(Object count);
-
-  /// No description provided for @webCheckRedirectFrom.
-  ///
-  /// In zh, this message translates to:
-  /// **'从: {url}'**
-  String webCheckRedirectFrom(Object url);
-
-  /// No description provided for @webCheckRedirectTo.
-  ///
-  /// In zh, this message translates to:
-  /// **'到: {url}'**
-  String webCheckRedirectTo(Object url);
-
-  /// No description provided for @webCheckHeadersTitle.
-  ///
-  /// In zh, this message translates to:
-  /// **'响应头'**
-  String get webCheckHeadersTitle;
-
-  /// No description provided for @webCheckSslTitle.
-  ///
-  /// In zh, this message translates to:
-  /// **'SSL/TLS 信息'**
-  String get webCheckSslTitle;
-
-  /// No description provided for @webCheckSslError.
-  ///
-  /// In zh, this message translates to:
-  /// **'SSL 错误: {error}'**
-  String webCheckSslError(Object error);
-
-  /// No description provided for @webCheckSslVersion.
-  ///
-  /// In zh, this message translates to:
-  /// **'版本'**
-  String get webCheckSslVersion;
-
-  /// No description provided for @webCheckSslCipher.
-  ///
-  /// In zh, this message translates to:
-  /// **'加密套件'**
-  String get webCheckSslCipher;
-
-  /// No description provided for @webCheckSslSubject.
-  ///
-  /// In zh, this message translates to:
-  /// **'证书主体'**
-  String get webCheckSslSubject;
-
-  /// No description provided for @webCheckSslIssuer.
-  ///
-  /// In zh, this message translates to:
-  /// **'证书颁发者'**
-  String get webCheckSslIssuer;
-
-  /// No description provided for @webCheckSslNotBefore.
-  ///
-  /// In zh, this message translates to:
-  /// **'有效期开始'**
-  String get webCheckSslNotBefore;
-
-  /// No description provided for @webCheckSslNotAfter.
-  ///
-  /// In zh, this message translates to:
-  /// **'有效期结束'**
-  String get webCheckSslNotAfter;
-
-  /// No description provided for @webCheckCookiesTitle.
-  ///
-  /// In zh, this message translates to:
-  /// **'Cookies ({count})'**
-  String webCheckCookiesTitle(Object count);
-
-  /// No description provided for @webCheckCookieDomain.
-  ///
-  /// In zh, this message translates to:
-  /// **'Domain: {domain}'**
-  String webCheckCookieDomain(Object domain);
-
-  /// No description provided for @webCheckLanScanTitle.
-  ///
-  /// In zh, this message translates to:
-  /// **'局域网扫描'**
-  String get webCheckLanScanTitle;
-
-  /// No description provided for @webCheckAutoScan.
-  ///
-  /// In zh, this message translates to:
-  /// **'自动扫描'**
-  String get webCheckAutoScan;
-
-  /// No description provided for @webCheckLanScanSubtitle.
-  ///
-  /// In zh, this message translates to:
-  /// **'扫描当前局域网中的所有在线设备'**
-  String get webCheckLanScanSubtitle;
-
-  /// No description provided for @webCheckScanning.
-  ///
-  /// In zh, this message translates to:
-  /// **'扫描中...'**
-  String get webCheckScanning;
-
-  /// No description provided for @webCheckScanStart.
-  ///
-  /// In zh, this message translates to:
-  /// **'开始扫描'**
-  String get webCheckScanStart;
-
-  /// No description provided for @webCheckLanDevicesTitle.
-  ///
-  /// In zh, this message translates to:
-  /// **'发现 {count} 台设备'**
-  String webCheckLanDevicesTitle(Object count);
-
-  /// No description provided for @webCheckLanNetworkLabel.
-  ///
-  /// In zh, this message translates to:
-  /// **'网段: {network}'**
-  String webCheckLanNetworkLabel(Object network);
-
-  /// No description provided for @webCheckLanLocalIpLabel.
-  ///
-  /// In zh, this message translates to:
-  /// **'本机 IP: {ip}'**
-  String webCheckLanLocalIpLabel(Object ip);
-
-  /// No description provided for @webCheckLanLocalBadge.
-  ///
-  /// In zh, this message translates to:
-  /// **'本机'**
-  String get webCheckLanLocalBadge;
-
-  /// No description provided for @webCheckStatusUnknown.
-  ///
-  /// In zh, this message translates to:
-  /// **'未知'**
-  String get webCheckStatusUnknown;
-
-  /// No description provided for @webCheckStatusOk.
-  ///
-  /// In zh, this message translates to:
-  /// **'OK'**
-  String get webCheckStatusOk;
-
-  /// No description provided for @webCheckStatusMovedPermanently.
-  ///
-  /// In zh, this message translates to:
-  /// **'永久重定向'**
-  String get webCheckStatusMovedPermanently;
-
-  /// No description provided for @webCheckStatusFound.
-  ///
-  /// In zh, this message translates to:
-  /// **'已找到'**
-  String get webCheckStatusFound;
-
-  /// No description provided for @webCheckStatusNotModified.
-  ///
-  /// In zh, this message translates to:
-  /// **'未修改'**
-  String get webCheckStatusNotModified;
-
-  /// No description provided for @webCheckStatusBadRequest.
-  ///
-  /// In zh, this message translates to:
-  /// **'错误请求'**
-  String get webCheckStatusBadRequest;
-
-  /// No description provided for @webCheckStatusUnauthorized.
-  ///
-  /// In zh, this message translates to:
-  /// **'未授权'**
-  String get webCheckStatusUnauthorized;
-
-  /// No description provided for @webCheckStatusForbidden.
-  ///
-  /// In zh, this message translates to:
-  /// **'禁止访问'**
-  String get webCheckStatusForbidden;
-
-  /// No description provided for @webCheckStatusNotFound.
-  ///
-  /// In zh, this message translates to:
-  /// **'未找到'**
-  String get webCheckStatusNotFound;
-
-  /// No description provided for @webCheckStatusInternalServerError.
-  ///
-  /// In zh, this message translates to:
-  /// **'服务器内部错误'**
-  String get webCheckStatusInternalServerError;
-
-  /// No description provided for @webCheckStatusBadGateway.
-  ///
-  /// In zh, this message translates to:
-  /// **'错误网关'**
-  String get webCheckStatusBadGateway;
-
-  /// No description provided for @webCheckStatusServiceUnavailable.
-  ///
-  /// In zh, this message translates to:
-  /// **'服务不可用'**
-  String get webCheckStatusServiceUnavailable;
-
-  /// No description provided for @webCheckStatusWithCode.
-  ///
-  /// In zh, this message translates to:
-  /// **'状态 {code}'**
-  String webCheckStatusWithCode(Object code);
-
   /// No description provided for @statusPageTitle.
   ///
   /// In zh, this message translates to:
@@ -5411,11 +5015,11 @@ abstract class AppLocalizations {
   /// **'下载核心状态'**
   String get statusSectionKernel;
 
-  /// No description provided for @statusItemKernelService.
+  /// No description provided for @statusItemKernelRuntime.
   ///
   /// In zh, this message translates to:
-  /// **'核心服务'**
-  String get statusItemKernelService;
+  /// **'内核运行时'**
+  String get statusItemKernelRuntime;
 
   /// No description provided for @statusValueRunning.
   ///
@@ -5434,12 +5038,6 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'当前内核'**
   String get statusItemKernelCurrent;
-
-  /// No description provided for @statusKernelLegacyName.
-  ///
-  /// In zh, this message translates to:
-  /// **'旧版内核'**
-  String get statusKernelLegacyName;
 
   /// No description provided for @statusItemHttpService.
   ///
@@ -7397,18 +6995,6 @@ abstract class AppLocalizations {
   /// **'批量移动'**
   String get completedBatchMoveButton;
 
-  /// No description provided for @completedBatchMoveUnavailableTitle.
-  ///
-  /// In zh, this message translates to:
-  /// **'批量移动不可用'**
-  String get completedBatchMoveUnavailableTitle;
-
-  /// No description provided for @completedBatchMoveUnavailableMessage.
-  ///
-  /// In zh, this message translates to:
-  /// **'旧内核暂不支持批量移动'**
-  String get completedBatchMoveUnavailableMessage;
-
   /// No description provided for @completedBatchMoveSuccessTitle.
   ///
   /// In zh, this message translates to:
@@ -7426,18 +7012,6 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'成功 {success} 个，失败 {failed} 个'**
   String completedBatchMovePartialMessage(Object success, Object failed);
-
-  /// No description provided for @completedBatchRenameUnavailableTitle.
-  ///
-  /// In zh, this message translates to:
-  /// **'批量重命名不可用'**
-  String get completedBatchRenameUnavailableTitle;
-
-  /// No description provided for @completedBatchRenameUnavailableMessage.
-  ///
-  /// In zh, this message translates to:
-  /// **'旧内核暂不支持批量重命名'**
-  String get completedBatchRenameUnavailableMessage;
 
   /// No description provided for @completedBatchRenameTitle.
   ///

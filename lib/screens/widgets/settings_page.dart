@@ -8,7 +8,6 @@ import 'package:bitsdojo_window/bitsdojo_window.dart'; // Import appWindow
 import 'package:provider/provider.dart';
 import '../../main.dart'; // Import systemTrayService
 import '../../services/integrated_download_service.dart';
-import '../../services/kernel_service.dart';
 import '../../services/kernel/kernel_manager.dart';
 import '../../services/developer_mode_service.dart';
 import '../../services/client_config_service.dart';
@@ -192,9 +191,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _browserConnected = false;
   Timer? _statusTimer;
 
-  bool _useNewKernel = true;
   String _currentKernelName = 'NSFX (Next Speed Force X)';
-  bool _switchingKernel = false;
 
   DeveloperModeService? _devModeService;
 
@@ -227,90 +224,12 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _loadKernelSettings() async {
-    final config = Provider.of<ClientConfigService>(context, listen: false);
     final kernelManager = KernelManager();
 
     if (mounted) {
       setState(() {
-        _useNewKernel =
-            config.getBool('kernel.use_new_kernel', defaultValue: true);
         _currentKernelName = kernelManager.kernelName;
       });
-    }
-  }
-
-  Future<void> _switchKernel(bool useNew) async {
-    if (_switchingKernel) return;
-
-    setState(() => _switchingKernel = true);
-
-    try {
-      final config = Provider.of<ClientConfigService>(context, listen: false);
-      final kernelManager = Provider.of<KernelManager>(context, listen: false);
-      final kernelService = Provider.of<KernelService>(context, listen: false);
-      final downloadService =
-          Provider.of<IntegratedDownloadService>(context, listen: false);
-
-      if (useNew) {
-        await kernelService.stopKernel();
-        final success = await kernelManager.start(type: KernelType.next);
-
-        if (success) {
-          await config.setBool('kernel.use_new_kernel', true);
-          await downloadService.resetTasksAndReload();
-
-          if (mounted) {
-            setState(() {
-              _useNewKernel = true;
-              _currentKernelName = kernelManager.kernelName;
-            });
-
-            NotificationManager.of(context)?.showSuccess(
-              t.settingsKernelSwitchedTitle,
-              message:
-                  t.settingsKernelSwitchedMessage(kernelManager.kernelName),
-            );
-          }
-        } else {
-          if (mounted) {
-            NotificationManager.of(context)?.showError(
-              t.settingsKernelSwitchFailedTitle,
-              message: t.settingsKernelSwitchFailedNewMessage,
-            );
-          }
-        }
-      } else {
-        await kernelManager.stop();
-        final success = await kernelService.startKernel();
-
-        if (success) {
-          await config.setBool('kernel.use_new_kernel', false);
-          await downloadService.resetTasksAndReload();
-
-          if (mounted) {
-            setState(() {
-              _useNewKernel = false;
-              _currentKernelName = 'Soda Speed Force (Legacy)';
-            });
-
-            NotificationManager.of(context)?.showSuccess(
-              t.settingsKernelSwitchedTitle,
-              message: t.settingsKernelSwitchedLegacyMessage,
-            );
-          }
-        } else {
-          if (mounted) {
-            NotificationManager.of(context)?.showError(
-              t.settingsKernelSwitchFailedTitle,
-              message: t.settingsKernelSwitchFailedLegacyMessage,
-            );
-          }
-        }
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _switchingKernel = false);
-      }
     }
   }
 
@@ -556,10 +475,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!mounted) return;
 
     final kernelManager = KernelManager();
-    final legacyKernelService = context.read<KernelService>();
-
-    final newKernelOnline =
-        _useNewKernel ? kernelManager.isRunning : legacyKernelService.isRunning;
+    final newKernelOnline = kernelManager.isRunning;
 
     final newBrowserConnected = newKernelOnline;
     final newKernelName = kernelManager.kernelName;
@@ -580,22 +496,12 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!mounted) return;
 
     try {
-      final clientConfig = context.read<ClientConfigService>();
-      final useNewKernel =
-          clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
-
-      String? path;
-      if (useNewKernel) {
-        final kernelManager = context.read<KernelManager>();
-        path = await kernelManager.getDownloadDir();
-      } else {
-        final kernelService = context.read<KernelService>();
-        path = await kernelService.getDownloadDir();
-      }
+      final kernelManager = context.read<KernelManager>();
+      final path = await kernelManager.getDownloadDir();
 
       if (path != null && mounted) {
         setState(() {
-          _downloadPath = path!;
+          _downloadPath = path;
         });
       }
     } catch (e) {
@@ -695,18 +601,8 @@ class _SettingsPageState extends State<SettingsPage> {
     );
 
     if (result != null && result.isNotEmpty && mounted) {
-      final clientConfig = context.read<ClientConfigService>();
-      final useNewKernel =
-          clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
-
-      bool success;
-      if (useNewKernel) {
-        final kernelManager = context.read<KernelManager>();
-        success = await kernelManager.setDownloadDir(result);
-      } else {
-        final kernelService = context.read<KernelService>();
-        success = await kernelService.setDownloadDir(result);
-      }
+      final kernelManager = context.read<KernelManager>();
+      final success = await kernelManager.setDownloadDir(result);
 
       if (success && mounted) {
         setState(() {
@@ -2744,45 +2640,25 @@ class _SettingsPageState extends State<SettingsPage> {
         _buildSettingItem(
           context,
           title: t.settingsKernelCurrentTitle,
-          subtitle: _useNewKernel
-              ? '${AppConstants.newKernelFullName} | ${AppConstants.newKernelVersion} | ${AppConstants.newKernelBuildNumber}'
-              : '${AppConstants.kernelFullName} | ${AppConstants.kernelVersion} | ${AppConstants.kernelBuildNumber}',
-          trailing: _switchingKernel
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: ProgressRing(strokeWidth: 2),
-                )
-              : Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
+          subtitle:
+              '${AppConstants.newKernelFullName} | ${AppConstants.newKernelVersion} | ${AppConstants.newKernelBuildNumber}',
+          trailing: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: _kernelOnline
+                  ? AppTheme.statusSuccess.withValues(alpha: 0.2)
+                  : AppTheme.statusError.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              _kernelOnline ? t.settingsKernelOnline : t.settingsKernelOffline,
+              style: FluentTheme.of(context).typography.caption?.copyWith(
                     color: _kernelOnline
-                        ? AppTheme.statusSuccess.withValues(alpha: 0.2)
-                        : AppTheme.statusError.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(4),
+                        ? AppTheme.statusSuccess
+                        : AppTheme.statusError,
+                    fontWeight: FontWeight.w600,
                   ),
-                  child: Text(
-                    _kernelOnline
-                        ? t.settingsKernelOnline
-                        : t.settingsKernelOffline,
-                    style: FluentTheme.of(context).typography.caption?.copyWith(
-                          color: _kernelOnline
-                              ? AppTheme.statusSuccess
-                              : AppTheme.statusError,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                ),
-        ),
-        const SizedBox(height: 12),
-        _buildSettingItem(
-          context,
-          title: t.settingsKernelNsfxTitle,
-          subtitle: t.settingsKernelNsfxSubtitle,
-          trailing: ToggleSwitch(
-            checked: _useNewKernel,
-            onChanged: _switchingKernel ? null : _switchKernel,
+            ),
           ),
         ),
         const SizedBox(height: 12),
@@ -2805,9 +2681,7 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  _useNewKernel
-                      ? t.settingsKernelNsfxHint
-                      : t.settingsKernelSodaHint,
+                  t.settingsKernelNsfxHint,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
                         color: AppTheme.textSecondary,
                       ),
@@ -2822,8 +2696,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _buildStatusSection(BuildContext context) {
     final t = AppLocalizations.of(context)!;
-    final kernelDisplayName =
-        _useNewKernel ? t.settingsStatusKernelNsfx : t.settingsStatusKernelSoda;
+    final kernelDisplayName = t.settingsStatusKernelNsfx;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -3007,8 +2880,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 message: t.settingsDangerClearingMessage,
               );
 
-              final kernelService = context.read<KernelService>();
-              final success = await kernelService.clearAllData();
+              final kernelManager = context.read<KernelManager>();
+              final success = await kernelManager.clearAllData();
               if (!mounted) return;
 
               if (success) {

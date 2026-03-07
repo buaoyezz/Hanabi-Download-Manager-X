@@ -18,7 +18,6 @@ Thank you for your interest in contributing to Hanabi Download Manager X! We wel
 
 - Flutter SDK 3.0.0+
 - Dart SDK 3.0.0+
-- Python 3.12.6+ (for legacy kernel)
 - Git
 - Visual Studio Code (recommended) or Android Studio
 

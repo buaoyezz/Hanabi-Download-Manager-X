@@ -286,9 +286,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeNavStatus => 'Status';
 
   @override
-  String get homeNavWebCheck => 'Web Check';
-
-  @override
   String get homeNavOnlineStats => 'Online Stats';
 
   @override
@@ -886,18 +883,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'NSFX provides better performance and stability';
 
   @override
-  String get settingsKernelSodaHint => 'Legacy kernel is for compatibility';
-
-  @override
   String get settingsKernelSwitchedTitle => 'Kernel switched';
 
   @override
   String settingsKernelSwitchedMessage(Object kernelName) {
     return 'Now using $kernelName';
   }
-
-  @override
-  String get settingsKernelSwitchedLegacyMessage => 'Switched to legacy kernel';
 
   @override
   String get settingsKernelSwitchFailedTitle => 'Kernel switch failed';
@@ -907,17 +898,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Failed to start new kernel';
 
   @override
-  String get settingsKernelSwitchFailedLegacyMessage =>
-      'Failed to start legacy kernel';
-
-  @override
   String get settingsStatusTitle => 'System status';
 
   @override
   String get settingsStatusKernelNsfx => 'NSFX Kernel';
-
-  @override
-  String get settingsStatusKernelSoda => 'Legacy Kernel';
 
   @override
   String get settingsStatusBrowserExtension => 'Browser extension';
@@ -990,13 +974,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsDeveloperShowOnlineStatsSubtitle =>
       'Show online stats in navigation';
-
-  @override
-  String get settingsDeveloperShowWebCheckTitle => 'Show web check page';
-
-  @override
-  String get settingsDeveloperShowWebCheckSubtitle =>
-      'Show web status tools in navigation';
 
   @override
   String get settingsDeveloperShowConnectionDebugTitle =>
@@ -2763,215 +2740,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get webCheckHeaderTitle => 'Web Status Check';
-
-  @override
-  String get webCheckInputTitle => 'Enter URL';
-
-  @override
-  String get webCheckInputPlaceholder => 'example.com or https://example.com';
-
-  @override
-  String get webCheckInputHint =>
-      'Tip: enter a domain and https:// will be added automatically';
-
-  @override
-  String get webCheckStartButton => 'Start check';
-
-  @override
-  String get webCheckChecking => 'Checking...';
-
-  @override
-  String get webCheckErrorEmptyUrl => 'Please enter a URL';
-
-  @override
-  String get webCheckErrorUnsupportedKernel =>
-      'Web check is not supported by the new kernel. Switch to the legacy kernel in Settings.';
-
-  @override
-  String get webCheckErrorInvalidUrl => 'Invalid URL format';
-
-  @override
-  String webCheckErrorCheckFailed(Object error) {
-    return 'Check failed: $error';
-  }
-
-  @override
-  String get webCheckErrorLanUnsupportedKernel =>
-      'LAN scan is not supported by the new kernel. Switch to the legacy kernel in Settings.';
-
-  @override
-  String webCheckErrorScanFailed(Object error) {
-    return 'Scan failed: $error';
-  }
-
-  @override
-  String get webCheckErrorCardTitle => 'Check failed';
-
-  @override
-  String webCheckDnsTime(Object ms) {
-    return 'DNS: ${ms}ms';
-  }
-
-  @override
-  String webCheckResponseTime(Object ms) {
-    return 'Response: ${ms}ms';
-  }
-
-  @override
-  String get webCheckInfoHostname => 'Hostname';
-
-  @override
-  String get webCheckInfoIpAddress => 'IP address';
-
-  @override
-  String get webCheckInfoPort => 'Port';
-
-  @override
-  String get webCheckInfoProtocol => 'Protocol';
-
-  @override
-  String get webCheckInfoFinalUrl => 'Final URL';
-
-  @override
-  String get webCheckInfoContentType => 'Content-Type';
-
-  @override
-  String get webCheckInfoContentLength => 'Content-Length';
-
-  @override
-  String get webCheckInfoServer => 'Server';
-
-  @override
-  String webCheckRedirectHistoryTitle(Object count) {
-    return 'Redirect history ($count)';
-  }
-
-  @override
-  String webCheckRedirectFrom(Object url) {
-    return 'From: $url';
-  }
-
-  @override
-  String webCheckRedirectTo(Object url) {
-    return 'To: $url';
-  }
-
-  @override
-  String get webCheckHeadersTitle => 'Response headers';
-
-  @override
-  String get webCheckSslTitle => 'SSL/TLS info';
-
-  @override
-  String webCheckSslError(Object error) {
-    return 'SSL error: $error';
-  }
-
-  @override
-  String get webCheckSslVersion => 'Version';
-
-  @override
-  String get webCheckSslCipher => 'Cipher';
-
-  @override
-  String get webCheckSslSubject => 'Subject';
-
-  @override
-  String get webCheckSslIssuer => 'Issuer';
-
-  @override
-  String get webCheckSslNotBefore => 'Valid from';
-
-  @override
-  String get webCheckSslNotAfter => 'Valid until';
-
-  @override
-  String webCheckCookiesTitle(Object count) {
-    return 'Cookies ($count)';
-  }
-
-  @override
-  String webCheckCookieDomain(Object domain) {
-    return 'Domain: $domain';
-  }
-
-  @override
-  String get webCheckLanScanTitle => 'LAN scan';
-
-  @override
-  String get webCheckAutoScan => 'Auto scan';
-
-  @override
-  String get webCheckLanScanSubtitle =>
-      'Scan all online devices on the current LAN';
-
-  @override
-  String get webCheckScanning => 'Scanning...';
-
-  @override
-  String get webCheckScanStart => 'Start scan';
-
-  @override
-  String webCheckLanDevicesTitle(Object count) {
-    return 'Found $count devices';
-  }
-
-  @override
-  String webCheckLanNetworkLabel(Object network) {
-    return 'Network: $network';
-  }
-
-  @override
-  String webCheckLanLocalIpLabel(Object ip) {
-    return 'Local IP: $ip';
-  }
-
-  @override
-  String get webCheckLanLocalBadge => 'Local';
-
-  @override
-  String get webCheckStatusUnknown => 'Unknown';
-
-  @override
-  String get webCheckStatusOk => 'OK';
-
-  @override
-  String get webCheckStatusMovedPermanently => 'Moved Permanently';
-
-  @override
-  String get webCheckStatusFound => 'Found';
-
-  @override
-  String get webCheckStatusNotModified => 'Not Modified';
-
-  @override
-  String get webCheckStatusBadRequest => 'Bad Request';
-
-  @override
-  String get webCheckStatusUnauthorized => 'Unauthorized';
-
-  @override
-  String get webCheckStatusForbidden => 'Forbidden';
-
-  @override
-  String get webCheckStatusNotFound => 'Not Found';
-
-  @override
-  String get webCheckStatusInternalServerError => 'Internal Server Error';
-
-  @override
-  String get webCheckStatusBadGateway => 'Bad Gateway';
-
-  @override
-  String get webCheckStatusServiceUnavailable => 'Service Unavailable';
-
-  @override
-  String webCheckStatusWithCode(Object code) {
-    return 'Status $code';
-  }
-
-  @override
   String get statusPageTitle => 'System Status';
 
   @override
@@ -2987,7 +2755,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statusSectionKernel => 'Kernel status';
 
   @override
-  String get statusItemKernelService => 'Kernel service';
+  String get statusItemKernelRuntime => 'Kernel runtime';
 
   @override
   String get statusValueRunning => 'Running';
@@ -2997,9 +2765,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statusItemKernelCurrent => 'Current kernel';
-
-  @override
-  String get statusKernelLegacyName => 'Legacy Kernel';
 
   @override
   String get statusItemHttpService => 'HTTP service';
@@ -4107,13 +3872,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get completedBatchMoveButton => 'Batch move';
 
   @override
-  String get completedBatchMoveUnavailableTitle => 'Batch move unavailable';
-
-  @override
-  String get completedBatchMoveUnavailableMessage =>
-      'Legacy kernel does not support batch move yet';
-
-  @override
   String get completedBatchMoveSuccessTitle => 'Batch move complete';
 
   @override
@@ -4125,13 +3883,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String completedBatchMovePartialMessage(Object success, Object failed) {
     return 'Success $success, failed $failed';
   }
-
-  @override
-  String get completedBatchRenameUnavailableTitle => 'Batch rename unavailable';
-
-  @override
-  String get completedBatchRenameUnavailableMessage =>
-      'Legacy kernel does not support batch rename yet';
 
   @override
   String get completedBatchRenameTitle => 'Batch rename';

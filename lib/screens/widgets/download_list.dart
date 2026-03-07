@@ -1267,7 +1267,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
     final (text, color) = switch (reachable) {
       true => (t.statusValueReachable, AppTheme.statusSuccess),
       false => (t.statusValueUnreachable, AppTheme.statusError),
-      null => (t.webCheckChecking, AppTheme.statusWarning),
+      null => (t.statusValueUnknown, AppTheme.statusWarning),
     };
 
     return Container(

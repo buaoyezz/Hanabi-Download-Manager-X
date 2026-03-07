@@ -158,7 +158,6 @@
   "homeNavCompleted": "Completed",
   "homeNavLog": "Logs",
   "homeNavStatus": "Status",
-  "homeNavWebCheck": "Web Check",
   "homeNavOnlineStats": "Online Stats",
   "homeNavPerformance": "Performance",
   "homeNavSettings": "Settings",
@@ -381,16 +380,12 @@
   "settingsKernelNsfxTitle": "Use NSFX kernel",
   "settingsKernelNsfxSubtitle": "Switch to the new kernel",
   "settingsKernelNsfxHint": "NSFX provides better performance and stability",
-  "settingsKernelSodaHint": "Legacy kernel is for compatibility",
   "settingsKernelSwitchedTitle": "Kernel switched",
   "settingsKernelSwitchedMessage": "Now using {kernelName}",
-  "settingsKernelSwitchedLegacyMessage": "Switched to legacy kernel",
   "settingsKernelSwitchFailedTitle": "Kernel switch failed",
   "settingsKernelSwitchFailedNewMessage": "Failed to start new kernel",
-  "settingsKernelSwitchFailedLegacyMessage": "Failed to start legacy kernel",
   "settingsStatusTitle": "System status",
   "settingsStatusKernelNsfx": "NSFX Kernel",
-  "settingsStatusKernelSoda": "Legacy Kernel",
   "settingsStatusBrowserExtension": "Browser extension",
   "settingsModeDescriptionAuto": "Automatically balance threads and segments",
   "settingsModeDescriptionThreadsOnly": "Use threads only",
@@ -412,8 +407,6 @@
   "settingsDeveloperShowStatusSubtitle": "Show system status in navigation",
   "settingsDeveloperShowOnlineStatsTitle": "Show online stats page",
   "settingsDeveloperShowOnlineStatsSubtitle": "Show online stats in navigation",
-  "settingsDeveloperShowWebCheckTitle": "Show web check page",
-  "settingsDeveloperShowWebCheckSubtitle": "Show web status tools in navigation",
   "settingsDeveloperShowConnectionDebugTitle": "Show connection debug page",
   "settingsDeveloperShowConnectionDebugSubtitle": "Show connection diagnostics in navigation",
   "settingsDeveloperPageHint": "Debug pages may consume resources; enable only when needed",
@@ -1226,145 +1219,15 @@
       "name": {}
     }
   },
-  "webCheckHeaderTitle": "Web Status Check",
-  "webCheckInputTitle": "Enter URL",
-  "webCheckInputPlaceholder": "example.com or https://example.com",
-  "webCheckInputHint": "Tip: enter a domain and https:// will be added automatically",
-  "webCheckStartButton": "Start check",
-  "webCheckChecking": "Checking...",
-  "webCheckErrorEmptyUrl": "Please enter a URL",
-  "webCheckErrorUnsupportedKernel": "Web check is not supported by the new kernel. Switch to the legacy kernel in Settings.",
-  "webCheckErrorInvalidUrl": "Invalid URL format",
-  "webCheckErrorCheckFailed": "Check failed: {error}",
-  "@webCheckErrorCheckFailed": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "webCheckErrorLanUnsupportedKernel": "LAN scan is not supported by the new kernel. Switch to the legacy kernel in Settings.",
-  "webCheckErrorScanFailed": "Scan failed: {error}",
-  "@webCheckErrorScanFailed": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "webCheckErrorCardTitle": "Check failed",
-  "webCheckDnsTime": "DNS: {ms}ms",
-  "@webCheckDnsTime": {
-    "placeholders": {
-      "ms": {}
-    }
-  },
-  "webCheckResponseTime": "Response: {ms}ms",
-  "@webCheckResponseTime": {
-    "placeholders": {
-      "ms": {}
-    }
-  },
-  "webCheckInfoHostname": "Hostname",
-  "webCheckInfoIpAddress": "IP address",
-  "webCheckInfoPort": "Port",
-  "webCheckInfoProtocol": "Protocol",
-  "webCheckInfoFinalUrl": "Final URL",
-  "webCheckInfoContentType": "Content-Type",
-  "webCheckInfoContentLength": "Content-Length",
-  "webCheckInfoServer": "Server",
-  "webCheckRedirectHistoryTitle": "Redirect history ({count})",
-  "@webCheckRedirectHistoryTitle": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "webCheckRedirectFrom": "From: {url}",
-  "@webCheckRedirectFrom": {
-    "placeholders": {
-      "url": {}
-    }
-  },
-  "webCheckRedirectTo": "To: {url}",
-  "@webCheckRedirectTo": {
-    "placeholders": {
-      "url": {}
-    }
-  },
-  "webCheckHeadersTitle": "Response headers",
-  "webCheckSslTitle": "SSL/TLS info",
-  "webCheckSslError": "SSL error: {error}",
-  "@webCheckSslError": {
-    "placeholders": {
-      "error": {}
-    }
-  },
-  "webCheckSslVersion": "Version",
-  "webCheckSslCipher": "Cipher",
-  "webCheckSslSubject": "Subject",
-  "webCheckSslIssuer": "Issuer",
-  "webCheckSslNotBefore": "Valid from",
-  "webCheckSslNotAfter": "Valid until",
-  "webCheckCookiesTitle": "Cookies ({count})",
-  "@webCheckCookiesTitle": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "webCheckCookieDomain": "Domain: {domain}",
-  "@webCheckCookieDomain": {
-    "placeholders": {
-      "domain": {}
-    }
-  },
-  "webCheckLanScanTitle": "LAN scan",
-  "webCheckAutoScan": "Auto scan",
-  "webCheckLanScanSubtitle": "Scan all online devices on the current LAN",
-  "webCheckScanning": "Scanning...",
-  "webCheckScanStart": "Start scan",
-  "webCheckLanDevicesTitle": "Found {count} devices",
-  "@webCheckLanDevicesTitle": {
-    "placeholders": {
-      "count": {}
-    }
-  },
-  "webCheckLanNetworkLabel": "Network: {network}",
-  "@webCheckLanNetworkLabel": {
-    "placeholders": {
-      "network": {}
-    }
-  },
-  "webCheckLanLocalIpLabel": "Local IP: {ip}",
-  "@webCheckLanLocalIpLabel": {
-    "placeholders": {
-      "ip": {}
-    }
-  },
-  "webCheckLanLocalBadge": "Local",
-  "webCheckStatusUnknown": "Unknown",
-  "webCheckStatusOk": "OK",
-  "webCheckStatusMovedPermanently": "Moved Permanently",
-  "webCheckStatusFound": "Found",
-  "webCheckStatusNotModified": "Not Modified",
-  "webCheckStatusBadRequest": "Bad Request",
-  "webCheckStatusUnauthorized": "Unauthorized",
-  "webCheckStatusForbidden": "Forbidden",
-  "webCheckStatusNotFound": "Not Found",
-  "webCheckStatusInternalServerError": "Internal Server Error",
-  "webCheckStatusBadGateway": "Bad Gateway",
-  "webCheckStatusServiceUnavailable": "Service Unavailable",
-  "webCheckStatusWithCode": "Status {code}",
-  "@webCheckStatusWithCode": {
-    "placeholders": {
-      "code": {}
-    }
-  },
   "statusPageTitle": "System Status",
   "statusPageRefresh": "Refresh",
   "statusPageTestApi": "Test API",
   "statusPageClearLogs": "Clear logs",
   "statusSectionKernel": "Kernel status",
-  "statusItemKernelService": "Kernel service",
+  "statusItemKernelRuntime": "Kernel runtime",
   "statusValueRunning": "Running",
   "statusValueStopped": "Stopped",
   "statusItemKernelCurrent": "Current kernel",
-  "statusKernelLegacyName": "Legacy Kernel",
   "statusItemHttpService": "HTTP service",
   "statusValueHealthy": "Healthy",
   "statusValueBuiltIn": "Built-in",
@@ -1963,8 +1826,6 @@
   },
   "completedBatchRenameButton": "Batch rename",
   "completedBatchMoveButton": "Batch move",
-  "completedBatchMoveUnavailableTitle": "Batch move unavailable",
-  "completedBatchMoveUnavailableMessage": "Legacy kernel does not support batch move yet",
   "completedBatchMoveSuccessTitle": "Batch move complete",
   "completedBatchMoveSuccessMessage": "Moved {count} files",
   "@completedBatchMoveSuccessMessage": {
@@ -1979,8 +1840,6 @@
       "failed": {}
     }
   },
-  "completedBatchRenameUnavailableTitle": "Batch rename unavailable",
-  "completedBatchRenameUnavailableMessage": "Legacy kernel does not support batch rename yet",
   "completedBatchRenameTitle": "Batch rename",
   "completedBatchRenameHint": "Apply prefix/suffix to file names in the current list",
   "completedBatchRenamePrefixLabel": "Prefix",

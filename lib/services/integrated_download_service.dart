@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:collection/collection.dart';
 import '../models/download_task.dart';
-import 'kernel_service.dart';
 import 'kernel/kernel_manager.dart';
 import 'kernel/kernel_interface.dart' as kernel;
 import 'client_config_service.dart';
@@ -10,7 +8,6 @@ import 'app_logger_service.dart';
 import 'download_failure_stats_service.dart';
 
 class IntegratedDownloadService extends ChangeNotifier {
-  final KernelService _kernelService;
   final _kernelManager = KernelManager();
   final _clientConfig = ClientConfigService();
   final _appLogger = AppLoggerService();
@@ -35,24 +32,26 @@ class IntegratedDownloadService extends ChangeNotifier {
   StreamSubscription? _progressSubscription;
   StreamSubscription? _completeSubscription;
 
-  IntegratedDownloadService(this._kernelService) {
+  IntegratedDownloadService() {
     _startPolling();
     _subscribeToKernelStreams();
     // 立即尝试首次加载，不等待轮询间隔
     _immediateFirstLoad();
   }
 
-  bool get _useNewKernel =>
-      _clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
-  bool get isKernelRunning =>
-      _useNewKernel ? _kernelManager.isRunning : _kernelService.isRunning;
+  bool get isKernelRunning => _kernelManager.isRunning;
 
   List<DownloadTask> get tasks => List.unmodifiable(_tasks);
   bool get hasLoadedOnce => _hasLoadedOnce;
 
   DownloadTask? findDuplicateTask(String url) {
     final normalized = _normalizeUrl(url);
-    return _tasks.firstWhereOrNull((t) => _normalizeUrl(t.url) == normalized);
+    for (final task in _tasks) {
+      if (_normalizeUrl(task.url) == normalized) {
+        return task;
+      }
+    }
+    return null;
   }
 
   String _normalizeUrl(String url) {
@@ -68,6 +67,15 @@ class IntegratedDownloadService extends ChangeNotifier {
     } catch (_) {
       return trimmed;
     }
+  }
+
+  DownloadTask? _findTaskById(String id) {
+    for (final task in _tasks) {
+      if (task.id == id) {
+        return task;
+      }
+    }
+    return null;
   }
 
   void _startPolling() {
@@ -95,7 +103,7 @@ class IntegratedDownloadService extends ChangeNotifier {
     _progressSubscription = null;
     _completeSubscription = null;
 
-    if (_useNewKernel && _kernelManager.isRunning) {
+    if (_kernelManager.isRunning) {
       _appLogger.info('App', 'Subscribing to kernel streams...');
 
       // 监听进度更新
@@ -228,16 +236,8 @@ class IntegratedDownloadService extends ChangeNotifier {
     if (!isKernelRunning) return;
 
     try {
-      List<Map<String, dynamic>> kernelTasks;
-
-      if (_useNewKernel) {
-        // 使用新内核
-        final tasks = await _kernelManager.getTasks();
-        kernelTasks = tasks.map(_convertDownloadTaskToMap).toList();
-      } else {
-        // 使用旧内核
-        kernelTasks = await _kernelService.getTasks();
-      }
+      final tasks = await _kernelManager.getTasks();
+      final kernelTasks = tasks.map(_convertDownloadTaskToMap).toList();
 
       bool hasChanges = false;
       bool hasCriticalChange = false;
@@ -565,8 +565,8 @@ class IntegratedDownloadService extends ChangeNotifier {
       _subscribeToKernelStreams();
     }
 
-    _appLogger.info('App',
-        'Adding download task: $fileName (using ${_useNewKernel ? 'NSFX' : 'Legacy'} kernel)');
+    _appLogger.info(
+        'App', 'Adding download task: $fileName (using NSFX kernel)');
     if (referer != null ||
         userAgent != null ||
         cookies != null ||
@@ -574,26 +574,14 @@ class IntegratedDownloadService extends ChangeNotifier {
       _appLogger.info('App', 'With authentication headers');
     }
 
-    String? taskId;
-    if (_useNewKernel) {
-      taskId = await _kernelManager.addDownload(
-        url,
-        fileName,
-        referer: referer,
-        userAgent: userAgent,
-        cookies: cookies,
-        headers: headers,
-      );
-    } else {
-      taskId = await _kernelService.addDownload(
-        url,
-        fileName,
-        referer: referer,
-        userAgent: userAgent,
-        cookies: cookies,
-        headers: headers,
-      );
-    }
+    final taskId = await _kernelManager.addDownload(
+      url,
+      fileName,
+      referer: referer,
+      userAgent: userAgent,
+      cookies: cookies,
+      headers: headers,
+    );
 
     if (taskId != null) {
       _appLogger.info('App', 'Task added successfully: $taskId - $fileName');
@@ -744,19 +732,14 @@ class IntegratedDownloadService extends ChangeNotifier {
   }
 
   Future<void> pauseTask(String id) async {
-    final task = _tasks.firstWhereOrNull((t) => t.id == id);
+    final task = _findTaskById(id);
     if (task == null) {
       _appLogger.warning('App', 'Pause ignored: task not found (ID: $id)');
       return;
     }
     _appLogger.info('App', 'Pausing task: ${task.fileName} (ID: $id)');
 
-    bool success;
-    if (_useNewKernel) {
-      success = await _kernelManager.pauseDownload(id);
-    } else {
-      success = await _kernelService.pauseDownload(id);
-    }
+    final success = await _kernelManager.pauseDownload(id);
 
     if (success) {
       _appLogger.info('App', 'Task paused successfully: ${task.fileName}');
@@ -767,19 +750,14 @@ class IntegratedDownloadService extends ChangeNotifier {
   }
 
   Future<void> resumeTask(String id) async {
-    final task = _tasks.firstWhereOrNull((t) => t.id == id);
+    final task = _findTaskById(id);
     if (task == null) {
       _appLogger.warning('App', 'Resume ignored: task not found (ID: $id)');
       return;
     }
     _appLogger.info('App', 'Resuming task: ${task.fileName} (ID: $id)');
 
-    bool success;
-    if (_useNewKernel) {
-      success = await _kernelManager.resumeDownload(id);
-    } else {
-      success = await _kernelService.resumeDownload(id);
-    }
+    final success = await _kernelManager.resumeDownload(id);
 
     if (success) {
       _appLogger.info('App', 'Task resumed successfully: ${task.fileName}');
@@ -790,7 +768,7 @@ class IntegratedDownloadService extends ChangeNotifier {
   }
 
   Future<void> removeTask(String id) async {
-    final task = _tasks.firstWhereOrNull((t) => t.id == id);
+    final task = _findTaskById(id);
 
     if (task == null) {
       _appLogger.error('App', 'Task not found for removal: $id');
@@ -799,12 +777,7 @@ class IntegratedDownloadService extends ChangeNotifier {
 
     _appLogger.info('App', 'Removing task: ${task.fileName} (ID: $id)');
 
-    bool success;
-    if (_useNewKernel) {
-      success = await _kernelManager.cancelDownload(id);
-    } else {
-      success = await _kernelService.cancelDownload(id);
-    }
+    final success = await _kernelManager.cancelDownload(id);
 
     if (success) {
       _tasks.removeWhere((task) => task.id == id);
@@ -818,16 +791,11 @@ class IntegratedDownloadService extends ChangeNotifier {
   }
 
   Future<bool> renameTaskFile(String id, String newFileName) async {
-    final task = _tasks.firstWhereOrNull((t) => t.id == id);
+    final task = _findTaskById(id);
     if (task == null) {
       _appLogger.warning('App', 'Rename ignored: task not found (ID: $id)');
       return false;
     }
-    if (!_useNewKernel) {
-      _appLogger.warning('App', 'Rename not supported in legacy kernel');
-      return false;
-    }
-
     final success = await _kernelManager.renameTask(id, newFileName);
     if (success) {
       _appLogger.info('App', 'Task renamed: ${task.fileName} -> $newFileName');
@@ -839,16 +807,11 @@ class IntegratedDownloadService extends ChangeNotifier {
   }
 
   Future<bool> moveTaskFile(String id, String targetDir) async {
-    final task = _tasks.firstWhereOrNull((t) => t.id == id);
+    final task = _findTaskById(id);
     if (task == null) {
       _appLogger.warning('App', 'Move ignored: task not found (ID: $id)');
       return false;
     }
-    if (!_useNewKernel) {
-      _appLogger.warning('App', 'Move not supported in legacy kernel');
-      return false;
-    }
-
     final success = await _kernelManager.moveTask(id, targetDir);
     if (success) {
       _appLogger.info('App', 'Task moved: ${task.fileName} -> $targetDir');
@@ -863,47 +826,44 @@ class IntegratedDownloadService extends ChangeNotifier {
     await resumeTask(id);
   }
 
-  /// 切换内核后：清空任务缓存并重新拉取
+  /// 重启内核后：清空任务缓存并重新拉取
   Future<void> resetTasksAndReload() async {
     _tasks.clear();
     _hasActiveDownloads = false;
     _hasLoadedOnce = false;
     notifyNow();
 
-    // 重新订阅/取消订阅内核流（新内核才有）
+    // 重新订阅内核流
     _subscribeToKernelStreams();
     await _updateTasks();
   }
 
   Future<Map<String, dynamic>?> getDownloadConfig() async {
-    if (_useNewKernel) {
-      final config = await _kernelManager.getConfig();
-      if (config == null) return null;
-      return {
-        'threads': config.threads,
-        'segments': config.segments,
-        'mode': config.mode,
-        'max_concurrent_tasks': config.maxConcurrentTasks,
-        'segment_speed_limit': config.segmentSpeedLimit,
-        'global_speed_limit': config.globalSpeedLimit,
-        'enable_dynamic_segments': config.enableDynamicSegments,
-        'conflict_strategy': config.conflictStrategy,
-        'default_user_agent': config.defaultUserAgent,
-        'http_version_policy': config.httpVersionPolicy,
-        'proxy': config.proxy != null
-            ? {
-                'enabled': config.proxy!.enabled,
-                'type': config.proxy!.type,
-                'host': config.proxy!.host,
-                'port': config.proxy!.port,
-                'username': config.proxy!.username,
-                'password': config.proxy!.password,
-                'requires_auth': config.proxy!.requiresAuth,
-              }
-            : null,
-      };
-    }
-    return await _kernelService.getDownloadConfig();
+    final config = await _kernelManager.getConfig();
+    if (config == null) return null;
+    return {
+      'threads': config.threads,
+      'segments': config.segments,
+      'mode': config.mode,
+      'max_concurrent_tasks': config.maxConcurrentTasks,
+      'segment_speed_limit': config.segmentSpeedLimit,
+      'global_speed_limit': config.globalSpeedLimit,
+      'enable_dynamic_segments': config.enableDynamicSegments,
+      'conflict_strategy': config.conflictStrategy,
+      'default_user_agent': config.defaultUserAgent,
+      'http_version_policy': config.httpVersionPolicy,
+      'proxy': config.proxy != null
+          ? {
+              'enabled': config.proxy!.enabled,
+              'type': config.proxy!.type,
+              'host': config.proxy!.host,
+              'port': config.proxy!.port,
+              'username': config.proxy!.username,
+              'password': config.proxy!.password,
+              'requires_auth': config.proxy!.requiresAuth,
+            }
+          : null,
+    };
   }
 
   Future<bool> setDownloadConfig({
@@ -919,61 +879,42 @@ class IntegratedDownloadService extends ChangeNotifier {
     String? httpVersionPolicy,
     Map<String, dynamic>? proxyConfig,
   }) async {
-    bool success;
+    final existing = await _kernelManager.getConfig();
+    String effectiveConflictStrategy =
+        conflictStrategy ?? existing?.conflictStrategy ?? 'increment';
 
-    if (_useNewKernel) {
-      final existing = await _kernelManager.getConfig();
-      String effectiveConflictStrategy =
-          conflictStrategy ?? existing?.conflictStrategy ?? 'increment';
-
-      kernel.ProxyConfig? proxy;
-      if (proxyConfig != null) {
-        proxy = kernel.ProxyConfig(
-          enabled: proxyConfig['enabled'] ?? false,
-          type: proxyConfig['type'] ?? 'http',
-          host: proxyConfig['host'] ?? '',
-          port: proxyConfig['port'] ?? 7897,
-          username: proxyConfig['username'],
-          password: proxyConfig['password'],
-          requiresAuth: proxyConfig['requires_auth'] ?? false,
-        );
-      }
-
-      final config = kernel.DownloadConfig(
-        threads: threads ?? existing?.threads ?? 8,
-        segments: segments ?? existing?.segments ?? 8,
-        mode: mode ?? existing?.mode ?? 'auto',
-        maxConcurrentTasks:
-            maxConcurrentTasks ?? existing?.maxConcurrentTasks ?? 3,
-        segmentSpeedLimit:
-            segmentSpeedLimit ?? existing?.segmentSpeedLimit ?? 0,
-        globalSpeedLimit: globalSpeedLimit ?? existing?.globalSpeedLimit ?? 0,
-        enableDynamicSegments:
-            enableDynamicSegments ?? existing?.enableDynamicSegments ?? true,
-        conflictStrategy: effectiveConflictStrategy,
-        defaultUserAgent: defaultUserAgent ??
-            existing?.defaultUserAgent ??
-            kernel.DownloadConfig.defaultUserAgentFallback,
-        httpVersionPolicy:
-            httpVersionPolicy ?? existing?.httpVersionPolicy ?? 'auto',
-        proxy: proxy ?? existing?.proxy,
-      );
-      success = await _kernelManager.setConfig(config);
-    } else {
-      success = await _kernelService.setDownloadConfig(
-        threads: threads,
-        segments: segments,
-        mode: mode,
-        maxConcurrentTasks: maxConcurrentTasks,
-        segmentSpeedLimit: segmentSpeedLimit,
-        globalSpeedLimit: globalSpeedLimit,
-        enableDynamicSegments: enableDynamicSegments,
-        conflictStrategy: conflictStrategy,
-        defaultUserAgent: defaultUserAgent,
-        httpVersionPolicy: httpVersionPolicy,
-        proxyConfig: proxyConfig,
+    kernel.ProxyConfig? proxy;
+    if (proxyConfig != null) {
+      proxy = kernel.ProxyConfig(
+        enabled: proxyConfig['enabled'] ?? false,
+        type: proxyConfig['type'] ?? 'http',
+        host: proxyConfig['host'] ?? '',
+        port: proxyConfig['port'] ?? 7897,
+        username: proxyConfig['username'],
+        password: proxyConfig['password'],
+        requiresAuth: proxyConfig['requires_auth'] ?? false,
       );
     }
+
+    final config = kernel.DownloadConfig(
+      threads: threads ?? existing?.threads ?? 8,
+      segments: segments ?? existing?.segments ?? 8,
+      mode: mode ?? existing?.mode ?? 'auto',
+      maxConcurrentTasks:
+          maxConcurrentTasks ?? existing?.maxConcurrentTasks ?? 3,
+      segmentSpeedLimit: segmentSpeedLimit ?? existing?.segmentSpeedLimit ?? 0,
+      globalSpeedLimit: globalSpeedLimit ?? existing?.globalSpeedLimit ?? 0,
+      enableDynamicSegments:
+          enableDynamicSegments ?? existing?.enableDynamicSegments ?? true,
+      conflictStrategy: effectiveConflictStrategy,
+      defaultUserAgent: defaultUserAgent ??
+          existing?.defaultUserAgent ??
+          kernel.DownloadConfig.defaultUserAgentFallback,
+      httpVersionPolicy:
+          httpVersionPolicy ?? existing?.httpVersionPolicy ?? 'auto',
+      proxy: proxy ?? existing?.proxy,
+    );
+    final success = await _kernelManager.setConfig(config);
 
     if (success) {
       _appLogger.info('App',
@@ -991,24 +932,13 @@ class IntegratedDownloadService extends ChangeNotifier {
     String? password,
   }) async {
     try {
-      bool result;
-      if (_useNewKernel) {
-        result = await _kernelManager.testProxyConnection(
-          type: type,
-          host: host,
-          port: port,
-          username: username,
-          password: password,
-        );
-      } else {
-        result = await _kernelService.testProxyConnection(
-          type: type,
-          host: host,
-          port: port,
-          username: username,
-          password: password,
-        );
-      }
+      final result = await _kernelManager.testProxyConnection(
+        type: type,
+        host: host,
+        port: port,
+        username: username,
+        password: password,
+      );
       _appLogger.info('App',
           'Proxy connection test: $type://$host:$port - ${result ? 'success' : 'failed'}');
       return result;
@@ -1025,12 +955,7 @@ class IntegratedDownloadService extends ChangeNotifier {
     _appLogger.info(
         'App', 'Retrying failed segments for task: ${task.fileName} (ID: $id)');
 
-    bool success;
-    if (_useNewKernel) {
-      success = await _kernelManager.retryFailedSegments(id);
-    } else {
-      success = await _kernelService.retryFailedSegments(id);
-    }
+    final success = await _kernelManager.retryFailedSegments(id);
 
     if (success) {
       _appLogger.info(
@@ -1048,12 +973,7 @@ class IntegratedDownloadService extends ChangeNotifier {
     _appLogger.info('App',
         'Retrying segment $segmentIndex for task: ${task.fileName} (ID: $id)');
 
-    bool success;
-    if (_useNewKernel) {
-      success = await _kernelManager.retrySegment(id, segmentIndex);
-    } else {
-      success = await _kernelService.retrySegment(id, segmentIndex);
-    }
+    final success = await _kernelManager.retrySegment(id, segmentIndex);
 
     if (success) {
       _appLogger.info(
