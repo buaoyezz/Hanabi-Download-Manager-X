@@ -16,6 +16,9 @@ class LanguagePack {
     this.author,
     this.version,
     this.source,
+    this.defaultFontFamily,
+    this.defaultEnglishFontFamily,
+    this.fontLocaleTag,
   });
 
   final String localeTag;
@@ -25,6 +28,9 @@ class LanguagePack {
   final String? author;
   final String? version;
   final String? source;
+  final String? defaultFontFamily;
+  final String? defaultEnglishFontFamily;
+  final String? fontLocaleTag;
 }
 
 class LocalizationService extends ChangeNotifier {
@@ -58,16 +64,18 @@ class LocalizationService extends ChangeNotifier {
   }
 
   bool isSupported(Locale locale) {
-    if (locale.languageCode == 'en' || locale.languageCode == 'zh') {
-      return true;
-    }
-    return _packs.containsKey(_localeKey(locale));
+    return _resolveSupportedLocale(locale) != null;
+  }
+
+  Locale resolveSupportedLocale(Locale locale) {
+    return _resolveSupportedLocale(locale) ?? _builtinFallbackLocale(locale);
   }
 
   Map<String, String>? getStringsFor(Locale locale) {
-    final key = _localeKey(locale);
-    final pack = _packs[key];
-    _logger.info('Lang', 'getStringsFor: locale=$locale, key=$key, found=${pack != null}, strings=${pack?.strings.length ?? 0}');
+    final requestedKey = _localeKey(locale);
+    final pack = _resolveLanguagePack(locale);
+    _logger.info('Lang',
+        'getStringsFor: locale=$locale, requestedKey=$requestedKey, resolvedKey=${pack == null ? "-" : _localeKey(pack.locale)}, found=${pack != null}, strings=${pack?.strings.length ?? 0}');
     return pack?.strings;
   }
 
@@ -89,8 +97,9 @@ class LocalizationService extends ChangeNotifier {
 
     final normalized = _normalizeLocaleTag(preference);
     final locale = _parseLocaleTag(normalized);
-    if (isSupported(locale)) {
-      return locale;
+    final supportedLocale = _resolveSupportedLocale(locale);
+    if (supportedLocale != null) {
+      return supportedLocale;
     }
 
     return _defaultLocaleFromSystem();
@@ -132,8 +141,9 @@ class LocalizationService extends ChangeNotifier {
         final normalizedTag = _normalizeLocaleTag(localeTag);
         final locale = _parseLocaleTag(normalizedTag);
 
-        if (locale.languageCode == 'en' || locale.languageCode == 'zh') {
-          _logger.warning('Lang', 'Ignore built-in locale pack: $normalizedTag');
+        if (_isBuiltInLocaleTag(normalizedTag)) {
+          _logger.warning(
+              'Lang', 'Ignore built-in locale pack: $normalizedTag');
           continue;
         }
 
@@ -148,12 +158,20 @@ class LocalizationService extends ChangeNotifier {
           localeTag: normalizedTag,
           locale: locale,
           strings: strings,
-          name: _readString(data, '@@languageName') ?? _readString(data, 'name'),
+          name:
+              _readString(data, '@@languageName') ?? _readString(data, 'name'),
           author: _readString(data, 'author'),
           version: _readString(data, 'version'),
           source: _readString(data, 'source'),
+          defaultFontFamily: _readString(data, '@@defaultFont') ??
+              _readString(data, 'defaultFont'),
+          defaultEnglishFontFamily: _readString(data, '@@defaultEnglishFont') ??
+              _readString(data, 'defaultEnglishFont'),
+          fontLocaleTag: _readString(data, '@@fontLocale') ??
+              _readString(data, 'fontLocale'),
         );
-        _logger.info('Lang', 'Loaded pack: $normalizedTag -> key=$key, strings=${strings.length}');
+        _logger.info('Lang',
+            'Loaded pack: $normalizedTag -> key=$key, strings=${strings.length}');
       } catch (e) {
         _logger.error('Lang', 'Failed to load pack ${entity.path}: $e');
       }
@@ -163,19 +181,23 @@ class LocalizationService extends ChangeNotifier {
       ..clear()
       ..addAll(loaded);
     _revision++;
-    _logger.info('Lang', 'Loaded ${_packs.length} language pack(s), keys: ${_packs.keys.join(", ")}');
+    _logger.info('Lang',
+        'Loaded ${_packs.length} language pack(s), keys: ${_packs.keys.join(", ")}');
   }
 
   Locale _defaultLocaleFromSystem() {
     final system = WidgetsBinding.instance.platformDispatcher.locale;
-    if (system.languageCode.toLowerCase() == 'zh') {
-      return const Locale('zh');
+    final resolvedSystemLocale = _resolveSupportedLocale(system);
+    if (resolvedSystemLocale != null) {
+      return resolvedSystemLocale;
     }
-    return const Locale('en');
+
+    return _builtinFallbackLocale(system);
   }
 
   String? _extractLocaleTag(Map<String, dynamic> data, String filePath) {
-    final fromData = _readString(data, '@@locale') ?? _readString(data, 'locale');
+    final fromData =
+        _readString(data, '@@locale') ?? _readString(data, 'locale');
     if (fromData != null && fromData.trim().isNotEmpty) {
       return fromData.trim();
     }
@@ -228,12 +250,33 @@ class LocalizationService extends ChangeNotifier {
     final parts = tag.split('_').where((p) => p.isNotEmpty).toList();
     if (parts.isEmpty) return const Locale('en');
     if (parts.length == 1) return Locale(parts[0]);
-    if (parts.length == 2) return Locale(parts[0], parts[1]);
+    if (parts.length == 2) {
+      if (_looksLikeScriptCode(parts[1])) {
+        return Locale.fromSubtags(
+          languageCode: parts[0],
+          scriptCode: _normalizeScriptCode(parts[1]),
+        );
+      }
+      return Locale(parts[0], parts[1]);
+    }
+
+    final hasScriptCode = _looksLikeScriptCode(parts[1]);
     return Locale.fromSubtags(
       languageCode: parts[0],
-      scriptCode: parts[1],
-      countryCode: parts.length > 2 ? parts[2] : null,
+      scriptCode: hasScriptCode ? _normalizeScriptCode(parts[1]) : null,
+      countryCode: hasScriptCode ? parts[2] : parts[1],
     );
+  }
+
+  bool _looksLikeScriptCode(String value) {
+    return value.length == 4 && RegExp(r'^[A-Za-z]{4}$').hasMatch(value);
+  }
+
+  String _normalizeScriptCode(String value) {
+    if (value.isEmpty) {
+      return value;
+    }
+    return value[0].toUpperCase() + value.substring(1).toLowerCase();
   }
 
   String _localeKey(Locale locale) {
@@ -247,5 +290,120 @@ class LocalizationService extends ChangeNotifier {
       buffer.write('_$country');
     }
     return buffer.toString();
+  }
+
+  bool _isBuiltInLocaleTag(String localeTag) {
+    final normalizedTag = _normalizeLocaleTag(localeTag);
+    return normalizedTag == 'en' || normalizedTag == 'zh';
+  }
+
+  Locale? _resolveSupportedLocale(Locale locale) {
+    final exactPack = _packs[_localeKey(locale)];
+    if (exactPack != null) {
+      return exactPack.locale;
+    }
+
+    final exactBuiltin = _exactBuiltInLocale(locale);
+    if (exactBuiltin != null) {
+      return exactBuiltin;
+    }
+
+    final fallbackPack = _resolveLanguagePack(locale);
+    if (fallbackPack != null) {
+      return fallbackPack.locale;
+    }
+
+    final languageCode = locale.languageCode.toLowerCase();
+    if (languageCode == 'en' || languageCode == 'zh') {
+      return _builtinFallbackLocale(locale);
+    }
+
+    return null;
+  }
+
+  LanguagePack? _resolveLanguagePack(Locale locale) {
+    final exactPack = _packs[_localeKey(locale)];
+    if (exactPack != null) {
+      return exactPack;
+    }
+
+    final languageCode = locale.languageCode.toLowerCase();
+    if (languageCode == 'zh' && _isTraditionalChineseLocale(locale)) {
+      return _findSupportedTraditionalChinesePack(requestedLocale: locale);
+    }
+
+    return _packs[languageCode];
+  }
+
+  Locale? _exactBuiltInLocale(Locale locale) {
+    final normalizedKey = _normalizeLocaleTag(_localeKey(locale));
+    if (normalizedKey == 'en') {
+      return const Locale('en');
+    }
+    if (normalizedKey == 'zh') {
+      return const Locale('zh');
+    }
+    return null;
+  }
+
+  Locale _builtinFallbackLocale(Locale locale) {
+    if (locale.languageCode.toLowerCase() == 'zh') {
+      return const Locale('zh');
+    }
+    return const Locale('en');
+  }
+
+  bool _isTraditionalChineseLocale(Locale locale) {
+    final scriptCode = locale.scriptCode?.toLowerCase();
+    final countryCode = locale.countryCode?.toUpperCase();
+    return scriptCode == 'hant' ||
+        countryCode == 'TW' ||
+        countryCode == 'HK' ||
+        countryCode == 'MO';
+  }
+
+  LanguagePack? _findSupportedTraditionalChinesePack(
+      {Locale? requestedLocale}) {
+    final candidates = _packs.values
+        .where((pack) => pack.locale.languageCode.toLowerCase() == 'zh')
+        .where((pack) => _isTraditionalChineseLocale(pack.locale))
+        .toList();
+    if (candidates.isEmpty) {
+      return null;
+    }
+
+    final requestedCountryCode = requestedLocale?.countryCode?.toUpperCase();
+    if (requestedCountryCode != null && requestedCountryCode.isNotEmpty) {
+      for (final pack in candidates) {
+        if (pack.locale.countryCode?.toUpperCase() == requestedCountryCode) {
+          return pack;
+        }
+      }
+    }
+
+    for (final pack in candidates) {
+      if (pack.locale.scriptCode?.toLowerCase() == 'hant') {
+        return pack;
+      }
+    }
+
+    const preferredCountries = <String>['TW', 'HK', 'MO'];
+    for (final countryCode in preferredCountries) {
+      for (final pack in candidates) {
+        if (pack.locale.countryCode?.toUpperCase() == countryCode) {
+          return pack;
+        }
+      }
+    }
+
+    for (final pack in _packs.values) {
+      if (pack.locale.languageCode.toLowerCase() != 'zh') {
+        continue;
+      }
+      if (_isTraditionalChineseLocale(pack.locale)) {
+        return pack;
+      }
+    }
+    return null;
   }
 }

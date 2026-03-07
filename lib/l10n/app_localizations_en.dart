@@ -274,7 +274,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get homeNavDownloading => 'Downloading';
+  String get homeNavDownloading => 'Download Task';
 
   @override
   String get homeNavCompleted => 'Completed';

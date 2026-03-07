@@ -154,7 +154,7 @@
       "success": {}
     }
   },
-  "homeNavDownloading": "下载中",
+  "homeNavDownloading": "下载任务",
   "homeNavCompleted": "已完成",
   "homeNavLog": "日志",
   "homeNavStatus": "状态",

@@ -154,7 +154,7 @@
       "success": {}
     }
   },
-  "homeNavDownloading": "Downloading",
+  "homeNavDownloading": "Download Task",
   "homeNavCompleted": "Completed",
   "homeNavLog": "Logs",
   "homeNavStatus": "Status",

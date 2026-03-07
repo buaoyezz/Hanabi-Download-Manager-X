@@ -271,7 +271,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get homeNavDownloading => '下载中';
+  String get homeNavDownloading => '下载任务';
 
   @override
   String get homeNavCompleted => '已完成';

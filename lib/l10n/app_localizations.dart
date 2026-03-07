@@ -563,7 +563,7 @@ abstract class AppLocalizations {
   /// No description provided for @homeNavDownloading.
   ///
   /// In zh, this message translates to:
-  /// **'下载中'**
+  /// **'下载任务'**
   String get homeNavDownloading;
 
   /// No description provided for @homeNavCompleted.

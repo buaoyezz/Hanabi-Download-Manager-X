@@ -14,6 +14,7 @@ import 'package:win32/win32.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:screen_retriever/screen_retriever.dart';
+import 'package:scroll_animator/scroll_animator.dart';
 import 'services/integrated_download_service.dart';
 import 'services/kernel_service.dart';
 import 'services/kernel/kernel_manager.dart';
@@ -47,25 +48,27 @@ final navigatorKey = GlobalKey<NavigatorState>();
 
 /// 缓存窗口句柄，避免每次都做 FFI 查找
 int _cachedHwnd = 0;
+bool get _disableWindowsSemanticsWorkaround =>
+    !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
 
 /// 获取当前应用的窗口句柄（带缓存）
 int _getAppWindowHandle() {
   if (_cachedHwnd != 0) return _cachedHwnd;
-  
+
   debugPrint('[Window] Attempting to get window handle...');
-  
+
   // 方法1: 尝试通过窗口标题查找
   final title = 'Hanabi Download ManagerX'.toNativeUtf16();
   var hwnd = FindWindow(nullptr, title);
   calloc.free(title);
-  
+
   if (hwnd != 0) {
     debugPrint('[Window] Found window by title: $hwnd');
     _cachedHwnd = hwnd;
     return hwnd;
   }
   debugPrint('[Window] FindWindow by title failed');
-  
+
   // 方法2: 使用前台窗口
   hwnd = GetForegroundWindow();
   if (hwnd != 0) {
@@ -74,7 +77,7 @@ int _getAppWindowHandle() {
     return hwnd;
   }
   debugPrint('[Window] GetForegroundWindow failed');
-  
+
   // 方法3: 使用活动窗口
   hwnd = GetActiveWindow();
   debugPrint('[Window] GetActiveWindow returned: $hwnd');
@@ -94,30 +97,33 @@ Future<void> maximizeWindowProperly() async {
           // 检查并修复窗口样式
           final style = GetWindowLongPtr(hwnd, GWL_STYLE);
           debugPrint('[Window] Current window style: $style');
-          
+
           // 确保窗口有 WS_MAXIMIZEBOX 和 WS_CAPTION 样式
           const WS_MAXIMIZEBOX = 0x00010000;
           const WS_CAPTION = 0x00C00000;
-          
+
           if ((style & WS_MAXIMIZEBOX) == 0 || (style & WS_CAPTION) == 0) {
             debugPrint('[Window] Adding WS_MAXIMIZEBOX and WS_CAPTION styles');
             final newStyle = style | WS_MAXIMIZEBOX | WS_CAPTION;
             SetWindowLongPtr(hwnd, GWL_STYLE, newStyle);
           }
-          
-          debugPrint('[Window] Calling ShowWindow with SW_MAXIMIZE ($SW_MAXIMIZE) on handle $hwnd');
+
+          debugPrint(
+              '[Window] Calling ShowWindow with SW_MAXIMIZE ($SW_MAXIMIZE) on handle $hwnd');
           final result = ShowWindow(hwnd, SW_MAXIMIZE);
           debugPrint('[Window] ShowWindow returned: $result');
-          
+
           // 验证窗口状态
           final placement = calloc<WINDOWPLACEMENT>();
           placement.ref.length = sizeOf<WINDOWPLACEMENT>();
           if (GetWindowPlacement(hwnd, placement) != 0) {
-            debugPrint('[Window] Window showCmd after maximize: ${placement.ref.showCmd}');
+            debugPrint(
+                '[Window] Window showCmd after maximize: ${placement.ref.showCmd}');
             calloc.free(placement);
           }
         } else {
-          debugPrint('[Window] Failed to get window handle, using bitsdojo_window');
+          debugPrint(
+              '[Window] Failed to get window handle, using bitsdojo_window');
           appWindow.maximize();
         }
       });
@@ -161,7 +167,7 @@ bool isWindowMaximized() {
       if (hwnd != 0) {
         final placement = calloc<WINDOWPLACEMENT>();
         placement.ref.length = sizeOf<WINDOWPLACEMENT>();
-        
+
         if (GetWindowPlacement(hwnd, placement) != 0) {
           final isMaximized = placement.ref.showCmd == SW_MAXIMIZE;
           calloc.free(placement);
@@ -183,7 +189,7 @@ Future<void> _loadCustomFonts(FontService fontService) async {
     for (final entry in customFonts.entries) {
       final fontName = entry.key;
       final fontPath = entry.value;
-      
+
       final file = File(fontPath);
       if (await file.exists()) {
         final fontData = await file.readAsBytes();
@@ -219,18 +225,18 @@ void main(List<String> args) async {
       appLogger.error('Flutter', '${details.exception}\n${details.stack}');
       FlutterError.presentError(details);
     };
-    
+
     // 初始化 Acrylic/Mica 效果 - 只初始化，不设置效果
     // 效果由 WindowEffectService 通过自定义 C++ 代码控制
     await Window.initialize();
     // 注意：不再调用 Window.setEffect()，由 flutter_window.cpp 处理
-    
+
     // 检查是否是开机自启动（启动参数 --autostart）
     final bool isAutoStart = args.contains('--autostart');
-    
+
     final kernelService = KernelService();
     final kernelManager = KernelManager();
-    
+
     // 初始化服务
     final networkStatus = NetworkStatusService();
     final developerMode = DeveloperModeService();
@@ -242,7 +248,7 @@ void main(List<String> args) async {
     final userProfileService = UserProfileService();
     final notificationSettings = NotificationSettingsService();
     final localizationService = LocalizationService();
-    
+
     appLogger.info('App', 'Application starting...');
     await clientConfig.initialize();
     await quickPathService.initialize(clientConfig.configDir);
@@ -252,23 +258,25 @@ void main(List<String> args) async {
     await windowEffectService.initialize();
     await updateService.initialize();
     await notificationSettings.init(); // 初始化通知设置
-    
+
     // 初始化 FluentIcons（从 JSON 加载图标映射）
     await FluentIcons.initialize();
     appLogger.info('App', 'FluentIcons initialized');
-    
+
     // 初始化用户配置并启动心跳
     await userProfileService.initialize();
-    appLogger.info('App', 'User profile initialized: ${userProfileService.deviceId}');
+    appLogger.info(
+        'App', 'User profile initialized: ${userProfileService.deviceId}');
 
     await localizationService.initialize(clientConfig);
     appLogger.info('App', 'Localization service initialized');
-    
+    fontService.updateLanguagePackDefaults(localizationService.languagePacks);
+
     // 加载自定义字体（异步，不阻塞启动）
     _loadCustomFonts(fontService).catchError((e) {
       debugPrint('Failed to load custom fonts: $e');
     });
-    
+
     appLogger.info('App', 'Services initialized');
 
     // 加载速度历史（异步，不阻塞启动）
@@ -283,7 +291,8 @@ void main(List<String> args) async {
           ChangeNotifierProvider.value(value: kernelManager),
           ChangeNotifierProxyProvider<KernelService, IntegratedDownloadService>(
             create: (context) => IntegratedDownloadService(kernelService),
-            update: (context, kernel, previous) => previous ?? IntegratedDownloadService(kernel),
+            update: (context, kernel, previous) =>
+                previous ?? IntegratedDownloadService(kernel),
           ),
           ChangeNotifierProvider.value(value: appLogger),
           ChangeNotifierProvider.value(value: DownloadFailureStatsService()),
@@ -306,7 +315,7 @@ void main(List<String> args) async {
       final win = appWindow;
       // 使用已经初始化的 ClientConfigService 实例
       // 注意：不能创建新实例，因为配置还没有加载
-      
+
       // 获取屏幕大小（使用 screen_retriever）
       double screenWidth = 1920.0;
       double screenHeight = 1080.0;
@@ -315,52 +324,55 @@ void main(List<String> args) async {
         screenWidth = primaryDisplay.size.width;
         screenHeight = primaryDisplay.size.height;
         debugPrint('Screen size: $screenWidth x $screenHeight');
-        
+
         // 根据屏幕分辨率自动设置缩放比例
-        await clientConfig.autoSetScaleFactorByResolution(screenWidth, screenHeight);
+        await clientConfig.autoSetScaleFactorByResolution(
+            screenWidth, screenHeight);
       } catch (e) {
         debugPrint('Failed to get screen size: $e');
       }
-      
+
       // 根据是否记忆大小来决定使用哪个尺寸
       // 使用已初始化的 clientConfig 实例
       Size initialSize;
       final rememberSize = clientConfig.getWindowRememberSize();
       final defaultWidth = clientConfig.getWindowDefaultWidth();
       final defaultHeight = clientConfig.getWindowDefaultHeight();
-      
+
       debugPrint('Remember size: $rememberSize');
       debugPrint('Default size: $defaultWidth x $defaultHeight');
-      
+
       if (rememberSize) {
         // 使用上次保存的大小，但不超过屏幕大小
         final savedWidth = clientConfig.getWindowWidth();
         final savedHeight = clientConfig.getWindowHeight();
         debugPrint('Saved size: $savedWidth x $savedHeight');
-        
+
         // 检查是否是旧配置（width/height 是旧的默认值 1280x800 或其他不合理的值）
         // 如果 saved size 明显不合理（比如是旧的硬编码值），使用 default size
         bool isOldConfig = false;
-        
+
         // 检测常见的旧默认值
         if ((savedWidth == 1280.0 && savedHeight == 800.0) ||
             (savedWidth == 1200.0 && savedHeight == 800.0)) {
           isOldConfig = true;
-          debugPrint('Detected old config with hardcoded size, migrating to default size');
+          debugPrint(
+              'Detected old config with hardcoded size, migrating to default size');
         }
-        
+
         double targetWidth = savedWidth;
         double targetHeight = savedHeight;
-        
+
         if (isOldConfig) {
           // 使用默认大小并更新配置
           targetWidth = defaultWidth;
           targetHeight = defaultHeight;
           await clientConfig.setWindowWidth(defaultWidth);
           await clientConfig.setWindowHeight(defaultHeight);
-          debugPrint('Migrated to default size: $defaultWidth x $defaultHeight');
+          debugPrint(
+              'Migrated to default size: $defaultWidth x $defaultHeight');
         }
-        
+
         final safeWidth = targetWidth.clamp(600.0, screenWidth);
         final safeHeight = targetHeight.clamp(400.0, screenHeight);
         initialSize = Size(safeWidth, safeHeight);
@@ -372,15 +384,16 @@ void main(List<String> args) async {
         initialSize = Size(safeWidth, safeHeight);
         debugPrint('Using default size (clamped): $safeWidth x $safeHeight');
       }
-      
+
       // 设置窗口属性
       win.minSize = const Size(600, 400);
       win.alignment = Alignment.center;
       win.title = "Hanabi Download ManagerX";
-      
+
       // 设置窗口大小（需要在 show 之前设置）
       win.size = initialSize;
-      debugPrint('Window size requested: ${initialSize.width} x ${initialSize.height}');
+      debugPrint(
+          'Window size requested: ${initialSize.width} x ${initialSize.height}');
 
       if (clientConfig.getWindowMaximized()) {
         debugPrint("Window maximized");
@@ -388,22 +401,23 @@ void main(List<String> args) async {
       } else {
         restoreWindowProperly();
       }
-      
+
       // 注意：bitsdojo_window 不支持 onWindowClose 事件
       // 我们需要在 CloseWindowButton 中自定义处理逻辑
-      
+
       // 如果是开机自启动，隐藏窗口；否则显示窗口
       if (isAutoStart) {
         win.hide();
       } else {
         win.show();
       }
-      
+
       // 显示后再次确认窗口大小（bitsdojo_window 的 bug workaround）
       await Future.delayed(const Duration(milliseconds: 100));
       if (!clientConfig.getWindowMaximized()) {
         win.size = initialSize;
-        debugPrint('Window size confirmed: ${initialSize.width} x ${initialSize.height}');
+        debugPrint(
+            'Window size confirmed: ${initialSize.width} x ${initialSize.height}');
       }
     });
   });
@@ -428,11 +442,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initSystemTray();
-      _initKernel();  // 异步启动，不阻塞 UI
+      _initKernel(); // 异步启动，不阻塞 UI
       _initDownloadListener();
       _initClipboardListener();
-      _initPipeListener();  // 初始化管道监听
-      _initPopupProgressService();  // 初始化弹窗进度推送服务
+      _initPipeListener(); // 初始化管道监听
+      _initPopupProgressService(); // 初始化弹窗进度推送服务
     });
   }
 
@@ -450,7 +464,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     final isAutoStart = context.read<bool>();
     await systemTrayService.initialize(
       kernelService: kernelService,
-      showWindow: !isAutoStart,  // 只在非自启动时显示窗口
+      showWindow: !isAutoStart, // 只在非自启动时显示窗口
     );
   }
 
@@ -459,20 +473,22 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     final kernelService = context.read<KernelService>();
     final appLogger = AppLoggerService();
     final clientConfig = context.read<ClientConfigService>();
-    
+
     // 读取用户选择的内核类型
-    final useNewKernel = clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
-    
+    final useNewKernel =
+        clientConfig.getBool('kernel.use_new_kernel', defaultValue: true);
+
     try {
       if (useNewKernel) {
         // 使用新的 NSFX 内核（默认）
         appLogger.info('App', 'Starting NSFX kernel (new)...');
         final success = await kernelManager.start(type: KernelType.next);
-        
+
         if (success) {
           appLogger.info('App', 'NSFX kernel started successfully');
         } else {
-          appLogger.error('App', 'Failed to start NSFX kernel, falling back to legacy kernel');
+          appLogger.error('App',
+              'Failed to start NSFX kernel, falling back to legacy kernel');
           // 回退到旧内核
           await kernelService.startKernel().timeout(
             const Duration(seconds: 30),
@@ -492,7 +508,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             return false;
           },
         );
-        
+
         if (!success && mounted) {
           appLogger.error('App', 'Failed to start download kernel');
           _showKernelError();
@@ -507,13 +523,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       }
     }
   }
-  
+
   void _showKernelError({String? error}) {
     NotificationManager.of(context)?.showError(
       error != null ? '启动内核时发生错误' : '下载内核启动失败',
       message: error ?? '请查看日志了解详情',
       onTap: () async {
-        final devMode = Provider.of<DeveloperModeService>(context, listen: false);
+        final devMode =
+            Provider.of<DeveloperModeService>(context, listen: false);
         if (!devMode.showLogPage) {
           await devMode.setShowLogPage(true);
         }
@@ -551,7 +568,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
       // 显示通知
       final appLogger = context.read<AppLoggerService>();
-      appLogger.info('PipeListener', 'Download added from popup: ${request.filename}');
+      appLogger.info(
+          'PipeListener', 'Download added from popup: ${request.filename}');
     };
 
     _pipeListener!.start();
@@ -575,24 +593,27 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     try {
       final win = appWindow;
       final config = context.read<ClientConfigService>();
-      
+
       // 保存最大化状态
       await config.setWindowMaximized(win.isMaximized);
-      
+
       // 只有在启用记忆大小且窗口未最大化时才保存当前窗口大小
       if (config.getWindowRememberSize() && !win.isMaximized) {
         final currentWidth = win.size.width;
         final currentHeight = win.size.height;
-        
+
         // 验证窗口大小是否合理（防止保存异常值）
         // 窗口最小化时，size 可能会变成很小的值（如 160x28），需要过滤掉
-        if (currentWidth >= 600 && currentHeight >= 400 && 
-            currentWidth <= 4096 && currentHeight <= 2160) {
+        if (currentWidth >= 600 &&
+            currentHeight >= 400 &&
+            currentWidth <= 4096 &&
+            currentHeight <= 2160) {
           debugPrint('Saving window size: $currentWidth x $currentHeight');
           await config.setWindowWidth(currentWidth);
           await config.setWindowHeight(currentHeight);
         } else {
-          debugPrint('Invalid window size, not saving: $currentWidth x $currentHeight');
+          debugPrint(
+              'Invalid window size, not saving: $currentWidth x $currentHeight');
         }
       }
     } catch (e) {
@@ -614,14 +635,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     } catch (e) {
       // 忽略错误
     }
-    
+
     // 停止旧kernel服务
     try {
       await kernelService.stopKernel();
     } catch (e) {
       // 忽略错误，确保清理继续
     }
-    
+
     systemTrayService.dispose();
   }
 
@@ -632,7 +653,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _downloadListener?.stopListening();
     _clipboardListener?.stop();
     systemTrayService.dispose();
-    
+
     // 异步清理新内核（不等待）
     try {
       final kernelManager = context.read<KernelManager>();
@@ -640,7 +661,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     } catch (e) {
       // 忽略错误
     }
-    
+
     // 异步清理旧 kernel（不等待）
     try {
       final kernelService = context.read<KernelService>();
@@ -654,11 +675,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return Consumer3<FontService, ClientConfigService, LocalizationService>(
-      builder: (context, fontService, clientConfig, localizationService, child) {
+      builder:
+          (context, fontService, clientConfig, localizationService, child) {
         final baseTheme = AppTheme.fluentDarkTheme;
         final typography = baseTheme.typography;
         final scaleFactor = clientConfig.getWindowScaleFactor();
-        
+        final fontStack =
+            fontService.resolveFontStack(localizationService.effectiveLocale);
+        final fontFamily = fontStack.primaryFamily;
+        final fontFallbacks = fontStack.fallbackFamilies;
+
         return fluent.FluentApp(
           navigatorKey: navigatorKey,
           title: 'Hanabi Download ManagerX',
@@ -672,41 +698,80 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             GlobalWidgetsLocalizations.delegate,
           ],
           localeResolutionCallback: (locale, supportedLocales) {
-            // For custom locales (like 'meow'), check if we have a language pack
-            if (locale != null && 
-                locale.languageCode != 'en' && 
-                locale.languageCode != 'zh') {
-              // Check if we have a custom language pack for this locale
-              if (localizationService.isSupported(locale)) {
-                // Return the custom locale, but Flutter's built-in delegates
-                // will fall back to 'en' automatically
-                return locale;
-              }
+            if (locale == null) {
+              return localizationService.effectiveLocale;
             }
-            return locale;
+            return localizationService.resolveSupportedLocale(locale);
           },
           supportedLocales: localizationService.supportedLocales,
           debugShowCheckedModeBanner: false,
           theme: baseTheme.copyWith(
             typography: fluent.Typography.raw(
-              body: typography.body?.copyWith(fontFamily: fontService.fontFamily),
-              bodyLarge: typography.bodyLarge?.copyWith(fontFamily: fontService.fontFamily),
-              bodyStrong: typography.bodyStrong?.copyWith(fontFamily: fontService.fontFamily),
-              caption: typography.caption?.copyWith(fontFamily: fontService.fontFamily),
-              subtitle: typography.subtitle?.copyWith(fontFamily: fontService.fontFamily),
-              title: typography.title?.copyWith(fontFamily: fontService.fontFamily),
-              titleLarge: typography.titleLarge?.copyWith(fontFamily: fontService.fontFamily),
-              display: typography.display?.copyWith(fontFamily: fontService.fontFamily),
+              body: typography.body?.copyWith(
+                fontFamily: fontFamily,
+                fontFamilyFallback: fontFallbacks,
+              ),
+              bodyLarge: typography.bodyLarge?.copyWith(
+                fontFamily: fontFamily,
+                fontFamilyFallback: fontFallbacks,
+              ),
+              bodyStrong: typography.bodyStrong?.copyWith(
+                fontFamily: fontFamily,
+                fontFamilyFallback: fontFallbacks,
+              ),
+              caption: typography.caption?.copyWith(
+                fontFamily: fontFamily,
+                fontFamilyFallback: fontFallbacks,
+              ),
+              subtitle: typography.subtitle?.copyWith(
+                fontFamily: fontFamily,
+                fontFamilyFallback: fontFallbacks,
+              ),
+              title: typography.title?.copyWith(
+                fontFamily: fontFamily,
+                fontFamilyFallback: fontFallbacks,
+              ),
+              titleLarge: typography.titleLarge?.copyWith(
+                fontFamily: fontFamily,
+                fontFamilyFallback: fontFallbacks,
+              ),
+              display: typography.display?.copyWith(
+                fontFamily: fontFamily,
+                fontFamilyFallback: fontFallbacks,
+              ),
             ),
           ),
           builder: (context, child) {
+            Widget content = NotificationManager(
+              child: child!,
+            );
+            content = DefaultTextStyle.merge(
+              style: TextStyle(
+                fontFamily: fontFamily,
+                fontFamilyFallback: fontFallbacks,
+              ),
+              child: content,
+            );
+            if (!kIsWeb &&
+                const {
+                  TargetPlatform.windows,
+                  TargetPlatform.linux,
+                  TargetPlatform.macOS,
+                }.contains(defaultTargetPlatform)) {
+              content = AnimatedPrimaryScrollController(
+                animationFactory: const ChromiumEaseInOut(),
+                child: content,
+              );
+            }
+            if (_disableWindowsSemanticsWorkaround) {
+              // Work around repeated AXTree update failures on Flutter Windows.
+              content = ExcludeSemantics(child: content);
+            }
             return MediaQuery(
               data: MediaQuery.of(context).copyWith(
                 textScaler: TextScaler.linear(scaleFactor),
               ),
-              child: NotificationManager(
-                child: child!,
-              ),
+              child: content,
             );
           },
           home: const HomeScreen(),

@@ -14,13 +14,19 @@ class AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
 
   @override
   Future<AppLocalizations> load(Locale locale) async {
+    final resolvedLocale = service.resolveSupportedLocale(locale);
     final strings = service.getStringsFor(locale);
     if (strings != null && strings.isNotEmpty) {
-      final fallback = lookupAppLocalizations(const Locale('en'));
-      return PluginAppLocalizations(locale.toString(), strings, fallback);
+      final fallback =
+          lookupAppLocalizations(_normalizeBuiltin(resolvedLocale));
+      return PluginAppLocalizations(
+        resolvedLocale.toString(),
+        strings,
+        fallback,
+      );
     }
 
-    final effective = _normalizeBuiltin(locale);
+    final effective = _normalizeBuiltin(resolvedLocale);
     return lookupAppLocalizations(effective);
   }
 

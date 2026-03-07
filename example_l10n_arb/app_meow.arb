@@ -1,0 +1,40 @@
+{
+  "@@locale": "meow",
+  "@@languageName": "喵语（示例）",
+  "@@fontLocale": "zh",
+  "@@defaultFont": "Noto Sans SC",
+  "@@defaultEnglishFont": "Comic Sans MS",
+  "author": "Hanabi Example",
+  "version": "1.0.0",
+  "source": "example_l10n_arb/app_meow.arb",
+  "appTitle": "Hanabi Download Manager X 喵",
+  "settingsTitle": "设置喵",
+  "settingsTabGeneral": "常规喵",
+  "settingsTabDownload": "下载喵",
+  "settingsTabAppearance": "界面喵",
+  "settingsTabUpdate": "更新喵",
+  "settingsTabAdvanced": "高级喵",
+  "aboutPageTitle": "关于喵",
+  "homeNavDownloading": "下载任务喵",
+  "homeNavCompleted": "已完成喵",
+  "homeNavSettings": "设置喵",
+  "homeNavAbout": "关于喵",
+  "homeNewTask": "新建喵",
+  "appearanceSectionLanguage": "语言喵",
+  "appearanceLanguageTitle": "界面语言喵",
+  "appearanceLanguageSubtitle": "不跟系统，跟猫猫走喵",
+  "appearanceFontSection": "字体喵",
+  "appearanceFontTitle": "显示字体喵",
+  "appearanceFontImportButton": "导入字体喵",
+  "appearanceFontChangedTitle": "字体切换成功喵",
+  "appearanceFontChangedMessage": "新的字体已经生效喵",
+  "appearanceLanguagePacksTitle": "语言包喵",
+  "appearanceLanguageRefreshButton": "刷新语言包喵",
+  "appearanceLanguagePacksRefreshedTitle": "语言包刷新完成喵",
+  "appearanceLanguagePacksRefreshedMessage": "发现 {count} 个语言包喵",
+  "@appearanceLanguagePacksRefreshedMessage": {
+    "placeholders": {
+      "count": {}
+    }
+  }
+}

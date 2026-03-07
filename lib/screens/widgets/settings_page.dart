@@ -12,6 +12,7 @@ import '../../services/kernel_service.dart';
 import '../../services/kernel/kernel_manager.dart';
 import '../../services/developer_mode_service.dart';
 import '../../services/client_config_service.dart';
+import '../../services/font_service.dart';
 import '../../services/performance_monitor_service.dart';
 import '../../widgets/folder_picker_dialog.dart';
 import '../../widgets/settings_components.dart';
@@ -104,7 +105,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
   // Tab state
   int _currentTabIndex = 0;
-  final ScrollController _tabScrollController = ScrollController();
+  final ScrollController _tabScrollController =
+      createSmoothScrollController(config: SmoothScrollConfig.fast);
 
   // Download configuration state
   int _threads = 8;
@@ -1381,6 +1383,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
     final isDeveloperMode =
         context.select<DeveloperModeService, bool>((s) => s.developerMode);
+    final fontService = context.watch<FontService>();
+    final fontStack =
+        fontService.resolveFontStack(Localizations.localeOf(context));
     final t = AppLocalizations.of(context)!;
 
     return ScaffoldPage(
@@ -1425,7 +1430,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     PointerDeviceKind.trackpad,
                   },
                 ),
-                child: SingleChildScrollView(
+                child: SmoothSingleChildScrollView(
+                  config: SmoothScrollConfig.fast,
                   controller: _tabScrollController,
                   scrollDirection: Axis.horizontal,
                   physics: const ClampingScrollPhysics(),
@@ -1437,6 +1443,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         icon: custom_icons.FluentIcons.settings,
                         title: t.settingsTabGeneral,
                         index: 0,
+                        fontFamily: fontStack.primaryFamily,
+                        fontFamilyFallback: fontStack.fallbackFamilies,
                       ),
                       const SizedBox(width: 4),
                       _buildTabButton(
@@ -1444,6 +1452,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         icon: custom_icons.FluentIcons.download,
                         title: t.settingsTabDownload,
                         index: 1,
+                        fontFamily: fontStack.primaryFamily,
+                        fontFamilyFallback: fontStack.fallbackFamilies,
                       ),
                       const SizedBox(width: 4),
                       _buildTabButton(
@@ -1451,6 +1461,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         icon: custom_icons.FluentIcons.color,
                         title: t.settingsTabAppearance,
                         index: 2,
+                        fontFamily: fontStack.primaryFamily,
+                        fontFamilyFallback: fontStack.fallbackFamilies,
                       ),
                       const SizedBox(width: 4),
                       _buildTabButton(
@@ -1458,6 +1470,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         icon: custom_icons.FluentIcons.update_restore,
                         title: t.settingsTabUpdate,
                         index: 3,
+                        fontFamily: fontStack.primaryFamily,
+                        fontFamilyFallback: fontStack.fallbackFamilies,
                       ),
                       const SizedBox(width: 4),
                       _buildTabButton(
@@ -1465,6 +1479,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         icon: custom_icons.FluentIcons.developer_tools,
                         title: t.settingsTabAdvanced,
                         index: 4,
+                        fontFamily: fontStack.primaryFamily,
+                        fontFamilyFallback: fontStack.fallbackFamilies,
                       ),
                       if (isDeveloperMode) ...[
                         const SizedBox(width: 4),
@@ -1473,6 +1489,8 @@ class _SettingsPageState extends State<SettingsPage> {
                           icon: custom_icons.FluentIcons.code,
                           title: t.settingsTabDeveloper,
                           index: 5,
+                          fontFamily: fontStack.primaryFamily,
+                          fontFamilyFallback: fontStack.fallbackFamilies,
                         ),
                       ],
                     ],
@@ -1509,6 +1527,8 @@ class _SettingsPageState extends State<SettingsPage> {
     required IconData icon,
     required String title,
     required int index,
+    required String? fontFamily,
+    required List<String> fontFamilyFallback,
   }) {
     final isSelected = _currentTabIndex == index;
 
@@ -1545,6 +1565,8 @@ class _SettingsPageState extends State<SettingsPage> {
               Text(
                 title,
                 style: FluentTheme.of(context).typography.body?.copyWith(
+                      fontFamily: fontFamily,
+                      fontFamilyFallback: fontFamilyFallback,
                       color: isSelected
                           ? AppTheme.accentLight
                           : AppTheme.textSecondary,
@@ -2209,7 +2231,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     )
                   : ConstrainedBox(
                       constraints: const BoxConstraints(maxHeight: 180),
-                      child: SingleChildScrollView(
+                      child: SmoothSingleChildScrollView(
+                        config: SmoothScrollConfig.fast,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [

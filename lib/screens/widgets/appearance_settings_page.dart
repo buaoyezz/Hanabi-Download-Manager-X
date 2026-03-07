@@ -11,6 +11,7 @@ import 'package:win32/win32.dart';
 import 'package:ffi/ffi.dart';
 import 'dart:ui';
 import '../../widgets/settings_components.dart';
+import '../../widgets/smooth_scroll_wrapper.dart';
 import '../../services/font_service.dart';
 import '../../services/window_effect_service.dart';
 import '../../services/client_config_service.dart';
@@ -22,6 +23,370 @@ import '../../widgets/animated_notifications.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/fluent_icons.dart' as CustomIcons;
 
+final DynamicLibrary _fontPickerGdi32 = DynamicLibrary.open('gdi32.dll');
+
+typedef _GetGlyphIndicesNative = Uint32 Function(
+  IntPtr hdc,
+  Pointer<Utf16> lpstr,
+  Int32 c,
+  Pointer<Uint16> pgi,
+  Uint32 fl,
+);
+typedef _GetGlyphIndicesDart = int Function(
+  int hdc,
+  Pointer<Utf16> lpstr,
+  int c,
+  Pointer<Uint16> pgi,
+  int fl,
+);
+
+final _GetGlyphIndicesDart _getGlyphIndices = _fontPickerGdi32.lookupFunction<
+    _GetGlyphIndicesNative, _GetGlyphIndicesDart>('GetGlyphIndicesW');
+
+const int _ggiMarkNonExistingGlyphs = 0x0001;
+const int _gdiGlyphLookupFailed = 0xFFFFFFFF;
+const String _fontRegistrySubKey =
+    r'SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts';
+final Map<String, Set<_FontLanguageSupport>> _fontPickerSupportCache = {};
+
+base class _MutableLogFont extends Struct {
+  @Int32()
+  external int lfHeight;
+
+  @Int32()
+  external int lfWidth;
+
+  @Int32()
+  external int lfEscapement;
+
+  @Int32()
+  external int lfOrientation;
+
+  @Int32()
+  external int lfWeight;
+
+  @Uint8()
+  external int lfItalic;
+
+  @Uint8()
+  external int lfUnderline;
+
+  @Uint8()
+  external int lfStrikeOut;
+
+  @Uint8()
+  external int lfCharSet;
+
+  @Uint8()
+  external int lfOutPrecision;
+
+  @Uint8()
+  external int lfClipPrecision;
+
+  @Uint8()
+  external int lfQuality;
+
+  @Uint8()
+  external int lfPitchAndFamily;
+
+  @Array(LF_FACESIZE)
+  external Array<Uint16> lfFaceName;
+}
+
+enum _FontLanguageSupport {
+  latin(
+    sampleText: 'AaBb123',
+    searchKeywords: ['latin', 'english', 'western', '英文', '西文'],
+  ),
+  simplifiedChinese(
+    sampleText: '简体中文',
+    searchKeywords: ['中文', '简中', '简体', 'chinese', 'simplified chinese'],
+  ),
+  traditionalChinese(
+    sampleText: '繁體漢字',
+    searchKeywords: ['繁中', '繁体', 'traditional chinese', 'zh-hant'],
+  ),
+  japanese(
+    sampleText: '日本語かな',
+    searchKeywords: ['日文', '日语', 'japanese', 'nihongo', 'かな'],
+  ),
+  korean(
+    sampleText: '한국어한글',
+    searchKeywords: ['韩文', '韩语', 'korean', 'hangul', '한국어'],
+  ),
+  cyrillic(
+    sampleText: 'Русский',
+    searchKeywords: ['俄文', '俄语', 'cyrillic', 'russian', '西里尔'],
+  ),
+  greek(
+    sampleText: 'Ελληνικά',
+    searchKeywords: ['希腊文', 'greek'],
+  ),
+  arabic(
+    sampleText: 'العربية',
+    searchKeywords: ['阿拉伯文', 'arabic'],
+  ),
+  thai(
+    sampleText: 'ไทย',
+    searchKeywords: ['泰文', 'thai'],
+  ),
+  devanagari(
+    sampleText: 'हिन्दी',
+    searchKeywords: ['印地文', '天城文', 'hindi', 'devanagari'],
+  ),
+  emoji(
+    sampleText: '😀✨👍',
+    searchKeywords: ['emoji', '表情', '彩色表情'],
+  );
+
+  const _FontLanguageSupport({
+    required this.sampleText,
+    required this.searchKeywords,
+  });
+
+  final String sampleText;
+  final List<String> searchKeywords;
+}
+
+class _FontPickerEntry {
+  const _FontPickerEntry({
+    required this.key,
+    required this.displayName,
+    required this.previewFontFamily,
+    required this.isSystemAlias,
+    required this.isCustom,
+    this.supportedScripts = const <_FontLanguageSupport>{},
+  });
+
+  final String key;
+  final String displayName;
+  final String previewFontFamily;
+  final bool isSystemAlias;
+  final bool isCustom;
+  final Set<_FontLanguageSupport> supportedScripts;
+
+  _FontPickerEntry copyWith({
+    Set<_FontLanguageSupport>? supportedScripts,
+  }) {
+    return _FontPickerEntry(
+      key: key,
+      displayName: displayName,
+      previewFontFamily: previewFontFamily,
+      isSystemAlias: isSystemAlias,
+      isCustom: isCustom,
+      supportedScripts: supportedScripts ?? this.supportedScripts,
+    );
+  }
+}
+
+extension on _FontLanguageSupport {
+  String label(Locale locale) {
+    final isZh = locale.languageCode.toLowerCase().startsWith('zh');
+    switch (this) {
+      case _FontLanguageSupport.latin:
+        return 'Latin';
+      case _FontLanguageSupport.simplifiedChinese:
+        return isZh ? '简中' : 'Simplified Chinese';
+      case _FontLanguageSupport.traditionalChinese:
+        return isZh ? '繁中' : 'Traditional Chinese';
+      case _FontLanguageSupport.japanese:
+        return isZh ? '日文' : 'Japanese';
+      case _FontLanguageSupport.korean:
+        return isZh ? '韩文' : 'Korean';
+      case _FontLanguageSupport.cyrillic:
+        return isZh ? '西里尔' : 'Cyrillic';
+      case _FontLanguageSupport.greek:
+        return isZh ? '希腊文' : 'Greek';
+      case _FontLanguageSupport.arabic:
+        return isZh ? '阿拉伯文' : 'Arabic';
+      case _FontLanguageSupport.thai:
+        return isZh ? '泰文' : 'Thai';
+      case _FontLanguageSupport.devanagari:
+        return isZh ? '天城文' : 'Devanagari';
+      case _FontLanguageSupport.emoji:
+        return 'Emoji';
+    }
+  }
+}
+
+String _normalizeFontSearchText(String value) {
+  return value.toLowerCase().replaceAll(RegExp(r'[\s\-_./\\]+'), '');
+}
+
+String _fontPickerLoadingLabel(Locale locale, int current, int total) {
+  if (locale.languageCode.toLowerCase().startsWith('zh')) {
+    return '语言支持检测中 $current/$total';
+  }
+  return 'Detecting language support $current/$total';
+}
+
+String _fontPickerCustomLabel(Locale locale) {
+  return locale.languageCode.toLowerCase().startsWith('zh') ? '自定义' : 'Custom';
+}
+
+String _fontPickerSystemFallbackLabel(Locale locale) {
+  return locale.languageCode.toLowerCase().startsWith('zh')
+      ? 'Segoe UI'
+      : 'Segoe UI';
+}
+
+String _fontUnsupportedTitle(Locale locale) {
+  return locale.languageCode.toLowerCase().startsWith('zh')
+      ? '字体不支持该语言'
+      : 'Font unsupported for language';
+}
+
+String _fontUnsupportedMessage(
+  Locale locale, {
+  required String fontFamily,
+  required String localeLabel,
+  required String fallbackFont,
+}) {
+  if (locale.languageCode.toLowerCase().startsWith('zh')) {
+    return '"$fontFamily" 不支持 $localeLabel，已回退为 $fallbackFont。';
+  }
+  return '"$fontFamily" does not support $localeLabel. Reverted to $fallbackFont.';
+}
+
+bool _shouldSkipFontLanguageProbe(String fontFamily) {
+  if (fontFamily.isEmpty || fontFamily.startsWith('@')) {
+    return true;
+  }
+
+  // Bitmap font aliases like "MS Sans Serif 8,10,12,14,18,24" are not useful
+  // for Flutter font-family selection and are prone to noisy GDI probing.
+  if (RegExp(r'\s+\d+(,\d+)+$').hasMatch(fontFamily)) {
+    return true;
+  }
+
+  return false;
+}
+
+Set<_FontLanguageSupport> _detectFontSupportedScripts(String fontFamily) {
+  if (!Platform.isWindows) {
+    return const <_FontLanguageSupport>{};
+  }
+
+  final normalizedFontFamily = fontFamily.trim();
+  if (_shouldSkipFontLanguageProbe(normalizedFontFamily)) {
+    return const <_FontLanguageSupport>{};
+  }
+
+  final cachedSupport = _fontPickerSupportCache[normalizedFontFamily];
+  if (cachedSupport != null) {
+    return cachedSupport;
+  }
+
+  if (normalizedFontFamily.isEmpty) {
+    return const <_FontLanguageSupport>{};
+  }
+
+  // GDI LOGFONT only accepts LF_FACESIZE (32) WCHARs including the null terminator.
+  if (normalizedFontFamily.codeUnits.length >= LF_FACESIZE) {
+    _fontPickerSupportCache[normalizedFontFamily] =
+        const <_FontLanguageSupport>{};
+    return const <_FontLanguageSupport>{};
+  }
+
+  final logFont = calloc<LOGFONT>();
+  final mutableLogFont = logFont.cast<_MutableLogFont>();
+  try {
+    mutableLogFont.ref
+      ..lfHeight = -16
+      ..lfWeight = 400
+      ..lfCharSet = DEFAULT_CHARSET
+      ..lfQuality = CLEARTYPE_QUALITY;
+    _copyLogFontFaceName(mutableLogFont.ref.lfFaceName, normalizedFontFamily);
+
+    final hFont = CreateFontIndirect(logFont);
+    if (hFont == 0) {
+      return const <_FontLanguageSupport>{};
+    }
+
+    final hdc = CreateCompatibleDC(0);
+    if (hdc == 0) {
+      DeleteObject(hFont);
+      return const <_FontLanguageSupport>{};
+    }
+
+    final previousObject = SelectObject(hdc, hFont);
+    try {
+      final supportedScripts = <_FontLanguageSupport>{};
+      for (final script in _FontLanguageSupport.values) {
+        if (_fontSupportsSample(hdc, script.sampleText)) {
+          supportedScripts.add(script);
+        }
+      }
+      _fontPickerSupportCache[normalizedFontFamily] = supportedScripts;
+      return supportedScripts;
+    } finally {
+      if (previousObject != 0) {
+        SelectObject(hdc, previousObject);
+      }
+      DeleteDC(hdc);
+      DeleteObject(hFont);
+    }
+  } catch (e) {
+    debugPrint('Error detecting font language support for $fontFamily: $e');
+    _fontPickerSupportCache[normalizedFontFamily] =
+        const <_FontLanguageSupport>{};
+    return const <_FontLanguageSupport>{};
+  } finally {
+    calloc.free(logFont);
+  }
+}
+
+void _copyLogFontFaceName(Array<Uint16> target, String value) {
+  const capacity = LF_FACESIZE;
+  final units = value.codeUnits;
+  const maxCopyLength = capacity - 1;
+  var index = 0;
+  while (index < maxCopyLength && index < units.length) {
+    target[index] = units[index];
+    index++;
+  }
+  while (index < capacity) {
+    target[index] = 0;
+    index++;
+  }
+}
+
+bool _fontSupportsSample(int hdc, String sampleText) {
+  final normalizedSample = sampleText.replaceAll(' ', '');
+  if (normalizedSample.isEmpty) {
+    return false;
+  }
+
+  final textPtr = normalizedSample.toNativeUtf16();
+  final glyphsPtr = calloc<Uint16>(normalizedSample.length);
+
+  try {
+    final result = _getGlyphIndices(
+      hdc,
+      textPtr,
+      normalizedSample.length,
+      glyphsPtr,
+      _ggiMarkNonExistingGlyphs,
+    );
+
+    if (result == _gdiGlyphLookupFailed) {
+      return false;
+    }
+
+    var supportedGlyphs = 0;
+    for (var i = 0; i < normalizedSample.length; i++) {
+      if (glyphsPtr[i] != 0xFFFF) {
+        supportedGlyphs++;
+      }
+    }
+
+    return supportedGlyphs * 10 >= normalizedSample.length * 6;
+  } finally {
+    calloc.free(textPtr);
+    calloc.free(glyphsPtr);
+  }
+}
+
 class AppearanceSettingsPage extends StatefulWidget {
   const AppearanceSettingsPage({super.key});
 
@@ -31,10 +396,9 @@ class AppearanceSettingsPage extends StatefulWidget {
 
 class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
   // 字体设置
-  String _selectedFont = 'system'; // 'system' 表示使用系统默认字体
-  List<String> _availableFonts = ['system'];
+  List<String> _availableFonts = [];
   bool _loadingFonts = true;
-  
+
   // UI 设置
   bool _segmentsDefaultExpanded = false;
   int _segmentsMaxVisible = 5;
@@ -48,7 +412,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
   bool _notificationEnabled = true;
   String _notificationColorScheme = 'fluent2';
   String _notificationPosition = 'topRight';
-  String _performanceMode = 'performance';  // 性能模式
+  String _performanceMode = 'performance'; // 性能模式
 
   // 屏幕尺寸
   double _screenWidth = 1920.0;
@@ -62,7 +426,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     _loadAvailableFonts();
     _loadScreenSize();
   }
-  
+
   Future<void> _loadScreenSize() async {
     try {
       final primaryDisplay = await screenRetriever.getPrimaryDisplay();
@@ -88,12 +452,12 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     final notificationSettings = NotificationSettingsService();
 
     if (mounted) {
-      final fontService = context.read<FontService>();
       setState(() {
-        _selectedFont = fontService.selectedFont;
-        _segmentsDefaultExpanded = prefs.getBool('segments_default_expanded') ?? false;
+        _segmentsDefaultExpanded =
+            prefs.getBool('segments_default_expanded') ?? false;
         _segmentsMaxVisible = prefs.getInt('segments_max_visible') ?? 5;
-        _segmentsDisplayMode = prefs.getString('segments_display_mode') ?? 'merged';
+        _segmentsDisplayMode =
+            prefs.getString('segments_display_mode') ?? 'merged';
         _showSpeedChart = prefs.getBool('show_speed_chart') ?? true;
         _showChartFrost = prefs.getBool('show_chart_frost') ?? true;
         _chartPosition = prefs.getString('chart_position') ?? 'mid';
@@ -110,18 +474,39 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
 
   Future<void> _loadAvailableFonts() async {
     setState(() => _loadingFonts = true);
-    
+
     try {
       // 获取系统字体列表
       final systemFonts = await _getSystemFonts();
-      
+
       // 获取自定义字体列表
       final fontService = context.read<FontService>();
       final customFonts = fontService.customFonts.keys.toList();
-      
+      final languagePackFonts = context
+          .read<LocalizationService>()
+          .languagePacks
+          .expand(
+            (pack) => [
+              pack.defaultFontFamily?.trim(),
+              pack.defaultEnglishFontFamily?.trim(),
+            ],
+          )
+          .whereType<String>()
+          .where((font) => font.isNotEmpty)
+          .toList();
+
       if (mounted) {
+        final mergedFonts = <String>{
+          ...systemFonts,
+          ...customFonts,
+          ...languagePackFonts,
+          FontService.defaultEnglishFontFamily,
+          FontService.defaultChineseFontFamily,
+        };
+        final sortedFonts = mergedFonts.toList()
+          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
         setState(() {
-          _availableFonts = ['system', ...systemFonts, ...customFonts];
+          _availableFonts = sortedFonts;
           _loadingFonts = false;
         });
       }
@@ -129,7 +514,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
       debugPrint('Error loading fonts: $e');
       if (mounted) {
         setState(() {
-          _availableFonts = ['system'];
+          _availableFonts = [];
           _loadingFonts = false;
         });
       }
@@ -142,76 +527,16 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     }
 
     try {
-      // 使用 Win32 API 读取注册表中的字体
-      final fontsKey = HKEY_LOCAL_MACHINE;
-      final subKey = r'SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts';
-      
       final fontNames = <String>{};
-      
-      // 打开注册表键
-      final phkResult = calloc<HKEY>();
-      final subKeyPtr = subKey.toNativeUtf16();
-      final result = RegOpenKeyEx(
-        fontsKey,
-        subKeyPtr,
-        0,
-        KEY_READ,
-        phkResult,
-      );
-      
-      if (result == ERROR_SUCCESS) {
-        final hKey = phkResult.value;
-        
-        // 枚举所有值
-        var index = 0;
-        while (true) {
-          final valueName = wsalloc(256);
-          final valueNameSize = calloc<DWORD>()..value = 256;
-          
-          final enumResult = RegEnumValue(
-            hKey,
-            index,
-            valueName,
-            valueNameSize,
-            nullptr,
-            nullptr,
-            nullptr,
-            nullptr,
-          );
-          
-          if (enumResult == ERROR_SUCCESS) {
-            String fontName = valueName.toDartString();
-            
-            // 移除常见的后缀
-            fontName = fontName
-                .replaceAll(RegExp(r'\s*\(TrueType\)$'), '')
-                .replaceAll(RegExp(r'\s*\(OpenType\)$'), '')
-                .replaceAll(RegExp(r'\s*\(All res\)$'), '')
-                .replaceAll(RegExp(r'\s*&.*$'), '') // 移除 & 及之后的内容
-                .trim();
-            
-            if (fontName.isNotEmpty) {
-              fontNames.add(fontName);
-            }
-            
-            index++;
-          } else {
-            break;
-          }
-          
-          calloc.free(valueName);
-          calloc.free(valueNameSize);
-        }
-        
-        RegCloseKey(hKey);
-      }
-      
-      calloc.free(subKeyPtr);
-      calloc.free(phkResult);
-      
+      _collectFontsFromRegistry(
+          HKEY_LOCAL_MACHINE, _fontRegistrySubKey, fontNames);
+      _collectFontsFromRegistry(
+          HKEY_CURRENT_USER, _fontRegistrySubKey, fontNames);
+
       // 转换为列表并排序
-      final sortedFonts = fontNames.toList()..sort();
-      
+      final sortedFonts = fontNames.toList()
+        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+
       return sortedFonts;
     } catch (e) {
       debugPrint('Error reading system fonts: $e');
@@ -236,17 +561,418 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     }
   }
 
-  Future<void> _saveFontSetting(String font) async {
+  void _collectFontsFromRegistry(
+    int rootKey,
+    String subKey,
+    Set<String> fontNames,
+  ) {
+    final keyHandle = calloc<HKEY>();
+    final subKeyPtr = subKey.toNativeUtf16();
+
+    try {
+      final result = RegOpenKeyEx(
+        rootKey,
+        subKeyPtr,
+        0,
+        KEY_READ,
+        keyHandle,
+      );
+
+      if (result != ERROR_SUCCESS) {
+        return;
+      }
+
+      final hKey = keyHandle.value;
+      try {
+        var index = 0;
+        while (true) {
+          const valueNameCapacity = 1024;
+          final valueName = wsalloc(valueNameCapacity);
+          final valueNameSize = calloc<DWORD>()..value = valueNameCapacity;
+
+          try {
+            final enumResult = RegEnumValue(
+              hKey,
+              index,
+              valueName,
+              valueNameSize,
+              nullptr,
+              nullptr,
+              nullptr,
+              nullptr,
+            );
+
+            if (enumResult == ERROR_NO_MORE_ITEMS) {
+              break;
+            }
+
+            if (enumResult == ERROR_SUCCESS) {
+              _addRegistryFontNames(fontNames, valueName.toDartString());
+            }
+
+            index++;
+          } finally {
+            calloc.free(valueName);
+            calloc.free(valueNameSize);
+          }
+        }
+      } finally {
+        RegCloseKey(hKey);
+      }
+    } finally {
+      calloc.free(subKeyPtr);
+      calloc.free(keyHandle);
+    }
+  }
+
+  void _addRegistryFontNames(Set<String> fontNames, String registryValueName) {
+    final cleanedValueName = registryValueName
+        .replaceAll(RegExp(r'\s*\(TrueType\)$'), '')
+        .replaceAll(RegExp(r'\s*\(OpenType\)$'), '')
+        .replaceAll(RegExp(r'\s*\(All res\)$'), '')
+        .trim();
+
+    for (final part in cleanedValueName.split(RegExp(r'\s*&\s*'))) {
+      final candidate = _normalizeRegistryFontName(part);
+      if (candidate != null) {
+        fontNames.add(candidate);
+      }
+    }
+  }
+
+  String? _normalizeRegistryFontName(String registryValueName) {
+    final candidate = registryValueName.trim();
+    if (candidate.isEmpty || candidate.startsWith('@')) {
+      return null;
+    }
+
+    if (RegExp(r'\s+\d+(,\d+)+$').hasMatch(candidate)) {
+      return null;
+    }
+
+    return candidate;
+  }
+
+  bool _isZhUi(Locale locale) {
+    return locale.languageCode.toLowerCase().startsWith('zh');
+  }
+
+  String _fontSectionHint(Locale locale) {
+    if (_isZhUi(locale)) {
+      return '默认只显示英文和中文。当前界面语言如果实际归属到别的字体类别，会临时补出对应设置；基于中英的第三方语言包则继续复用原有设置。';
+    }
+    return 'Only English and Chinese stay visible by default. If the current UI language resolves to another font category, that category appears automatically; third-party packs based on English or Chinese keep reusing those existing rows.';
+  }
+
+  String _fontLocaleDefaultSubtitle(Locale locale, String fontFamily) {
+    if (_isZhUi(locale)) {
+      return '默认字体: $fontFamily';
+    }
+    return 'Default font: $fontFamily';
+  }
+
+  String _fontLocaleInheritedSubtitle(Locale locale, String fontFamily) {
+    if (_isZhUi(locale)) {
+      return '未单独设置，当前跟随 $fontFamily';
+    }
+    return 'Not overridden, currently inherits $fontFamily';
+  }
+
+  String _fontLocaleOverrideSubtitle(Locale locale, String fontFamily) {
+    if (_isZhUi(locale)) {
+      return '当前字体: $fontFamily';
+    }
+    return 'Current font: $fontFamily';
+  }
+
+  String _fontLocaleCustomFontsTitle(Locale locale) {
+    return _isZhUi(locale) ? '导入字体' : 'Imported fonts';
+  }
+
+  String _fontLocaleNoCustomFonts(Locale locale) {
+    return _isZhUi(locale)
+        ? '还没有导入字体,导入的字体无需安装到系统,您安装在系统的字体可以直接通过软件内字体设置莱调整！'
+        : 'Fonts have not been imported yet. Imported fonts do not need to be installed in the system. Fonts installed in your system can be directly adjusted through the software\'s font settings!';
+  }
+
+  String _fontLocaleResetTooltip(Locale locale) {
+    return _isZhUi(locale) ? '恢复默认字体' : 'Reset to default';
+  }
+
+  String? _builtinFontLocaleLabel(Locale locale, String localeTag) {
+    final normalizedTag = localeTag.replaceAll('-', '_').trim();
+    final isZh = _isZhUi(locale);
+    switch (normalizedTag) {
+      case FontService.traditionalChineseLocaleTag:
+        return isZh ? '繁体中文' : 'Traditional Chinese';
+      case 'ja':
+        return isZh ? '日语' : 'Japanese';
+      case 'ko':
+        return isZh ? '韩语' : 'Korean';
+      case 'ru':
+        return isZh ? '俄语' : 'Russian';
+      case 'ar':
+        return isZh ? '阿拉伯语' : 'Arabic';
+      case 'th':
+        return isZh ? '泰语' : 'Thai';
+      case 'hi':
+        return isZh ? '印地语' : 'Hindi';
+    }
+    return null;
+  }
+
+  String _displayLanguageLabel(
+    String localeTag,
+    Map<String, String> languageLabels,
+    Locale? uiLocale,
+  ) {
+    final normalizedTag = localeTag.replaceAll('-', '_').trim();
+    final builtinLabel = uiLocale == null
+        ? null
+        : _builtinFontLocaleLabel(uiLocale, normalizedTag);
+    return builtinLabel ?? languageLabels[normalizedTag] ?? normalizedTag;
+  }
+
+  String _fontLocaleTitle(
+    Locale uiLocale,
+    String localeTag,
+    String localeLabel,
+  ) {
+    final normalizedTag = localeTag.replaceAll('-', '_').trim();
+    if (normalizedTag == FontService.englishLocaleTag ||
+        normalizedTag == FontService.chineseLocaleTag ||
+        _builtinFontLocaleLabel(uiLocale, normalizedTag) != null ||
+        localeLabel == normalizedTag) {
+      return localeLabel;
+    }
+    return '$localeLabel ($normalizedTag)';
+  }
+
+  String _localeFontSubtitle(
+    Locale uiLocale,
+    FontService fontService,
+    String localeTag,
+    Locale activeLocale,
+  ) {
+    if (fontService.hasFontOverrideForLocale(localeTag)) {
+      return _fontLocaleOverrideSubtitle(
+        uiLocale,
+        fontService.effectiveFontForLocaleTag(
+          localeTag,
+          activeLocale: activeLocale,
+        ),
+      );
+    }
+
+    final defaultFont = fontService.suggestedFontForLocaleTag(
+      localeTag,
+      activeLocale: activeLocale,
+    );
+    if (defaultFont != null && defaultFont.isNotEmpty) {
+      return _fontLocaleDefaultSubtitle(uiLocale, defaultFont);
+    }
+
+    return _fontLocaleInheritedSubtitle(
+      uiLocale,
+      fontService.primaryFontFamilyForLocale(activeLocale),
+    );
+  }
+
+  Set<_FontLanguageSupport> _requiredScriptsForLocaleTag(String localeTag) {
+    final normalizedTag = localeTag.replaceAll('-', '_').trim();
+    if (normalizedTag.isEmpty) {
+      return const <_FontLanguageSupport>{};
+    }
+
+    final parts =
+        normalizedTag.split('_').where((part) => part.isNotEmpty).toList();
+    final lowerParts = parts.map((part) => part.toLowerCase()).toList();
+    final upperParts = parts.map((part) => part.toUpperCase()).toList();
+    final languageCode = lowerParts.first;
+
+    switch (languageCode) {
+      case 'en':
+        return const {_FontLanguageSupport.latin};
+      case 'zh':
+        if (lowerParts.contains('hant') ||
+            upperParts.contains('TW') ||
+            upperParts.contains('HK') ||
+            upperParts.contains('MO')) {
+          return const {_FontLanguageSupport.traditionalChinese};
+        }
+        return const {_FontLanguageSupport.simplifiedChinese};
+      case 'ja':
+        return const {_FontLanguageSupport.japanese};
+      case 'ko':
+        return const {_FontLanguageSupport.korean};
+      case 'ru':
+      case 'uk':
+      case 'bg':
+      case 'sr':
+      case 'mk':
+      case 'mn':
+      case 'be':
+      case 'kk':
+      case 'ky':
+      case 'tg':
+        return const {_FontLanguageSupport.cyrillic};
+      case 'el':
+        return const {_FontLanguageSupport.greek};
+      case 'ar':
+      case 'fa':
+      case 'ur':
+      case 'ps':
+        return const {_FontLanguageSupport.arabic};
+      case 'th':
+        return const {_FontLanguageSupport.thai};
+      case 'hi':
+      case 'mr':
+      case 'ne':
+        return const {_FontLanguageSupport.devanagari};
+    }
+
+    const latinLanguages = <String>{
+      'af',
+      'ca',
+      'cs',
+      'da',
+      'de',
+      'es',
+      'et',
+      'fi',
+      'fr',
+      'hr',
+      'hu',
+      'id',
+      'is',
+      'it',
+      'lt',
+      'lv',
+      'ms',
+      'nl',
+      'no',
+      'pl',
+      'pt',
+      'ro',
+      'sk',
+      'sl',
+      'sq',
+      'sv',
+      'tl',
+      'tr',
+      'vi',
+    };
+
+    if (latinLanguages.contains(languageCode)) {
+      return const {_FontLanguageSupport.latin};
+    }
+
+    return const <_FontLanguageSupport>{};
+  }
+
+  bool _fontSupportsLocale(
+    String localeTag,
+    String fontFamily, {
+    required bool isCustomFont,
+  }) {
+    if (!Platform.isWindows || isCustomFont) {
+      return true;
+    }
+
+    final requiredScripts = _requiredScriptsForLocaleTag(localeTag);
+    if (requiredScripts.isEmpty) {
+      return true;
+    }
+
+    final supportedScripts = _detectFontSupportedScripts(fontFamily);
+    if (supportedScripts.isEmpty) {
+      return true;
+    }
+
+    return requiredScripts.every(supportedScripts.contains);
+  }
+
+  Future<void> _saveLocaleFontSetting(
+    String localeTag,
+    String fontFamily, {
+    required String localeLabel,
+    required String fallbackFont,
+  }) async {
     final fontService = context.read<FontService>();
-    await fontService.setFont(font);
-    setState(() => _selectedFont = font);
-    
-    // 显示提示字体已应用
-    if (mounted) {
-      final t = AppLocalizations.of(context)!;
-      NotificationManager.of(context)?.showSuccess(
-        t.appearanceFontChangedTitle,
-        message: t.appearanceFontChangedMessage,
+    if (!_fontSupportsLocale(
+      localeTag,
+      fontFamily,
+      isCustomFont: fontService.isCustomFont(fontFamily),
+    )) {
+      if (!mounted) {
+        return;
+      }
+
+      final locale = Localizations.localeOf(context);
+      NotificationManager.of(context)?.showWarning(
+        _fontUnsupportedTitle(locale),
+        message: _fontUnsupportedMessage(
+          locale,
+          fontFamily: fontFamily,
+          localeLabel: localeLabel,
+          fallbackFont: fallbackFont,
+        ),
+      );
+      return;
+    }
+
+    await fontService.setFontForLocale(localeTag, fontFamily);
+
+    if (!mounted) {
+      return;
+    }
+
+    final t = AppLocalizations.of(context)!;
+    NotificationManager.of(context)?.showSuccess(
+      t.appearanceFontChangedTitle,
+      message: t.appearanceFontChangedMessage,
+    );
+  }
+
+  Future<void> _resetLocaleFont(String localeTag) async {
+    final fontService = context.read<FontService>();
+    await fontService.resetFontForLocale(localeTag);
+
+    if (!mounted) {
+      return;
+    }
+
+    final t = AppLocalizations.of(context)!;
+    NotificationManager.of(context)?.showSuccess(
+      t.appearanceFontChangedTitle,
+      message: t.appearanceFontChangedMessage,
+    );
+  }
+
+  Future<void> _showLocaleFontPickerDialog(
+    BuildContext context, {
+    required String localeTag,
+    required String localeLabel,
+    required String currentFont,
+  }) async {
+    final t = AppLocalizations.of(context)!;
+    final customFonts = context.read<FontService>().customFonts.keys.toSet();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => _FontPickerDialog(
+        availableFonts: _availableFonts,
+        selectedFont: currentFont,
+        customFonts: customFonts,
+        t: t,
+      ),
+    );
+
+    if (result != null && result != currentFont) {
+      await _saveLocaleFontSetting(
+        localeTag,
+        result,
+        localeLabel: localeLabel,
+        fallbackFont: currentFont,
       );
     }
   }
@@ -262,7 +988,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     await prefs.setInt('segments_max_visible', value);
     setState(() => _segmentsMaxVisible = value);
   }
-  
+
   Future<void> _saveSegmentsDisplayMode(String value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('segments_display_mode', value);
@@ -292,14 +1018,14 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     await prefs.setString('chart_color', value);
     setState(() => _chartColor = value);
   }
-  
+
   // 通知设置保存方法
   Future<void> _saveNotificationEnabled(bool value) async {
     final notificationSettings = NotificationSettingsService();
     await notificationSettings.setEnabled(value);
     setState(() => _notificationEnabled = value);
   }
-  
+
   Future<void> _saveNotificationColorScheme(String value) async {
     final notificationSettings = NotificationSettingsService();
     final scheme = NotificationColorScheme.values.firstWhere(
@@ -344,7 +1070,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         return t.appearanceNotificationSchemeUnknown;
     }
   }
-  
+
   String _getNotificationPositionName(String position, AppLocalizations t) {
     switch (position) {
       case 'topRight':
@@ -379,19 +1105,20 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
       );
     }
   }
-  
+
   // 通知配色预览框
   Widget _buildNotificationPreview(BuildContext context) {
     final notificationSettings = NotificationSettingsService();
     final isDark = FluentTheme.of(context).brightness == Brightness.dark;
     final t = AppLocalizations.of(context)!;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
-            Icon(CustomIcons.FluentIcons.preview,
+            Icon(
+              CustomIcons.FluentIcons.preview,
               size: 14,
               color: AppTheme.textSecondary,
             ),
@@ -399,10 +1126,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             Text(
               t.appearanceNotificationPreviewTitle,
               style: FluentTheme.of(context).typography.caption?.copyWith(
-                color: AppTheme.textSecondary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
+                    color: AppTheme.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
           ],
         ),
@@ -459,7 +1186,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
       ],
     );
   }
-  
+
   // 预览通知卡片（静态展示）
   Widget _buildPreviewNotificationCard(
     BuildContext context, {
@@ -473,7 +1200,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     final cardColor = notificationSettings.getCardColor(isDark);
     final textPrimary = notificationSettings.getTextPrimaryColor(isDark);
     final textSecondary = notificationSettings.getTextSecondaryColor(isDark);
-    
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -535,13 +1262,15 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                             Text(
                               title,
                               style: FluentTheme.of(context)
-                                  .typography.bodyStrong?.copyWith(
-                                color: textPrimary,
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                                height: 1.3,
-                                letterSpacing: -0.2,
-                              ),
+                                  .typography
+                                  .bodyStrong
+                                  ?.copyWith(
+                                    color: textPrimary,
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.3,
+                                    letterSpacing: -0.2,
+                                  ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -549,11 +1278,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                             Text(
                               message,
                               style: FluentTheme.of(context)
-                                  .typography.body?.copyWith(
-                                color: textSecondary,
-                                fontSize: 11,
-                                height: 1.3,
-                              ),
+                                  .typography
+                                  .body
+                                  ?.copyWith(
+                                    color: textSecondary,
+                                    fontSize: 11,
+                                    height: 1.3,
+                                  ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -569,7 +1300,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                           color: AppTheme.bgLayer2.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: Icon(CustomIcons.FluentIcons.chrome_close,
+                        child: Icon(
+                          CustomIcons.FluentIcons.chrome_close,
                           size: 10,
                           color: AppTheme.textTertiary,
                         ),
@@ -602,7 +1334,6 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     );
   }
 
-
   Future<void> _importCustomFont() async {
     try {
       final t = AppLocalizations.of(context)!;
@@ -614,7 +1345,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
 
       if (result != null && result.files.single.path != null) {
         final fontPath = result.files.single.path!;
-        
+
         if (mounted) {
           // 显示加载提示
           NotificationManager.of(context)?.showInfo(
@@ -630,7 +1361,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
           if (success) {
             // 重新加载字体列表
             await _loadAvailableFonts();
-            
+
             NotificationManager.of(context)?.showSuccess(
               t.appearanceFontImportSuccessTitle,
               message: t.appearanceFontImportSuccessMessage,
@@ -706,7 +1437,9 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     final alpha = windowEffect.alpha;
     final clientConfig = context.watch<ClientConfigService>();
     final localizationService = context.watch<LocalizationService>();
+    final fontService = context.watch<FontService>();
     final t = AppLocalizations.of(context)!;
+    final uiLocale = Localizations.localeOf(context);
 
     final packs = [...localizationService.languagePacks]
       ..sort((a, b) => a.localeTag.compareTo(b.localeTag));
@@ -716,23 +1449,32 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
       'en': t.appearanceLanguageEnglish,
     };
     for (final pack in packs) {
-      if (languageLabels.containsKey(pack.localeTag)) continue;
+      final normalizedLocaleTag =
+          fontService.normalizeLocaleTag(pack.localeTag);
+      if (languageLabels.containsKey(normalizedLocaleTag)) continue;
       final name = (pack.name ?? '').trim();
-      final label = name.isEmpty ? pack.localeTag : name;
-      languageLabels[pack.localeTag] = label;
+      final label = name.isEmpty ? normalizedLocaleTag : name;
+      languageLabels[normalizedLocaleTag] = label;
     }
     final languagePreference = localizationService.languagePreference;
-    final selectedLanguage = languageLabels.containsKey(languagePreference)
-        ? languagePreference
-        : 'system';
+    final normalizedLanguagePreference = languagePreference == 'system'
+        ? 'system'
+        : fontService.normalizeLocaleTag(languagePreference);
+    final selectedLanguage =
+        languageLabels.containsKey(normalizedLanguagePreference)
+            ? normalizedLanguagePreference
+            : 'system';
     final langDir = '${clientConfig.baseDir}${Platform.pathSeparator}lang';
+    final visibleLocaleTags = fontService.orderedEnabledLocaleTags(
+      activeLocale: localizationService.effectiveLocale,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         const SizedBox(height: 8),
-        
+
         // 窗口大小设置
         _buildSection(
           context,
@@ -743,7 +1485,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
           ],
         ),
         const SizedBox(height: 24),
-        
+
         // UI 缩放设置
         _buildSection(
           context,
@@ -764,7 +1506,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                         min: 0.5,
                         max: 2.0,
                         divisions: 30,
-                        label: '${(clientConfig.getWindowScaleFactor() * 100).toInt()}%',
+                        label:
+                            '${(clientConfig.getWindowScaleFactor() * 100).toInt()}%',
                         onChanged: (value) async {
                           await clientConfig.setWindowScaleFactor(value);
                         },
@@ -834,10 +1577,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: FluentTheme.of(context).accentColor.withValues(alpha: 0.1),
+                color:
+                    FluentTheme.of(context).accentColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
-                  color: FluentTheme.of(context).accentColor.withValues(alpha: 0.2),
+                  color: FluentTheme.of(context)
+                      .accentColor
+                      .withValues(alpha: 0.2),
                 ),
               ),
               child: Row(
@@ -851,9 +1597,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                   Expanded(
                     child: Text(
                       t.appearanceUiScaleHint,
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.7),
-                      ),
+                      style:
+                          FluentTheme.of(context).typography.caption?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.7),
+                              ),
                     ),
                   ),
                 ],
@@ -896,14 +1643,15 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                       // Wait for the next frame to ensure the new locale is applied
                       await Future.delayed(const Duration(milliseconds: 100));
                       if (!mounted) return;
-                      
+
                       // Get the new localization after language switch
                       final newT = AppLocalizations.of(context)!;
                       NotificationManager.of(context)?.showSuccess(
                         newT.appearanceLanguageSwitchedTitle,
                         message: value == 'system'
                             ? newT.appearanceLanguageSwitchedSystem
-                            : newT.appearanceLanguageSwitchedTo(languageLabels[value] ?? value),
+                            : newT.appearanceLanguageSwitchedTo(
+                                languageLabels[value] ?? value),
                       );
                     }
                   },
@@ -920,6 +1668,9 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 child: Button(
                   onPressed: () async {
                     await localizationService.reloadLanguagePacks();
+                    context.read<FontService>().updateLanguagePackDefaults(
+                        localizationService.languagePacks);
+                    await _loadAvailableFonts();
                     if (mounted) {
                       NotificationManager.of(context)?.showSuccess(
                         t.appearanceLanguagePacksRefreshedTitle,
@@ -959,7 +1710,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                       if (mounted) {
                         NotificationManager.of(context)?.showError(
                           t.developerOpenL10nFolderFailedTitle,
-                          message: t.developerOpenL10nFolderFailedMessage(e.toString()),
+                          message: t.developerOpenL10nFolderFailedMessage(
+                              e.toString()),
                         );
                       }
                     }
@@ -978,95 +1730,23 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
           ],
         ),
         const SizedBox(height: 24),
-        
+
         // 字体设置
         _buildSection(
           context,
           title: t.appearanceFontSection,
           icon: CustomIcons.FluentIcons.font,
           children: [
-            _buildSettingItem(
-              context,
-              title: t.appearanceFontTitle,
-              subtitle: _selectedFont == 'system'
-                  ? t.appearanceFontSystemSubtitle
-                  : t.appearanceFontCurrentSubtitle(_selectedFont),
-              trailing: _loadingFonts
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: ProgressRing(strokeWidth: 2),
-                    )
-                  : SizedBox(
-                      width: 250,
-                      child: Button(
-                        onPressed: () => _showFontPickerDialog(context),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                _selectedFont == 'system'
-                                    ? t.appearanceFontSystemLabel
-                                    : _selectedFont,
-                                style: _selectedFont == 'system' 
-                                    ? null 
-                                    : TextStyle(fontFamily: _selectedFont),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Icon(CustomIcons.FluentIcons.chevron_down, size: 12),
-                          ],
-                        ),
-                      ),
-                    ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: Button(
-                    onPressed: _importCustomFont,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(CustomIcons.FluentIcons.add, size: 14),
-                        const SizedBox(width: 6),
-                        Text(t.appearanceFontImportButton),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Consumer<FontService>(
-                    builder: (context, fontService, child) {
-                      final canDelete = _selectedFont != 'system' && 
-                                       fontService.isCustomFont(_selectedFont);
-                      return Button(
-                        onPressed: canDelete ? () => _removeCustomFont(_selectedFont) : null,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(CustomIcons.FluentIcons.delete, size: 14),
-                            const SizedBox(width: 6),
-                            Text(t.appearanceFontDeleteButton),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: FluentTheme.of(context).accentColor.withValues(alpha: 0.1),
+                color:
+                    FluentTheme.of(context).accentColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
-                  color: FluentTheme.of(context).accentColor.withValues(alpha: 0.2),
+                  color: FluentTheme.of(context)
+                      .accentColor
+                      .withValues(alpha: 0.2),
                 ),
               ),
               child: Row(
@@ -1079,10 +1759,210 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      t.appearanceFontHint,
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.7),
-                      ),
+                      _fontSectionHint(uiLocale),
+                      style:
+                          FluentTheme.of(context).typography.caption?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.78),
+                              ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            for (final localeTag in visibleLocaleTags) ...[
+              Builder(
+                builder: (context) {
+                  final activeLocale = localizationService.effectiveLocale;
+                  final currentFont = fontService.effectiveFontForLocaleTag(
+                    localeTag,
+                    activeLocale: activeLocale,
+                  );
+                  final localeLabel = _displayLanguageLabel(
+                      localeTag, languageLabels, uiLocale);
+                  final title =
+                      _fontLocaleTitle(uiLocale, localeTag, localeLabel);
+                  final hasOverride =
+                      fontService.hasFontOverrideForLocale(localeTag);
+
+                  return _buildSettingItem(
+                    context,
+                    title: title,
+                    subtitle: _localeFontSubtitle(
+                      uiLocale,
+                      fontService,
+                      localeTag,
+                      activeLocale,
+                    ),
+                    trailing: _loadingFonts
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: ProgressRing(strokeWidth: 2),
+                          )
+                        : SizedBox(
+                            width: 340,
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Button(
+                                    onPressed: () =>
+                                        _showLocaleFontPickerDialog(
+                                      context,
+                                      localeTag: localeTag,
+                                      localeLabel: localeLabel,
+                                      currentFont: currentFont,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            currentFont,
+                                            style: TextStyle(
+                                              fontFamily: currentFont,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Icon(
+                                          CustomIcons.FluentIcons.chevron_down,
+                                          size: 12,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                if (hasOverride) ...[
+                                  const SizedBox(width: 8),
+                                  Tooltip(
+                                    message: _fontLocaleResetTooltip(uiLocale),
+                                    child: IconButton(
+                                      icon: Icon(
+                                        CustomIcons.FluentIcons.refresh,
+                                        size: 14,
+                                      ),
+                                      onPressed: () => _resetLocaleFont(
+                                        localeTag,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+            SizedBox(
+              width: double.infinity,
+              child: Button(
+                onPressed: _importCustomFont,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(CustomIcons.FluentIcons.add, size: 14),
+                    const SizedBox(width: 6),
+                    Text(t.appearanceFontImportButton),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color:
+                    FluentTheme.of(context).accentColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: FluentTheme.of(context)
+                      .accentColor
+                      .withValues(alpha: 0.2),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    CustomIcons.FluentIcons.info,
+                    size: 16,
+                    color: FluentTheme.of(context).accentColor,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _fontLocaleCustomFontsTitle(uiLocale),
+                          style: FluentTheme.of(context)
+                              .typography
+                              .bodyStrong
+                              ?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.88),
+                              ),
+                        ),
+                        const SizedBox(height: 6),
+                        if (fontService.customFonts.isEmpty)
+                          Text(
+                            _fontLocaleNoCustomFonts(uiLocale),
+                            style: FluentTheme.of(context)
+                                .typography
+                                .caption
+                                ?.copyWith(
+                                  color: Colors.white.withValues(alpha: 0.7),
+                                ),
+                          )
+                        else
+                          Column(
+                            children: [
+                              for (final fontName
+                                  in (fontService.customFonts.keys.toList()
+                                    ..sort((a, b) => a.toLowerCase().compareTo(
+                                          b.toLowerCase(),
+                                        ))))
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 6),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          fontName,
+                                          style: TextStyle(
+                                            fontFamily: fontName,
+                                            color: Colors.white.withValues(
+                                              alpha: 0.82,
+                                            ),
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Button(
+                                        onPressed: () =>
+                                            _removeCustomFont(fontName),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              CustomIcons.FluentIcons.delete,
+                                              size: 12,
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              t.appearanceFontDeleteConfirmButton,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                      ],
                     ),
                   ),
                 ],
@@ -1091,7 +1971,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
           ],
         ),
         const SizedBox(height: 24),
-        
+
         // 窗口效果
         _buildSection(
           context,
@@ -1129,7 +2009,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 child: _buildSettingItem(
                   context,
                   title: t.appearanceWindowEffectsTypeTitle,
-                  subtitle: _getEffectModeDescription(windowEffect.effectMode, t),
+                  subtitle:
+                      _getEffectModeDescription(windowEffect.effectMode, t),
                   trailing: ComboBox<String>(
                     value: windowEffect.effectMode,
                     items: [
@@ -1170,9 +2051,12 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             ),
             const SizedBox(height: 12),
             Opacity(
-              opacity: windowEffect.effectEnabled && !windowEffect.isMicaEffect ? 1.0 : 0.5,
+              opacity: windowEffect.effectEnabled && !windowEffect.isMicaEffect
+                  ? 1.0
+                  : 0.5,
               child: IgnorePointer(
-                ignoring: !windowEffect.effectEnabled || windowEffect.isMicaEffect,
+                ignoring:
+                    !windowEffect.effectEnabled || windowEffect.isMicaEffect,
                 child: _buildSettingItem(
                   context,
                   title: t.appearanceWindowEffectsAcrylicOpacityTitle,
@@ -1200,7 +2084,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                           width: 40,
                           child: Text(
                             '$alpha',
-                            style: FluentTheme.of(context).typography.bodyStrong,
+                            style:
+                                FluentTheme.of(context).typography.bodyStrong,
                           ),
                         ),
                       ],
@@ -1238,7 +2123,9 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
                   color: windowEffect.isMicaEffect
-                      ? FluentTheme.of(context).accentColor.withValues(alpha: 0.3)
+                      ? FluentTheme.of(context)
+                          .accentColor
+                          .withValues(alpha: 0.3)
                       : windowEffect.effectEnabled
                           ? Colors.orange.withValues(alpha: 0.3)
                           : AppTheme.statusSuccess.withValues(alpha: 0.3),
@@ -1267,13 +2154,14 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                           : windowEffect.effectEnabled
                               ? t.appearanceWindowEffectsAcrylicHint
                               : t.appearanceWindowEffectsDisabledHint,
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: windowEffect.isMicaEffect
-                            ? FluentTheme.of(context).accentColor
-                            : windowEffect.effectEnabled
-                                ? Colors.orange
-                                : AppTheme.statusSuccess,
-                      ),
+                      style:
+                          FluentTheme.of(context).typography.caption?.copyWith(
+                                color: windowEffect.isMicaEffect
+                                    ? FluentTheme.of(context).accentColor
+                                    : windowEffect.effectEnabled
+                                        ? Colors.orange
+                                        : AppTheme.statusSuccess,
+                              ),
                     ),
                   ),
                 ],
@@ -1282,7 +2170,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
           ],
         ),
         const SizedBox(height: 24),
-        
+
         // 侧边栏设置
         _buildSection(
           context,
@@ -1296,14 +2184,20 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
               trailing: ComboBox<bool>(
                 value: clientConfig.getSidebarDefaultExpanded(),
                 items: [
-                  ComboBoxItem(value: true, child: Text(t.appearanceSidebarExpandedLabel)),
-                  ComboBoxItem(value: false, child: Text(t.appearanceSidebarCollapsedLabel)),
+                  ComboBoxItem(
+                      value: true,
+                      child: Text(t.appearanceSidebarExpandedLabel)),
+                  ComboBoxItem(
+                      value: false,
+                      child: Text(t.appearanceSidebarCollapsedLabel)),
                 ],
                 onChanged: (value) async {
                   if (value != null) {
                     await clientConfig.setSidebarDefaultExpanded(value);
                     if (mounted) {
-                      final label = value ? t.appearanceSidebarExpandedLabel : t.appearanceSidebarCollapsedLabel;
+                      final label = value
+                          ? t.appearanceSidebarExpandedLabel
+                          : t.appearanceSidebarCollapsedLabel;
                       NotificationManager.of(context)?.showSuccess(
                         t.appearanceSidebarSavedTitle,
                         message: t.appearanceSidebarSavedMessage(label),
@@ -1316,7 +2210,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
           ],
         ),
         const SizedBox(height: 24),
-        
+
         // 通知设置
         _buildSection(
           context,
@@ -1336,7 +2230,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             _buildSettingItem(
               context,
               title: t.appearanceNotificationSchemeTitle,
-              subtitle: _getNotificationColorSchemeName(_notificationColorScheme, t),
+              subtitle:
+                  _getNotificationColorSchemeName(_notificationColorScheme, t),
               trailing: ComboBox<String>(
                 value: _notificationColorScheme,
                 items: [
@@ -1376,7 +2271,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                   ),
                   ComboBoxItem(
                     value: 'bottomRight',
-                    child: Text(t.appearanceNotificationPositionBottomRightOption),
+                    child:
+                        Text(t.appearanceNotificationPositionBottomRightOption),
                   ),
                 ],
                 onChanged: (value) {
@@ -1394,15 +2290,18 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 items: [
                   ComboBoxItem(
                     value: 'performance',
-                    child: Text(t.appearanceNotificationPerformanceOptionPerformance),
+                    child: Text(
+                        t.appearanceNotificationPerformanceOptionPerformance),
                   ),
                   ComboBoxItem(
                     value: 'balanced',
-                    child: Text(t.appearanceNotificationPerformanceOptionBalanced),
+                    child:
+                        Text(t.appearanceNotificationPerformanceOptionBalanced),
                   ),
                   ComboBoxItem(
                     value: 'quality',
-                    child: Text(t.appearanceNotificationPerformanceOptionQuality),
+                    child:
+                        Text(t.appearanceNotificationPerformanceOptionQuality),
                   ),
                 ],
                 onChanged: (value) {
@@ -1414,10 +2313,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: FluentTheme.of(context).accentColor.withValues(alpha: 0.1),
+                color:
+                    FluentTheme.of(context).accentColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
-                  color: FluentTheme.of(context).accentColor.withValues(alpha: 0.2),
+                  color: FluentTheme.of(context)
+                      .accentColor
+                      .withValues(alpha: 0.2),
                 ),
               ),
               child: Row(
@@ -1431,9 +2333,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                   Expanded(
                     child: Text(
                       t.appearanceNotificationPerformanceHint,
-                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.7),
-                      ),
+                      style:
+                          FluentTheme.of(context).typography.caption?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.7),
+                              ),
                     ),
                   ),
                 ],
@@ -1455,7 +2358,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
           ],
         ),
         const SizedBox(height: 24),
-        
+
         // 下载列表显示
         _buildSection(
           context,
@@ -1465,7 +2368,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             _buildSettingItem(
               context,
               title: t.appearanceSegmentsModeTitle,
-              subtitle: _getSegmentsDisplayModeDescription(_segmentsDisplayMode, t),
+              subtitle:
+                  _getSegmentsDisplayModeDescription(_segmentsDisplayMode, t),
               trailing: ComboBox<String>(
                 value: _segmentsDisplayMode,
                 items: [
@@ -1534,7 +2438,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                           width: 30,
                           child: Text(
                             '$_segmentsMaxVisible',
-                            style: FluentTheme.of(context).typography.bodyStrong,
+                            style:
+                                FluentTheme.of(context).typography.bodyStrong,
                           ),
                         ),
                       ],
@@ -1573,9 +2478,15 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 trailing: ComboBox<String>(
                   value: _chartPosition,
                   items: [
-                    ComboBoxItem(value: 'low', child: Text(t.appearanceChartPositionLow)),
-                    ComboBoxItem(value: 'mid', child: Text(t.appearanceChartPositionMid)),
-                    ComboBoxItem(value: 'high', child: Text(t.appearanceChartPositionHigh)),
+                    ComboBoxItem(
+                        value: 'low',
+                        child: Text(t.appearanceChartPositionLow)),
+                    ComboBoxItem(
+                        value: 'mid',
+                        child: Text(t.appearanceChartPositionMid)),
+                    ComboBoxItem(
+                        value: 'high',
+                        child: Text(t.appearanceChartPositionHigh)),
                   ],
                   onChanged: (value) {
                     if (value != null) _saveChartPosition(value);
@@ -1590,12 +2501,30 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 trailing: ComboBox<String>(
                   value: _chartColor,
                   items: [
-                    ComboBoxItem(value: 'blue', child: _buildColorOption(const Color(0xFF0078D4), t.appearanceChartColorBlue)),
-                    ComboBoxItem(value: 'cyan', child: _buildColorOption(const Color(0xFF60CDFF), t.appearanceChartColorCyan)),
-                    ComboBoxItem(value: 'purple', child: _buildColorOption(const Color(0xFF8B5CF6), t.appearanceChartColorPurple)),
-                    ComboBoxItem(value: 'green', child: _buildColorOption(const Color(0xFF10B981), t.appearanceChartColorGreen)),
-                    ComboBoxItem(value: 'pink', child: _buildColorOption(const Color(0xFFEC4899), t.appearanceChartColorPink)),
-                    ComboBoxItem(value: 'orange', child: _buildColorOption(const Color(0xFFF97316), t.appearanceChartColorOrange)),
+                    ComboBoxItem(
+                        value: 'blue',
+                        child: _buildColorOption(const Color(0xFF0078D4),
+                            t.appearanceChartColorBlue)),
+                    ComboBoxItem(
+                        value: 'cyan',
+                        child: _buildColorOption(const Color(0xFF60CDFF),
+                            t.appearanceChartColorCyan)),
+                    ComboBoxItem(
+                        value: 'purple',
+                        child: _buildColorOption(const Color(0xFF8B5CF6),
+                            t.appearanceChartColorPurple)),
+                    ComboBoxItem(
+                        value: 'green',
+                        child: _buildColorOption(const Color(0xFF10B981),
+                            t.appearanceChartColorGreen)),
+                    ComboBoxItem(
+                        value: 'pink',
+                        child: _buildColorOption(const Color(0xFFEC4899),
+                            t.appearanceChartColorPink)),
+                    ComboBoxItem(
+                        value: 'orange',
+                        child: _buildColorOption(const Color(0xFFF97316),
+                            t.appearanceChartColorOrange)),
                   ],
                   onChanged: (value) {
                     if (value != null) _saveChartColor(value);
@@ -1609,7 +2538,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     );
   }
 
-  Widget _buildWindowSizeSettings(BuildContext context, ClientConfigService config) {
+  Widget _buildWindowSizeSettings(
+      BuildContext context, ClientConfigService config) {
     final t = AppLocalizations.of(context)!;
     final rememberSize = config.getWindowRememberSize();
     final defaultWidth = config.getWindowDefaultWidth();
@@ -1617,15 +2547,15 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     // 直接获取当前窗口大小（每次构建时都获取最新值）
     final currentWidth = appWindow.size.width;
     final currentHeight = appWindow.size.height;
-    
+
     // 使用缓存的屏幕尺寸
     final maxWidth = _screenWidth;
     final maxHeight = _screenHeight;
-    
+
     // 确保默认值不超过屏幕大小
     final safeDefaultWidth = defaultWidth.clamp(600.0, maxWidth);
     final safeDefaultHeight = defaultHeight.clamp(400.0, maxHeight);
-    
+
     // 如果还在加载屏幕尺寸，显示加载指示器
     if (_loadingScreenSize) {
       return const Center(
@@ -1639,7 +2569,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         _buildSettingItem(
           context,
           title: t.appearanceWindowRememberTitle,
-          subtitle: rememberSize 
+          subtitle: rememberSize
               ? t.appearanceWindowRememberSubtitleOn
               : t.appearanceWindowRememberSubtitleOff,
           trailing: ToggleSwitch(
@@ -1660,7 +2590,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 _buildSettingItem(
                   context,
                   title: t.appearanceWindowDefaultWidthTitle,
-                  subtitle: t.appearanceWindowDefaultWidthSubtitle(maxWidth.toInt()),
+                  subtitle:
+                      t.appearanceWindowDefaultWidthSubtitle(maxWidth.toInt()),
                   trailing: SizedBox(
                     width: 250,
                     child: Row(
@@ -1682,7 +2613,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                           width: 50,
                           child: Text(
                             '${safeDefaultWidth.toInt()}',
-                            style: FluentTheme.of(context).typography.bodyStrong,
+                            style:
+                                FluentTheme.of(context).typography.bodyStrong,
                           ),
                         ),
                       ],
@@ -1693,7 +2625,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 _buildSettingItem(
                   context,
                   title: t.appearanceWindowDefaultHeightTitle,
-                  subtitle: t.appearanceWindowDefaultHeightSubtitle(maxHeight.toInt()),
+                  subtitle: t
+                      .appearanceWindowDefaultHeightSubtitle(maxHeight.toInt()),
                   trailing: SizedBox(
                     width: 250,
                     child: Row(
@@ -1715,7 +2648,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                           width: 50,
                           child: Text(
                             '${safeDefaultHeight.toInt()}',
-                            style: FluentTheme.of(context).typography.bodyStrong,
+                            style:
+                                FluentTheme.of(context).typography.bodyStrong,
                           ),
                         ),
                       ],
@@ -1730,14 +2664,15 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                         onPressed: () async {
                           // 确保不超过屏幕大小
                           final safeWidth = currentWidth.clamp(600.0, maxWidth);
-                          final safeHeight = currentHeight.clamp(400.0, maxHeight);
-                          
+                          final safeHeight =
+                              currentHeight.clamp(400.0, maxHeight);
+
                           // 同时更新默认大小和当前保存的大小
                           await config.setWindowDefaultWidth(safeWidth);
                           await config.setWindowDefaultHeight(safeHeight);
                           await config.setWindowWidth(safeWidth);
                           await config.setWindowHeight(safeHeight);
-                          
+
                           if (mounted) {
                             NotificationManager.of(context)?.showSuccess(
                               t.appearanceWindowSaveTitle,
@@ -1772,7 +2707,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                           await config.setWindowDefaultHeight(586.0);
                           await config.setWindowWidth(889.0);
                           await config.setWindowHeight(586.0);
-                          
+
                           if (mounted) {
                             NotificationManager.of(context)?.showInfo(
                               t.appearanceWindowResetTitle,
@@ -1798,8 +2733,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                   width: double.infinity,
                   child: FilledButton(
                     onPressed: () {
-                      final targetWidth = safeDefaultWidth.clamp(600.0, maxWidth);
-                      final targetHeight = safeDefaultHeight.clamp(400.0, maxHeight);
+                      final targetWidth =
+                          safeDefaultWidth.clamp(600.0, maxWidth);
+                      final targetHeight =
+                          safeDefaultHeight.clamp(400.0, maxHeight);
                       appWindow.size = Size(targetWidth, targetHeight);
                       NotificationManager.of(context)?.showSuccess(
                         t.appearanceWindowApplyTitle,
@@ -1848,12 +2785,12 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  rememberSize 
+                  rememberSize
                       ? t.appearanceWindowRememberHintOn
                       : t.appearanceWindowRememberHintOff,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.7),
-                  ),
+                        color: Colors.white.withValues(alpha: 0.7),
+                      ),
                 ),
               ),
             ],
@@ -1892,9 +2829,6 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         return t.appearanceEffectUnknown;
     }
   }
-
-
-
 
   Widget _buildSection(
     BuildContext context, {
@@ -1939,34 +2873,19 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
       trailing: trailing,
     );
   }
-
-  /// 显示字体选择对话框（带搜索功能）
-  Future<void> _showFontPickerDialog(BuildContext context) async {
-    final t = AppLocalizations.of(context)!;
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => _FontPickerDialog(
-        availableFonts: _availableFonts,
-        selectedFont: _selectedFont,
-        t: t,
-      ),
-    );
-
-    if (result != null && result != _selectedFont) {
-      _saveFontSetting(result);
-    }
-  }
 }
 
 /// 字体选择对话框（带搜索功能）
 class _FontPickerDialog extends StatefulWidget {
   final List<String> availableFonts;
   final String selectedFont;
+  final Set<String> customFonts;
   final AppLocalizations t;
 
   const _FontPickerDialog({
     required this.availableFonts,
     required this.selectedFont,
+    required this.customFonts,
     required this.t,
   });
 
@@ -1976,13 +2895,30 @@ class _FontPickerDialog extends StatefulWidget {
 
 class _FontPickerDialogState extends State<_FontPickerDialog> {
   final _searchController = TextEditingController();
-  late List<String> _filteredFonts;
+  late final List<_FontPickerEntry> _allFonts;
+  late List<_FontPickerEntry> _filteredFonts;
   String? _hoveredFont;
+  int _processedFonts = 0;
+  bool _loadingSupportInfo = false;
 
   @override
   void initState() {
     super.initState();
-    _filteredFonts = widget.availableFonts;
+    _allFonts = widget.availableFonts
+        .map(
+          (font) => _FontPickerEntry(
+            key: font,
+            displayName:
+                font == 'system' ? widget.t.appearanceFontSystemLabel : font,
+            previewFontFamily:
+                font == 'system' ? FontService.systemFontFamily : font,
+            isSystemAlias: font == 'system',
+            isCustom: widget.customFonts.contains(font),
+          ),
+        )
+        .toList();
+    _filteredFonts = List<_FontPickerEntry>.from(_allFonts);
+    _loadFontSupportInfo();
   }
 
   @override
@@ -1992,22 +2928,166 @@ class _FontPickerDialogState extends State<_FontPickerDialog> {
   }
 
   void _filterFonts(String query) {
+    final normalizedQuery = _normalizeFontSearchText(query);
     setState(() {
-      if (query.isEmpty) {
-        _filteredFonts = widget.availableFonts;
+      if (normalizedQuery.isEmpty) {
+        _filteredFonts = List<_FontPickerEntry>.from(_allFonts);
       } else {
-        _filteredFonts = widget.availableFonts
-            .where((font) => font.toLowerCase().contains(query.toLowerCase()))
+        _filteredFonts = _allFonts
+            .where((font) => _matchesQuery(font, normalizedQuery))
             .toList();
       }
     });
   }
 
+  Future<void> _loadFontSupportInfo() async {
+    if (!Platform.isWindows) {
+      return;
+    }
+
+    setState(() {
+      _loadingSupportInfo = true;
+      _processedFonts = 0;
+    });
+
+    for (var i = 0; i < _allFonts.length; i++) {
+      final entry = _allFonts[i];
+      if (!entry.isCustom) {
+        _allFonts[i] = entry.copyWith(
+          supportedScripts:
+              _detectFontSupportedScripts(entry.previewFontFamily),
+        );
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      final shouldRefresh =
+          i == _allFonts.length - 1 || (i + 1) % 12 == 0 || i < 8;
+      if (shouldRefresh) {
+        setState(() {
+          _processedFonts = i + 1;
+        });
+        _filterFonts(_searchController.text);
+        await Future<void>.delayed(Duration.zero);
+      }
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _loadingSupportInfo = false;
+      _processedFonts = _allFonts.length;
+    });
+    _filterFonts(_searchController.text);
+  }
+
+  bool _matchesQuery(_FontPickerEntry entry, String normalizedQuery) {
+    for (final token in _searchTokensForEntry(entry)) {
+      if (_normalizeFontSearchText(token).contains(normalizedQuery)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Iterable<String> _searchTokensForEntry(_FontPickerEntry entry) sync* {
+    yield entry.key;
+    yield entry.displayName;
+    yield entry.previewFontFamily;
+
+    if (entry.isSystemAlias) {
+      yield 'system';
+      yield 'default';
+      yield 'recommended';
+      yield '系统字体';
+      yield '默认字体';
+      yield '推荐';
+      yield 'segoe ui';
+    }
+
+    if (entry.isCustom) {
+      yield 'custom';
+      yield 'imported';
+      yield '自定义';
+      yield '导入';
+    }
+
+    for (final script in entry.supportedScripts) {
+      for (final keyword in script.searchKeywords) {
+        yield keyword;
+      }
+    }
+  }
+
+  List<String> _buildTags(_FontPickerEntry entry, Locale locale) {
+    final tags = <String>[];
+
+    if (entry.isSystemAlias) {
+      tags.add(_fontPickerSystemFallbackLabel(locale));
+    }
+
+    if (entry.isCustom) {
+      tags.add(_fontPickerCustomLabel(locale));
+    }
+
+    for (final script in entry.supportedScripts) {
+      tags.add(script.label(locale));
+    }
+
+    return tags;
+  }
+
+  Widget _buildSupportTag(
+    BuildContext context,
+    String label, {
+    required bool isSelected,
+  }) {
+    final theme = FluentTheme.of(context);
+    final foregroundColor = isSelected
+        ? theme.accentColor
+        : theme.typography.caption?.color?.withValues(alpha: 0.88);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? theme.accentColor.withValues(alpha: 0.12)
+            : Colors.white.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: isSelected
+              ? theme.accentColor.withValues(alpha: 0.3)
+              : Colors.white.withValues(alpha: 0.06),
+        ),
+      ),
+      child: Text(
+        label,
+        style: theme.typography.caption?.copyWith(
+          fontSize: 10,
+          color: foregroundColor,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final locale = Localizations.localeOf(context);
+    final mediaSize = MediaQuery.sizeOf(context);
+    final dialogWidth = (mediaSize.width * 0.82).clamp(360.0, 440.0).toDouble();
+    final dialogHeight =
+        (mediaSize.height * 0.76).clamp(400.0, 520.0).toDouble();
+
     return ContentDialog(
       title: Text(widget.t.appearanceFontPickerTitle),
-      constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+      constraints: BoxConstraints(
+        maxWidth: dialogWidth,
+        maxHeight: dialogHeight,
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -2038,13 +3118,27 @@ class _FontPickerDialogState extends State<_FontPickerDialog> {
                 widget.t.appearanceFontPickerCount(_filteredFonts.length),
                 style: FluentTheme.of(context).typography.caption,
               ),
+              const Spacer(),
+              if (_loadingSupportInfo)
+                Text(
+                  _fontPickerLoadingLabel(
+                    locale,
+                    _processedFonts.clamp(0, _allFonts.length),
+                    _allFonts.length,
+                  ),
+                  style: FluentTheme.of(context).typography.caption?.copyWith(
+                        color: FluentTheme.of(context)
+                            .accentColor
+                            .withValues(alpha: 0.9),
+                      ),
+                ),
               if (_searchController.text.isNotEmpty) ...[
                 const SizedBox(width: 8),
                 Text(
                   widget.t.appearanceFontPickerFilteredLabel,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: FluentTheme.of(context).accentColor,
-                  ),
+                        color: FluentTheme.of(context).accentColor,
+                      ),
                 ),
               ],
             ],
@@ -2057,7 +3151,8 @@ class _FontPickerDialogState extends State<_FontPickerDialog> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(CustomIcons.FluentIcons.searchIcon, size: 48, color: Colors.grey),
+                        Icon(CustomIcons.FluentIcons.searchIcon,
+                            size: 48, color: Colors.grey),
                         const SizedBox(height: 12),
                         Text(
                           widget.t.appearanceFontPickerEmpty,
@@ -2066,71 +3161,118 @@ class _FontPickerDialogState extends State<_FontPickerDialog> {
                       ],
                     ),
                   )
-                : ListView.builder(
+                : SmoothListView.builder(
+                    config: SmoothScrollConfig.smooth,
                     itemCount: _filteredFonts.length,
                     itemBuilder: (context, index) {
                       final font = _filteredFonts[index];
-                      final isSelected = font == widget.selectedFont;
-                      final isHovered = font == _hoveredFont;
-                      
+                      final isSelected = font.key == widget.selectedFont;
+                      final isHovered = font.key == _hoveredFont;
+                      final tags = _buildTags(font, locale);
+
                       return MouseRegion(
-                        onEnter: (_) => setState(() => _hoveredFont = font),
+                        onEnter: (_) => setState(() => _hoveredFont = font.key),
                         onExit: (_) => setState(() => _hoveredFont = null),
                         child: GestureDetector(
-                          onTap: () => Navigator.pop(context, font),
+                          onTap: () => Navigator.pop(context, font.key),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            margin: const EdgeInsets.only(bottom: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 9,
+                            ),
+                            margin: const EdgeInsets.only(bottom: 4),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? FluentTheme.of(context).accentColor.withValues(alpha: 0.2)
+                                  ? FluentTheme.of(context)
+                                      .accentColor
+                                      .withValues(alpha: 0.2)
                                   : isHovered
-                                      ? FluentTheme.of(context).accentColor.withValues(alpha: 0.1)
+                                      ? FluentTheme.of(context)
+                                          .accentColor
+                                          .withValues(alpha: 0.1)
                                       : Colors.transparent,
                               borderRadius: BorderRadius.circular(6),
                               border: isSelected
                                   ? Border.all(
-                                      color: FluentTheme.of(context).accentColor.withValues(alpha: 0.5),
+                                      color: FluentTheme.of(context)
+                                          .accentColor
+                                          .withValues(alpha: 0.5),
                                     )
                                   : null,
                             ),
                             child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 if (isSelected)
                                   Padding(
-                                    padding: const EdgeInsets.only(right: 10),
+                                    padding: const EdgeInsets.only(
+                                      right: 10,
+                                      top: 2,
+                                    ),
                                     child: Icon(
                                       CustomIcons.FluentIcons.check_mark,
                                       size: 14,
-                                      color: FluentTheme.of(context).accentColor,
+                                      color:
+                                          FluentTheme.of(context).accentColor,
                                     ),
                                   ),
                                 Expanded(
-                                  child: Text(
-                                    font == 'system'
-                                        ? widget.t.appearanceFontSystemLabel
-                                        : font,
-                                    style: font == 'system'
-                                        ? FluentTheme.of(context).typography.body
-                                        : FluentTheme.of(context).typography.body?.copyWith(
-                                            fontFamily: font,
-                                          ),
-                                    overflow: TextOverflow.ellipsis,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        font.displayName,
+                                        style: FluentTheme.of(context)
+                                            .typography
+                                            .body
+                                            ?.copyWith(
+                                              fontFamily:
+                                                  font.previewFontFamily,
+                                            ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      if (tags.isNotEmpty) ...[
+                                        const SizedBox(height: 6),
+                                        Wrap(
+                                          spacing: 6,
+                                          runSpacing: 6,
+                                          children: [
+                                            for (final tag in tags)
+                                              _buildSupportTag(
+                                                context,
+                                                tag,
+                                                isSelected: isSelected,
+                                              ),
+                                          ],
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ),
-                                if (font == 'system')
+                                if (font.isSystemAlias)
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    margin: const EdgeInsets.only(left: 8),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: FluentTheme.of(context).accentColor.withValues(alpha: 0.15),
+                                      color: FluentTheme.of(context)
+                                          .accentColor
+                                          .withValues(alpha: 0.15),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
                                       widget.t.appearanceFontPickerRecommended,
-                                      style: FluentTheme.of(context).typography.caption?.copyWith(
-                                        color: FluentTheme.of(context).accentColor,
-                                        fontSize: 10,
-                                      ),
+                                      style: FluentTheme.of(context)
+                                          .typography
+                                          .caption
+                                          ?.copyWith(
+                                            color: FluentTheme.of(context)
+                                                .accentColor,
+                                            fontSize: 10,
+                                          ),
                                     ),
                                   ),
                               ],
