@@ -88,6 +88,14 @@ cd hanabi-download-manager-x
 flutter pub get
 ```
 
+Windows 下如果 `flutter run` 卡在 `rhttp` 插件构建，先执行下面的补丁脚本：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\apply-rhttp-windows-fix.ps1
+```
+
+该脚本会根据 `.dart_tool/package_config.json` 自动定位 Pub Cache 中实际解析到的 `rhttp` 包，并修补两个 Windows 构建脚本。建议在清理 Pub Cache 或重新执行 `flutter pub get` 后重跑一次。
+
 3. 运行应用
 
 ```bash
