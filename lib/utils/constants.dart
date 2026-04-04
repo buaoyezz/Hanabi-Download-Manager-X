@@ -27,8 +27,8 @@ class AppConstants {
 
   // Kernel Information
   static const String kernelName = 'NextSpeedForceXKernel';
-  static const String newKernelVersion = '2.3.0';
-  static const String newKernelBuildNumber = 'b260226-nsfx-r';
+  static const String newKernelVersion = '2.4.0';
+  static const String newKernelBuildNumber = 'b260404-nsfx-r';
   static const String newKernelFullName = 'NSFX (Next Speed Force X)';
 
   // API Endpoints
