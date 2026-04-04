@@ -33,8 +33,6 @@ import 'services/update_service.dart';
 import 'services/window_effect_service.dart';
 import 'services/user_profile_service.dart';
 import 'services/notification_settings_service.dart';
-import 'services/pipe_listener_service.dart';
-import 'services/popup_progress_service.dart';
 import 'services/download_failure_stats_service.dart';
 import 'services/localization_service.dart';
 import 'services/single_instance_service.dart';
@@ -429,8 +427,6 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   DownloadListenerService? _downloadListener;
   ClipboardListenerService? _clipboardListener;
-  PipeListenerService? _pipeListener;
-  PopupProgressService? _popupProgressService;
   bool _showClientUi = !Platform.isWindows;
 
   @override
@@ -454,8 +450,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     await _initKernel();
     _initDownloadListener();
     _initClipboardListener();
-    _initPipeListener();
-    _initPopupProgressService();
   }
 
   BuildContext? _currentDialogHostContext() =>
@@ -676,39 +670,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _clipboardListener!.start();
   }
 
-  /// 初始化管道监听服务，接收来自 Hanabi Popup 的下载请求
-  void _initPipeListener() {
-    if (!Platform.isWindows) return;
-
-    _pipeListener = PipeListenerService();
-    _pipeListener!.onDownloadRequest = (request) {
-      debugPrint('[Main] Received download request from popup: ${request.url}');
-
-      // 添加下载任务
-      final downloadService = context.read<IntegratedDownloadService>();
-      downloadService.addTask(
-        request.url,
-        request.filename,
-      );
-
-      // 显示通知
-      final appLogger = context.read<AppLoggerService>();
-      appLogger.info(
-          'PipeListener', 'Download added from popup: ${request.filename}');
-    };
-
-    _pipeListener!.start();
-    debugPrint('[Main] Pipe listener started');
-  }
-
-  /// 初始化弹窗进度推送服务
-  void _initPopupProgressService() {
-    final downloadService = context.read<IntegratedDownloadService>();
-    _popupProgressService = PopupProgressService(downloadService);
-    _popupProgressService!.start();
-    debugPrint('[Main] Popup progress service started');
-  }
-
   Future<void> _cleanup() async {
     // Cache dependencies before async gaps.
     final kernelManager = context.read<KernelManager>();
@@ -746,12 +707,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     _downloadListener?.stopListening();
     _clipboardListener?.stop();
-
-    // 停止管道监听
-    _pipeListener?.stop();
-
-    // 停止弹窗进度推送服务
-    _popupProgressService?.stop();
     await NsfxProxyRuntime.stopSystemProxyObserver();
 
     // 停止新内核

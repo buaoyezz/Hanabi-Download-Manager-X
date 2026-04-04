@@ -615,25 +615,6 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Button(
-                  onPressed: _testDialogPopup,
-                  style: ButtonStyle(
-                    padding: WidgetStateProperty.all(
-                      const EdgeInsets.symmetric(vertical: 10),
-                    ),
-                  ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(FluentIcons.comment, size: 14),
-                      SizedBox(width: 6),
-                      Text('Dialog', style: TextStyle(fontSize: 12)),
-                    ],
-                  ),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -705,7 +686,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
 
       stopwatch.stop();
       appLogger.info(
-          'PopupTest', '弹窗窗口创建成功，耗时: ${stopwatch.elapsedMilliseconds}ms');
+          'PopupTest', '主窗口下载弹窗创建成功，耗时: ${stopwatch.elapsedMilliseconds}ms');
 
       if (!mounted) return;
       setState(() {
@@ -716,7 +697,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
       });
     } catch (e) {
       stopwatch.stop();
-      appLogger.error('PopupTest', '弹窗窗口创建失败: $e');
+      appLogger.error('PopupTest', '主窗口下载弹窗创建失败: $e');
 
       if (!mounted) return;
       setState(() {
@@ -734,28 +715,6 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
     }
   }
 
-  Future<void> _testDialogPopup() async {
-    final appLogger = context.read<AppLoggerService>();
-
-    final stopwatch = Stopwatch()..start();
-    appLogger.info('PopupTest', '开始测试 Dialog 弹窗...');
-
-    try {
-      await PopupWindowService.showPopupDownload(
-        context,
-        url: 'https://example.com/test-file.zip',
-        suggestedFilename: 'test-dialog-file.zip',
-        isFromBrowser: false,
-      );
-
-      stopwatch.stop();
-      appLogger.info(
-          'PopupTest', 'Dialog 弹窗关闭，总耗时: ${stopwatch.elapsedMilliseconds}ms');
-    } catch (e) {
-      stopwatch.stop();
-      appLogger.error('PopupTest', 'Dialog 弹窗失败: $e');
-    }
-  }
 }
 
 /// 工具项数据模型

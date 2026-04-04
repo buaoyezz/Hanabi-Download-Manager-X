@@ -839,7 +839,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsPopupWindowSubtitle.
   ///
   /// In zh, this message translates to:
-  /// **'显示下载弹窗'**
+  /// **'在主窗口中显示新建下载对话框'**
   String get settingsPopupWindowSubtitle;
 
   /// No description provided for @settingsPopupEnabledTitle.
@@ -851,7 +851,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsPopupEnabledMessage.
   ///
   /// In zh, this message translates to:
-  /// **'浏览器下载将弹出小窗确认'**
+  /// **'浏览器下载将拉起主窗口并显示新建下载对话框'**
   String get settingsPopupEnabledMessage;
 
   /// No description provided for @settingsPopupDisabledTitle.
@@ -863,7 +863,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsPopupDisabledMessage.
   ///
   /// In zh, this message translates to:
-  /// **'弹窗已关闭'**
+  /// **'浏览器下载将直接加入任务，不再弹出新建下载对话框'**
   String get settingsPopupDisabledMessage;
 
   /// No description provided for @settingsCompleteNotifyTitle.
@@ -3503,7 +3503,7 @@ abstract class AppLocalizations {
   /// No description provided for @developerTestPopupButton.
   ///
   /// In zh, this message translates to:
-  /// **'弹窗'**
+  /// **'测试新建下载框'**
   String get developerTestPopupButton;
 
   /// No description provided for @developerTestPopupTestingLabel.
@@ -3515,7 +3515,7 @@ abstract class AppLocalizations {
   /// No description provided for @developerTestPopupHint.
   ///
   /// In zh, this message translates to:
-  /// **'独立弹窗使用 Tauri，Dialog 需要主窗口'**
+  /// **'当前版本会拉起主窗口并显示新建下载对话框'**
   String get developerTestPopupHint;
 
   /// No description provided for @developerTestPopupResultSuccess.
@@ -5534,7 +5534,7 @@ abstract class AppLocalizations {
   /// No description provided for @statusPopupTestDescription.
   ///
   /// In zh, this message translates to:
-  /// **'测试独立弹窗窗口功能（类似 IDM 风格）'**
+  /// **'测试浏览器触发下载时，是否能拉起主窗口并显示新建下载对话框'**
   String get statusPopupTestDescription;
 
   /// No description provided for @statusItemTestResult.
@@ -5564,13 +5564,13 @@ abstract class AppLocalizations {
   /// No description provided for @statusPopupTestButton.
   ///
   /// In zh, this message translates to:
-  /// **'测试独立弹窗'**
+  /// **'测试新建下载框'**
   String get statusPopupTestButton;
 
   /// No description provided for @statusPopupDialogTestButton.
   ///
   /// In zh, this message translates to:
-  /// **'测试 Dialog 弹窗'**
+  /// **'旧版 Dialog 测试'**
   String get statusPopupDialogTestButton;
 
   /// No description provided for @statusPopupTestInfoTitle.
@@ -5582,7 +5582,7 @@ abstract class AppLocalizations {
   /// No description provided for @statusPopupTestInfoBody.
   ///
   /// In zh, this message translates to:
-  /// **'• 独立弹窗：使用 Tauri 创建独立窗口，不需要拉起主窗口\\n• Dialog 弹窗：传统方式，需要主窗口显示后才能弹出对话框\\n• 测试结果和耗时会记录到日志中'**
+  /// **'• 当前版本不再附带独立 popup 窗口\\n• 浏览器触发下载时会拉起主窗口并显示新建下载对话框\\n• 测试结果和耗时会记录到日志中'**
   String get statusPopupTestInfoBody;
 
   /// No description provided for @statusExtensionDownloadAddedTitle.
@@ -5660,25 +5660,25 @@ abstract class AppLocalizations {
   /// No description provided for @statusPopupTestCreating.
   ///
   /// In zh, this message translates to:
-  /// **'正在创建窗口...'**
+  /// **'正在打开新建下载对话框...'**
   String get statusPopupTestCreating;
 
   /// No description provided for @statusPopupTestStartLog.
   ///
   /// In zh, this message translates to:
-  /// **'开始测试弹窗窗口...'**
+  /// **'开始测试主窗口新建下载对话框...'**
   String get statusPopupTestStartLog;
 
   /// No description provided for @statusPopupTestSuccessLog.
   ///
   /// In zh, this message translates to:
-  /// **'弹窗窗口创建成功，耗时: {time}ms'**
+  /// **'主窗口新建下载对话框已打开，耗时: {time}ms'**
   String statusPopupTestSuccessLog(Object time);
 
   /// No description provided for @statusPopupTestSuccessMessage.
   ///
   /// In zh, this message translates to:
-  /// **'窗口创建成功'**
+  /// **'新建下载对话框已成功打开'**
   String get statusPopupTestSuccessMessage;
 
   /// No description provided for @statusPopupTestSuccessTitle.
@@ -5690,13 +5690,13 @@ abstract class AppLocalizations {
   /// No description provided for @statusPopupTestSuccessToast.
   ///
   /// In zh, this message translates to:
-  /// **'弹窗窗口创建成功，耗时 {time}ms'**
+  /// **'新建下载对话框已打开，耗时 {time}ms'**
   String statusPopupTestSuccessToast(Object time);
 
   /// No description provided for @statusPopupTestFailedLog.
   ///
   /// In zh, this message translates to:
-  /// **'弹窗窗口创建失败: {error}'**
+  /// **'主窗口新建下载对话框打开失败: {error}'**
   String statusPopupTestFailedLog(Object error);
 
   /// No description provided for @statusPopupTestFailedTitle.
@@ -5708,7 +5708,7 @@ abstract class AppLocalizations {
   /// No description provided for @statusPopupTestFailedToast.
   ///
   /// In zh, this message translates to:
-  /// **'弹窗窗口创建失败: {error}'**
+  /// **'新建下载对话框打开失败: {error}'**
   String statusPopupTestFailedToast(Object error);
 
   /// No description provided for @statusPopupDialogTestStartLog.

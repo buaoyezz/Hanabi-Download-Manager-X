@@ -15,7 +15,7 @@ class DownloadListenerService {
   Timer? _pollTimer;
   final String _baseUrl = 'http://127.0.0.1:9710';
   bool _isChecking = false;
-  bool _isShowingPopup = false; // 防止弹窗期间重复触发
+  bool _isShowingPopup = false; // 防止主窗口下载对话框期间重复触发
 
   DownloadListenerService(this.context);
 
@@ -95,13 +95,12 @@ class DownloadListenerService {
     _logger.info('Download auto-accepted: $filename');
   }
 
-  // 为新下载显示弹窗（使用独立窗口，不需要拉起主窗口）
+  // 为新下载显示下载对话框（拉起主窗口处理）
   Future<void> _showPopupForDownload(Map<String, dynamic> downloadData) async {
     if (_isShowingPopup) return;
 
     _isShowingPopup = true;
     try {
-      // 使用新的独立窗口方式
       await PopupWindowService.showPopupDownloadWindow(
         url: downloadData['url'] ?? '',
         suggestedFilename: downloadData['filename'],
@@ -111,9 +110,9 @@ class DownloadListenerService {
         isFromBrowser: true,
       );
     } catch (e) {
-      _logger.error('Failed to show popup: $e');
+      _logger.error('Failed to show main-window download dialog: $e');
     } finally {
-      // 延迟重置标志，给窗口一些时间显示
+      // 延迟重置标志，给窗口和对话框一些时间完成切换
       Future.delayed(const Duration(milliseconds: 500), () {
         _isShowingPopup = false;
       });

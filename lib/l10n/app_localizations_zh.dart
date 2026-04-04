@@ -413,19 +413,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsPopupWindowTitle => '浏览器下载弹窗';
 
   @override
-  String get settingsPopupWindowSubtitle => '显示下载弹窗';
+  String get settingsPopupWindowSubtitle => '在主窗口中显示新建下载对话框';
 
   @override
   String get settingsPopupEnabledTitle => '弹窗已开启';
 
   @override
-  String get settingsPopupEnabledMessage => '浏览器下载将弹出小窗确认';
+  String get settingsPopupEnabledMessage => '浏览器下载将拉起主窗口并显示新建下载对话框';
 
   @override
   String get settingsPopupDisabledTitle => '弹窗已关闭';
 
   @override
-  String get settingsPopupDisabledMessage => '弹窗已关闭';
+  String get settingsPopupDisabledMessage => '浏览器下载将直接加入任务，不再弹出新建下载对话框';
 
   @override
   String get settingsCompleteNotifyTitle => '完成通知';
@@ -1808,13 +1808,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get developerTestPopupTitle => '弹窗测试';
 
   @override
-  String get developerTestPopupButton => '弹窗';
+  String get developerTestPopupButton => '测试新建下载框';
 
   @override
   String get developerTestPopupTestingLabel => '测试中';
 
   @override
-  String get developerTestPopupHint => '独立弹窗使用 Tauri，Dialog 需要主窗口';
+  String get developerTestPopupHint => '当前版本会拉起主窗口并显示新建下载对话框';
 
   @override
   String developerTestPopupResultSuccess(Object time) {
@@ -2909,7 +2909,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get statusItemDescription => '说明';
 
   @override
-  String get statusPopupTestDescription => '测试独立弹窗窗口功能（类似 IDM 风格）';
+  String get statusPopupTestDescription => '测试浏览器触发下载时，是否能拉起主窗口并显示新建下载对话框';
 
   @override
   String get statusItemTestResult => '测试结果';
@@ -2928,17 +2928,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get statusPopupTesting => '创建中...';
 
   @override
-  String get statusPopupTestButton => '测试独立弹窗';
+  String get statusPopupTestButton => '测试新建下载框';
 
   @override
-  String get statusPopupDialogTestButton => '测试 Dialog 弹窗';
+  String get statusPopupDialogTestButton => '旧版 Dialog 测试';
 
   @override
   String get statusPopupTestInfoTitle => '测试说明';
 
   @override
   String get statusPopupTestInfoBody =>
-      '• 独立弹窗：使用 Tauri 创建独立窗口，不需要拉起主窗口\\n• Dialog 弹窗：传统方式，需要主窗口显示后才能弹出对话框\\n• 测试结果和耗时会记录到日志中';
+      '• 当前版本不再附带独立 popup 窗口\\n• 浏览器触发下载时会拉起主窗口并显示新建下载对话框\\n• 测试结果和耗时会记录到日志中';
 
   @override
   String get statusExtensionDownloadAddedTitle => '下载已添加';
@@ -2983,30 +2983,30 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get statusPopupTestCreating => '正在创建窗口...';
+  String get statusPopupTestCreating => '正在打开新建下载对话框...';
 
   @override
-  String get statusPopupTestStartLog => '开始测试弹窗窗口...';
+  String get statusPopupTestStartLog => '开始测试主窗口新建下载对话框...';
 
   @override
   String statusPopupTestSuccessLog(Object time) {
-    return '弹窗窗口创建成功，耗时: ${time}ms';
+    return '主窗口新建下载对话框已打开，耗时: ${time}ms';
   }
 
   @override
-  String get statusPopupTestSuccessMessage => '窗口创建成功';
+  String get statusPopupTestSuccessMessage => '新建下载对话框已成功打开';
 
   @override
   String get statusPopupTestSuccessTitle => '测试成功';
 
   @override
   String statusPopupTestSuccessToast(Object time) {
-    return '弹窗窗口创建成功，耗时 ${time}ms';
+    return '新建下载对话框已打开，耗时 ${time}ms';
   }
 
   @override
   String statusPopupTestFailedLog(Object error) {
-    return '弹窗窗口创建失败: $error';
+    return '主窗口新建下载对话框打开失败: $error';
   }
 
   @override
@@ -3014,7 +3014,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String statusPopupTestFailedToast(Object error) {
-    return '弹窗窗口创建失败: $error';
+    return '新建下载对话框打开失败: $error';
   }
 
   @override

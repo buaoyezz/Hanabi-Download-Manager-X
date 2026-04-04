@@ -201,7 +201,6 @@ class _StatusPageState extends State<StatusPage> {
     appLogger.info('PopupTest', t.statusPopupTestStartLog);
 
     try {
-      // 测试创建独立弹窗窗口
       await PopupWindowService.showPopupDownloadWindow(
         url: 'https://example.com/test-file.zip',
         suggestedFilename: 'test-file.zip',
@@ -248,31 +247,6 @@ class _StatusPageState extends State<StatusPage> {
           _testingPopupWindow = false;
         });
       }
-    }
-  }
-
-  /// 测试旧版 Dialog 弹窗
-  Future<void> _testDialogPopup() async {
-    final appLogger = context.read<AppLoggerService>();
-    final t = AppLocalizations.of(context)!;
-
-    final stopwatch = Stopwatch()..start();
-    appLogger.info('PopupTest', t.statusPopupDialogTestStartLog);
-
-    try {
-      await PopupWindowService.showPopupDownload(
-        context,
-        url: 'https://example.com/test-file.zip',
-        suggestedFilename: 'test-dialog-file.zip',
-        isFromBrowser: false,
-      );
-
-      stopwatch.stop();
-      appLogger.info('PopupTest',
-          t.statusPopupDialogTestCloseLog(stopwatch.elapsedMilliseconds));
-    } catch (e) {
-      stopwatch.stop();
-      appLogger.error('PopupTest', t.statusPopupDialogTestFailedLog(e));
     }
   }
 
@@ -813,8 +787,9 @@ class _StatusPageState extends State<StatusPage> {
   String _formatBytes(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(2)} KB';
-    if (bytes < 1024 * 1024 * 1024)
+    if (bytes < 1024 * 1024 * 1024) {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+    }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
   }
 
@@ -1011,20 +986,6 @@ class _StatusPageState extends State<StatusPage> {
                     Text(_testingPopupWindow
                         ? t.statusPopupTesting
                         : t.statusPopupTestButton),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Button(
-                onPressed: _testDialogPopup,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(FluentIcons.comment, size: 16),
-                    const SizedBox(width: 8),
-                    Text(t.statusPopupDialogTestButton),
                   ],
                 ),
               ),

@@ -12,7 +12,7 @@ class NsfxHttpServer {
   bool _isRunning = false;
   final _logger = AppLoggerService();
 
-  // 待弹窗的下载请求队列
+  // 待主窗口确认的浏览器下载请求队列
   final List<Map<String, dynamic>> _pendingPopups = [];
 
   // 在线用户统计
@@ -179,7 +179,7 @@ class NsfxHttpServer {
 
     _logger.info('NSFX-HTTP', 'Add download request: $filename');
 
-    // 添加到待弹窗队列（让客户端弹窗确认）
+    // 添加到待确认队列，由主程序拉起下载对话框处理
     _pendingPopups.add({
       'url': url,
       'filename': filename,
@@ -190,8 +190,11 @@ class NsfxHttpServer {
       'timestamp': DateTime.now().toIso8601String(),
     });
 
-    _logger.info('NSFX-HTTP', 'Download added to popup queue: $filename');
-    _sendJson(request, {'success': true, 'message': 'Added to popup queue'});
+    _logger.info('NSFX-HTTP', 'Download queued for main-window confirmation: $filename');
+    _sendJson(request, {
+      'success': true,
+      'message': 'Queued for main-window confirmation',
+    });
   }
 
   Future<void> _handlePendingPopup(HttpRequest request) async {
@@ -202,7 +205,7 @@ class NsfxHttpServer {
 
     // 取出第一个待处理的下载
     final popup = _pendingPopups.removeAt(0);
-    _logger.info('NSFX-HTTP', 'Sending popup for: ${popup['filename']}');
+    _logger.info('NSFX-HTTP', 'Dispatching queued browser download: ${popup['filename']}');
     _sendJson(request, {'success': true, 'data': popup});
   }
 

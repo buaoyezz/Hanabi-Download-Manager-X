@@ -30,39 +30,18 @@ set "OUTPUT_DIR=build\windows\x64\runner\Release"
 set "ASSETS_DIR=%OUTPUT_DIR%\data\zzbuaoye_assets"
 
 :: Check skip options
-set SKIP_POPUP=0
 set SKIP_FLUTTER=0
 set COPY_ONLY=0
 
-if "%1"=="--skip-popup" set SKIP_POPUP=1
-if "%1"=="--flutter-only" (
-    set SKIP_POPUP=1
-)
 if "%1"=="--copy-only" (
-    set SKIP_POPUP=1
     set SKIP_FLUTTER=1
     set COPY_ONLY=1
 )
 
-:: ========== Tauri Popup Build ==========
-if %SKIP_POPUP%==0 (
-    echo %C_WHITE%[1/3] Building Hanabi Popup...%C_RESET%
-    call build_popup.bat --build-only --no-pause
-    if errorlevel 1 (
-        echo %C_RED%[ERROR] Popup build failed!%C_RESET%
-        pause
-        exit /b 1
-    )
-    echo %C_YELLOW%[OK] Popup build done%C_RESET%
-) else (
-    echo %C_GRAY%[SKIP] Popup build%C_RESET%
-)
-echo.
-
 :: ========== Flutter Build ==========
 if %SKIP_FLUTTER%==0 (
-    echo %C_WHITE%[2/3] Building Flutter app...%C_RESET%
-    flutter build windows --release
+    echo %C_WHITE%[1/2] Building Flutter app...%C_RESET%
+    call flutter build windows --release
     if errorlevel 1 (
         echo %C_RED%[ERROR] Flutter build failed!%C_RESET%
         pause
@@ -75,7 +54,7 @@ if %SKIP_FLUTTER%==0 (
 echo.
 
 :: ========== Copy Files ==========
-echo %C_WHITE%[3/3] Copying assets...%C_RESET%
+echo %C_WHITE%[2/2] Copying assets...%C_RESET%
 
 :: Create zzbuaoye_assets folder
 if not exist "%ASSETS_DIR%" (
@@ -83,12 +62,10 @@ if not exist "%ASSETS_DIR%" (
     echo   %C_GREEN%+%C_RESET% Created %ASSETS_DIR%
 )
 
-:: Copy hanabi-popup.exe to zzbuaoye_assets
-if exist "hanabi-popup\src-tauri\target\release\hanabi-popup.exe" (
-    copy /Y "hanabi-popup\src-tauri\target\release\hanabi-popup.exe" "%ASSETS_DIR%\" >nul
-    echo   %C_GREEN%+%C_RESET% hanabi-popup.exe -^> data\zzbuaoye_assets\
-) else (
-    echo   %C_RED%-%C_RESET% hanabi-popup.exe not found
+:: Remove legacy standalone popup from release assets
+if exist "%ASSETS_DIR%\hanabi-popup.exe" (
+    del /Q "%ASSETS_DIR%\hanabi-popup.exe"
+    echo   %C_GREEN%+%C_RESET% Removed legacy hanabi-popup.exe
 )
 
 :: Copy Update.exe to zzbuaoye_assets

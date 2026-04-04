@@ -211,11 +211,11 @@
   "settingsAutoDownloadDisabledTitle": "自动下载已关闭",
   "settingsAutoDownloadDisabledMessage": "新任务将等待手动开始",
   "settingsPopupWindowTitle": "浏览器下载弹窗",
-  "settingsPopupWindowSubtitle": "显示下载弹窗",
+  "settingsPopupWindowSubtitle": "在主窗口中显示新建下载对话框",
   "settingsPopupEnabledTitle": "弹窗已开启",
-  "settingsPopupEnabledMessage": "浏览器下载将弹出小窗确认",
+  "settingsPopupEnabledMessage": "浏览器下载将拉起主窗口并显示新建下载对话框",
   "settingsPopupDisabledTitle": "弹窗已关闭",
-  "settingsPopupDisabledMessage": "弹窗已关闭",
+  "settingsPopupDisabledMessage": "浏览器下载将直接加入任务，不再弹出新建下载对话框",
   "settingsCompleteNotifyTitle": "完成通知",
   "settingsCompleteNotifySubtitle": "下载完成时通知",
   "settingsCompleteNotifyEnabledTitle": "完成通知已开启",
@@ -779,9 +779,9 @@
   "developerTestNotificationTypeInfo": "信息",
   "developerTestNotificationTitleRequired": "请输入标题",
   "developerTestPopupTitle": "弹窗测试",
-  "developerTestPopupButton": "弹窗",
+  "developerTestPopupButton": "测试新建下载框",
   "developerTestPopupTestingLabel": "测试中",
-  "developerTestPopupHint": "独立弹窗使用 Tauri，Dialog 需要主窗口",
+  "developerTestPopupHint": "当前版本会拉起主窗口并显示新建下载对话框",
   "developerTestPopupResultSuccess": "成功 · {time}![",
   "developerTestPopupResultFailed": "失败",
   "developerOpenL10nFolderTitle": "语言包文件夹",
@@ -1327,7 +1327,7 @@
   "statusAutoStartFixButton": "自动修复注册",
   "statusSectionPopupTest": "弹窗窗口测试",
   "statusItemDescription": "说明",
-  "statusPopupTestDescription": "测试独立弹窗窗口功能（类似 IDM 风格）",
+  "statusPopupTestDescription": "测试浏览器触发下载时，是否能拉起主窗口并显示新建下载对话框",
   "statusItemTestResult": "测试结果",
   "statusPopupTestResultSuccess": "成功 ({time}ms)",
   "@statusPopupTestResultSuccess": {
@@ -1342,10 +1342,10 @@
     }
   },
   "statusPopupTesting": "创建中...",
-  "statusPopupTestButton": "测试独立弹窗",
-  "statusPopupDialogTestButton": "测试 Dialog 弹窗",
+  "statusPopupTestButton": "测试新建下载框",
+  "statusPopupDialogTestButton": "旧版 Dialog 测试",
   "statusPopupTestInfoTitle": "测试说明",
-  "statusPopupTestInfoBody": "• 独立弹窗：使用 Tauri 创建独立窗口，不需要拉起主窗口\\n• Dialog 弹窗：传统方式，需要主窗口显示后才能弹出对话框\\n• 测试结果和耗时会记录到日志中",
+  "statusPopupTestInfoBody": "• 当前版本不再附带独立 popup 窗口\\n• 浏览器触发下载时会拉起主窗口并显示新建下载对话框\\n• 测试结果和耗时会记录到日志中",
   "statusExtensionDownloadAddedTitle": "下载已添加",
   "statusExtensionDownloadAddedMessage": "浏览器扩展插件已添加到下载列表",
   "statusExtensionDownloadFailedTitle": "下载失败",
@@ -1373,30 +1373,30 @@
       "error": {}
     }
   },
-  "statusPopupTestCreating": "正在创建窗口...",
-  "statusPopupTestStartLog": "开始测试弹窗窗口...",
-  "statusPopupTestSuccessLog": "弹窗窗口创建成功，耗时: {time}ms",
+  "statusPopupTestCreating": "正在打开新建下载对话框...",
+  "statusPopupTestStartLog": "开始测试主窗口新建下载对话框...",
+  "statusPopupTestSuccessLog": "主窗口新建下载对话框已打开，耗时: {time}ms",
   "@statusPopupTestSuccessLog": {
     "placeholders": {
       "time": {}
     }
   },
-  "statusPopupTestSuccessMessage": "窗口创建成功",
+  "statusPopupTestSuccessMessage": "新建下载对话框已成功打开",
   "statusPopupTestSuccessTitle": "测试成功",
-  "statusPopupTestSuccessToast": "弹窗窗口创建成功，耗时 {time}ms",
+  "statusPopupTestSuccessToast": "新建下载对话框已打开，耗时 {time}ms",
   "@statusPopupTestSuccessToast": {
     "placeholders": {
       "time": {}
     }
   },
-  "statusPopupTestFailedLog": "弹窗窗口创建失败: {error}",
+  "statusPopupTestFailedLog": "主窗口新建下载对话框打开失败: {error}",
   "@statusPopupTestFailedLog": {
     "placeholders": {
       "error": {}
     }
   },
   "statusPopupTestFailedTitle": "测试失败",
-  "statusPopupTestFailedToast": "弹窗窗口创建失败: {error}",
+  "statusPopupTestFailedToast": "新建下载对话框打开失败: {error}",
   "@statusPopupTestFailedToast": {
     "placeholders": {
       "error": {}

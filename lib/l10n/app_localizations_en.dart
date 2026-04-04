@@ -423,19 +423,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsPopupWindowTitle => 'Popup window';
 
   @override
-  String get settingsPopupWindowSubtitle => 'Show download popups';
+  String get settingsPopupWindowSubtitle =>
+      'Show the add-download dialog in the main window';
 
   @override
   String get settingsPopupEnabledTitle => 'Popup enabled';
 
   @override
-  String get settingsPopupEnabledMessage => 'Popup window is enabled';
+  String get settingsPopupEnabledMessage =>
+      'Browser downloads will open the add-download dialog in the main window';
 
   @override
   String get settingsPopupDisabledTitle => 'Popup disabled';
 
   @override
-  String get settingsPopupDisabledMessage => 'Popup window is disabled';
+  String get settingsPopupDisabledMessage =>
+      'Browser downloads will be accepted without opening the add-download dialog';
 
   @override
   String get settingsCompleteNotifyTitle => 'Completion notifications';
@@ -1908,14 +1911,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get developerTestPopupTitle => 'Popup test';
 
   @override
-  String get developerTestPopupButton => 'Popup window';
+  String get developerTestPopupButton => 'Test add-download dialog';
 
   @override
   String get developerTestPopupTestingLabel => 'Testing...';
 
   @override
   String get developerTestPopupHint =>
-      'Popup window uses Tauri; Dialog needs the main window';
+      'This test brings the main window to the front and opens the add-download dialog';
 
   @override
   String developerTestPopupResultSuccess(Object time) {
@@ -3032,7 +3035,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statusPopupTestDescription =>
-      'Test standalone popup window (IDM-style)';
+      'Test whether browser-triggered downloads can bring up the main-window add-download dialog';
 
   @override
   String get statusItemTestResult => 'Test result';
@@ -3051,17 +3054,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statusPopupTesting => 'Creating...';
 
   @override
-  String get statusPopupTestButton => 'Test popup window';
+  String get statusPopupTestButton => 'Test add-download dialog';
 
   @override
-  String get statusPopupDialogTestButton => 'Test Dialog popup';
+  String get statusPopupDialogTestButton => 'Legacy dialog test';
 
   @override
   String get statusPopupTestInfoTitle => 'Test notes';
 
   @override
   String get statusPopupTestInfoBody =>
-      '• Standalone popup: uses Tauri, no need to show main window\\n• Dialog popup: legacy mode, requires main window\\n• Results and timing are recorded in logs';
+      '• This version no longer ships the standalone popup\\n• Browser-triggered downloads now bring the main window to the front and open the add-download dialog\\n• Results and timing are recorded in logs';
 
   @override
   String get statusExtensionDownloadAddedTitle => 'Download added';
@@ -3109,30 +3112,32 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get statusPopupTestCreating => 'Creating window...';
+  String get statusPopupTestCreating => 'Opening add-download dialog...';
 
   @override
-  String get statusPopupTestStartLog => 'Starting popup window test...';
+  String get statusPopupTestStartLog =>
+      'Starting main-window add-download dialog test...';
 
   @override
   String statusPopupTestSuccessLog(Object time) {
-    return 'Popup window created successfully in ${time}ms';
+    return 'Main-window add-download dialog opened in ${time}ms';
   }
 
   @override
-  String get statusPopupTestSuccessMessage => 'Window created successfully';
+  String get statusPopupTestSuccessMessage =>
+      'Add-download dialog opened successfully';
 
   @override
   String get statusPopupTestSuccessTitle => 'Test succeeded';
 
   @override
   String statusPopupTestSuccessToast(Object time) {
-    return 'Popup window created in ${time}ms';
+    return 'Add-download dialog opened in ${time}ms';
   }
 
   @override
   String statusPopupTestFailedLog(Object error) {
-    return 'Popup window creation failed: $error';
+    return 'Main-window add-download dialog failed: $error';
   }
 
   @override
@@ -3140,7 +3145,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String statusPopupTestFailedToast(Object error) {
-    return 'Popup window creation failed: $error';
+    return 'Add-download dialog failed: $error';
   }
 
   @override
