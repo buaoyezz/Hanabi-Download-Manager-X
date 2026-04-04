@@ -31,6 +31,7 @@ set "ASSETS_DIR=%OUTPUT_DIR%\data\zzbuaoye_assets"
 set "RELEASE_DIR=build\release"
 set "RELEASE_STAGE_DIR=%RELEASE_DIR%\HanabiDownloadManagerX"
 set "RELEASE_PACKAGE=%RELEASE_DIR%\HanabiDownloadManagerX_Release_Latest.zip"
+set "RHTTP_FIX_SCRIPT=scripts\apply-rhttp-windows-fix.ps1"
 
 :: Check skip options
 set SKIP_FLUTTER=0
@@ -39,6 +40,18 @@ set COPY_ONLY=0
 if "%1"=="--copy-only" (
     set SKIP_FLUTTER=1
     set COPY_ONLY=1
+)
+
+if exist "%RHTTP_FIX_SCRIPT%" (
+    echo %C_WHITE%[0/3] Applying local rhttp Windows fix...%C_RESET%
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%RHTTP_FIX_SCRIPT%"
+    if errorlevel 1 (
+        echo %C_RED%[ERROR] Failed to apply rhttp Windows fix!%C_RESET%
+        pause
+        exit /b 1
+    )
+    echo %C_YELLOW%[OK] rhttp Windows fix ready%C_RESET%
+    echo.
 )
 
 :: ========== Flutter Build ==========
