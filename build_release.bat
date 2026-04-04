@@ -28,6 +28,9 @@ echo.
 
 set "OUTPUT_DIR=build\windows\x64\runner\Release"
 set "ASSETS_DIR=%OUTPUT_DIR%\data\zzbuaoye_assets"
+set "RELEASE_DIR=build\release"
+set "RELEASE_STAGE_DIR=%RELEASE_DIR%\HanabiDownloadManagerX"
+set "RELEASE_PACKAGE=%RELEASE_DIR%\HanabiDownloadManagerX_Release_Latest.zip"
 
 :: Check skip options
 set SKIP_FLUTTER=0
@@ -40,7 +43,7 @@ if "%1"=="--copy-only" (
 
 :: ========== Flutter Build ==========
 if %SKIP_FLUTTER%==0 (
-    echo %C_WHITE%[1/2] Building Flutter app...%C_RESET%
+    echo %C_WHITE%[1/3] Building Flutter app...%C_RESET%
     call flutter build windows --release
     if errorlevel 1 (
         echo %C_RED%[ERROR] Flutter build failed!%C_RESET%
@@ -54,7 +57,7 @@ if %SKIP_FLUTTER%==0 (
 echo.
 
 :: ========== Copy Files ==========
-echo %C_WHITE%[2/2] Copying assets...%C_RESET%
+echo %C_WHITE%[2/3] Copying assets...%C_RESET%
 
 :: Create zzbuaoye_assets folder
 if not exist "%ASSETS_DIR%" (
@@ -77,12 +80,55 @@ if exist "assets\update\Update.exe" (
 )
 
 echo.
+echo %C_WHITE%[3/3] Packaging release...%C_RESET%
+
+if not exist "%RELEASE_DIR%" (
+    mkdir "%RELEASE_DIR%"
+    echo   %C_GREEN%+%C_RESET% Created %RELEASE_DIR%
+)
+
+if exist "%RELEASE_STAGE_DIR%" (
+    rmdir /S /Q "%RELEASE_STAGE_DIR%"
+)
+mkdir "%RELEASE_STAGE_DIR%"
+
+for %%F in (
+    flutter_acrylic_plugin.dll
+    flutter_windows.dll
+    HanabiDownloadManagerX.exe
+    rhttp.dll
+    screen_retriever_plugin.dll
+    system_tray_plugin.dll
+    url_launcher_windows_plugin.dll
+    window_render.log
+) do (
+    if exist "%OUTPUT_DIR%\%%F" (
+        copy /Y "%OUTPUT_DIR%\%%F" "%RELEASE_STAGE_DIR%\" >nul
+    )
+)
+
+xcopy "%OUTPUT_DIR%\data" "%RELEASE_STAGE_DIR%\data\" /E /I /Y >nul
+
+if exist "%RELEASE_PACKAGE%" (
+    del /Q "%RELEASE_PACKAGE%"
+)
+
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Compress-Archive -Path '%CD%\%RELEASE_STAGE_DIR%\*' -DestinationPath '%CD%\%RELEASE_PACKAGE%' -CompressionLevel Optimal -Force"
+if errorlevel 1 (
+    echo %C_RED%[ERROR] Release packaging failed!%C_RESET%
+    pause
+    exit /b 1
+)
+echo   %C_GREEN%+%C_RESET% HanabiDownloadManagerX_Release_Latest.zip
+
+echo.
 echo %C_YELLOW%========================================%C_RESET%
 echo %C_YELLOW%  Build Complete!%C_RESET%
 echo %C_YELLOW%========================================%C_RESET%
 echo.
 echo Output: %OUTPUT_DIR%
 echo Assets: %ASSETS_DIR%
+echo Package: %RELEASE_PACKAGE%
 echo.
 
 pause
