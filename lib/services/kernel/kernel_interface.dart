@@ -31,6 +31,12 @@ class DownloadTask {
   String? effectiveHttpVersionPolicy;
   String? negotiatedHttpVersion;
   bool? targetReachable;
+  String? httpPolicyDecisionReason;
+  String? startupStatusKey;
+  String? resumeDecisionLabel;
+  String? resumeDecisionReason;
+  int? hostConcurrencyCap;
+  String? hostConcurrencyReason;
   List<SegmentInfo> segments;
 
   DownloadTask({
@@ -53,6 +59,12 @@ class DownloadTask {
     this.effectiveHttpVersionPolicy,
     this.negotiatedHttpVersion,
     this.targetReachable,
+    this.httpPolicyDecisionReason,
+    this.startupStatusKey,
+    this.resumeDecisionLabel,
+    this.resumeDecisionReason,
+    this.hostConcurrencyCap,
+    this.hostConcurrencyReason,
     DateTime? createdTime, // optional persisted creation time
     List<SegmentInfo>? segments,
   })  : createdTime = createdTime ?? DateTime.now(),
@@ -79,6 +91,12 @@ class DownloadTask {
         'effectiveHttpVersionPolicy': effectiveHttpVersionPolicy,
         'negotiatedHttpVersion': negotiatedHttpVersion,
         'targetReachable': targetReachable,
+        'httpPolicyDecisionReason': httpPolicyDecisionReason,
+        'startupStatusKey': startupStatusKey,
+        'resumeDecisionLabel': resumeDecisionLabel,
+        'resumeDecisionReason': resumeDecisionReason,
+        'hostConcurrencyCap': hostConcurrencyCap,
+        'hostConcurrencyReason': hostConcurrencyReason,
         'segments': segments.map((s) => s.toJson()).toList(),
       };
 
@@ -118,6 +136,12 @@ class DownloadTask {
             json['effectiveHttpVersionPolicy']?.toString(),
         negotiatedHttpVersion: json['negotiatedHttpVersion']?.toString(),
         targetReachable: json['targetReachable'] as bool?,
+        httpPolicyDecisionReason: json['httpPolicyDecisionReason']?.toString(),
+        startupStatusKey: json['startupStatusKey']?.toString(),
+        resumeDecisionLabel: json['resumeDecisionLabel']?.toString(),
+        resumeDecisionReason: json['resumeDecisionReason']?.toString(),
+        hostConcurrencyCap: (json['hostConcurrencyCap'] as num?)?.toInt(),
+        hostConcurrencyReason: json['hostConcurrencyReason']?.toString(),
         createdTime: json['createdTime'] != null
             ? DateTime.tryParse(json['createdTime'].toString())
             : null, // parse creation time
@@ -388,6 +412,8 @@ abstract class KernelInterface {
 
   Future<bool> retryFailedSegments(String taskId);
   Future<bool> retrySegment(String taskId, int segmentIndex);
+  Future<Map<String, dynamic>> getAdaptiveHostStrategies();
+  Future<bool> clearAdaptiveHostStrategies();
 
   Future<bool> testProxyConnection({
     required String type,

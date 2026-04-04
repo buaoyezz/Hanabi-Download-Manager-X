@@ -6,21 +6,18 @@ import 'package:rhttp/rhttp.dart' as rhttp;
 import '../models/task.dart';
 import '../models/segment.dart';
 import '../config/download_config.dart';
+import 'download_header_builder.dart';
+import 'dynamic_segment_policy.dart';
 import 'http_client.dart';
+import 'proxy_runtime.dart';
 import '../../../../services/speed_history_service.dart';
 import '../../../app_logger_service.dart';
 
 class DownloadEngine {
   static const String _rangeNotSupportedError = 'RANGE_NOT_SUPPORTED';
   static const String _rangeNotSatisfiableError = 'RANGE_NOT_SATISFIABLE';
+  static const String _startupStatusMatchingHttp = 'matching_http_protocol';
   static Future<void>? _rhttpInitFuture;
-  static const Set<String> _hopByHopHeaders = {
-    'connection',
-    'keep-alive',
-    'proxy-connection',
-    'transfer-encoding',
-    'upgrade',
-  };
   static final RegExp _invalidFileNameChars = RegExp(r'[<>:"/\\|?*\x00-\x1F]');
   static final RegExp _trailingDotOrSpace = RegExp(r'[. ]+$');
   static final Set<String> _reservedWindowsNames = {
@@ -58,9 +55,13 @@ class DownloadEngine {
   final Map<String, bool> _cancelledTasks = {};
   final Map<String, bool> _pausedTasks = {};
   // 任务级运行时状态（隔离、进度端口、并发控制与速度统计）
+  final Map<String, NsfxHttpClient> _taskHttpClients = {};
   final Map<String, List<Isolate>> _taskIsolates = {};
   final Map<String, ReceivePort> _progressPorts = {};
   final Map<String, _Semaphore> _taskSemaphores = {};
+  final Map<String, Map<int, _SegmentRuntimeState>> _segmentRuntimeStates = {};
+  final Map<String, Map<int, _SegmentExecutionHandle>> _taskSegmentExecutions =
+      {};
   final Set<String> _dynamicSplitTasksInFlight = {};
 
   final Map<String, int> _lastDownloaded = {};
@@ -77,15 +78,427 @@ class DownloadEngine {
     required this.onError,
   });
 
-  String? _resolveNegotiatedHttpVersion() {
-    return httpClient.lastNegotiatedHttpVersion ??
+  NsfxHttpClient _clientForTask(Task task) {
+    return _taskHttpClients.putIfAbsent(task.id, () {
+      final client = NsfxHttpClient(config);
+      client.adoptAdaptivePolicyHint(task.url);
+      task.httpPolicyDecisionReason = client.lastPolicyDecisionReason;
+      return client;
+    });
+  }
+
+  String? _resolveNegotiatedHttpVersion(Task task) {
+    final client = _clientForTask(task);
+    return client.lastNegotiatedHttpVersion ??
+        NsfxHttpClient.normalizeObservedHttpVersion(
+          task.negotiatedHttpVersion,
+        ) ??
         NsfxHttpClient.normalizeNegotiatedHttpVersion(
-          httpClient.effectiveHttpVersionPolicy,
+          client.effectiveHttpVersionPolicy,
         );
+  }
+
+  void _applyFileInfoMetadata(
+    Task task,
+    NsfxHttpClient client,
+    FileInfo fileInfo,
+  ) {
+    task.effectiveHttpVersionPolicy = client.effectiveHttpVersionPolicy;
+    task.negotiatedHttpVersion = fileInfo.negotiatedHttpVersion;
+    task.targetReachable = true;
+    task.httpPolicyDecisionReason = client.lastPolicyDecisionReason;
+    task.ifRangeValidator = fileInfo.ifRangeValidator;
+    task.httpConnectionType = fileInfo.connectionType;
+    _refreshResumeSafetyFromFileInfo(task, fileInfo);
+  }
+
+  void _syncHttpPolicyDecision(Task task, NsfxHttpClient client) {
+    task.effectiveHttpVersionPolicy = client.effectiveHttpVersionPolicy;
+    task.httpPolicyDecisionReason = client.lastPolicyDecisionReason;
+    task.negotiatedHttpVersion =
+        _resolveNegotiatedHttpVersion(task) ?? task.negotiatedHttpVersion;
+  }
+
+  void _clearConcurrencyDecision(Task task) {
+    task.hostConcurrencyCap = null;
+    task.hostConcurrencyReason = null;
+  }
+
+  void _recordConcurrencyDecision(
+    Task task, {
+    required int cap,
+    required String reason,
+    bool warning = false,
+  }) {
+    task.hostConcurrencyCap = cap;
+    task.hostConcurrencyReason = reason;
+    if (warning) {
+      _logger.warning(
+        'NSFX-Engine',
+        'Host concurrency decision for ${task.filename}: $reason',
+      );
+    } else {
+      _logger.info(
+        'NSFX-Engine',
+        'Host concurrency decision for ${task.filename}: $reason',
+      );
+    }
+  }
+
+  bool _taskHasPartialData(Task task) {
+    if (task.downloadedSize > 0) return true;
+    return task.segments.any((segment) => segment.downloadedBytes > 0);
+  }
+
+  void _refreshResumeSafetyFromFileInfo(Task task, FileInfo fileInfo) {
+    if (fileInfo.hasStrongValidator) {
+      task.resumeSafetyLevel = NsfxResumeSafetyLevel.strictValidator;
+      return;
+    }
+
+    final hasPartialData = _taskHasPartialData(task);
+    if (hasPartialData &&
+        task.resumeDataOrigin == NsfxResumeDataOrigin.runtime &&
+        fileInfo.supportsRange &&
+        fileInfo.size > 0 &&
+        task.resumeSafetyLevel != NsfxResumeSafetyLevel.verifiedNoValidator) {
+      task.resumeSafetyLevel = NsfxResumeSafetyLevel.sessionOnly;
+      return;
+    }
+
+    if (task.resumeSafetyLevel == NsfxResumeSafetyLevel.strictValidator) {
+      task.resumeSafetyLevel = NsfxResumeSafetyLevel.unknown;
+    }
+  }
+
+  String? _parallelDownloadBlockReason(
+    Task task,
+    FileInfo fileInfo, {
+    int? storedTotalSize,
+  }) {
+    return NsfxParallelDownloadPolicy.parallelBlockReason(
+      url: task.url,
+      hasStrongValidator: fileInfo.hasStrongValidator,
+      hasPartialProgress: _taskHasPartialData(task),
+      resumeDataOrigin: task.resumeDataOrigin,
+      resumeSafetyLevel: task.resumeSafetyLevel,
+      supportsRange: fileInfo.supportsRange,
+      storedTotalSize: storedTotalSize,
+      observedTotalSize: fileInfo.size > 0 ? fileInfo.size : null,
+    );
+  }
+
+  void _recordResumeDecision(
+    Task task, {
+    required String label,
+    required String reason,
+    bool blocked = false,
+  }) {
+    task.resumeDecisionLabel = label;
+    task.resumeDecisionReason = reason;
+    final message = 'Resume decision for ${task.filename}: [$label] $reason';
+    if (blocked) {
+      _logger.warning('NSFX-Engine', message);
+    } else {
+      _logger.info('NSFX-Engine', message);
+    }
+    onProgress(task);
+  }
+
+  void _setStartupStatus(
+    Task task,
+    String? statusKey, {
+    bool notify = false,
+  }) {
+    if (task.startupStatusKey == statusKey) {
+      return;
+    }
+    task.startupStatusKey = statusKey;
+    if (notify) {
+      onProgress(task);
+    }
+  }
+
+  void _recordAllowedParallelDecision(
+    Task task,
+    FileInfo fileInfo, {
+    int? storedTotalSize,
+  }) {
+    final hasPartialData = _taskHasPartialData(task);
+    if (!hasPartialData) {
+      _recordResumeDecision(
+        task,
+        label: 'Parallel Fresh',
+        reason: 'Fresh ranged download can start in parallel.',
+      );
+      return;
+    }
+
+    if (fileInfo.hasStrongValidator) {
+      _recordResumeDecision(
+        task,
+        label: 'Resume Validator',
+        reason: 'Strong validator allows safe parallel resume.',
+      );
+      return;
+    }
+
+    if (task.resumeDataOrigin == NsfxResumeDataOrigin.runtime) {
+      _recordResumeDecision(
+        task,
+        label: 'Resume Runtime',
+        reason: 'Current-session partial data can continue in parallel without '
+            'validator.',
+      );
+      return;
+    }
+
+    if (task.resumeSafetyLevel == NsfxResumeSafetyLevel.verifiedNoValidator &&
+        storedTotalSize != null &&
+        storedTotalSize > 0 &&
+        storedTotalSize == fileInfo.size) {
+      _recordResumeDecision(
+        task,
+        label: 'Resume Verified',
+        reason: 'Persisted partial data matched current size and previously '
+            'verified stable range behavior.',
+      );
+      return;
+    }
+
+    _recordResumeDecision(
+      task,
+      label: 'Parallel Resume',
+      reason: 'Parallel resume allowed after current safety checks passed.',
+    );
+  }
+
+  _SegmentRuntimeState _segmentRuntimeState(Task task, int segmentIndex) {
+    final taskStates = _segmentRuntimeStates.putIfAbsent(task.id, () => {});
+    return taskStates.putIfAbsent(segmentIndex, _SegmentRuntimeState.new);
+  }
+
+  void _registerSegmentExecution(
+    String taskId,
+    int segmentIndex,
+    _SegmentExecutionHandle handle,
+  ) {
+    final taskHandles = _taskSegmentExecutions.putIfAbsent(taskId, () => {});
+    taskHandles[segmentIndex] = handle;
+  }
+
+  Future<void> _releaseSegmentExecution(
+    String taskId,
+    int segmentIndex,
+    _SegmentExecutionHandle handle,
+  ) async {
+    final taskHandles = _taskSegmentExecutions[taskId];
+    if (taskHandles?[segmentIndex] == handle) {
+      taskHandles?.remove(segmentIndex);
+      if (taskHandles != null && taskHandles.isEmpty) {
+        _taskSegmentExecutions.remove(taskId);
+      }
+    }
+    await handle.dispose();
+  }
+
+  Future<bool> _requestSegmentStop(
+    String taskId,
+    int segmentIndex,
+    String reason,
+  ) async {
+    final handle = _taskSegmentExecutions[taskId]?[segmentIndex];
+    if (handle == null) return false;
+    return handle.requestStop(reason);
+  }
+
+  bool _shouldPreferImmediateSingleConnection() {
+    return config.threads.clamp(1, 64) <= 1;
+  }
+
+  Future<FileInfo?> _tryQuickStartupFileInfo(
+    Task task,
+    Map<String, String> headers,
+  ) async {
+    if (!NsfxStartupProbePolicy.shouldUseFastStart(
+      hasPartialProgress: _taskHasPartialData(task),
+      configuredThreads: config.threads,
+    )) {
+      return null;
+    }
+
+    final probeClient = NsfxHttpClient(config);
+    probeClient.adoptAdaptivePolicyHint(task.url);
+
+    try {
+      final fileInfo = await probeClient.getFileInfo(
+        task.url,
+        headers,
+        probeDeadline: NsfxStartupProbePolicy.quickMetadataProbeDeadline,
+        strictProbeTimeoutCap:
+            NsfxStartupProbePolicy.quickStrictProbeTimeoutCap,
+      );
+      if (fileInfo.size > 0) {
+        _logger.info(
+          'NSFX-Engine',
+          'Quick metadata probe resolved startup file info for '
+              '${task.filename}: size=${fileInfo.size}, '
+              'supportsRange=${fileInfo.supportsRange}',
+        );
+        return fileInfo;
+      }
+
+      _logger.info(
+        'NSFX-Engine',
+        'Quick metadata probe did not resolve size for ${task.filename} '
+            'within startup budget; starting direct transfer',
+      );
+      return null;
+    } catch (e) {
+      _logger.debug(
+        'NSFX-Engine',
+        'Quick metadata probe failed for ${task.filename}: $e',
+      );
+      return null;
+    } finally {
+      probeClient.close();
+    }
+  }
+
+  Future<void> _continueDownloadWithFileInfo(
+    Task task,
+    Map<String, String> headers,
+    FileInfo fileInfo, {
+    int? storedResumeSize,
+  }) async {
+    _setStartupStatus(task, null);
+    final client = _clientForTask(task);
+    _logger.info('NSFX-Engine',
+        'File info for ${task.filename}: size=${fileInfo.size}, supportsRange=${fileInfo.supportsRange}, protocol=${fileInfo.negotiatedHttpVersion ?? 'unknown'}, connection=${fileInfo.connectionType}, validator=${fileInfo.ifRangeValidator != null ? 'present' : 'missing'}');
+    _applyFileInfoMetadata(task, client, fileInfo);
+
+    if (fileInfo.size == 0) {
+      _recordResumeDecision(
+        task,
+        label: 'Single Connection',
+        reason: 'Remote size is unknown, so segmented resume is disabled.',
+      );
+      _logger.info('NSFX-Engine',
+          'Unknown file size, falling back to single thread download');
+      await _singleThreadDownload(
+        task,
+        headers,
+        supportsRange: fileInfo.supportsRange,
+      );
+      return;
+    }
+
+    task.totalSize = fileInfo.size;
+    onProgress(task);
+
+    if (!fileInfo.supportsRange) {
+      _recordResumeDecision(
+        task,
+        label: 'Single Connection',
+        reason: 'Server does not support byte ranges, so parallel resume is '
+            'unavailable.',
+        blocked: _taskHasPartialData(task),
+      );
+      _logger.info('NSFX-Engine',
+          'Server does not support Range requests, using single thread');
+      await _singleThreadDownload(
+        task,
+        headers,
+        supportsRange: false,
+        totalSizeHint: fileInfo.size,
+      );
+      return;
+    }
+
+    if (fileInfo.size < 1024 * 1024) {
+      _recordResumeDecision(
+        task,
+        label: 'Single Connection',
+        reason: 'File is too small to justify segmented transfer.',
+      );
+      _logger.info('NSFX-Engine',
+          'File too small (${fileInfo.size} bytes < 1MB), using single thread');
+      await _singleThreadDownload(
+        task,
+        headers,
+        supportsRange: fileInfo.supportsRange,
+        totalSizeHint: fileInfo.size,
+      );
+      return;
+    }
+
+    final parallelBlockReason = _parallelDownloadBlockReason(
+      task,
+      fileInfo,
+      storedTotalSize: storedResumeSize,
+    );
+    if (parallelBlockReason != null) {
+      _recordResumeDecision(
+        task,
+        label: 'Resume Blocked',
+        reason: parallelBlockReason,
+        blocked: true,
+      );
+      _logger.info(
+        'NSFX-Engine',
+        'Parallel download disabled for ${task.filename}: $parallelBlockReason',
+      );
+      await _singleThreadDownload(
+        task,
+        headers,
+        supportsRange: fileInfo.supportsRange,
+        totalSizeHint: fileInfo.size,
+      );
+      return;
+    }
+
+    final (calculatedThreads, segmentCount) =
+        DynamicSegmentConfig.calculate(fileInfo.size, config);
+    final actualThreads = calculatedThreads.clamp(1, segmentCount);
+    if (actualThreads <= 1 || segmentCount <= 1) {
+      _recordResumeDecision(
+        task,
+        label: 'Single Connection',
+        reason:
+            'Segment planner resolved to one connection after current limits.',
+      );
+      _logger.info(
+        'NSFX-Engine',
+        'Segment plan resolves to a single connection '
+            '(threads=$actualThreads, segments=$segmentCount), '
+            'using direct single-thread download',
+      );
+      await _singleThreadDownload(
+        task,
+        headers,
+        supportsRange: fileInfo.supportsRange,
+        totalSizeHint: fileInfo.size,
+      );
+      return;
+    }
+
+    _recordAllowedParallelDecision(
+      task,
+      fileInfo,
+      storedTotalSize: storedResumeSize,
+    );
+    _logger.info('NSFX-Engine',
+        'Using Isolate-based multi-thread download for ${task.filename}');
+    await _isolateMultiThreadDownload(
+      task,
+      _buildRangeHeaders(task, headers),
+      fileInfo.size,
+    );
   }
 
   // 下载入口：探测资源后选择单线程或多线程
   Future<void> startDownload(Task task) async {
+    final client = _clientForTask(task);
     _cancelledTasks[task.id] = false;
     _pausedTasks[task.id] = false;
     _taskIsolates[task.id] = [];
@@ -99,83 +512,52 @@ class DownloadEngine {
     });
 
     try {
-      _normalizeTaskFilePathForCurrentPlatform(task);
-      _logger.info('NSFX-Engine', 'Starting download: ${task.filename}');
-      task.status = TaskStatus.downloading;
-      task.startTime = DateTime.now();
-      task.effectiveHttpVersionPolicy = httpClient.effectiveHttpVersionPolicy;
-      task.negotiatedHttpVersion = null;
-      task.targetReachable = null;
-      onProgress(task);
-
-      final headers = _buildHeaders(task);
-      final fileInfo = await httpClient.getFileInfo(task.url, headers);
-      _logger.info('NSFX-Engine',
-          'File info for ${task.filename}: size=${fileInfo.size}, supportsRange=${fileInfo.supportsRange}');
-      task.effectiveHttpVersionPolicy = httpClient.effectiveHttpVersionPolicy;
-      task.negotiatedHttpVersion = fileInfo.negotiatedHttpVersion;
-      task.targetReachable = true;
-
-      if (fileInfo.size == 0) {
-        _logger.info('NSFX-Engine',
-            'Unknown file size, falling back to single thread download');
-        await _singleThreadDownload(
-          task,
-          headers,
-          supportsRange: fileInfo.supportsRange,
-        );
-        return;
-      }
-
-      task.totalSize = fileInfo.size;
-      onProgress(task);
-
-      if (!fileInfo.supportsRange) {
-        _logger.info('NSFX-Engine',
-            'Server does not support Range requests, using single thread');
-        await _singleThreadDownload(
-          task,
-          headers,
-          supportsRange: false,
-          totalSizeHint: fileInfo.size,
-        );
-        return;
-      }
-
-      if (fileInfo.size < 1024 * 1024) {
-        _logger.info('NSFX-Engine',
-            'File too small (${fileInfo.size} bytes < 1MB), using single thread');
-        await _singleThreadDownload(
-          task,
-          headers,
-          supportsRange: fileInfo.supportsRange,
-          totalSizeHint: fileInfo.size,
-        );
-        return;
-      }
-
-      _logger.info('NSFX-Engine',
-          'Using Isolate-based multi-thread download for ${task.filename}');
-      await _isolateMultiThreadDownload(task, headers, fileInfo.size);
+      await _executeDownloadAttempt(task);
     } catch (e) {
-      final errorText = e.toString();
-      final shouldBypassProxy = httpClient.shouldSwitchToDirectOnError(e);
+      Object currentError = e;
+      while (client.fallbackHttpPolicyOnTransferError(
+        currentError,
+        url: task.url,
+      )) {
+        _logger.warning(
+          'NSFX-Engine',
+          'Transfer failed under strict transport, retrying with downgraded '
+              'HTTP policy (${client.effectiveHttpVersionPolicy}): '
+              '$currentError',
+        );
+        _syncHttpPolicyDecision(task, client);
+        _setStartupStatus(task, _startupStatusMatchingHttp);
+        onProgress(task);
+
+        try {
+          task.status = TaskStatus.downloading;
+          task.errorMessage = null;
+          await _executeDownloadAttempt(task);
+          return;
+        } catch (retryError) {
+          currentError = retryError;
+        }
+      }
+
+      final errorText = currentError.toString();
+      final shouldBypassProxy =
+          client.shouldSwitchToDirectOnError(currentError);
       if (shouldBypassProxy || _isTargetConnectivityErrorText(errorText)) {
         task.targetReachable = false;
       }
-      task.effectiveHttpVersionPolicy = httpClient.effectiveHttpVersionPolicy;
-      task.negotiatedHttpVersion =
-          _resolveNegotiatedHttpVersion() ?? task.negotiatedHttpVersion;
+      _syncHttpPolicyDecision(task, client);
       if ((errorText.contains('HTTP 502') ||
               errorText.contains('HTTP 503') ||
               errorText.contains('HTTP 504') ||
               errorText.contains('HTTP 407') ||
               errorText.contains('PROXY_ERROR_') ||
               shouldBypassProxy) &&
-          httpClient.config.proxy.enabled) {
-        _logger.warning('NSFX-Engine',
-            'Proxy error during download, retrying with direct connection: $e');
-        httpClient.switchToDirectOnProxyError();
+          client.config.proxy.enabled) {
+        _logger.warning(
+            'NSFX-Engine',
+            'Proxy error during download, retrying with direct connection: '
+                '$currentError');
+        client.switchToDirectOnProxyError();
         try {
           task.status = TaskStatus.downloading;
           task.downloadedSize = 0;
@@ -184,11 +566,16 @@ class DownloadEngine {
           task.errorMessage = null;
 
           final headers = _buildHeaders(task);
-          final fileInfo = await httpClient.getFileInfo(task.url, headers);
-          task.effectiveHttpVersionPolicy =
-              httpClient.effectiveHttpVersionPolicy;
-          task.negotiatedHttpVersion = fileInfo.negotiatedHttpVersion;
-          task.targetReachable = true;
+          if (_shouldPreferImmediateSingleConnection()) {
+            await _singleThreadDownload(
+              task,
+              headers,
+              supportsRange: null,
+            );
+            return;
+          }
+          final fileInfo = await client.getFileInfo(task.url, headers);
+          _applyFileInfoMetadata(task, client, fileInfo);
           if (fileInfo.size > 0) {
             task.totalSize = fileInfo.size;
           }
@@ -207,19 +594,30 @@ class DownloadEngine {
           onError(task);
         }
       } else {
-        _logger.error('NSFX-Engine', 'Download failed: ${task.filename} - $e');
+        _logger.error(
+            'NSFX-Engine', 'Download failed: ${task.filename} - $currentError');
         task.status = TaskStatus.failed;
-        task.errorMessage = e.toString();
+        _setStartupStatus(task, null);
+        task.errorMessage = currentError.toString();
         onError(task);
       }
     } finally {
       _cancelledTasks.remove(task.id);
       _pausedTasks.remove(task.id);
       _taskSemaphores.remove(task.id);
+      final taskClient = _taskHttpClients.remove(task.id);
+      taskClient?.close();
 
       _lastDownloaded.remove(task.id);
       _lastUpdateTime.remove(task.id);
       _speedHistory.clear(task.id);
+      _segmentRuntimeStates.remove(task.id);
+      final executionHandles = _taskSegmentExecutions.remove(task.id);
+      if (executionHandles != null) {
+        for (final handle in executionHandles.values) {
+          await handle.dispose();
+        }
+      }
 
       final progressPort = _progressPorts.remove(task.id);
       progressPort?.close();
@@ -233,16 +631,101 @@ class DownloadEngine {
     }
   }
 
+  Future<void> _executeDownloadAttempt(Task task) async {
+    final client = _clientForTask(task);
+    final hasPartialData = _taskHasPartialData(task);
+    final storedResumeSize =
+        hasPartialData && task.totalSize > 0 ? task.totalSize : null;
+    _normalizeTaskFilePathForCurrentPlatform(task);
+    _logger.info('NSFX-Engine', 'Starting download: ${task.filename}');
+    task.status = TaskStatus.downloading;
+    task.startTime = DateTime.now();
+    task.effectiveHttpVersionPolicy = client.effectiveHttpVersionPolicy;
+    task.negotiatedHttpVersion = null;
+    task.targetReachable = null;
+    task.httpPolicyDecisionReason = client.lastPolicyDecisionReason;
+    _setStartupStatus(task, _startupStatusMatchingHttp);
+    task.ifRangeValidator = null;
+    task.httpConnectionType = null;
+    _clearConcurrencyDecision(task);
+    onProgress(task);
+
+    final headers = _buildHeaders(task);
+    if (_shouldPreferImmediateSingleConnection()) {
+      _setStartupStatus(task, null);
+      _recordResumeDecision(
+        task,
+        label: 'Single Connection',
+        reason:
+            'Configured thread limit prefers the single-connection fast path.',
+      );
+      _logger.info(
+        'NSFX-Engine',
+        'Single-thread fast path enabled, starting direct download without '
+            'metadata probe',
+      );
+      await _singleThreadDownload(
+        task,
+        headers,
+        supportsRange: null,
+      );
+      return;
+    }
+
+    if (!hasPartialData &&
+        NsfxStartupProbePolicy.shouldUseFastStart(
+          hasPartialProgress: false,
+          configuredThreads: config.threads,
+        )) {
+      final quickFileInfo = await _tryQuickStartupFileInfo(task, headers);
+      if (quickFileInfo == null) {
+        _setStartupStatus(task, null);
+        _recordResumeDecision(
+          task,
+          label: 'Fast Start',
+          reason: 'Metadata probe exceeded the startup budget, so the real '
+              'transfer started immediately and file size will be learned '
+              'from response headers.',
+        );
+        await _singleThreadDownload(
+          task,
+          headers,
+          supportsRange: null,
+        );
+        return;
+      }
+      client.adoptAdaptivePolicyHint(task.url);
+      await _continueDownloadWithFileInfo(
+        task,
+        headers,
+        quickFileInfo,
+        storedResumeSize: storedResumeSize,
+      );
+      return;
+    }
+
+    final fileInfo = await client.getFileInfo(task.url, headers);
+    await _continueDownloadWithFileInfo(
+      task,
+      headers,
+      fileInfo,
+      storedResumeSize: storedResumeSize,
+    );
+  }
+
   // 处理分段进度增量消息
   void _handleProgressMessage(Task task, _ProgressMessage message) {
     if (message.segmentIndex < task.segments.length) {
       final segment = task.segments[message.segmentIndex];
+      final runtimeState = _segmentRuntimeState(task, segment.index);
+      final now = DateTime.now();
 
       final segmentSize = segment.endByte - segment.startByte;
       final newDownloaded = segment.downloadedBytes + message.bytesDelta;
+      var actualDelta = message.bytesDelta;
 
       if (newDownloaded > segmentSize) {
-        final actualDelta = segmentSize - segment.downloadedBytes;
+        actualDelta = segmentSize - segment.downloadedBytes;
         if (actualDelta > 0) {
           segment.downloadedBytes = segmentSize;
           task.downloadedSize += actualDelta;
@@ -254,6 +737,30 @@ class DownloadEngine {
         task.downloadedSize += message.bytesDelta;
       }
 
+      if (actualDelta > 0) {
+        task.resumeDataOrigin = NsfxResumeDataOrigin.runtime;
+        if (task.ifRangeValidator == null) {
+          task.resumeSafetyLevel = NsfxResumeSafetyLevel.verifiedNoValidator;
+        }
+        final lastProgressAt = runtimeState.lastProgressAt;
+        if (lastProgressAt != null) {
+          final elapsed =
+              now.difference(lastProgressAt).inMicroseconds / 1000000.0;
+          if (elapsed >= 0.05) {
+            final instantSpeed = actualDelta / elapsed;
+            const alpha = 0.30;
+            segment.speed = segment.speed <= 0
+                ? instantSpeed
+                : (segment.speed * (1 - alpha)) + (instantSpeed * alpha);
+          }
+        }
+        runtimeState.lastProgressAt = now;
+      }
+
+      if (segment.downloadedBytes >= segmentSize) {
+        segment.speed = 0;
+      }
+
       if (task.totalSize > 0) {
         task.progress = (task.downloadedSize / task.totalSize) * 100;
       }
@@ -263,9 +770,14 @@ class DownloadEngine {
   // 多线程分段下载入口
   Future<void> _isolateMultiThreadDownload(
       Task task, Map<String, String> headers, int fileSize) async {
+    final client = _clientForTask(task);
     final (calculatedThreads, segmentCount) =
         DynamicSegmentConfig.calculate(fileSize, config);
-    final actualThreads = calculatedThreads.clamp(1, segmentCount);
+    final plannedThreads = calculatedThreads.clamp(1, segmentCount);
+    final actualThreads = NsfxHttpClient.suggestedMaxConcurrencyForUrl(
+      task.url,
+      requested: plannedThreads,
+    );
     task.threadCount = actualThreads;
     _logger.info('NSFX-Engine', '========================================');
     _logger.info('NSFX-Engine', 'Multi-thread download configuration:');
@@ -274,11 +786,30 @@ class DownloadEngine {
         '  Size: ${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB');
     _logger.info('NSFX-Engine',
         '  Threads: $actualThreads (calculated=$calculatedThreads)');
+    if (actualThreads < plannedThreads) {
+      _logger.info(
+        'NSFX-Engine',
+        '  Host strategy cap applied: $plannedThreads -> $actualThreads',
+      );
+    }
     _logger.info('NSFX-Engine', '  Segments: $segmentCount');
     _logger.info('NSFX-Engine', '  Config mode: ${config.mode}');
     _logger.info('NSFX-Engine', '  Config threads: ${config.threads}');
     _logger.info('NSFX-Engine', '========================================');
+    if (actualThreads < plannedThreads) {
+      _recordConcurrencyDecision(
+        task,
+        cap: actualThreads,
+        reason: 'Cached host concurrency cap applied: requested '
+            '$plannedThreads, starting with $actualThreads because previous '
+            'higher concurrency attempts on this host failed.',
+      );
+      onProgress(task);
+    } else {
+      _clearConcurrencyDecision(task);
+    }
     final semaphore = _taskSemaphores[task.id] = _Semaphore(actualThreads);
+    int retryConcurrency = actualThreads;
 
     final tempDir = await _getTempDir(task);
     await tempDir.create(recursive: true);
@@ -366,17 +897,33 @@ class DownloadEngine {
     onProgress(task);
 
     if (restoredBytes > 0) {
-      final supportsResume =
-          await _probeResumeRangeSupport(task, headers, fileSize);
-      if (!supportsResume) {
-        await _fallbackToSingleThread(
+      final resumeProbe =
+          await _probeResumeCompatibility(task, headers, fileSize);
+      if (!resumeProbe.compatible) {
+        task.resumeSafetyLevel = NsfxResumeSafetyLevel.unknown;
+        _recordResumeDecision(
           task,
-          headers,
-          fileSize,
-          tempDir,
-          reason: 'range not supported',
+          label: 'Resume Blocked',
+          reason: resumeProbe.failureReason ??
+              'Resume compatibility probe failed after reload.',
+          blocked: true,
+        );
+        _failTaskPreservingSegments(
+          task,
+          resumeProbe.failureReason ??
+              'Server no longer honors range requests during resume; kept '
+                  'partial segments instead of discarding progress.',
         );
         return;
+      }
+      if (resumeProbe.verifiedStableBehavior && task.ifRangeValidator == null) {
+        task.resumeSafetyLevel = NsfxResumeSafetyLevel.verifiedNoValidator;
+        _recordResumeDecision(
+          task,
+          label: 'Resume Verified',
+          reason: 'Resume probe confirmed stable byte-range behavior for the '
+              'current resource.',
+        );
       }
     }
 
@@ -400,7 +947,7 @@ class DownloadEngine {
 
     try {
       int globalRetryRound = 0;
-      const maxGlobalRetryRounds = 9999;
+      const maxGlobalRetryRounds = NsfxRetryPolicy.defaultMaxGlobalRetryRounds;
       final downloadDeadline = DateTime.now().add(const Duration(hours: 24));
 
       while (globalRetryRound < maxGlobalRetryRounds) {
@@ -436,8 +983,8 @@ class DownloadEngine {
             .toList();
 
         if (pendingSegments.isEmpty) {
-          final hasActiveDownloads = task.segments
-              .any((s) => s.status == SegmentStatus.downloading);
+          final hasActiveDownloads =
+              task.segments.any((s) => s.status == SegmentStatus.downloading);
           if (hasActiveDownloads) {
             await Future.delayed(const Duration(milliseconds: 100));
             continue;
@@ -449,8 +996,11 @@ class DownloadEngine {
           final failedCount = task.segments
               .where((s) => s.status == SegmentStatus.failed)
               .length;
-          _logger.info('NSFX-Engine',
-              'Retry round $globalRetryRound: ${pendingSegments.length} segments pending, $failedCount failed');
+          _logger.info(
+              'NSFX-Engine',
+              'Retry round $globalRetryRound: ${pendingSegments.length} '
+                  'segments pending, $failedCount failed, concurrency='
+                  '$retryConcurrency');
 
           for (final segment in pendingSegments) {
             if (segment.status == SegmentStatus.failed) {
@@ -489,22 +1039,58 @@ class DownloadEngine {
 
         await Future.wait(futures);
 
-        final hasDynamicSegmentsInFlight = task.segments
-            .any((s) => s.status == SegmentStatus.downloading);
+        final roundFailedCount = pendingSegments
+            .where((segment) => segment.status == SegmentStatus.failed)
+            .length;
+        final roundCompletedCount = pendingSegments
+            .where((segment) => segment.status == SegmentStatus.completed)
+            .length;
+
+        if (roundFailedCount > 0 && retryConcurrency > 1) {
+          final shouldReduceConcurrency = roundCompletedCount == 0 ||
+              roundFailedCount >= roundCompletedCount;
+          if (shouldReduceConcurrency) {
+            final nextConcurrency = max(1, retryConcurrency ~/ 2);
+            if (nextConcurrency != retryConcurrency) {
+              retryConcurrency = nextConcurrency;
+              semaphore.updateLimit(retryConcurrency);
+              task.threadCount = retryConcurrency;
+              NsfxHttpClient.rememberHostConcurrencyCap(
+                task.url,
+                retryConcurrency,
+              );
+              _recordConcurrencyDecision(
+                task,
+                cap: retryConcurrency,
+                reason: 'Adaptive host concurrency cap learned after '
+                    '$roundFailedCount failures in the latest round; future '
+                    'downloads on this host will start capped at '
+                    '$retryConcurrency.',
+                warning: true,
+              );
+              _logger.warning(
+                'NSFX-Engine',
+                'Reduced segment concurrency to $retryConcurrency after '
+                    '$roundFailedCount failures in the latest round',
+              );
+              onProgress(task);
+            }
+          }
+        }
+
+        final hasDynamicSegmentsInFlight =
+            task.segments.any((s) => s.status == SegmentStatus.downloading);
         if (hasDynamicSegmentsInFlight) {
           await Future.delayed(const Duration(milliseconds: 100));
           continue;
         }
 
-        if (_shouldFallbackToSingleThread(task)) {
+        if (_shouldAbortParallelResume(task)) {
           progressTimer.cancel();
           dynamicSegmentTimer.cancel();
-          await _fallbackToSingleThread(
+          _failTaskPreservingSegments(
             task,
-            headers,
-            fileSize,
-            tempDir,
-            reason: 'resume failed',
+            _parallelResumeFailureMessage(task),
           );
           return;
         }
@@ -568,9 +1154,7 @@ class DownloadEngine {
       task.endTime = DateTime.now();
       task.progress = 100;
       task.targetReachable = true;
-      task.effectiveHttpVersionPolicy = httpClient.effectiveHttpVersionPolicy;
-      task.negotiatedHttpVersion =
-          _resolveNegotiatedHttpVersion() ?? task.negotiatedHttpVersion;
+      _syncHttpPolicyDecision(task, client);
 
       if (task.startTime != null && task.endTime != null) {
         final duration = task.endTime!.difference(task.startTime!).inSeconds;
@@ -578,9 +1162,7 @@ class DownloadEngine {
       }
 
       task.targetReachable = true;
-      task.effectiveHttpVersionPolicy = httpClient.effectiveHttpVersionPolicy;
-      task.negotiatedHttpVersion =
-          _resolveNegotiatedHttpVersion() ?? task.negotiatedHttpVersion;
+      _syncHttpPolicyDecision(task, client);
       _logger.info('NSFX-Engine', 'Download completed: ${task.filename}');
       onComplete(task);
     } catch (e) {
@@ -603,14 +1185,14 @@ class DownloadEngine {
     }
     if (task.status != TaskStatus.downloading) return;
     if (!_dynamicSplitTasksInFlight.add(task.id)) {
-      _logger.debug(
-          'NSFX-Engine', 'Dynamic segment split already in progress');
+      _logger.debug('NSFX-Engine', 'Dynamic segment split already in progress');
       return;
     }
 
     try {
       final downloadingSegments = task.segments
-          .where((s) => s.status == SegmentStatus.downloading)
+          .where(
+              (s) => s.status == SegmentStatus.downloading && s.remaining > 0)
           .toList();
 
       if (downloadingSegments.isEmpty) {
@@ -618,108 +1200,150 @@ class DownloadEngine {
         return;
       }
 
-      if (downloadingSegments.length < 2) {
-        _logger.debug(
-            'NSFX-Engine', 'Only 1 downloading segment, cannot compare');
-        return;
-      }
-
-      final totalRemaining = downloadingSegments.fold<int>(
-          0, (sum, s) => sum + (s.size - s.downloadedBytes));
-      final avgRemaining = totalRemaining / downloadingSegments.length;
-
-      _logger.info('NSFX-Engine',
-          'Dynamic segment check: ${downloadingSegments.length} downloading, avg remaining: ${(avgRemaining / 1024 / 1024).toStringAsFixed(2)} MB');
-
-      final slowSegments = downloadingSegments
-          .where((s) => (s.size - s.downloadedBytes) > avgRemaining * 1.5)
-          .where((s) => (s.size - s.downloadedBytes) > 5 * 1024 * 1024)
-          .toList();
-
-      if (slowSegments.isEmpty) {
-        _logger.info('NSFX-Engine',
-            'No slow segments found (threshold: ${(avgRemaining * 1.5 / 1024 / 1024).toStringAsFixed(2)} MB)');
-        return;
-      }
-
-      _logger.info(
-          'NSFX-Engine', 'Found ${slowSegments.length} slow segments to split');
-
       if (task.segments.length >= 256) {
         _logger.warning('NSFX-Engine', 'Max segments (256) reached');
         return;
       }
 
+      final now = DateTime.now();
+      final semaphore = _taskSemaphores[task.id];
+      final maxConcurrent = semaphore?.maxConcurrent ?? task.threadCount;
+      final snapshots = downloadingSegments.map((segment) {
+        final runtimeState = _segmentRuntimeState(task, segment.index);
+        final lastProgressAt = runtimeState.lastProgressAt;
+        final lastSplitAt = runtimeState.lastSplitAt;
+        return DynamicSplitSnapshot(
+          segmentIndex: segment.index,
+          remainingBytes: segment.remaining,
+          speedBytesPerSecond: segment.speed,
+          idleFor: lastProgressAt == null
+              ? Duration.zero
+              : now.difference(lastProgressAt),
+          sinceLastSplit: lastSplitAt == null
+              ? const Duration(days: 365)
+              : now.difference(lastSplitAt),
+        );
+      }).toList();
+      final splitPlans = DynamicSegmentPolicy.plan(
+        snapshots: snapshots,
+        maxConcurrent: maxConcurrent,
+        totalSegments: task.segments.length,
+      );
+
+      if (splitPlans.isEmpty) {
+        _logger.debug(
+          'NSFX-Engine',
+          'Dynamic split check found no throughput/tail candidates',
+        );
+        return;
+      }
+
+      _logger.info(
+        'NSFX-Engine',
+        'Dynamic split check selected ${splitPlans.length} candidate(s) '
+            'with maxConcurrent=$maxConcurrent',
+      );
+
       final tempDir = await _getTempDir(task);
       int splitCount = 0;
 
-      for (final slowSeg in slowSegments) {
-        if (task.segments.length >= 256 || splitCount >= 5) break;
+      for (final plan in splitPlans) {
+        if (task.segments.length >= 256) break;
 
-        final remaining = slowSeg.size - slowSeg.downloadedBytes;
-        if (remaining < 5 * 1024 * 1024) {
+        Segment? targetSegment;
+        for (final segment in task.segments) {
+          if (segment.index == plan.segmentIndex) {
+            targetSegment = segment;
+            break;
+          }
+        }
+        final slowSeg = targetSegment;
+        if (slowSeg == null || slowSeg.status != SegmentStatus.downloading) {
           continue;
         }
 
+        final remaining = slowSeg.remaining;
+        if (remaining < DynamicSegmentPolicy.minSplitBytes * 2) continue;
+
+        final stealBytes = min(
+          max(plan.stealBytes, DynamicSegmentPolicy.minSplitBytes),
+          remaining - DynamicSegmentPolicy.minSplitBytes,
+        );
+        if (stealBytes <= 0) continue;
+
+        final keepBytes = remaining - stealBytes;
         final currentDownloaded = slowSeg.downloadedBytes;
-        final midPoint =
-            slowSeg.startByte + currentDownloaded + (remaining ~/ 2);
+        final splitStart = slowSeg.startByte + currentDownloaded + keepBytes;
+        if (splitStart <= slowSeg.startByte + currentDownloaded ||
+            splitStart >= slowSeg.endByte) {
+          continue;
+        }
 
         final newSegment = Segment(
           index: task.segments.length,
-          startByte: midPoint,
+          startByte: splitStart,
           endByte: slowSeg.endByte,
         );
 
         final oldEndByte = slowSeg.endByte;
-        final oldDownloadedBytes = slowSeg.downloadedBytes;
-        slowSeg.endByte = midPoint;
-
-        final newSegmentSize = slowSeg.endByte - slowSeg.startByte;
-        if (slowSeg.downloadedBytes > newSegmentSize) {
-          final excessBytes = slowSeg.downloadedBytes - newSegmentSize;
-          slowSeg.downloadedBytes = newSegmentSize;
-          task.downloadedSize -= excessBytes;
-          _logger.warning('NSFX-Engine',
-              'Segment ${slowSeg.index} downloadedBytes ($oldDownloadedBytes) exceeds new size ($newSegmentSize), adjusted and reduced total by ${(excessBytes / 1024 / 1024).toStringAsFixed(2)} MB');
-        }
+        slowSeg.endByte = splitStart;
 
         final partFile =
             await _resolveSegmentPartFile(tempDir, task, slowSeg.index);
         if (await partFile.exists()) {
           final fileSize = await partFile.length();
-
-          if (fileSize > newSegmentSize) {
-            _logger.warning('NSFX-Engine',
-                'Segment ${slowSeg.index} temp file ($fileSize bytes) exceeds new size ($newSegmentSize bytes) after split, truncating');
+          final expectedSize = slowSeg.size;
+          if (fileSize > expectedSize) {
+            _logger.warning(
+                'NSFX-Engine',
+                'Segment ${slowSeg.index} temp file ($fileSize bytes) exceeds '
+                    'new size ($expectedSize bytes) after split, truncating');
             try {
               final raf = await partFile.open(mode: FileMode.writeOnlyAppend);
-              await raf.truncate(newSegmentSize);
+              await raf.truncate(expectedSize);
               await raf.close();
-              slowSeg.status = SegmentStatus.completed;
               _logger.info('NSFX-Engine',
-                  'Segment ${slowSeg.index} truncated to $newSegmentSize bytes and marked complete');
+                  'Segment ${slowSeg.index} truncated to $expectedSize bytes after dynamic split');
             } catch (e) {
               _logger.error('NSFX-Engine',
                   'Failed to truncate segment ${slowSeg.index}: $e');
               slowSeg.endByte = oldEndByte;
-              slowSeg.downloadedBytes = oldDownloadedBytes;
-              task.downloadedSize +=
-                  (oldDownloadedBytes - slowSeg.downloadedBytes);
               continue;
             }
           }
         }
 
         task.segments.add(newSegment);
+        _segmentRuntimeState(task, slowSeg.index).lastSplitAt = now;
+        _segmentRuntimeState(task, newSegment.index).lastSplitAt = now;
+
+        final stopSent = await _requestSegmentStop(
+          task.id,
+          slowSeg.index,
+          'split',
+        );
+        if (!stopSent) {
+          _logger.warning(
+            'NSFX-Engine',
+            'Segment ${slowSeg.index} had no active execution handle during '
+                'tail steal; split will apply on the next retry boundary',
+          );
+        }
         splitCount++;
 
-        _logger.info('NSFX-Engine',
-            'Split segment ${slowSeg.index}: ${slowSeg.startByte}-$oldEndByte => ${slowSeg.startByte}-${slowSeg.endByte} + ${newSegment.startByte}-${newSegment.endByte} (remaining: ${(remaining / 1024 / 1024).toStringAsFixed(2)} MB, total segments: ${task.segments.length})');
+        _logger.info(
+          'NSFX-Engine',
+          'Tail steal on segment ${slowSeg.index} (${plan.reason}): '
+              '${slowSeg.startByte}-$oldEndByte => '
+              '${slowSeg.startByte}-${slowSeg.endByte} + '
+              '${newSegment.startByte}-${newSegment.endByte} '
+              '(speed=${(slowSeg.speed / 1024 / 1024).toStringAsFixed(2)} MB/s, '
+              'remaining=${(remaining / 1024 / 1024).toStringAsFixed(2)} MB, '
+              'steal=${(stealBytes / 1024 / 1024).toStringAsFixed(2)} MB, '
+              'segments=${task.segments.length})',
+        );
 
-        if (slowSeg.status != SegmentStatus.completed) {
-          _startNewSegmentDownload(task, newSegment);
-        }
+        _startNewSegmentDownload(task, newSegment);
       }
 
       if (splitCount > 0) {
@@ -735,7 +1359,7 @@ class DownloadEngine {
   void _startNewSegmentDownload(Task task, Segment segment) async {
     final tempDir = await _getTempDir(task);
     final tempFile = _segmentPartFilePath(tempDir, task, segment.index);
-    final headers = _buildHeaders(task);
+    final headers = _buildRangeHeaders(task, _buildHeaders(task));
 
     segment.status = SegmentStatus.downloading;
     final semaphore = _taskSemaphores[task.id];
@@ -766,6 +1390,74 @@ class DownloadEngine {
     });
   }
 
+  Future<_SegmentExecutionHandle> _spawnSegmentExecution({
+    required Task task,
+    required Segment segment,
+    required Map<String, String> headers,
+    required String tempFilePath,
+    required int alreadyDownloaded,
+  }) async {
+    final client = _clientForTask(task);
+    final receivePort = ReceivePort();
+    final readyCompleter = Completer<SendPort>();
+    final resultCompleter = Completer<_IsolateResult>();
+    late final StreamSubscription<dynamic> subscription;
+    subscription = receivePort.listen((message) {
+      if (message is _IsolateControlReady) {
+        if (!readyCompleter.isCompleted) {
+          readyCompleter.complete(message.controlPort);
+        }
+        return;
+      }
+      if (message is _IsolateResult && !resultCompleter.isCompleted) {
+        resultCompleter.complete(message);
+      }
+    });
+
+    _syncHttpPolicyDecision(task, client);
+    final activeProxy = client.getActiveProxySettings(task.url);
+    final isolate = await Isolate.spawn(
+      _isolateSegmentDownload,
+      _IsolateParams(
+        sendPort: receivePort.sendPort,
+        progressPort: _progressPorts[task.id]?.sendPort,
+        url: task.url,
+        tempFilePath: tempFilePath,
+        startByte: segment.startByte + alreadyDownloaded,
+        endByte: segment.endByte,
+        headers: headers,
+        connectionTimeout: config.connectionTimeout,
+        alreadyDownloaded: alreadyDownloaded,
+        taskId: task.id,
+        segmentIndex: segment.index,
+        proxyHost: activeProxy.isManual ? activeProxy.host : null,
+        proxyPort: activeProxy.isManual ? activeProxy.port : null,
+        proxyType: activeProxy.hasProxy ? activeProxy.type : null,
+        proxyRequiresAuth: activeProxy.requiresAuth,
+        proxyUsername:
+            activeProxy.supportsHttpBasicAuth ? activeProxy.username : null,
+        proxyPassword:
+            activeProxy.supportsHttpBasicAuth ? activeProxy.password : null,
+        httpVersionPolicy: client.effectiveHttpVersionPolicy,
+        globalSpeedLimit: config.globalSpeedLimit > 0
+            ? (config.globalSpeedLimit ~/ task.threadCount)
+                .clamp(1024, config.globalSpeedLimit)
+            : 0,
+      ),
+    );
+
+    _taskIsolates[task.id]?.add(isolate);
+    final handle = _SegmentExecutionHandle(
+      isolate: isolate,
+      receivePort: receivePort,
+      subscription: subscription,
+      controlPortFuture: readyCompleter.future,
+      resultFuture: resultCompleter.future,
+    );
+    _registerSegmentExecution(task.id, segment.index, handle);
+    return handle;
+  }
+
   // 在 Isolate 中下载单个分段
   Future<bool> _downloadSegmentInIsolate({
     required Task task,
@@ -773,6 +1465,7 @@ class DownloadEngine {
     required Map<String, String> headers,
     required String tempFilePath,
   }) async {
+    final client = _clientForTask(task);
     int retryCount = 0;
 
     while (retryCount < config.maxRetries) {
@@ -806,57 +1499,59 @@ class DownloadEngine {
           return true;
         }
 
-        final actualStartByte = segment.startByte + alreadyDownloaded;
-
-        final receivePort = ReceivePort();
-        final progressPort = _progressPorts[task.id];
-
-        task.effectiveHttpVersionPolicy = httpClient.effectiveHttpVersionPolicy;
-        task.negotiatedHttpVersion =
-            _resolveNegotiatedHttpVersion() ?? task.negotiatedHttpVersion;
-        final activeProxy = httpClient.getActiveProxySettings();
-        final isolate = await Isolate.spawn(
-          _isolateSegmentDownload,
-          _IsolateParams(
-            sendPort: receivePort.sendPort,
-            progressPort: progressPort?.sendPort,
-            url: task.url,
-            tempFilePath: tempFilePath,
-            startByte: actualStartByte,
-            endByte: segment.endByte,
-            headers: headers,
-            connectionTimeout: config.connectionTimeout,
-            alreadyDownloaded: alreadyDownloaded,
-            taskId: task.id,
-            segmentIndex: segment.index,
-            proxyHost: activeProxy?.host,
-            proxyPort: activeProxy?.port,
-            proxyType: activeProxy?.type,
-            proxyRequiresAuth: activeProxy?.supportsHttpBasicAuth ?? false,
-            proxyUsername: activeProxy?.username,
-            proxyPassword: activeProxy?.password,
-            httpVersionPolicy: httpClient.effectiveHttpVersionPolicy,
-            globalSpeedLimit: config.globalSpeedLimit > 0
-                ? (config.globalSpeedLimit ~/ task.threadCount)
-                    .clamp(1024, config.globalSpeedLimit)
-                : 0,
-          ),
+        final handle = await _spawnSegmentExecution(
+          task: task,
+          segment: segment,
+          headers: headers,
+          tempFilePath: tempFilePath,
+          alreadyDownloaded: alreadyDownloaded,
         );
 
-        _taskIsolates[task.id]?.add(isolate);
+        final result = await handle.resultFuture;
+        await _releaseSegmentExecution(task.id, segment.index, handle);
+        _taskIsolates[task.id]?.remove(handle.isolate);
 
-        final result = await receivePort.first as _IsolateResult;
-        receivePort.close();
+        segment.downloadedBytes = min(result.downloadedBytes, expectedSize);
 
-        _taskIsolates[task.id]?.remove(isolate);
-
-        segment.downloadedBytes = result.downloadedBytes;
+        if (result.interrupted) {
+          if (result.reason == 'split') {
+            if (result.downloadedBytes > expectedSize) {
+              await _truncateSegmentFileToSize(tempFilePath, expectedSize);
+              segment.downloadedBytes = expectedSize;
+            }
+            if (segment.downloadedBytes >= expectedSize) {
+              segment.status = SegmentStatus.completed;
+              segment.speed = 0;
+              return true;
+            }
+            segment.status = SegmentStatus.downloading;
+            segment.speed = 0;
+            continue;
+          }
+          segment.status = _cancelledTasks[task.id] == true
+              ? SegmentStatus.cancelled
+              : _pausedTasks[task.id] == true
+                  ? SegmentStatus.paused
+                  : SegmentStatus.pending;
+          segment.speed = 0;
+          return false;
+        }
 
         if (result.success) {
-          if (result.downloadedBytes == expectedSize) {
+          if (result.downloadedBytes >= expectedSize) {
+            if (result.downloadedBytes > expectedSize) {
+              await _truncateSegmentFileToSize(tempFilePath, expectedSize);
+              _logger.info(
+                'NSFX-Engine',
+                'Segment ${segment.index} completed after tail steal; '
+                    'truncated overlap ${result.downloadedBytes - expectedSize} '
+                    'bytes',
+              );
+            }
             segment.status = SegmentStatus.completed;
+            segment.speed = 0;
             _logger.debug('NSFX-Engine',
-                'Segment ${segment.index} completed: ${result.downloadedBytes} bytes');
+                'Segment ${segment.index} completed: $expectedSize bytes');
             return true;
           } else {
             _logger.warning('NSFX-Engine',
@@ -864,6 +1559,7 @@ class DownloadEngine {
             segment.status = SegmentStatus.failed;
             segment.lastError =
                 'Size mismatch: ${result.downloadedBytes}/$expectedSize';
+            segment.speed = 0;
             return false;
           }
         } else {
@@ -874,25 +1570,38 @@ class DownloadEngine {
         if (errorText.contains(_rangeNotSupportedError)) {
           segment.lastError = _rangeNotSupportedError;
           segment.status = SegmentStatus.failed;
+          segment.speed = 0;
           return false;
         }
         if (errorText.contains(_rangeNotSatisfiableError) ||
             errorText.contains('HTTP 416')) {
           segment.lastError = _rangeNotSatisfiableError;
           segment.status = SegmentStatus.failed;
+          segment.speed = 0;
           return false;
         }
-        if (httpClient.shouldSwitchToDirectOnError(e)) {
+        if (client.fallbackHttpPolicyOnTransferError(e, url: task.url)) {
+          _logger.warning(
+            'NSFX-Engine',
+            'Segment ${segment.index} transfer error under strict transport, '
+                'downgrading HTTP policy to '
+                '${client.effectiveHttpVersionPolicy} and retrying: '
+                '$errorText',
+          );
+          segment.lastError = errorText;
+          _syncHttpPolicyDecision(task, client);
+          onProgress(task);
+          continue;
+        }
+        if (client.shouldSwitchToDirectOnError(e)) {
           _logger.warning('NSFX-Engine',
               'Segment ${segment.index} proxy transport error: $errorText, triggering fallback');
           segment.lastError = 'PROXY_ERROR_TRANSPORT: $errorText';
           segment.status = SegmentStatus.failed;
+          segment.speed = 0;
           task.targetReachable = false;
-          task.effectiveHttpVersionPolicy =
-              httpClient.effectiveHttpVersionPolicy;
-          task.negotiatedHttpVersion =
-              _resolveNegotiatedHttpVersion() ?? task.negotiatedHttpVersion;
-          httpClient.switchToDirectOnProxyError();
+          _syncHttpPolicyDecision(task, client);
+          client.switchToDirectOnProxyError();
           return false;
         }
 
@@ -901,12 +1610,10 @@ class DownloadEngine {
               'Segment ${segment.index} proxy error: $errorText, triggering fallback');
           segment.lastError = errorText;
           segment.status = SegmentStatus.failed;
+          segment.speed = 0;
           task.targetReachable = false;
-          task.effectiveHttpVersionPolicy =
-              httpClient.effectiveHttpVersionPolicy;
-          task.negotiatedHttpVersion =
-              _resolveNegotiatedHttpVersion() ?? task.negotiatedHttpVersion;
-          httpClient.switchToDirectOnProxyError();
+          _syncHttpPolicyDecision(task, client);
+          client.switchToDirectOnProxyError();
           return false;
         }
 
@@ -920,20 +1627,14 @@ class DownloadEngine {
         }
 
         if (retryCount < config.maxRetries) {
-          int delayMs;
-          if (retryCount <= 50) {
-            delayMs = 20 + (retryCount ~/ 10) * 6; // 20-50ms
-          } else if (retryCount <= 200) {
-            delayMs = 50 + (retryCount - 50) ~/ 3; // 50-100ms
-          } else {
-            delayMs = 150;
-          }
+          final delayMs = NsfxRetryPolicy.segmentRetryDelayMs(retryCount);
           await Future.delayed(Duration(milliseconds: delayMs));
         }
       }
     }
 
     segment.status = SegmentStatus.failed;
+    segment.speed = 0;
     return false;
   }
 
@@ -957,102 +1658,64 @@ class DownloadEngine {
     });
   }
 
-  static bool _isLocalHost(String host) {
-    final normalized = host.toLowerCase();
-    return normalized == 'localhost' ||
-        normalized == '127.0.0.1' ||
-        normalized == '::1';
-  }
-
   static Map<String, String> _sanitizeHeadersForPolicy(
     Map<String, String> headers,
     String httpVersionPolicy,
   ) {
+    const hopByHopHeaders = {
+      'connection',
+      'keep-alive',
+      'proxy-connection',
+      'transfer-encoding',
+      'upgrade',
+    };
     if (!_usesRhttpTransport(httpVersionPolicy)) {
       return headers;
     }
 
     final sanitized = Map<String, String>.from(headers);
     sanitized.removeWhere(
-      (key, _) => _hopByHopHeaders.contains(key.toLowerCase()),
+      (key, _) => hopByHopHeaders.contains(key.toLowerCase()),
     );
     return sanitized;
   }
 
-  static rhttp.ProxySettings? _toRhttpProxySettings(_IsolateParams params) {
-    final host = Uri.tryParse(params.url)?.host ?? '';
-    if (_isLocalHost(host)) {
-      return const rhttp.ProxySettings.noProxy();
+  static NsfxResolvedProxy _resolvedProxyFromParams(_IsolateParams params) {
+    final proxyType = params.proxyType?.trim().toLowerCase() ?? '';
+    if (proxyType.isEmpty) {
+      return const NsfxResolvedProxy.direct();
     }
-
-    final proxyType = params.proxyType ?? 'http';
     if (proxyType == 'system') {
-      // `null` means follow OS/system proxy.
-      return null;
+      return const NsfxResolvedProxy.system();
     }
 
-    final proxyHost = params.proxyHost;
-    final proxyPort = params.proxyPort;
-    if (proxyHost == null || proxyPort == null || proxyHost.trim().isEmpty) {
-      return const rhttp.ProxySettings.noProxy();
+    final proxyHost = params.proxyHost?.trim() ?? '';
+    final proxyPort = params.proxyPort ?? 0;
+    if (proxyHost.isEmpty || proxyPort <= 0) {
+      return const NsfxResolvedProxy.direct();
     }
 
-    final scheme = proxyType == 'socks5' ? 'socks5' : 'http';
-    String auth = '';
-    if (params.proxyRequiresAuth &&
-        proxyType != 'socks5' &&
-        params.proxyUsername != null &&
-        params.proxyUsername!.isNotEmpty &&
-        params.proxyPassword != null &&
-        params.proxyPassword!.isNotEmpty) {
-      final user = Uri.encodeComponent(params.proxyUsername!);
-      final pass = Uri.encodeComponent(params.proxyPassword!);
-      auth = '$user:$pass@';
-    }
+    return NsfxResolvedProxy.manual(
+      type: proxyType,
+      host: proxyHost,
+      port: proxyPort,
+      username: params.proxyUsername,
+      password: params.proxyPassword,
+      requiresAuth: params.proxyRequiresAuth,
+    );
+  }
 
-    return rhttp.ProxySettings.proxy(
-      '$scheme://$auth${proxyHost.trim()}:$proxyPort',
+  static rhttp.ProxySettings? _toRhttpProxySettings(_IsolateParams params) {
+    return NsfxProxyRuntime.toRhttpProxySettings(
+      _resolvedProxyFromParams(params),
     );
   }
 
   static void _configureDartIoProxy(HttpClient client, _IsolateParams params) {
-    final proxyType = params.proxyType ?? 'http';
-    if (proxyType == 'system') {
-      client.findProxy = (uri) {
-        if (_isLocalHost(uri.host)) return 'DIRECT';
-        return HttpClient.findProxyFromEnvironment(uri);
-      };
-      return;
-    }
-
-    if (params.proxyHost == null || params.proxyPort == null) {
-      return;
-    }
-
-    final proxyDirective = proxyType == 'socks5'
-        ? 'SOCKS5 ${params.proxyHost}:${params.proxyPort}'
-        : 'PROXY ${params.proxyHost}:${params.proxyPort}';
-    client.findProxy = (uri) {
-      if (_isLocalHost(uri.host)) return 'DIRECT';
-      return proxyDirective;
-    };
-
-    if (params.proxyRequiresAuth &&
-        proxyType != 'socks5' &&
-        params.proxyUsername != null &&
-        params.proxyUsername!.isNotEmpty &&
-        params.proxyPassword != null &&
-        params.proxyPassword!.isNotEmpty) {
-      client.addProxyCredentials(
-        params.proxyHost!,
-        params.proxyPort!,
-        'Basic',
-        HttpClientBasicCredentials(
-          params.proxyUsername!,
-          params.proxyPassword!,
-        ),
-      );
-    }
+    NsfxProxyRuntime.applyToHttpClient(
+      client,
+      _resolvedProxyFromParams(params),
+    );
   }
 
   static Future<HttpClient> _createIsolateHttpClient(
@@ -1107,8 +1770,19 @@ class DownloadEngine {
     int downloadedBytes = 0;
     HttpClient? client;
     IOSink? sink;
+    final controlPort = ReceivePort();
+    var stopRequested = false;
+    String? stopReason;
 
     try {
+      controlPort.listen((message) {
+        if (message is _IsolateStopRequest) {
+          stopRequested = true;
+          stopReason = message.reason;
+        }
+      });
+      params.sendPort.send(_IsolateControlReady(controlPort.sendPort));
+
       client = await _createIsolateHttpClient(params);
 
       final uri = Uri.parse(params.url);
@@ -1189,12 +1863,14 @@ class DownloadEngine {
       DateTime secondStart = DateTime.now();
 
       await for (final chunk in response) {
+        if (stopRequested) break;
         final currentRemaining = remainingSize - downloadedBytes;
         if (currentRemaining <= 0) break;
 
         final toWrite = chunk.length > currentRemaining
             ? chunk.sublist(0, currentRemaining)
             : chunk;
+        if (stopRequested) break;
 
         sink.add(toWrite);
         downloadedBytes += toWrite.length;
@@ -1249,9 +1925,11 @@ class DownloadEngine {
       final totalDownloaded = params.alreadyDownloaded + downloadedBytes;
 
       params.sendPort.send(_IsolateResult(
-        success: totalDownloaded == segmentTotalSize,
+        success: !stopRequested && totalDownloaded == segmentTotalSize,
         downloadedBytes: totalDownloaded,
-        error: totalDownloaded != segmentTotalSize
+        interrupted: stopRequested,
+        reason: stopReason,
+        error: !stopRequested && totalDownloaded != segmentTotalSize
             ? 'Size mismatch: $totalDownloaded/$segmentTotalSize'
             : null,
       ));
@@ -1270,14 +1948,15 @@ class DownloadEngine {
         error: e.toString(),
         downloadedBytes: actualDownloaded,
       ));
+    } finally {
+      controlPort.close();
     }
   }
 
   // 计算速度与 ETA（使用 EMA 平滑）
   void _calculateSpeed(Task task) {
     final now = DateTime.now();
-    final currentDownloaded =
-        task.downloadedSize;
+    final currentDownloaded = task.downloadedSize;
     final lastDownloaded = _lastDownloaded[task.id];
     final lastTime = _lastUpdateTime[task.id];
 
@@ -1349,28 +2028,76 @@ class DownloadEngine {
     // ---------------------------------------------------------
   }
 
-  Future<bool> _probeResumeRangeSupport(
+  Future<_ResumeCompatibilityProbe> _probeResumeCompatibility(
     Task task,
     Map<String, String> headers,
     int fileSize,
   ) async {
+    final client = _clientForTask(task);
     try {
       final start = fileSize > 2 ? 1 : 0;
       final end = start + 1;
-      final response = await httpClient.getRange(task.url, headers, start, end);
+      final response = await client.getRange(
+        task.url,
+        _buildRangeHeaders(task, headers),
+        start,
+        end,
+      );
       task.negotiatedHttpVersion =
-          _resolveNegotiatedHttpVersion() ?? task.negotiatedHttpVersion;
+          _resolveNegotiatedHttpVersion(task) ?? task.negotiatedHttpVersion;
       final status = response.statusCode;
+      final totalFromRange =
+          _parseTotalFromContentRange(response.headers.value('content-range'));
       await response.drain();
-      if (status == 206) return true;
-      if (status == 200 || status == 416) return false;
+      if (status == 206) {
+        if (totalFromRange != null &&
+            fileSize > 0 &&
+            totalFromRange != fileSize) {
+          return const _ResumeCompatibilityProbe(
+            compatible: false,
+            failureReason:
+                'Stored file size no longer matches remote resource during '
+                'resume; kept partial segments instead of restarting.',
+          );
+        }
+        return _ResumeCompatibilityProbe(
+          compatible: true,
+          verifiedStableBehavior: totalFromRange == null || totalFromRange > 0,
+        );
+      }
+      if (status == 200) {
+        return const _ResumeCompatibilityProbe(
+          compatible: false,
+          failureReason:
+              'Server no longer honors byte ranges for this resume; kept '
+              'partial segments instead of discarding progress.',
+        );
+      }
+      if (status == 416) {
+        if (totalFromRange != null &&
+            fileSize > 0 &&
+            totalFromRange != fileSize) {
+          return const _ResumeCompatibilityProbe(
+            compatible: false,
+            failureReason:
+                'Stored file size no longer matches remote resource during '
+                'resume; kept partial segments instead of restarting.',
+          );
+        }
+        return const _ResumeCompatibilityProbe(
+          compatible: false,
+          failureReason:
+              'Server reported an invalid byte range while resuming; kept '
+              'partial segments instead of restarting from zero.',
+        );
+      }
     } catch (e) {
       _logger.debug('NSFX-Engine', 'Resume range probe failed: $e');
     }
-    return true;
+    return const _ResumeCompatibilityProbe(compatible: true);
   }
 
-  bool _shouldFallbackToSingleThread(Task task) {
+  bool _shouldAbortParallelResume(Task task) {
     for (final segment in task.segments) {
       if (segment.lastError == _rangeNotSupportedError ||
           segment.lastError == _rangeNotSatisfiableError) {
@@ -1380,42 +2107,32 @@ class DownloadEngine {
     return false;
   }
 
-  Future<void> _fallbackToSingleThread(
-    Task task,
-    Map<String, String> headers,
-    int fileSize,
-    Directory tempDir, {
-    String? reason,
-  }) async {
-    _logger.warning(
-      'NSFX-Engine',
-      'Resume failed${reason != null ? ' ($reason)' : ''}, falling back to single thread',
-    );
+  String _parallelResumeFailureMessage(Task task) {
+    final hasRangeMismatch = task.segments
+        .any((segment) => segment.lastError == _rangeNotSatisfiableError);
+    if (hasRangeMismatch) {
+      return 'Server reported an invalid byte range while resuming; kept '
+          'partial segments instead of restarting from zero.';
+    }
+    return 'Server stopped honoring byte ranges for this download; kept '
+        'partial segments instead of discarding progress.';
+  }
 
-    try {
-      if (await tempDir.exists()) {
-        await tempDir.delete(recursive: true);
-      }
-    } catch (_) {}
-
-    task.segments.clear();
-    task.downloadedSize = 0;
-    task.progress = 0;
-    task.threadCount = 1;
-    await _singleThreadDownload(
-      task,
-      headers,
-      supportsRange: false,
-      totalSizeHint: fileSize,
-    );
+  void _failTaskPreservingSegments(Task task, String message) {
+    task.status = TaskStatus.failed;
+    task.errorMessage = message;
+    _logger.error('NSFX-Engine', message);
+    onError(task);
   }
 
   Future<void> _singleThreadDownload(
     Task task,
     Map<String, String> headers, {
-    bool supportsRange = false,
+    bool? supportsRange,
     int? totalSizeHint,
   }) async {
+    final client = _clientForTask(task);
+    _setStartupStatus(task, null);
     task.threadCount = 1;
     task.status = TaskStatus.downloading;
 
@@ -1434,12 +2151,12 @@ class DownloadEngine {
     HttpClientResponse response;
     bool requestedRange = false;
 
-    if (existingLength > 0 && supportsRange) {
+    if (existingLength > 0 && supportsRange != false) {
       requestedRange = true;
-      response = await _getRangeResponse(task.url, headers, existingLength,
-          task.totalSize > 0 ? task.totalSize : null);
+      response = await _getRangeResponse(task, task.url, headers,
+          existingLength, task.totalSize > 0 ? task.totalSize : null);
       task.negotiatedHttpVersion =
-          _resolveNegotiatedHttpVersion() ?? task.negotiatedHttpVersion;
+          _resolveNegotiatedHttpVersion(task) ?? task.negotiatedHttpVersion;
 
       if (response.statusCode == 416) {
         final totalFromRange = _parseTotalFromContentRange(
@@ -1452,36 +2169,53 @@ class DownloadEngine {
           task.status = TaskStatus.completed;
           task.endTime = DateTime.now();
           task.targetReachable = true;
-          task.effectiveHttpVersionPolicy =
-              httpClient.effectiveHttpVersionPolicy;
-          task.negotiatedHttpVersion =
-              _resolveNegotiatedHttpVersion() ?? task.negotiatedHttpVersion;
+          _syncHttpPolicyDecision(task, client);
           onComplete(task);
           return;
         }
+        task.resumeSafetyLevel = NsfxResumeSafetyLevel.unknown;
+        _recordResumeDecision(
+          task,
+          label: 'Resume Blocked',
+          reason:
+              'Server rejected the requested byte range, so the download was '
+              'restarted from zero.',
+          blocked: true,
+        );
         existingLength = 0;
+        supportsRange = false;
         requestedRange = false;
         await file.writeAsBytes(const [], mode: FileMode.write);
-        response = await httpClient.get(task.url, headers);
+        response = await client.get(task.url, headers);
         task.negotiatedHttpVersion =
-            _resolveNegotiatedHttpVersion() ?? task.negotiatedHttpVersion;
+            _resolveNegotiatedHttpVersion(task) ?? task.negotiatedHttpVersion;
       } else if (response.statusCode == 200) {
         await response.drain();
+        task.resumeSafetyLevel = NsfxResumeSafetyLevel.unknown;
+        _recordResumeDecision(
+          task,
+          label: 'Resume Blocked',
+          reason:
+              'Server ignored the resume range request, so the download was '
+              'restarted from zero.',
+          blocked: true,
+        );
         existingLength = 0;
+        supportsRange = false;
         requestedRange = false;
         await file.writeAsBytes(const [], mode: FileMode.write);
-        response = await httpClient.get(task.url, headers);
+        response = await client.get(task.url, headers);
         task.negotiatedHttpVersion =
-            _resolveNegotiatedHttpVersion() ?? task.negotiatedHttpVersion;
+            _resolveNegotiatedHttpVersion(task) ?? task.negotiatedHttpVersion;
       }
     } else {
-      if (existingLength > 0 && !supportsRange) {
+      if (existingLength > 0 && supportsRange == false) {
         existingLength = 0;
         await file.writeAsBytes(const [], mode: FileMode.write);
       }
-      response = await httpClient.get(task.url, headers);
+      response = await client.get(task.url, headers);
       task.negotiatedHttpVersion =
-          _resolveNegotiatedHttpVersion() ?? task.negotiatedHttpVersion;
+          _resolveNegotiatedHttpVersion(task) ?? task.negotiatedHttpVersion;
     }
 
     if (requestedRange) {
@@ -1496,9 +2230,7 @@ class DownloadEngine {
       }
     }
     task.targetReachable = true;
-    task.effectiveHttpVersionPolicy = httpClient.effectiveHttpVersionPolicy;
-    task.negotiatedHttpVersion =
-        _resolveNegotiatedHttpVersion() ?? task.negotiatedHttpVersion;
+    _syncHttpPolicyDecision(task, client);
 
     if (requestedRange) {
       final totalFromRange =
@@ -1543,6 +2275,10 @@ class DownloadEngine {
         }
 
         sink.add(chunk);
+        task.resumeDataOrigin = NsfxResumeDataOrigin.runtime;
+        if (requestedRange && task.ifRangeValidator == null) {
+          task.resumeSafetyLevel = NsfxResumeSafetyLevel.verifiedNoValidator;
+        }
         task.downloadedSize += chunk.length;
         bytesThisInterval += chunk.length;
 
@@ -1587,21 +2323,38 @@ class DownloadEngine {
       onComplete(task);
     } catch (e) {
       await sink.close();
+      if (client.fallbackHttpPolicyOnTransferError(e, url: task.url)) {
+        _logger.warning(
+          'NSFX-Engine',
+          'Single-thread stream read failed, retrying with downgraded HTTP '
+              'policy (${client.effectiveHttpVersionPolicy}): $e',
+        );
+        await _singleThreadDownload(
+          task,
+          headers,
+          supportsRange: supportsRange,
+          totalSizeHint: task.totalSize > 0 ? task.totalSize : totalSizeHint,
+        );
+        return;
+      }
       rethrow;
     }
   }
 
   Future<HttpClientResponse> _getRangeResponse(
+    Task task,
     String url,
     Map<String, String> headers,
     int start,
     int? end,
   ) async {
+    final client = _clientForTask(task);
+    final rangeHeaders = _buildRangeHeaders(task, headers);
     if (end != null && end > start) {
-      return httpClient.getRange(url, headers, start, end);
+      return client.getRange(url, rangeHeaders, start, end);
     }
-    return httpClient.get(url, {
-      ...headers,
+    return client.get(url, {
+      ...rangeHeaders,
       'Range': 'bytes=$start-',
     });
   }
@@ -1749,6 +2502,17 @@ class DownloadEngine {
         } catch (_) {}
       }
       rethrow;
+    }
+  }
+
+  Future<void> _truncateSegmentFileToSize(String path, int expectedSize) async {
+    final file = File(path);
+    if (!await file.exists()) return;
+    final raf = await file.open(mode: FileMode.writeOnlyAppend);
+    try {
+      await raf.truncate(expectedSize);
+    } finally {
+      await raf.close();
     }
   }
 
@@ -1905,52 +2669,56 @@ class DownloadEngine {
   void pauseDownload(String taskId) {
     _pausedTasks[taskId] = true;
 
-    final isolates = _taskIsolates[taskId];
-    if (isolates != null) {
-      for (final isolate in isolates) {
-        isolate.kill(priority: Isolate.immediate);
+    final handles = _taskSegmentExecutions[taskId];
+    if (handles != null) {
+      for (final handle in handles.values) {
+        unawaited(handle.requestStop('pause'));
       }
-      isolates.clear();
+    }
+    if (handles == null || handles.isEmpty) {
+      final isolates = _taskIsolates[taskId];
+      if (isolates != null) {
+        for (final isolate in isolates) {
+          isolate.kill(priority: Isolate.immediate);
+        }
+        isolates.clear();
+      }
     }
   }
 
   void cancelDownload(String taskId) {
     _cancelledTasks[taskId] = true;
 
-    final isolates = _taskIsolates[taskId];
-    if (isolates != null) {
-      for (final isolate in isolates) {
-        isolate.kill(priority: Isolate.immediate);
+    final handles = _taskSegmentExecutions[taskId];
+    if (handles != null) {
+      for (final handle in handles.values) {
+        unawaited(handle.requestStop('cancel'));
       }
-      isolates.clear();
+    }
+    if (handles == null || handles.isEmpty) {
+      final isolates = _taskIsolates[taskId];
+      if (isolates != null) {
+        for (final isolate in isolates) {
+          isolate.kill(priority: Isolate.immediate);
+        }
+        isolates.clear();
+      }
     }
   }
 
   Map<String, String> _buildHeaders(Task task) {
-    final userAgent = task.userAgent?.trim();
-    final headers = <String, String>{
-      'User-Agent': userAgent != null && userAgent.isNotEmpty
-          ? userAgent
-          : config.defaultUserAgent,
-      'Accept': '*/*',
-      'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-    };
+    return buildDownloadHeaders(task, config);
+  }
 
-    if (task.referer != null && task.referer!.isNotEmpty) {
-      headers['Referer'] = task.referer!;
-    } else {
-      try {
-        final uri = Uri.parse(task.url);
-        headers['Referer'] = '${uri.scheme}://${uri.host}/';
-      } catch (_) {}
+  Map<String, String> _buildRangeHeaders(
+    Task task,
+    Map<String, String> baseHeaders,
+  ) {
+    final headers = Map<String, String>.from(baseHeaders);
+    final validator = task.ifRangeValidator?.trim();
+    if (validator != null && validator.isNotEmpty) {
+      headers['If-Range'] = validator;
     }
-
-    if (task.cookies != null && task.cookies!.isNotEmpty) {
-      headers['Cookie'] = task.cookies!;
-    }
-
-    if (task.headers != null) headers.addAll(task.headers!);
-
     return headers;
   }
 
@@ -2021,11 +2789,39 @@ class _IsolateResult {
   final bool success;
   final int downloadedBytes;
   final String? error;
+  final bool interrupted;
+  final String? reason;
 
   _IsolateResult({
     required this.success,
     required this.downloadedBytes,
     this.error,
+    this.interrupted = false,
+    this.reason,
+  });
+}
+
+class _IsolateControlReady {
+  final SendPort controlPort;
+
+  const _IsolateControlReady(this.controlPort);
+}
+
+class _IsolateStopRequest {
+  final String reason;
+
+  const _IsolateStopRequest(this.reason);
+}
+
+class _ResumeCompatibilityProbe {
+  final bool compatible;
+  final bool verifiedStableBehavior;
+  final String? failureReason;
+
+  const _ResumeCompatibilityProbe({
+    required this.compatible,
+    this.verifiedStableBehavior = false,
+    this.failureReason,
   });
 }
 
@@ -2042,9 +2838,45 @@ class _ProgressMessage {
   });
 }
 
+class _SegmentRuntimeState {
+  DateTime? lastProgressAt;
+  DateTime? lastSplitAt;
+}
+
+class _SegmentExecutionHandle {
+  final Isolate isolate;
+  final ReceivePort receivePort;
+  final StreamSubscription<dynamic> subscription;
+  final Future<SendPort> controlPortFuture;
+  final Future<_IsolateResult> resultFuture;
+
+  _SegmentExecutionHandle({
+    required this.isolate,
+    required this.receivePort,
+    required this.subscription,
+    required this.controlPortFuture,
+    required this.resultFuture,
+  });
+
+  Future<bool> requestStop(String reason) async {
+    try {
+      final port = await controlPortFuture.timeout(const Duration(seconds: 2));
+      port.send(_IsolateStopRequest(reason));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> dispose() async {
+    await subscription.cancel();
+    receivePort.close();
+  }
+}
+
 // 简易信号量：控制并发
 class _Semaphore {
-  final int maxConcurrent;
+  int maxConcurrent;
   int _current = 0;
   final _queue = <Completer<void>>[];
 
@@ -2069,12 +2901,19 @@ class _Semaphore {
     await completer.future;
   }
 
+  void updateLimit(int nextLimit) {
+    maxConcurrent = nextLimit.clamp(1, 64);
+    while (_current < maxConcurrent && _queue.isNotEmpty) {
+      _current++;
+      _queue.removeAt(0).complete();
+    }
+  }
+
   void _release() {
-    if (_queue.isNotEmpty) {
-      final completer = _queue.removeAt(0);
-      completer.complete();
-    } else {
-      _current--;
+    _current--;
+    while (_current < maxConcurrent && _queue.isNotEmpty) {
+      _current++;
+      _queue.removeAt(0).complete();
     }
   }
 }

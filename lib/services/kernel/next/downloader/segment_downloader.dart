@@ -3,6 +3,7 @@ import 'dart:io';
 import '../models/segment.dart';
 import '../models/task.dart';
 import '../config/download_config.dart';
+import 'download_header_builder.dart';
 import 'http_client.dart';
 
 class SegmentDownloader {
@@ -185,9 +186,7 @@ class SegmentDownloader {
         segment.lastError = e.toString();
 
         if (retryCount < config.maxRetries) {
-          // 优化：使用更短的重试间隔，循环使用
-          final delays = [200, 500, 1000, 1500, 2000];
-          final delayMs = delays[retryCount % delays.length];
+          final delayMs = NsfxRetryPolicy.segmentRetryDelayMs(retryCount);
           await Future.delayed(Duration(milliseconds: delayMs));
         }
       }
@@ -199,28 +198,6 @@ class SegmentDownloader {
   }
 
   Map<String, String> _buildHeaders() {
-    final userAgent = task.userAgent?.trim();
-    final headers = <String, String>{
-      'User-Agent': userAgent != null && userAgent.isNotEmpty
-          ? userAgent
-          : config.defaultUserAgent,
-      'Accept': '*/*',
-      'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-      'Connection': 'keep-alive',
-    };
-
-    if (task.referer != null && task.referer!.isNotEmpty) {
-      headers['Referer'] = task.referer!;
-    }
-
-    if (task.cookies != null && task.cookies!.isNotEmpty) {
-      headers['Cookie'] = task.cookies!;
-    }
-
-    if (task.headers != null) {
-      headers.addAll(task.headers!);
-    }
-
-    return headers;
+    return buildDownloadHeaders(task, config);
   }
 }

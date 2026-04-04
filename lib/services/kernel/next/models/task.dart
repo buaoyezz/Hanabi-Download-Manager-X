@@ -1,3 +1,4 @@
+import '../config/download_config.dart';
 import 'segment.dart';
 
 class Task {
@@ -27,6 +28,16 @@ class Task {
   String? effectiveHttpVersionPolicy;
   String? negotiatedHttpVersion;
   bool? targetReachable;
+  String? httpPolicyDecisionReason;
+  String? startupStatusKey;
+  String? ifRangeValidator;
+  String? httpConnectionType;
+  String resumeSafetyLevel;
+  String resumeDataOrigin;
+  String? resumeDecisionLabel;
+  String? resumeDecisionReason;
+  int? hostConcurrencyCap;
+  String? hostConcurrencyReason;
 
   Task({
     required this.id,
@@ -54,6 +65,16 @@ class Task {
     this.effectiveHttpVersionPolicy,
     this.negotiatedHttpVersion,
     this.targetReachable,
+    this.httpPolicyDecisionReason,
+    this.startupStatusKey,
+    this.ifRangeValidator,
+    this.httpConnectionType,
+    this.resumeSafetyLevel = NsfxResumeSafetyLevel.unknown,
+    this.resumeDataOrigin = NsfxResumeDataOrigin.runtime,
+    this.resumeDecisionLabel,
+    this.resumeDecisionReason,
+    this.hostConcurrencyCap,
+    this.hostConcurrencyReason,
   })  : createdTime = createdTime ?? DateTime.now(),
         segments = segments ?? [];
 
@@ -97,6 +118,15 @@ class Task {
         'effectiveHttpVersionPolicy': effectiveHttpVersionPolicy,
         'negotiatedHttpVersion': negotiatedHttpVersion,
         'targetReachable': targetReachable,
+        'httpPolicyDecisionReason': httpPolicyDecisionReason,
+        'startupStatusKey': startupStatusKey,
+        'ifRangeValidator': ifRangeValidator,
+        'httpConnectionType': httpConnectionType,
+        'resumeSafetyLevel': resumeSafetyLevel,
+        'resumeDecisionLabel': resumeDecisionLabel,
+        'resumeDecisionReason': resumeDecisionReason,
+        'hostConcurrencyCap': hostConcurrencyCap,
+        'hostConcurrencyReason': hostConcurrencyReason,
       };
 }
 

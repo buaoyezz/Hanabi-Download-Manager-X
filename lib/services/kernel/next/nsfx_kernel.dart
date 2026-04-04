@@ -65,6 +65,9 @@ class NsfxKernel implements KernelInterface {
       await _storage.init();
 
       _config = await _storage.loadConfig();
+      NsfxHttpClient.restoreAdaptiveHostStrategies(
+        await _storage.loadHostStrategies(),
+      );
       _httpClient = NsfxHttpClient(_config);
 
       _engine = DownloadEngine(
@@ -94,6 +97,8 @@ class NsfxKernel implements KernelInterface {
       // 启动自动保存
       _saveTimer = Timer.periodic(const Duration(seconds: 5), (_) {
         _storage.saveTasks(_tasks);
+        _storage
+            .saveHostStrategies(NsfxHttpClient.exportAdaptiveHostStrategies());
       });
 
       // 启动 HTTP 服务器（用于浏览器扩展通信）
@@ -121,6 +126,8 @@ class NsfxKernel implements KernelInterface {
 
     await _httpServer?.stop();
     await _storage.saveTasks(_tasks);
+    await _storage
+        .saveHostStrategies(NsfxHttpClient.exportAdaptiveHostStrategies());
     _httpClient.close();
 
     _isRunning = false;
@@ -208,11 +215,11 @@ class NsfxKernel implements KernelInterface {
 
     if (strategy == 'timestamp') {
       final stamp = _formatTimestamp(DateTime.now());
-      var candidate = '${baseName}_${stamp}${extension}';
+      var candidate = '${baseName}_$stamp$extension';
       var candidatePath = p.join(_downloadDir, candidate);
       if (await _conflictExists(candidatePath, candidate)) {
         candidate =
-            '${baseName}_${stamp}_${DateTime.now().millisecondsSinceEpoch}${extension}';
+            '${baseName}_${stamp}_${DateTime.now().millisecondsSinceEpoch}$extension';
       }
       return candidate;
     }
@@ -443,6 +450,7 @@ class NsfxKernel implements KernelInterface {
     await _storage.saveConfig(_config);
 
     // 重建 HTTP 客户端以应用新配置
+    NsfxHttpClient.clearSharedProxyState();
     _httpClient.close();
     _httpClient = NsfxHttpClient(_config);
 
@@ -467,7 +475,20 @@ class NsfxKernel implements KernelInterface {
   @override
   Future<bool> clearAllData() async {
     _tasks.clear();
+    NsfxHttpClient.clearAdaptivePolicyHints();
     await _storage.clearAll();
+    return true;
+  }
+
+  @override
+  Future<Map<String, dynamic>> getAdaptiveHostStrategies() async {
+    return NsfxHttpClient.exportAdaptiveHostStrategies();
+  }
+
+  @override
+  Future<bool> clearAdaptiveHostStrategies() async {
+    NsfxHttpClient.clearAdaptivePolicyHints();
+    await _storage.saveHostStrategies(<String, dynamic>{});
     return true;
   }
 
@@ -592,8 +613,10 @@ class NsfxKernel implements KernelInterface {
   }
 
   void _onTaskError(Task task) {
-    _logger.error(
-        'NSFX', 'Download failed: ${task.filename} - ${task.errorMessage}');
+    final errorMessage = task.errorMessage?.trim();
+    if (errorMessage == null || errorMessage.isEmpty) {
+      _logger.error('NSFX', 'Download failed: ${task.filename}');
+    }
     _progressController.add(_toDownloadTask(task));
     _checkQueue();
   }
@@ -645,6 +668,12 @@ class NsfxKernel implements KernelInterface {
       effectiveHttpVersionPolicy: task.effectiveHttpVersionPolicy,
       negotiatedHttpVersion: task.negotiatedHttpVersion,
       targetReachable: task.targetReachable,
+      httpPolicyDecisionReason: task.httpPolicyDecisionReason,
+      startupStatusKey: task.startupStatusKey,
+      resumeDecisionLabel: task.resumeDecisionLabel,
+      resumeDecisionReason: task.resumeDecisionReason,
+      hostConcurrencyCap: task.hostConcurrencyCap,
+      hostConcurrencyReason: task.hostConcurrencyReason,
       segments: task.segments
           .map((s) => SegmentInfo(
                 index: s.index,

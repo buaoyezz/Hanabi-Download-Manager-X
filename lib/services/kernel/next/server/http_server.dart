@@ -25,6 +25,9 @@ class NsfxHttpServer {
   final List<Map<String, dynamic>> _allDevices = []; // 所有历史设备
   Timer? _cleanupTimer;
   Timer? _historyTimer;
+  int? _lastLoggedUniqueDeviceCount;
+  int? _lastLoggedSessionCount;
+  int? _lastLoggedFingerprintMappingCount;
   static const Duration _sessionTimeout = Duration(minutes: 2);
   static const Duration _historyInterval = Duration(seconds: 10);
 
@@ -62,6 +65,9 @@ class NsfxHttpServer {
     _deviceFingerprints.clear();
     _sessionToFingerprint.clear();
     _onlineHistory.clear();
+    _lastLoggedUniqueDeviceCount = null;
+    _lastLoggedSessionCount = null;
+    _lastLoggedFingerprintMappingCount = null;
     // 不清空 _allDevices，保留历史记录
 
     await _server?.close(force: true);
@@ -88,7 +94,7 @@ class NsfxHttpServer {
     final path = request.uri.path;
 
     // 只记录非轮询请求的日志
-    if (path != '/download/pending-popup' && path != '/health') {
+    if (!_isPollingPath(path)) {
       _logger.debug('NSFX-HTTP', '${request.method} $path');
     }
 
@@ -419,6 +425,7 @@ class NsfxHttpServer {
     if (expiredSessions.isNotEmpty) {
       _logger.info(
           'NSFX-HTTP', 'Cleaned up ${expiredSessions.length} expired sessions');
+      _logUniqueDeviceStatsIfChanged();
     }
   }
 
@@ -497,6 +504,7 @@ class NsfxHttpServer {
 
     // 计算唯一设备数（去重）
     final uniqueDevices = _getUniqueDeviceCount();
+    _logUniqueDeviceStatsIfChanged(uniqueDevices: uniqueDevices);
 
     _sendJson(request, {
       'success': true,
@@ -519,10 +527,40 @@ class NsfxHttpServer {
       }
     }
 
-    _logger.debug('NSFX-HTTP',
-        'Unique devices: ${activeFingerprints.length} (sessions: ${_activeSessions.length}, mappings: ${_sessionToFingerprint.length})');
-
     return activeFingerprints.length;
+  }
+
+  void _logUniqueDeviceStatsIfChanged({int? uniqueDevices}) {
+    final currentUniqueDevices = uniqueDevices ?? _getUniqueDeviceCount();
+    final currentSessionCount = _activeSessions.length;
+    final currentMappingCount = _sessionToFingerprint.length;
+
+    if (_lastLoggedUniqueDeviceCount == currentUniqueDevices &&
+        _lastLoggedSessionCount == currentSessionCount &&
+        _lastLoggedFingerprintMappingCount == currentMappingCount) {
+      return;
+    }
+
+    _lastLoggedUniqueDeviceCount = currentUniqueDevices;
+    _lastLoggedSessionCount = currentSessionCount;
+    _lastLoggedFingerprintMappingCount = currentMappingCount;
+
+    _logger.debug('NSFX-HTTP',
+        'Unique devices: $currentUniqueDevices (sessions: $currentSessionCount, mappings: $currentMappingCount)');
+  }
+
+  bool _isPollingPath(String path) {
+    switch (path) {
+      case '/download/pending-popup':
+      case '/download/tasks':
+      case '/download/statistics':
+      case '/health':
+      case '/stats/heartbeat':
+      case '/stats/online':
+        return true;
+      default:
+        return false;
+    }
   }
 
   /// 获取设备摘要信息
@@ -549,6 +587,7 @@ class NsfxHttpServer {
     _activeSessions.remove(sessionId);
     _sessionToFingerprint.remove(sessionId);
     _logger.info('NSFX-HTTP', 'Session offline: $sessionId');
+    _logUniqueDeviceStatsIfChanged();
 
     _sendJson(request, {
       'success': true,

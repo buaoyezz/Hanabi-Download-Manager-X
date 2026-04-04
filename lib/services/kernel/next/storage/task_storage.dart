@@ -6,6 +6,9 @@ import '../models/segment.dart';
 import '../config/download_config.dart';
 
 class TaskStorage {
+  TaskStorage({String? homePath}) : _homePath = homePath;
+
+  final String? _homePath;
   late final Directory _storageDir;
   late final Directory _oldStorageDir;
   bool _initialized = false;
@@ -14,7 +17,8 @@ class TaskStorage {
   Future<void> init() async {
     if (_initialized) return;
 
-    final home = Platform.environment['USERPROFILE'] ??
+    final home = _homePath ??
+        Platform.environment['USERPROFILE'] ??
         Platform.environment['HOME'] ??
         Directory.current.path;
 
@@ -35,6 +39,7 @@ class TaskStorage {
     // 进行崩溃恢复与残留文件清理
     await _recoverJsonFile(_tasksFile, label: 'tasks');
     await _recoverJsonFile(_configFile, label: 'config');
+    await _recoverJsonFile(_hostStrategiesFile, label: 'host_strategies');
 
     _initialized = true;
   }
@@ -102,6 +107,8 @@ class TaskStorage {
 
   File get _tasksFile => File(path.join(_storageDir.path, 'tasks.json'));
   File get _configFile => File(path.join(_storageDir.path, 'config.json'));
+  File get _hostStrategiesFile =>
+      File(path.join(_storageDir.path, 'host_strategies.json'));
 
   Future<Map<String, Task>> loadTasks() async {
     await init();
@@ -140,11 +147,25 @@ class TaskStorage {
 
     try {
       final config = NsfxConfig.fromJson(json);
+      var shouldPersist = false;
 
       // 确保 maxRetries 至少为 200（IDM 风格）
       // 旧配置可能保存了较小的值
       if (config.maxRetries < 200) {
         config.maxRetries = 200;
+        shouldPersist = true;
+      }
+
+      if (config.proxy.looksLikeLegacyImplicitSystemProxyDefault) {
+        config.proxy = NsfxProxyConfig();
+        shouldPersist = true;
+        print(
+          '[TaskStorage] Migrated legacy implicit proxy default to disabled',
+        );
+      }
+
+      if (shouldPersist) {
+        await saveConfig(config);
       }
 
       return config;
@@ -160,6 +181,22 @@ class TaskStorage {
     });
   }
 
+  Future<Map<String, dynamic>> loadHostStrategies() async {
+    await init();
+    final json = await _readJsonMapWithRecovery(
+      _hostStrategiesFile,
+      label: 'host_strategies',
+    );
+    return json ?? <String, dynamic>{};
+  }
+
+  Future<void> saveHostStrategies(Map<String, dynamic> strategies) async {
+    await _enqueueWrite(() async {
+      await init();
+      await _writeJsonAtomic(_hostStrategiesFile, strategies);
+    });
+  }
+
   Future<void> clearAll() async {
     await init();
 
@@ -168,6 +205,9 @@ class TaskStorage {
     }
     await _deleteIfExists(File('${_tasksFile.path}.tmp'));
     await _deleteIfExists(File('${_tasksFile.path}.bak'));
+    await _deleteIfExists(_hostStrategiesFile);
+    await _deleteIfExists(File('${_hostStrategiesFile.path}.tmp'));
+    await _deleteIfExists(File('${_hostStrategiesFile.path}.bak'));
   }
 
   Future<void> _enqueueWrite(Future<void> Function() action) {
@@ -330,6 +370,16 @@ class TaskStorage {
         'effectiveHttpVersionPolicy': task.effectiveHttpVersionPolicy,
         'negotiatedHttpVersion': task.negotiatedHttpVersion,
         'targetReachable': task.targetReachable,
+        'httpPolicyDecisionReason': task.httpPolicyDecisionReason,
+        'startupStatusKey': task.startupStatusKey,
+        'ifRangeValidator': task.ifRangeValidator,
+        'httpConnectionType': task.httpConnectionType,
+        'resumeSafetyLevel':
+            NsfxResumeSafetyLevel.normalize(task.resumeSafetyLevel),
+        'resumeDecisionLabel': task.resumeDecisionLabel,
+        'resumeDecisionReason': task.resumeDecisionReason,
+        'hostConcurrencyCap': task.hostConcurrencyCap,
+        'hostConcurrencyReason': task.hostConcurrencyReason,
         'segments': task.segments
             .map((s) => {
                   'index': s.index,
@@ -377,6 +427,17 @@ class TaskStorage {
           json['effectiveHttpVersionPolicy']?.toString(),
       negotiatedHttpVersion: json['negotiatedHttpVersion']?.toString(),
       targetReachable: json['targetReachable'] as bool?,
+      httpPolicyDecisionReason: json['httpPolicyDecisionReason']?.toString(),
+      startupStatusKey: json['startupStatusKey']?.toString(),
+      ifRangeValidator: json['ifRangeValidator']?.toString(),
+      httpConnectionType: json['httpConnectionType']?.toString(),
+      resumeSafetyLevel: NsfxResumeSafetyLevel.normalize(
+          json['resumeSafetyLevel']?.toString()),
+      resumeDataOrigin: NsfxResumeDataOrigin.persisted,
+      resumeDecisionLabel: json['resumeDecisionLabel']?.toString(),
+      resumeDecisionReason: json['resumeDecisionReason']?.toString(),
+      hostConcurrencyCap: (json['hostConcurrencyCap'] as num?)?.toInt(),
+      hostConcurrencyReason: json['hostConcurrencyReason']?.toString(),
     );
 
     if (json['segments'] != null) {

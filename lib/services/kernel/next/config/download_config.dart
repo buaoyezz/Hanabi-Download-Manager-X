@@ -35,8 +35,26 @@ class NsfxHttpVersionPolicy {
         return const [http1Only];
       case auto:
       default:
-        return const [http3Only, http2Only, http1Only];
+        return const [http1Only, http2Only, http3Only];
     }
+  }
+
+  static List<String> preferredChainForUrl(
+    String? value, {
+    String? url,
+  }) {
+    final normalized = normalize(value);
+    final scheme = Uri.tryParse(url ?? '')?.scheme.toLowerCase();
+
+    if (scheme == 'http') {
+      return const [http1Only];
+    }
+
+    if (normalized == auto) {
+      return fallbackChain(auto);
+    }
+
+    return fallbackChain(normalized);
   }
 
   /// Returns protocol fallback order for current dart:io transport.
@@ -55,7 +73,7 @@ class NsfxHttpVersionPolicy {
         return const [http1Only];
       case auto:
       default:
-        return const [http2Only, http1Only];
+        return const [http1Only, http2Only];
     }
   }
 
@@ -98,7 +116,7 @@ class NsfxConfig {
     this.chunkSize = 1024 * 1024,
     this.connectionTimeout = 30,
     this.readTimeout = 120,
-    this.maxRetries = 500, // 大量重试次数，应对极端网络（配合外层无限循环）
+    this.maxRetries = NsfxRetryPolicy.defaultMaxRetries,
     this.enableDynamicSegments = true,
     this.defaultUserAgent = defaultUserAgentFallback,
     this.httpVersionPolicy = NsfxHttpVersionPolicy.auto,
@@ -143,7 +161,9 @@ class NsfxConfig {
         connectionTimeout:
             json['connection_timeout'] ?? json['connectionTimeout'] ?? 30,
         readTimeout: json['read_timeout'] ?? json['readTimeout'] ?? 120,
-        maxRetries: json['max_retries'] ?? json['maxRetries'] ?? 500, // 大量重试
+        maxRetries: json['max_retries'] ??
+            json['maxRetries'] ??
+            NsfxRetryPolicy.defaultMaxRetries,
         enableDynamicSegments: json['enable_dynamic_segments'] ??
             json['enableDynamicSegments'] ??
             true,
@@ -172,9 +192,9 @@ class NsfxProxyConfig {
   bool requiresAuth;
 
   NsfxProxyConfig({
-    this.enabled = true,
+    this.enabled = false,
     this.type = 'system',
-    this.host = '127.0.0.1',
+    this.host = '',
     this.port = 7897,
     this.username,
     this.password,
@@ -202,6 +222,20 @@ class NsfxProxyConfig {
         requiresAuth: json['requires_auth'] ?? json['requiresAuth'] ?? false,
       );
 
+  bool get looksLikeLegacyImplicitSystemProxyDefault {
+    final normalizedHost = host.trim().toLowerCase();
+    final normalizedUser = username?.trim() ?? '';
+    final normalizedPassword = password?.trim() ?? '';
+
+    return enabled &&
+        type == 'system' &&
+        normalizedHost == '127.0.0.1' &&
+        port == 7897 &&
+        !requiresAuth &&
+        normalizedUser.isEmpty &&
+        normalizedPassword.isEmpty;
+  }
+
   String? toProxyUrl() {
     if (!enabled || type == 'system') return null;
     if (host.isEmpty) return null;
@@ -210,6 +244,127 @@ class NsfxProxyConfig {
         ? '$username:$password@'
         : '';
     return '$type://$auth$host:$port';
+  }
+}
+
+class NsfxParallelDownloadPolicy {
+  /// Parallel resume decisions are split across current runtime state,
+  /// reloaded persisted state, explicit validators, and previously verified
+  /// stable range behavior without validators.
+  static String? parallelBlockReason({
+    required String url,
+    required bool hasStrongValidator,
+    required bool hasPartialProgress,
+    required String resumeDataOrigin,
+    required String resumeSafetyLevel,
+    required bool supportsRange,
+    int? storedTotalSize,
+    int? observedTotalSize,
+  }) {
+    final scheme = Uri.tryParse(url)?.scheme.toLowerCase();
+    if (scheme != 'http' && scheme != 'https') {
+      return 'URL scheme is not HTTP(S)';
+    }
+    if (!hasPartialProgress) {
+      return null;
+    }
+    if (!supportsRange) {
+      return 'server does not support byte ranges for resume';
+    }
+    if (hasStrongValidator) {
+      return null;
+    }
+
+    final origin = NsfxResumeDataOrigin.normalize(resumeDataOrigin);
+    if (origin == NsfxResumeDataOrigin.runtime) {
+      return null;
+    }
+
+    final normalizedSafety = NsfxResumeSafetyLevel.normalize(resumeSafetyLevel);
+    final expectedSize = storedTotalSize ?? 0;
+    final currentSize = observedTotalSize ?? 0;
+
+    if (expectedSize <= 0 || currentSize <= 0) {
+      return 'cannot verify persisted multi-part resume without both stored '
+          'and current file size';
+    }
+    if (expectedSize != currentSize) {
+      return 'stored file size no longer matches remote resource';
+    }
+    if (normalizedSafety != NsfxResumeSafetyLevel.verifiedNoValidator) {
+      return 'cannot safely resume persisted multi-part download without '
+          'validator or verified stable range behavior';
+    }
+    return null;
+  }
+}
+
+class NsfxResumeDataOrigin {
+  static const String runtime = 'runtime';
+  static const String persisted = 'persisted';
+
+  static bool isSupported(String? value) {
+    return value == runtime || value == persisted;
+  }
+
+  static String normalize(String? value) {
+    if (isSupported(value)) return value!;
+    return runtime;
+  }
+}
+
+class NsfxResumeSafetyLevel {
+  static const String unknown = 'unknown';
+  static const String sessionOnly = 'session_only';
+  static const String verifiedNoValidator = 'verified_no_validator';
+  static const String strictValidator = 'strict_validator';
+
+  static bool isSupported(String? value) {
+    return value == unknown ||
+        value == sessionOnly ||
+        value == verifiedNoValidator ||
+        value == strictValidator;
+  }
+
+  static String normalize(String? value) {
+    if (isSupported(value)) return value!;
+    return unknown;
+  }
+}
+
+class NsfxRetryPolicy {
+  static const int defaultMaxRetries = 64;
+  static const int defaultMaxGlobalRetryRounds = 8;
+
+  /// Deterministic exponential backoff with bounded jitter.
+  static int segmentRetryDelayMs(int retryCount) {
+    final attempt = retryCount < 1 ? 1 : retryCount;
+    final exponent = attempt > 6 ? 5 : attempt - 1;
+    final baseDelay = 500 * (1 << exponent);
+    final jitter = (attempt * 137) % 250;
+    return (baseDelay + jitter).clamp(500, 15000);
+  }
+}
+
+class NsfxStartupProbePolicy {
+  static const Duration quickMetadataProbeDeadline = Duration(
+    milliseconds: 900,
+  );
+  static const Duration quickStrictProbeTimeoutCap = Duration(
+    milliseconds: 450,
+  );
+
+  /// Fresh downloads can skip the long metadata preflight and start the real
+  /// transfer immediately. Persisted or runtime partial data must stay on the
+  /// strict path so resume safety checks still run before writing.
+  static bool shouldUseFastStart({
+    required bool hasPartialProgress,
+    required int configuredThreads,
+  }) {
+    if (hasPartialProgress) {
+      return false;
+    }
+    return configuredThreads > 1;
   }
 }
 
