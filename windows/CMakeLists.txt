@@ -71,6 +71,31 @@ endif()
 
 set(INSTALL_BUNDLE_DATA_DIR "${CMAKE_INSTALL_PREFIX}/data")
 set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}")
+set(CLOSE_STALE_BUNDLE_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/runner/close_stale_bundle.ps1")
+
+install(CODE "
+  if(CMAKE_INSTALL_CONFIG_NAME MATCHES \"^([Dd][Ee][Bb][Uu][Gg])$\")
+    set(bundle_executable \"${PROJECT_BINARY_DIR}/runner/Debug/${BINARY_NAME}.exe\")
+  elseif(CMAKE_INSTALL_CONFIG_NAME MATCHES \"^([Pp][Rr][Oo][Ff][Ii][Ll][Ee])$\")
+    set(bundle_executable \"${PROJECT_BINARY_DIR}/runner/Profile/${BINARY_NAME}.exe\")
+  elseif(CMAKE_INSTALL_CONFIG_NAME MATCHES \"^([Rr][Ee][Ll][Ee][Aa][Ss][Ee])$\")
+    set(bundle_executable \"${PROJECT_BINARY_DIR}/runner/Release/${BINARY_NAME}.exe\")
+  endif()
+
+  if(DEFINED bundle_executable AND EXISTS \"\${bundle_executable}\")
+    execute_process(
+      COMMAND powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass
+        -File \"${CLOSE_STALE_BUNDLE_SCRIPT}\"
+        -ExecutablePath \"\${bundle_executable}\"
+      RESULT_VARIABLE close_result
+      OUTPUT_VARIABLE close_output
+      ERROR_VARIABLE close_error
+    )
+    if(NOT close_result EQUAL 0)
+      message(WARNING \"Failed to close a stale build output instance for \${bundle_executable}: \${close_output}\${close_error}\")
+    endif()
+  endif()
+" COMPONENT Runtime)
 
 install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)

@@ -3,6 +3,7 @@
 #include <optional>
 #include <cstdio>
 #include <cstddef>
+#include <thread>
 #include <stdio.h>
 #include <string.h>
 #include <dwmapi.h>
@@ -13,6 +14,7 @@
 #include <flutter/standard_method_codec.h>
 
 #include "flutter/generated_plugin_registrant.h"
+#include "single_instance_manager.h"
 
 #ifndef DWMWA_SYSTEMBACKDROP_TYPE
 #define DWMWA_SYSTEMBACKDROP_TYPE 38
@@ -96,8 +98,14 @@ static void LogA(const char* s) {
   }
 }
 
-FlutterWindow::FlutterWindow(const flutter::DartProject& project)
-    : project_(project) {}
+struct FlutterWindow::CloseExistingInstanceRequest {
+  std::unique_ptr<flutter::MethodResult<>> result;
+  bool success = false;
+};
+
+FlutterWindow::FlutterWindow(const flutter::DartProject& project,
+                             bool launch_hidden)
+    : project_(project), launch_hidden_(launch_hidden) {}
 
 FlutterWindow::~FlutterWindow() {}
 
@@ -123,11 +131,14 @@ bool FlutterWindow::OnCreate() {
   SetupMethodChannel();
   LogA("SetupMethodChannel done");
 
-  flutter_controller_->engine()->SetNextFrameCallback([&]() {
+  flutter_controller_->engine()->SetNextFrameCallback([this]() {
     LogA("NextFrameCallback begin");
-    this->Show();
-
     HWND hwnd = GetHandle();
+    if (!launch_hidden_) {
+      this->Show();
+    } else {
+      LogA("NextFrameCallback: skipping native show for auto-start launch");
+    }
     ApplyWindowEffect(hwnd);
     LogA("NextFrameCallback end");
   });
@@ -231,6 +242,16 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
       }
       break;
     }
+    case kCloseExistingInstanceCompleteMessage:
+    {
+      auto* request =
+          reinterpret_cast<CloseExistingInstanceRequest*>(lparam);
+      if (request != nullptr && request->result != nullptr) {
+        request->result->Success(flutter::EncodableValue(request->success));
+      }
+      delete request;
+      return 0;
+    }
   }
 
   return Win32Window::MessageHandler(hwnd, message, wparam, lparam);
@@ -272,6 +293,10 @@ void FlutterWindow::SetupMethodChannel() {
           if (arguments) {
             auto itMode = arguments->find(flutter::EncodableValue("mode"));
             auto itAlpha = arguments->find(flutter::EncodableValue("alpha"));
+            auto itRoundedCorners =
+                arguments->find(flutter::EncodableValue("roundedCornersEnabled"));
+            auto itCornerRadius =
+                arguments->find(flutter::EncodableValue("cornerRadius"));
             if (itMode != arguments->end()) {
               if (const std::string* s = std::get_if<std::string>(&itMode->second)) {
                 if (*s == "none") effect_mode_ = 0;
@@ -284,6 +309,16 @@ void FlutterWindow::SetupMethodChannel() {
             if (itAlpha != arguments->end()) {
               if (const int32_t* a = std::get_if<int32_t>(&itAlpha->second)) {
                 effect_alpha_ = std::max(0, std::min(255, *a));
+              }
+            }
+            if (itRoundedCorners != arguments->end()) {
+              if (const bool* enabled = std::get_if<bool>(&itRoundedCorners->second)) {
+                rounded_corners_enabled_ = *enabled;
+              }
+            }
+            if (itCornerRadius != arguments->end()) {
+              if (const int32_t* radius = std::get_if<int32_t>(&itCornerRadius->second)) {
+                corner_radius_ = std::max(0, std::min(32, *radius));
               }
             }
             ApplyWindowEffect(GetHandle());
@@ -310,6 +345,48 @@ void FlutterWindow::SetupMethodChannel() {
           } else {
             result->Success(); // User cancelled
           }
+        } else if (call.method_name() == "getStartupConflictState") {
+          flutter::EncodableMap payload;
+          payload[flutter::EncodableValue("hasExistingInstance")] =
+              flutter::EncodableValue(single_instance::HasStartupConflict());
+          result->Success(flutter::EncodableValue(payload));
+        } else if (call.method_name() == "focusExistingInstance") {
+          result->Success(
+              flutter::EncodableValue(single_instance::FocusExistingWindow()));
+        } else if (call.method_name() ==
+                   "closeExistingInstanceAndAcquireLock") {
+          auto request = std::make_unique<CloseExistingInstanceRequest>();
+          request->result = std::move(result);
+
+          const HWND hwnd = GetHandle();
+          auto* request_ptr = request.release();
+
+          std::thread([hwnd, request_ptr]() {
+            request_ptr->success =
+                single_instance::CloseExistingInstanceAndAcquireLock();
+
+            if (::IsWindow(hwnd) &&
+                ::PostMessage(hwnd, kCloseExistingInstanceCompleteMessage, 0,
+                              reinterpret_cast<LPARAM>(request_ptr)) != FALSE) {
+              return;
+            }
+
+            delete request_ptr;
+          }).detach();
+          return;
+        } else if (call.method_name() == "quitApplication") {
+          const HWND hwnd = GetHandle();
+          result->Success(flutter::EncodableValue(hwnd != nullptr));
+
+          std::thread([hwnd]() {
+            if (::IsWindow(hwnd)) {
+              ::PostMessage(hwnd, WM_CLOSE, 0, 0);
+            }
+
+            ::Sleep(1000);
+            ::ExitProcess(0);
+          }).detach();
+          return;
         } else {
           result->NotImplemented();
         }
@@ -360,6 +437,8 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
   // Debounce: avoid repeated calls in short time
   static DWORD lastApplyTime = 0;
   static int lastEffectMode = -1;
+  static bool lastRoundedCornersEnabled = true;
+  static int lastCornerRadius = 14;
   static RECT lastWindowRect = {0, 0, 0, 0};
   DWORD currentTime = GetTickCount();
 
@@ -371,13 +450,19 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
 
   // Allow immediate update if effect mode changed or window size changed
   bool modeChanged = (lastEffectMode != effect_mode_);
+  bool cornerSettingChanged =
+      (lastRoundedCornersEnabled != rounded_corners_enabled_) ||
+      (lastCornerRadius != corner_radius_);
   bool sizeChanged = (width != (lastWindowRect.right - lastWindowRect.left) ||
                       height != (lastWindowRect.bottom - lastWindowRect.top));
-  if (!modeChanged && !sizeChanged && (currentTime - lastApplyTime < 100)) {
+  if (!modeChanged && !sizeChanged && !cornerSettingChanged &&
+      (currentTime - lastApplyTime < 100)) {
     return;
   }
   lastApplyTime = currentTime;
   lastEffectMode = effect_mode_;
+  lastRoundedCornersEnabled = rounded_corners_enabled_;
+  lastCornerRadius = corner_radius_;
   lastWindowRect = windowRect;
 
   DWORD buildNumber = GetWindowsBuildNumber();
@@ -397,36 +482,6 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
   // Set dark mode
   BOOL dark = TRUE;
   DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
-
-  // Apply rounded corners based on Windows version
-  if (buildNumber >= 22000) {
-    // Windows 11: Use native DWM rounded corners
-    DWORD corner = 2;  // DWMWCP_ROUND
-    DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner, sizeof(corner));
-    LogA("Win11: Using native DWM rounded corners");
-  } else {
-    // Windows 10: Use SetWindowRgn for rounded corners
-    // Check if window is maximized - don't apply rounded corners when maximized
-    WINDOWPLACEMENT wp;
-    wp.length = sizeof(WINDOWPLACEMENT);
-    GetWindowPlacement(hwnd, &wp);
-    
-    if (wp.showCmd == SW_MAXIMIZE) {
-      // Remove region when maximized (full rectangle)
-      SetWindowRgn(hwnd, NULL, TRUE);
-      LogA("Win10: Maximized, removed rounded region");
-    } else {
-      // Apply rounded corners using region
-      const int cornerRadius = 12;  // Radius in pixels
-      HRGN hRgn = CreateRoundRectRgn(0, 0, width + 1, height + 1, cornerRadius, cornerRadius);
-      if (hRgn) {
-        SetWindowRgn(hwnd, hRgn, TRUE);
-        // Note: SetWindowRgn takes ownership of the region, don't delete it
-        sprintf_s(logBuf, "Win10: Applied rounded region with radius %d", cornerRadius);
-        LogA(logBuf);
-      }
-    }
-  }
 
   // STEP 1: Always reset all effects first when mode changes
   if (modeChanged) {
@@ -543,9 +598,56 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
     }
   }
 
+  ApplyRoundedCorners(hwnd, buildNumber, width, height);
+
   // Force window redraw
-  if (modeChanged) {
+  if (modeChanged || cornerSettingChanged) {
     RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW | RDW_FRAME);
+  }
+}
+
+void FlutterWindow::ApplyRoundedCorners(HWND hwnd,
+                                        DWORD buildNumber,
+                                        int width,
+                                        int height) {
+  if (!hwnd || width <= 0 || height <= 0) return;
+
+  WINDOWPLACEMENT wp;
+  wp.length = sizeof(WINDOWPLACEMENT);
+  GetWindowPlacement(hwnd, &wp);
+  const bool isMaximized = wp.showCmd == SW_MAXIMIZE;
+  const bool useCustomRegionOnWin11 =
+      buildNumber >= 22000 && (effect_mode_ == 1 || effect_mode_ == 2);
+
+  if (buildNumber >= 22000 && !useCustomRegionOnWin11) {
+    SetWindowRgn(hwnd, NULL, TRUE);
+    DWORD corner = rounded_corners_enabled_ && !isMaximized ? 2 : 1;
+    DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner,
+                          sizeof(corner));
+    return;
+  }
+
+  if (!rounded_corners_enabled_ || isMaximized) {
+    SetWindowRgn(hwnd, NULL, TRUE);
+    if (buildNumber >= 22000) {
+      DWORD corner = 1;
+      DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner,
+                            sizeof(corner));
+    }
+    return;
+  }
+
+  const int radius = std::max(4, corner_radius_);
+  const int diameter = radius * 2;
+  HRGN hRgn =
+      CreateRoundRectRgn(0, 0, width + 1, height + 1, diameter, diameter);
+  if (hRgn) {
+    SetWindowRgn(hwnd, hRgn, TRUE);
+  }
+  if (buildNumber >= 22000) {
+    DWORD corner = 1;
+    DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner,
+                          sizeof(corner));
   }
 }
 
