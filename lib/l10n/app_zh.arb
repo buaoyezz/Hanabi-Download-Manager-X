@@ -99,6 +99,15 @@
   "trayMenuKernelSubtitleStopped": "已停止",
   "trayMenuExitTitle": "退出应用",
   "trayMenuExitSubtitle": "关闭所有窗口",
+  "exitWithActiveDownloadsTitle": "仍有下载正在进行",
+  "exitWithActiveDownloadsMessage": "当前还有 {count} 个下载任务正在运行。现在退出会中断这些下载，确定要继续退出吗？",
+  "@exitWithActiveDownloadsMessage": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "exitWithActiveDownloadsCancelButton": "取消",
+  "exitWithActiveDownloadsConfirmButton": "仍然退出",
   "tempFilesDialogTitle": "清理临时文件",
   "tempFilesDialogScanPath": "扫描路径: {path}",
   "@tempFilesDialogScanPath": {
@@ -282,7 +291,7 @@
   "settingsGlobalSpeedLimitSubtitle": "限制总下载带宽",
   "settingsHttpVersionTitle": "HTTP 协议",
   "settingsHttpVersionSubtitle": "为 HTTPS 下载选择协议策略",
-  "settingsHttpVersionAuto": "自动（推荐）",
+  "settingsHttpVersionAuto": "自动（优先 HTTP/1.1）",
   "settingsHttpVersionHttp1Only": "强制 HTTP/1.1",
   "settingsHttpVersionHttp2Only": "强制 HTTP/2",
   "settingsHttpVersionHttp3Only": "强制 HTTP/3（自动回退）",
@@ -583,6 +592,9 @@
   "appearanceWindowEffectsDragSuspendTitle": "拖动时禁用特效",
   "appearanceWindowEffectsDragSuspendEnabledSubtitle": "拖动窗口时临时禁用特效，确保流畅拖动",
   "appearanceWindowEffectsDragSuspendDisabledSubtitle": "拖动时保持特效（Win10 可能卡顿）",
+  "appearanceWindowEffectsRoundedCornersTitle": "窗口圆角",
+  "appearanceWindowEffectsRoundedCornersEnabledSubtitle": "启用窗口圆角裁切（Win10 以及 Win11 的亚克力/模糊模式会使用自定义裁切）",
+  "appearanceWindowEffectsRoundedCornersDisabledSubtitle": "使用直角窗口边缘",
   "appearanceWindowEffectsMicaHint": "Mica 效果仅在 Windows 11 上可用，会自动采用系统主题色",
   "appearanceWindowEffectsAcrylicHint": "亚克力效果会消耗额外的GPU资源，如果感觉卡顿可以关闭此选项",
   "appearanceWindowEffectsDisabledHint": "为获得最佳性能已关闭特效",
@@ -685,6 +697,12 @@
   "developerToolLogShownMessage": "已在导航栏显示日志页面",
   "developerToolLogHiddenTitle": "日志页面已隐藏",
   "developerToolLogHiddenMessage": "已从导航栏移除日志页面",
+  "developerToolFullLogTitle": "FULL LOG 切换",
+  "developerToolFullLogSubtitle": "在日志页显示 FULL LOG 视图切换",
+  "developerToolFullLogShownTitle": "FULL LOG 切换已显示",
+  "developerToolFullLogShownMessage": "已在日志页显示 FULL LOG 视图切换",
+  "developerToolFullLogHiddenTitle": "FULL LOG 切换已隐藏",
+  "developerToolFullLogHiddenMessage": "已在日志页隐藏 FULL LOG 视图切换",
   "developerToolStatusTitle": "系统状态",
   "developerToolStatusSubtitle": "内核与扩展状态",
   "developerToolStatusShownTitle": "系统状态已显示",
@@ -737,6 +755,21 @@
   "connectionDebugFileSize": "文件大小",
   "connectionDebugRangeSupported": "支持",
   "connectionDebugRangeNotSupported": "不支持",
+  "connectionDebugStrategyTitle": "站点策略缓存",
+  "connectionDebugStrategySubtitle": "观察每个 host 因历史下载失败而学到的协议降级和并发上限",
+  "connectionDebugStrategyRefresh": "刷新",
+  "connectionDebugStrategyClear": "清空缓存",
+  "connectionDebugStrategyEmpty": "当前还没有站点策略缓存。某个 host 一旦触发协议回退或并发收敛，就会出现在这里。",
+  "connectionDebugStrategyCount": "共 {count} 条站点策略",
+  "@connectionDebugStrategyCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "connectionDebugStrategyPolicy": "协议",
+  "connectionDebugStrategyConcurrency": "并发",
+  "connectionDebugStrategyTtl": "剩余时间",
+  "connectionDebugStrategyExpired": "已过期",
   "developerTestNotificationTitle": "通知测试",
   "developerTestNotificationTitlePlaceholder": "标题",
   "developerTestNotificationMessagePlaceholder": "内容（可选）",
@@ -1022,6 +1055,8 @@
   "downloadMergingStatus": "下载完成，正在合并",
   "downloadCalculatingSize": "正在计算大小...",
   "downloadCalculating": "计算中",
+  "downloadMatchingHttpProtocol": "正在匹配 HTTP 协议...",
+  "downloadMatchingHttpProtocolShort": "匹配协议中",
   "downloadSegmentsTitleWithCount": "分段 ({count})",
   "downloadSegmentsTitle": "分段",
   "downloadSegmentsStatusCompleted": "完成",
@@ -1460,6 +1495,8 @@
   "logExportDiagnosticsButton": "导出诊断包",
   "logArchiveButton": "归档日志",
   "logClearButton": "清空日志",
+  "logCurrentTabLabel": "普通日志",
+  "logFullTabLabel": "FULL LOG",
   "logSearchPlaceholderRegex": "输入正则表达式...",
   "logSearchPlaceholder": "搜索日志...",
   "logEmptyTitle": "暂无日志",
@@ -1652,6 +1689,7 @@
   "logArchivePrompt": "选择归档选项:",
   "logArchiveExportAll": "导出全部日志",
   "logArchiveExportFiltered": "导出当前筛选结果",
+  "logArchiveExportFull": "导出 FULL LOG",
   "logArchiveExportBookmarked": "导出书签日志 ({count})",
   "@logArchiveExportBookmarked": {
     "placeholders": {
@@ -1864,6 +1902,9 @@
   "settingsClipboardListenerEnabledMessage": "复制链接后会弹出新建下载窗口",
   "settingsClipboardListenerDisabledTitle": "剪贴板监听已关闭",
   "settingsClipboardListenerDisabledMessage": "复制链接将不再弹窗提示",
+  "clipboardListenerMuteSessionButton": "本次静音",
+  "clipboardListenerSessionMutedTitle": "本次会话已静音",
+  "clipboardListenerSessionMutedMessage": "自动抓取链接将暂停到你下次重新启动应用",
   "downloadDuplicateTitle": "发现重复下载",
   "downloadDuplicateMessage": "已存在相同链接的任务：{fileName}（{status}）。要如何处理？",
   "@downloadDuplicateMessage": {
@@ -1875,6 +1916,14 @@
   "downloadDuplicateUseExistingButton": "使用已有",
   "downloadDuplicateAddNewButton": "仍然新建",
   "downloadDuplicateCancelButton": "取消",
+  "downloadBadgeHostHint": "站点缓存",
+  "downloadBadgePolicyFallback": "已降级",
+  "downloadBadgeConcurrencyCap": "限并发 x{count}",
+  "@downloadBadgeConcurrencyCap": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "downloadFailureHintAuth": "可能需要登录或补充 Referer/Cookie，链接可能已过期。",
   "downloadFailureHintNotFound": "资源不存在或已过期，尝试更新链接。",
   "downloadFailureHintRange": "服务器不支持断点续传，建议单线程或重新下载。",

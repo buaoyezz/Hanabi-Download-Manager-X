@@ -149,6 +149,14 @@ class KernelManager extends ChangeNotifier {
     return await _kernel?.retrySegment(taskId, segmentIndex) ?? false;
   }
 
+  Future<Map<String, dynamic>> getAdaptiveHostStrategies() async {
+    return await _kernel?.getAdaptiveHostStrategies() ?? <String, dynamic>{};
+  }
+
+  Future<bool> clearAdaptiveHostStrategies() async {
+    return await _kernel?.clearAdaptiveHostStrategies() ?? false;
+  }
+
   Future<bool> testProxyConnection({
     required String type,
     required String host,

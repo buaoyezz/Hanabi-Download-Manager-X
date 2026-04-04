@@ -2111,6 +2111,20 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 ),
               ),
             ],
+            const SizedBox(height: 12),
+            _buildSettingItem(
+              context,
+              title: t.appearanceWindowEffectsRoundedCornersTitle,
+              subtitle: windowEffect.roundedCornersEnabled
+                  ? t.appearanceWindowEffectsRoundedCornersEnabledSubtitle
+                  : t.appearanceWindowEffectsRoundedCornersDisabledSubtitle,
+              trailing: ToggleSwitch(
+                checked: windowEffect.roundedCornersEnabled,
+                onChanged: (value) async {
+                  await windowEffect.setRoundedCornersEnabled(value);
+                },
+              ),
+            ),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(12),

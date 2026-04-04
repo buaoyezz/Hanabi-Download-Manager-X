@@ -1,6 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import '../services/integrated_download_service.dart';
+import '../services/kernel/next/downloader/download_header_builder.dart';
 import '../models/download_task.dart';
 import '../theme/app_theme.dart';
 import '../l10n/app_localizations.dart';
@@ -51,7 +52,7 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
     _fileNameController = TextEditingController(
       text: widget.suggestedFilename ?? _extractFilenameFromUrl(widget.url),
     );
-    
+
     // 如果是从浏览器来的，自动开始下载
     _autoStart = widget.isFromBrowser;
   }
@@ -59,8 +60,11 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final localized = AppLocalizations.of(context)?.popupDownloadDefaultFileName;
-    if (localized != null && localized.isNotEmpty && localized != _defaultFileName) {
+    final localized =
+        AppLocalizations.of(context)?.popupDownloadDefaultFileName;
+    if (localized != null &&
+        localized.isNotEmpty &&
+        localized != _defaultFileName) {
       final previous = _defaultFileName;
       _defaultFileName = localized;
       if (_fileNameController.text == previous) {
@@ -91,8 +95,10 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final dialogWidth =
+        (MediaQuery.sizeOf(context).width - 32).clamp(320.0, 520.0).toDouble();
     return Container(
-      width: 520,
+      width: dialogWidth,
       decoration: BoxDecoration(
         color: AppTheme.bgLayer1.withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
@@ -138,7 +144,8 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
               color: AppTheme.accentPrimary,
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
-            child: Icon(CustomIcons.FluentIcons.download,
+            child: Icon(
+              CustomIcons.FluentIcons.download,
               size: 16,
               color: Colors.white,
             ),
@@ -151,18 +158,18 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
                 Text(
                   t.popupDownloadTitle,
                   style: FluentTheme.of(context).typography.body?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
-                    fontSize: 14,
-                  ),
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary,
+                        fontSize: 14,
+                      ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   t.appTitle,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: AppTheme.textTertiary,
-                    fontSize: 11,
-                  ),
+                        color: AppTheme.textTertiary,
+                        fontSize: 11,
+                      ),
                 ),
               ],
             ),
@@ -179,7 +186,8 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildInfoLabel(t.popupDownloadLinkLabel, CustomIcons.FluentIcons.link),
+          _buildInfoLabel(
+              t.popupDownloadLinkLabel, CustomIcons.FluentIcons.link),
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
@@ -196,7 +204,8 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
             ),
           ),
           const SizedBox(height: 16),
-          _buildInfoLabel(t.popupDownloadFileNameLabel, CustomIcons.FluentIcons.document),
+          _buildInfoLabel(
+              t.popupDownloadFileNameLabel, CustomIcons.FluentIcons.document),
           const SizedBox(height: 8),
           Container(
             decoration: BoxDecoration(
@@ -244,7 +253,8 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
                     color: AppTheme.accentPrimary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: Icon(CustomIcons.FluentIcons.info,
+                  child: Icon(
+                    CustomIcons.FluentIcons.info,
                     size: 12,
                     color: AppTheme.accentLight,
                   ),
@@ -254,9 +264,9 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
                   child: Text(
                     t.popupDownloadFeatureHint,
                     style: FluentTheme.of(context).typography.caption?.copyWith(
-                      color: AppTheme.accentLight,
-                      fontSize: 11,
-                    ),
+                          color: AppTheme.accentLight,
+                          fontSize: 11,
+                        ),
                   ),
                 ),
               ],
@@ -275,10 +285,10 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
         Text(
           label,
           style: FluentTheme.of(context).typography.body?.copyWith(
-            fontWeight: FontWeight.w500,
-            fontSize: 13,
-            color: AppTheme.textPrimary,
-          ),
+                fontWeight: FontWeight.w500,
+                fontSize: 13,
+                color: AppTheme.textPrimary,
+              ),
         ),
       ],
     );
@@ -316,25 +326,31 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               child: _isLoading
-                  ? Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: ProgressRing(strokeWidth: 2),
-                        ),
-                        SizedBox(width: 8),
-                        Text(t.popupDownloadAdding),
-                      ],
+                  ? FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: ProgressRing(strokeWidth: 2),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(t.popupDownloadAdding),
+                        ],
+                      ),
                     )
-                  : Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(CustomIcons.FluentIcons.download, size: 12),
-                        SizedBox(width: 6),
-                        Text(t.popupDownloadStart),
-                      ],
+                  : FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(CustomIcons.FluentIcons.download, size: 12),
+                          const SizedBox(width: 6),
+                          Text(t.popupDownloadStart),
+                        ],
+                      ),
                     ),
             ),
           ),
@@ -377,7 +393,8 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
             child: Text(t.downloadDuplicateAddNewButton),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, _DuplicateAction.useExisting),
+            onPressed: () =>
+                Navigator.pop(context, _DuplicateAction.useExisting),
             child: Text(t.downloadDuplicateUseExistingButton),
           ),
         ],
@@ -427,14 +444,14 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
 
       // 传递浏览器的身份验证信息
       downloadService.addTask(
-        url, 
+        url,
         filename,
         referer: widget.referer,
         userAgent: widget.userAgent,
-        cookies: widget.headers?['Cookie'] as String?,
+        cookies: lookupHeaderValue(widget.headers, 'cookie'),
         headers: widget.headers,
       );
-      
+
       if (mounted) {
         Navigator.of(context).pop(true);
       }
@@ -463,7 +480,6 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
   }
 }
 
-
 /// 关闭按钮
 class _CloseButton extends StatefulWidget {
   final VoidCallback onPressed;
@@ -489,7 +505,7 @@ class _CloseButtonState extends State<_CloseButton> {
           width: 28,
           height: 28,
           decoration: BoxDecoration(
-            color: _isHovered 
+            color: _isHovered
                 ? AppTheme.statusError.withValues(alpha: 0.15)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(AppTheme.radiusSm),

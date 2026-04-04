@@ -186,6 +186,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get trayMenuExitSubtitle => '关闭所有窗口';
 
   @override
+  String get exitWithActiveDownloadsTitle => '仍有下载正在进行';
+
+  @override
+  String exitWithActiveDownloadsMessage(Object count) {
+    return '当前还有 $count 个下载任务正在运行。现在退出会中断这些下载，确定要继续退出吗？';
+  }
+
+  @override
+  String get exitWithActiveDownloadsCancelButton => '取消';
+
+  @override
+  String get exitWithActiveDownloadsConfirmButton => '仍然退出';
+
+  @override
   String get tempFilesDialogTitle => '清理临时文件';
 
   @override
@@ -616,7 +630,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsHttpVersionSubtitle => '为 HTTPS 下载选择协议策略';
 
   @override
-  String get settingsHttpVersionAuto => '自动（推荐）';
+  String get settingsHttpVersionAuto => '自动（优先 HTTP/1.1）';
 
   @override
   String get settingsHttpVersionHttp1Only => '强制 HTTP/1.1';
@@ -1271,6 +1285,17 @@ class AppLocalizationsZh extends AppLocalizations {
       '拖动时保持特效（Win10 可能卡顿）';
 
   @override
+  String get appearanceWindowEffectsRoundedCornersTitle => '窗口圆角';
+
+  @override
+  String get appearanceWindowEffectsRoundedCornersEnabledSubtitle =>
+      '启用窗口圆角裁切（Win10 以及 Win11 的亚克力/模糊模式会使用自定义裁切）';
+
+  @override
+  String get appearanceWindowEffectsRoundedCornersDisabledSubtitle =>
+      '使用直角窗口边缘';
+
+  @override
   String get appearanceWindowEffectsMicaHint =>
       'Mica 效果仅在 Windows 11 上可用，会自动采用系统主题色';
 
@@ -1567,6 +1592,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get developerToolLogHiddenMessage => '已从导航栏移除日志页面';
 
   @override
+  String get developerToolFullLogTitle => 'FULL LOG 切换';
+
+  @override
+  String get developerToolFullLogSubtitle => '在日志页显示 FULL LOG 视图切换';
+
+  @override
+  String get developerToolFullLogShownTitle => 'FULL LOG 切换已显示';
+
+  @override
+  String get developerToolFullLogShownMessage => '已在日志页显示 FULL LOG 视图切换';
+
+  @override
+  String get developerToolFullLogHiddenTitle => 'FULL LOG 切换已隐藏';
+
+  @override
+  String get developerToolFullLogHiddenMessage => '已在日志页隐藏 FULL LOG 视图切换';
+
+  @override
   String get developerToolStatusTitle => '系统状态';
 
   @override
@@ -1702,6 +1745,40 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get connectionDebugRangeNotSupported => '不支持';
+
+  @override
+  String get connectionDebugStrategyTitle => '站点策略缓存';
+
+  @override
+  String get connectionDebugStrategySubtitle =>
+      '观察每个 host 因历史下载失败而学到的协议降级和并发上限';
+
+  @override
+  String get connectionDebugStrategyRefresh => '刷新';
+
+  @override
+  String get connectionDebugStrategyClear => '清空缓存';
+
+  @override
+  String get connectionDebugStrategyEmpty =>
+      '当前还没有站点策略缓存。某个 host 一旦触发协议回退或并发收敛，就会出现在这里。';
+
+  @override
+  String connectionDebugStrategyCount(Object count) {
+    return '共 $count 条站点策略';
+  }
+
+  @override
+  String get connectionDebugStrategyPolicy => '协议';
+
+  @override
+  String get connectionDebugStrategyConcurrency => '并发';
+
+  @override
+  String get connectionDebugStrategyTtl => '剩余时间';
+
+  @override
+  String get connectionDebugStrategyExpired => '已过期';
 
   @override
   String get developerTestNotificationTitle => '通知测试';
@@ -2342,6 +2419,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get downloadCalculating => '计算中';
+
+  @override
+  String get downloadMatchingHttpProtocol => '正在匹配 HTTP 协议...';
+
+  @override
+  String get downloadMatchingHttpProtocolShort => '匹配协议中';
 
   @override
   String downloadSegmentsTitleWithCount(Object count) {
@@ -3107,6 +3190,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get logClearButton => '清空日志';
 
   @override
+  String get logCurrentTabLabel => '普通日志';
+
+  @override
+  String get logFullTabLabel => 'FULL LOG';
+
+  @override
   String get logSearchPlaceholderRegex => '输入正则表达式...';
 
   @override
@@ -3421,6 +3510,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get logArchiveExportFiltered => '导出当前筛选结果';
+
+  @override
+  String get logArchiveExportFull => '导出 FULL LOG';
 
   @override
   String logArchiveExportBookmarked(Object count) {
@@ -3806,6 +3898,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsClipboardListenerDisabledMessage => '复制链接将不再弹窗提示';
 
   @override
+  String get clipboardListenerMuteSessionButton => '本次静音';
+
+  @override
+  String get clipboardListenerSessionMutedTitle => '本次会话已静音';
+
+  @override
+  String get clipboardListenerSessionMutedMessage => '自动抓取链接将暂停到你下次重新启动应用';
+
+  @override
   String get downloadDuplicateTitle => '发现重复下载';
 
   @override
@@ -3821,6 +3922,17 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get downloadDuplicateCancelButton => '取消';
+
+  @override
+  String get downloadBadgeHostHint => '站点缓存';
+
+  @override
+  String get downloadBadgePolicyFallback => '已降级';
+
+  @override
+  String downloadBadgeConcurrencyCap(Object count) {
+    return '限并发 x$count';
+  }
 
   @override
   String get downloadFailureHintAuth => '可能需要登录或补充 Referer/Cookie，链接可能已过期。';

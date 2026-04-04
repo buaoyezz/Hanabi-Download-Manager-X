@@ -9,12 +9,14 @@ class DeveloperModeService extends ChangeNotifier {
 
   bool _developerMode = false;
   bool _showLogPage = false;
+  bool _showFullLogView = false;
   bool _showStatusPage = false;
   bool _showPerformanceMonitorPage = false;
   bool _showConnectionDebugPage = false;
 
   bool get developerMode => _developerMode;
   bool get showLogPage => _showLogPage;
+  bool get showFullLogView => _showFullLogView;
   bool get showStatusPage => _showStatusPage;
   bool get showPerformanceMonitorPage => _showPerformanceMonitorPage;
   bool get showConnectionDebugPage => _showConnectionDebugPage;
@@ -30,6 +32,7 @@ class DeveloperModeService extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     _developerMode = prefs.getBool('developer_mode') ?? false;
     _showLogPage = prefs.getBool('show_log_page') ?? false;
+    _showFullLogView = prefs.getBool('show_full_log_view') ?? false;
     _showStatusPage = prefs.getBool('show_status_page') ?? false;
     _showPerformanceMonitorPage =
         prefs.getBool('show_performance_monitor_page') ?? false;
@@ -46,10 +49,12 @@ class DeveloperModeService extends ChangeNotifier {
     // 如果关闭开发者模式，同时关闭所有调试页面
     if (!value) {
       _showLogPage = false;
+      _showFullLogView = false;
       _showStatusPage = false;
       _showPerformanceMonitorPage = false;
       _showConnectionDebugPage = false;
       await prefs.setBool('show_log_page', false);
+      await prefs.setBool('show_full_log_view', false);
       await prefs.setBool('show_status_page', false);
       await prefs.setBool('show_performance_monitor_page', false);
       await prefs.setBool('show_connection_debug_page', false);
@@ -63,6 +68,14 @@ class DeveloperModeService extends ChangeNotifier {
     _showLogPage = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('show_log_page', value);
+    notifyListeners();
+  }
+
+  Future<void> setShowFullLogView(bool value) async {
+    if (_showFullLogView == value) return;
+    _showFullLogView = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('show_full_log_view', value);
     notifyListeners();
   }
 

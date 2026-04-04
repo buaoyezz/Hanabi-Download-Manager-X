@@ -10,32 +10,33 @@ class LoggerService {
 
   File? _logFile;
   final _appLogger = AppLoggerService();
-  
+
   // 批量写入缓冲
   final StringBuffer _buffer = StringBuffer();
   Timer? _flushTimer;
   bool _flushing = false;
-  
+
   Future<void> _ensureLogFile() async {
     if (_logFile != null) return;
-    
+
     final directory = await getApplicationDocumentsDirectory();
     final logDir = Directory('${directory.path}/HanabiDownloadManagerX/logs');
     if (!await logDir.exists()) {
       await logDir.create(recursive: true);
     }
-    
+
     final timestamp = DateTime.now().toIso8601String().split('T')[0];
-    _logFile = File('${logDir.path}/log_$timestamp.txt');
+    _logFile = File('${logDir.path}/log_$timestamp.log');
   }
 
-  void _writeLog(String level, String message, LogLevel appLogLevel, {String source = 'Kernel'}) {
+  void _writeLog(String level, String message, LogLevel appLogLevel,
+      {String source = 'Kernel'}) {
     final timestamp = DateTime.now().toIso8601String();
     final logEntry = '[$timestamp] [$level] [$source] $message\n';
-    
+
     // 同步到 AppLoggerService 用于 UI 显示（立即生效）
     _appLogger.log(appLogLevel, source, message, toConsole: false);
-    
+
     // 追加到缓冲区，延迟批量写入磁盘
     _buffer.write(logEntry);
     _scheduleFlush();
@@ -54,11 +55,11 @@ class LoggerService {
   Future<void> _flush() async {
     if (_flushing || _buffer.isEmpty) return;
     _flushing = true;
-    
+
     // 取出当前缓冲内容并清空
     final content = _buffer.toString();
     _buffer.clear();
-    
+
     try {
       await _ensureLogFile();
       await _logFile!.writeAsString(content, mode: FileMode.append);

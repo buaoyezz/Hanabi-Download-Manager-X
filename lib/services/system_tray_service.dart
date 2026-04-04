@@ -1,14 +1,19 @@
 import 'dart:io';
 import 'package:system_tray/system_tray.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 import 'logger_service.dart';
 import 'client_config_service.dart';
 import 'kernel/kernel_manager.dart';
 
 class SystemTrayService {
+  static const MethodChannel _windowChannel =
+      MethodChannel('com.hanabi.download/window');
   final SystemTray _systemTray = SystemTray();
   bool _isInitialized = false;
+  bool _isExiting = false;
+  Future<bool> Function()? onExitRequested;
   final _logger = LoggerService();
 
   Future<void> initialize({
@@ -46,7 +51,7 @@ class SystemTrayService {
         ),
         MenuItemLabel(
           label: '退出',
-          onClicked: (menuItem) => exitApp(),
+          onClicked: (menuItem) => requestExit(),
         ),
       ]);
       await _systemTray.setContextMenu(menu);
@@ -99,9 +104,16 @@ class SystemTrayService {
   }
 
   void showMainWindow() {
-    _logger.info('Show main window');
-    appWindow.restore();
+    final config = ClientConfigService();
+    final shouldMaximize = appWindow.isMaximized || config.getWindowMaximized();
+
+    _logger.info('Show main window, shouldMaximize=$shouldMaximize');
     appWindow.show();
+    if (shouldMaximize) {
+      appWindow.maximize();
+    } else {
+      appWindow.restore();
+    }
     updateToolTip(true);
   }
 
@@ -111,16 +123,83 @@ class SystemTrayService {
     updateToolTip(false);
   }
 
+  Future<bool> _requestNativeQuit() async {
+    if (!Platform.isWindows) return false;
+
+    try {
+      final result = await _windowChannel.invokeMethod<bool>('quitApplication');
+      return result ?? false;
+    } catch (e) {
+      _logger.warning('Native quit request failed: $e');
+      return false;
+    }
+  }
+
+  Future<void> requestExit() async {
+    if (_isExiting) {
+      _logger.info('Exit already in progress, ignoring duplicate request');
+      return;
+    }
+
+    var shouldExit = true;
+    final exitHandler = onExitRequested;
+    if (exitHandler != null) {
+      try {
+        shouldExit = await exitHandler();
+      } catch (e) {
+        _logger.warning('Exit confirmation handler failed: $e');
+      }
+    }
+
+    if (!shouldExit) {
+      _logger.info('Exit request cancelled');
+      return;
+    }
+
+    await exitApp();
+  }
+
   Future<void> exitApp() async {
-    _logger.info('Exit app from tray - cleaning up kernel...');
+    if (_isExiting) {
+      _logger.info('Exit already in progress, ignoring duplicate request');
+      return;
+    }
+    _isExiting = true;
 
-    await KernelManager().stop();
+    _logger.info('Exit app from tray - beginning shutdown sequence...');
 
-    _logger.info('Kernel cleaned up, closing window...');
-    appWindow.close();
+    try {
+      // 先销毁托盘图标，避免用户误以为应用只是退到后台。
+      _systemTray.destroy();
+      _isInitialized = false;
+    } catch (e) {
+      _logger.warning('Failed to destroy system tray during exit: $e');
+    }
 
-    // 强制退出进程
-    await Future.delayed(const Duration(milliseconds: 500));
+    try {
+      await KernelManager().stop().timeout(
+        const Duration(seconds: 3),
+        onTimeout: () {
+          _logger.warning('Kernel stop timed out, forcing app exit');
+        },
+      );
+    } catch (e) {
+      _logger.warning('Kernel stop failed during exit: $e');
+    }
+
+    _logger.info('Shutdown sequence finished, closing window...');
+
+    final nativeQuitRequested = await _requestNativeQuit();
+    if (!nativeQuitRequested) {
+      try {
+        appWindow.close();
+      } catch (e) {
+        _logger.warning('Window close failed during exit: $e');
+      }
+    }
+
+    // 作为最后一道兜底，若原生关闭请求未生效，仍尝试直接结束 Dart 进程。
+    await Future.delayed(const Duration(milliseconds: 300));
     exit(0);
   }
 

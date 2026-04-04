@@ -247,6 +247,25 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
         },
       ),
       _ToolItem(
+        icon: FluentIcons.code,
+        title: t.developerToolFullLogTitle,
+        subtitle: t.developerToolFullLogSubtitle,
+        isEnabled: _devMode.showFullLogView,
+        onChanged: (v) {
+          _devMode.setShowFullLogView(v);
+          if (mounted) {
+            NotificationManager.of(context)?.showSuccess(
+              v
+                  ? t.developerToolFullLogShownTitle
+                  : t.developerToolFullLogHiddenTitle,
+              message: v
+                  ? t.developerToolFullLogShownMessage
+                  : t.developerToolFullLogHiddenMessage,
+            );
+          }
+        },
+      ),
+      _ToolItem(
         icon: CustomIcons.FluentIcons.health,
         title: t.developerToolStatusTitle,
         subtitle: t.developerToolStatusSubtitle,

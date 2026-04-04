@@ -1118,6 +1118,13 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
     IntegratedDownloadService service,
     bool showHttpConnectivityBadges,
   ) {
+    final showResumeDecisionBadge =
+        (widget.task.resumeDecisionLabel ?? '').trim().isNotEmpty;
+    final showHttpDecisionBadge =
+        (widget.task.httpPolicyDecisionReason ?? '').trim().isNotEmpty;
+    final showConcurrencyBadge = widget.task.hostConcurrencyCap != null &&
+        widget.task.hostConcurrencyCap! > 0;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1183,14 +1190,19 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                   ],
                 ],
               ),
-              if (showHttpConnectivityBadges) ...[
+              if (showHttpConnectivityBadges || showResumeDecisionBadge) ...[
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 6,
                   runSpacing: 4,
                   children: [
-                    _buildHttpVersionBadge(),
-                    _buildConnectivityBadge(),
+                    if (showHttpConnectivityBadges) _buildHttpVersionBadge(),
+                    if (showHttpConnectivityBadges && showHttpDecisionBadge)
+                      _buildHttpDecisionBadge(),
+                    if (showHttpConnectivityBadges && showConcurrencyBadge)
+                      _buildConcurrencyCapBadge(),
+                    if (showHttpConnectivityBadges) _buildConnectivityBadge(),
+                    if (showResumeDecisionBadge) _buildResumeDecisionBadge(),
                   ],
                 ),
               ],
@@ -1235,6 +1247,40 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
               fontWeight: FontWeight.w500,
             ),
       ),
+    );
+  }
+
+  Widget _buildHttpDecisionBadge() {
+    final reason = widget.task.httpPolicyDecisionReason?.trim() ?? '';
+    final lowered = reason.toLowerCase();
+    final usesHostHint =
+        lowered.contains('cached host policy') || lowered.contains('host');
+    final label =
+        usesHostHint ? t.downloadBadgeHostHint : t.downloadBadgePolicyFallback;
+    final color = usesHostHint ? AppTheme.accentLight : AppTheme.statusWarning;
+    final badge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: color.withValues(alpha: 0.28),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        label,
+        style: FluentTheme.of(context).typography.caption?.copyWith(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+      ),
+    );
+
+    return Tooltip(
+      message: reason,
+      child: badge,
     );
   }
 
@@ -1288,6 +1334,89 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
               fontWeight: FontWeight.w500,
             ),
       ),
+    );
+  }
+
+  Widget _buildConcurrencyCapBadge() {
+    final cap = widget.task.hostConcurrencyCap;
+    final reason = widget.task.hostConcurrencyReason?.trim() ?? '';
+    if (cap == null || cap <= 0) {
+      return const SizedBox.shrink();
+    }
+
+    final badge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppTheme.statusWarning.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: AppTheme.statusWarning.withValues(alpha: 0.28),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        t.downloadBadgeConcurrencyCap(cap),
+        style: FluentTheme.of(context).typography.caption?.copyWith(
+              color: AppTheme.statusWarning,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+      ),
+    );
+
+    if (reason.isEmpty) {
+      return badge;
+    }
+
+    return Tooltip(
+      message: reason,
+      child: badge,
+    );
+  }
+
+  Widget _buildResumeDecisionBadge() {
+    final label = widget.task.resumeDecisionLabel?.trim() ?? '';
+    final reason = widget.task.resumeDecisionReason?.trim() ?? '';
+    final lowered = label.toLowerCase();
+    final Color color;
+
+    if (lowered.contains('blocked')) {
+      color = AppTheme.statusError;
+    } else if (lowered.contains('single')) {
+      color = AppTheme.statusWarning;
+    } else if (lowered.contains('verified')) {
+      color = AppTheme.statusSuccess;
+    } else {
+      color = AppTheme.accentLight;
+    }
+
+    final badge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: color.withValues(alpha: 0.28),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        label,
+        style: FluentTheme.of(context).typography.caption?.copyWith(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+      ),
+    );
+
+    if (reason.isEmpty) {
+      return badge;
+    }
+
+    return Tooltip(
+      message: reason,
+      child: badge,
     );
   }
 
@@ -1485,6 +1614,8 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             widget.task.status == DownloadStatus.downloading;
     final isMerging = widget.task.status == DownloadStatus.merging;
     final progress = widget.task.progress.clamp(0.0, 1.0);
+    final isMatchingHttpProtocol =
+        widget.task.startupStatusKey == 'matching_http_protocol';
 
     // 合并状态：特殊布局
     if (isMerging) {
@@ -1552,7 +1683,9 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
               )
             else
               Text(
-                t.downloadCalculatingSize,
+                isMatchingHttpProtocol
+                    ? t.downloadMatchingHttpProtocol
+                    : t.downloadCalculatingSize,
                 style: FluentTheme.of(context).typography.caption?.copyWith(
                       color: AppTheme.textTertiary,
                       fontSize: 12,
@@ -1568,7 +1701,9 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
               ),
               child: Text(
                 isUnknownSize
-                    ? t.downloadCalculating
+                    ? (isMatchingHttpProtocol
+                        ? t.downloadMatchingHttpProtocolShort
+                        : t.downloadCalculating)
                     : '${(progress * 100).toStringAsFixed(1)}%',
                 style: FluentTheme.of(context).typography.caption?.copyWith(
                       fontWeight: FontWeight.w700,

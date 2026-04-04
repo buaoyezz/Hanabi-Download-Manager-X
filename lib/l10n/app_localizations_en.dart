@@ -189,6 +189,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get trayMenuExitSubtitle => 'Close all windows';
 
   @override
+  String get exitWithActiveDownloadsTitle => 'Active downloads in progress';
+
+  @override
+  String exitWithActiveDownloadsMessage(Object count) {
+    return '$count download(s) are still running. Exiting now will stop them. Are you sure you want to quit?';
+  }
+
+  @override
+  String get exitWithActiveDownloadsCancelButton => 'Cancel';
+
+  @override
+  String get exitWithActiveDownloadsConfirmButton => 'Exit anyway';
+
+  @override
   String get tempFilesDialogTitle => 'Clean Temporary Files';
 
   @override
@@ -640,7 +654,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Choose protocol strategy for HTTPS downloads';
 
   @override
-  String get settingsHttpVersionAuto => 'Auto (recommended)';
+  String get settingsHttpVersionAuto => 'Auto (prefer HTTP/1.1)';
 
   @override
   String get settingsHttpVersionHttp1Only => 'Force HTTP/1.1';
@@ -1329,6 +1343,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Keep effects while dragging (may lag on Win10)';
 
   @override
+  String get appearanceWindowEffectsRoundedCornersTitle => 'Rounded corners';
+
+  @override
+  String get appearanceWindowEffectsRoundedCornersEnabledSubtitle =>
+      'Use rounded window clipping on Win10 and on Win11 Acrylic/Blur windows';
+
+  @override
+  String get appearanceWindowEffectsRoundedCornersDisabledSubtitle =>
+      'Use square window edges';
+
+  @override
   String get appearanceWindowEffectsMicaHint =>
       'Mica is only available on Windows 11 and follows system theme';
 
@@ -1649,6 +1674,27 @@ class AppLocalizationsEn extends AppLocalizations {
       'Log page removed from navigation';
 
   @override
+  String get developerToolFullLogTitle => 'FULL LOG toggle';
+
+  @override
+  String get developerToolFullLogSubtitle =>
+      'Show the FULL LOG view toggle on the log page';
+
+  @override
+  String get developerToolFullLogShownTitle => 'FULL LOG toggle shown';
+
+  @override
+  String get developerToolFullLogShownMessage =>
+      'The FULL LOG view toggle is now visible on the log page';
+
+  @override
+  String get developerToolFullLogHiddenTitle => 'FULL LOG toggle hidden';
+
+  @override
+  String get developerToolFullLogHiddenMessage =>
+      'The FULL LOG view toggle is now hidden on the log page';
+
+  @override
   String get developerToolStatusTitle => 'System status';
 
   @override
@@ -1798,6 +1844,40 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get connectionDebugRangeNotSupported => 'Not Supported';
+
+  @override
+  String get connectionDebugStrategyTitle => 'Host Strategy Cache';
+
+  @override
+  String get connectionDebugStrategySubtitle =>
+      'Observe protocol downgrade and concurrency caps learned per host from previous download failures';
+
+  @override
+  String get connectionDebugStrategyRefresh => 'Refresh';
+
+  @override
+  String get connectionDebugStrategyClear => 'Clear Cache';
+
+  @override
+  String get connectionDebugStrategyEmpty =>
+      'No host strategy cache yet. Once a host triggers protocol fallback or concurrency throttling, it will appear here.';
+
+  @override
+  String connectionDebugStrategyCount(Object count) {
+    return '$count host strategy entries';
+  }
+
+  @override
+  String get connectionDebugStrategyPolicy => 'Policy';
+
+  @override
+  String get connectionDebugStrategyConcurrency => 'Concurrency';
+
+  @override
+  String get connectionDebugStrategyTtl => 'TTL';
+
+  @override
+  String get connectionDebugStrategyExpired => 'expired';
 
   @override
   String get developerTestNotificationTitle => 'Notification test';
@@ -2455,6 +2535,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get downloadCalculating => 'Calculating';
+
+  @override
+  String get downloadMatchingHttpProtocol => 'Matching HTTP protocol...';
+
+  @override
+  String get downloadMatchingHttpProtocolShort => 'Matching protocol';
 
   @override
   String downloadSegmentsTitleWithCount(Object count) {
@@ -3233,6 +3319,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logClearButton => 'Clear logs';
 
   @override
+  String get logCurrentTabLabel => 'Current';
+
+  @override
+  String get logFullTabLabel => 'FULL LOG';
+
+  @override
   String get logSearchPlaceholderRegex => 'Enter regex...';
 
   @override
@@ -3547,6 +3639,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get logArchiveExportFiltered => 'Export current filter';
+
+  @override
+  String get logArchiveExportFull => 'Export FULL LOG';
 
   @override
   String logArchiveExportBookmarked(Object count) {
@@ -3944,6 +4039,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Clipboard URLs will no longer trigger a prompt';
 
   @override
+  String get clipboardListenerMuteSessionButton => 'Mute This Session';
+
+  @override
+  String get clipboardListenerSessionMutedTitle => 'Muted for this session';
+
+  @override
+  String get clipboardListenerSessionMutedMessage =>
+      'Automatic clipboard prompts are paused until the app restarts';
+
+  @override
   String get downloadDuplicateTitle => 'Duplicate download detected';
 
   @override
@@ -3959,6 +4064,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get downloadDuplicateCancelButton => 'Cancel';
+
+  @override
+  String get downloadBadgeHostHint => 'Host hint';
+
+  @override
+  String get downloadBadgePolicyFallback => 'Fallback';
+
+  @override
+  String downloadBadgeConcurrencyCap(Object count) {
+    return 'Cap x$count';
+  }
 
   @override
   String get downloadFailureHintAuth =>

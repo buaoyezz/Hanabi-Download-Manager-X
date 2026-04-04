@@ -139,6 +139,7 @@ class IntegratedDownloadService extends ChangeNotifier {
     if (existingIndex != -1) {
       final oldTask = _tasks[existingIndex];
       _tasks[existingIndex] = newTask;
+      _logDiagnosticDecisionChanges(oldTask, newTask);
 
       // 检查是否有关键变化
       final isStatusChanged = oldTask.status != newTask.status;
@@ -172,6 +173,48 @@ class IntegratedDownloadService extends ChangeNotifier {
     _hasActiveDownloads = _tasks.any((t) =>
         t.status == DownloadStatus.downloading ||
         t.status == DownloadStatus.merging);
+  }
+
+  void _logDiagnosticDecisionChanges(
+    DownloadTask oldTask,
+    DownloadTask newTask,
+  ) {
+    if (oldTask.resumeDecisionLabel != newTask.resumeDecisionLabel ||
+        oldTask.resumeDecisionReason != newTask.resumeDecisionReason) {
+      final label = (newTask.resumeDecisionLabel ?? '').trim();
+      final reason = (newTask.resumeDecisionReason ?? '').trim();
+      if (label.isNotEmpty || reason.isNotEmpty) {
+        _appLogger.info(
+          'App',
+          'Resume decision updated: ${newTask.fileName} -> '
+              '[${label.isEmpty ? '--' : label}] ${reason.isEmpty ? 'No reason' : reason}',
+        );
+      }
+    }
+
+    if (oldTask.httpPolicyDecisionReason != newTask.httpPolicyDecisionReason) {
+      final reason = (newTask.httpPolicyDecisionReason ?? '').trim();
+      if (reason.isNotEmpty) {
+        _appLogger.info(
+          'App',
+          'HTTP policy decision updated: ${newTask.fileName} -> $reason',
+        );
+      }
+    }
+
+    if (oldTask.hostConcurrencyCap != newTask.hostConcurrencyCap ||
+        oldTask.hostConcurrencyReason != newTask.hostConcurrencyReason) {
+      final cap = newTask.hostConcurrencyCap;
+      final reason = (newTask.hostConcurrencyReason ?? '').trim();
+      if (cap != null || reason.isNotEmpty) {
+        _appLogger.info(
+          'App',
+          'Host concurrency decision updated: ${newTask.fileName} -> '
+              '${cap == null ? 'no cap' : 'cap=$cap'}'
+              '${reason.isEmpty ? '' : ' ($reason)'}',
+        );
+      }
+    }
   }
 
   // 智能轮询：根据下载状态动态调整间隔
@@ -314,6 +357,7 @@ class IntegratedDownloadService extends ChangeNotifier {
             _appLogger.debug('App',
                 'Download progress: ${newTask.fileName} - ${(newTask.progress * 100).toStringAsFixed(1)}% @ ${newTask.formattedSpeed}');
           }
+          _logDiagnosticDecisionChanges(oldTask, newTask);
           _tasks[existingIndex] = newTask;
         } else {
           _tasks.add(newTask);
@@ -377,6 +421,12 @@ class IntegratedDownloadService extends ChangeNotifier {
       'effectiveHttpVersionPolicy': task.effectiveHttpVersionPolicy,
       'negotiatedHttpVersion': task.negotiatedHttpVersion,
       'targetReachable': task.targetReachable,
+      'httpPolicyDecisionReason': task.httpPolicyDecisionReason,
+      'startupStatusKey': task.startupStatusKey,
+      'resumeDecisionLabel': task.resumeDecisionLabel,
+      'resumeDecisionReason': task.resumeDecisionReason,
+      'hostConcurrencyCap': task.hostConcurrencyCap,
+      'hostConcurrencyReason': task.hostConcurrencyReason,
       'segments': task.segments
           .map((s) => {
                 'index': s.index,
@@ -477,6 +527,15 @@ class IntegratedDownloadService extends ChangeNotifier {
         kernelTask['effectiveHttpVersionPolicy']?.toString();
     final negotiatedHttpVersion =
         kernelTask['negotiatedHttpVersion']?.toString();
+    final httpPolicyDecisionReason =
+        kernelTask['httpPolicyDecisionReason']?.toString();
+    final startupStatusKey = kernelTask['startupStatusKey']?.toString();
+    final resumeDecisionLabel = kernelTask['resumeDecisionLabel']?.toString();
+    final resumeDecisionReason = kernelTask['resumeDecisionReason']?.toString();
+    final hostConcurrencyCap =
+        (kernelTask['hostConcurrencyCap'] as num?)?.toInt();
+    final hostConcurrencyReason =
+        kernelTask['hostConcurrencyReason']?.toString();
     final targetReachableRaw = kernelTask['targetReachable'];
     final bool? targetReachable = targetReachableRaw is bool
         ? targetReachableRaw
@@ -535,6 +594,12 @@ class IntegratedDownloadService extends ChangeNotifier {
       effectiveHttpVersionPolicy: effectiveHttpVersionPolicy,
       negotiatedHttpVersion: negotiatedHttpVersion,
       targetReachable: targetReachable,
+      httpPolicyDecisionReason: httpPolicyDecisionReason,
+      startupStatusKey: startupStatusKey,
+      resumeDecisionLabel: resumeDecisionLabel,
+      resumeDecisionReason: resumeDecisionReason,
+      hostConcurrencyCap: hostConcurrencyCap,
+      hostConcurrencyReason: hostConcurrencyReason,
       startTime: startTime,
       endTime: endTime,
       createdAt: createdTime, // 传递创建时间
@@ -687,7 +752,7 @@ class IntegratedDownloadService extends ChangeNotifier {
   List<SegmentInfo> _generateTestSegments(int count, double overallProgress,
       {int failedCount = 0}) {
     final segments = <SegmentInfo>[];
-    final segmentSize = 1024 * 1024 * 100; // 每个分段 100 MB
+    const segmentSize = 1024 * 1024 * 100; // 每个分段 100 MB
 
     for (int i = 0; i < count; i++) {
       final startByte = i * segmentSize;

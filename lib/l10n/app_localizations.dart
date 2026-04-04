@@ -416,6 +416,30 @@ abstract class AppLocalizations {
   /// **'关闭所有窗口'**
   String get trayMenuExitSubtitle;
 
+  /// No description provided for @exitWithActiveDownloadsTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'仍有下载正在进行'**
+  String get exitWithActiveDownloadsTitle;
+
+  /// No description provided for @exitWithActiveDownloadsMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前还有 {count} 个下载任务正在运行。现在退出会中断这些下载，确定要继续退出吗？'**
+  String exitWithActiveDownloadsMessage(Object count);
+
+  /// No description provided for @exitWithActiveDownloadsCancelButton.
+  ///
+  /// In zh, this message translates to:
+  /// **'取消'**
+  String get exitWithActiveDownloadsCancelButton;
+
+  /// No description provided for @exitWithActiveDownloadsConfirmButton.
+  ///
+  /// In zh, this message translates to:
+  /// **'仍然退出'**
+  String get exitWithActiveDownloadsConfirmButton;
+
   /// No description provided for @tempFilesDialogTitle.
   ///
   /// In zh, this message translates to:
@@ -1235,7 +1259,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsHttpVersionAuto.
   ///
   /// In zh, this message translates to:
-  /// **'自动（推荐）'**
+  /// **'自动（优先 HTTP/1.1）'**
   String get settingsHttpVersionAuto;
 
   /// No description provided for @settingsHttpVersionHttp1Only.
@@ -2456,6 +2480,24 @@ abstract class AppLocalizations {
   /// **'拖动时保持特效（Win10 可能卡顿）'**
   String get appearanceWindowEffectsDragSuspendDisabledSubtitle;
 
+  /// No description provided for @appearanceWindowEffectsRoundedCornersTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'窗口圆角'**
+  String get appearanceWindowEffectsRoundedCornersTitle;
+
+  /// No description provided for @appearanceWindowEffectsRoundedCornersEnabledSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'启用窗口圆角裁切（Win10 以及 Win11 的亚克力/模糊模式会使用自定义裁切）'**
+  String get appearanceWindowEffectsRoundedCornersEnabledSubtitle;
+
+  /// No description provided for @appearanceWindowEffectsRoundedCornersDisabledSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'使用直角窗口边缘'**
+  String get appearanceWindowEffectsRoundedCornersDisabledSubtitle;
+
   /// No description provided for @appearanceWindowEffectsMicaHint.
   ///
   /// In zh, this message translates to:
@@ -3038,6 +3080,42 @@ abstract class AppLocalizations {
   /// **'已从导航栏移除日志页面'**
   String get developerToolLogHiddenMessage;
 
+  /// No description provided for @developerToolFullLogTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'FULL LOG 切换'**
+  String get developerToolFullLogTitle;
+
+  /// No description provided for @developerToolFullLogSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'在日志页显示 FULL LOG 视图切换'**
+  String get developerToolFullLogSubtitle;
+
+  /// No description provided for @developerToolFullLogShownTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'FULL LOG 切换已显示'**
+  String get developerToolFullLogShownTitle;
+
+  /// No description provided for @developerToolFullLogShownMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'已在日志页显示 FULL LOG 视图切换'**
+  String get developerToolFullLogShownMessage;
+
+  /// No description provided for @developerToolFullLogHiddenTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'FULL LOG 切换已隐藏'**
+  String get developerToolFullLogHiddenTitle;
+
+  /// No description provided for @developerToolFullLogHiddenMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'已在日志页隐藏 FULL LOG 视图切换'**
+  String get developerToolFullLogHiddenMessage;
+
   /// No description provided for @developerToolStatusTitle.
   ///
   /// In zh, this message translates to:
@@ -3307,6 +3385,66 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'不支持'**
   String get connectionDebugRangeNotSupported;
+
+  /// No description provided for @connectionDebugStrategyTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'站点策略缓存'**
+  String get connectionDebugStrategyTitle;
+
+  /// No description provided for @connectionDebugStrategySubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'观察每个 host 因历史下载失败而学到的协议降级和并发上限'**
+  String get connectionDebugStrategySubtitle;
+
+  /// No description provided for @connectionDebugStrategyRefresh.
+  ///
+  /// In zh, this message translates to:
+  /// **'刷新'**
+  String get connectionDebugStrategyRefresh;
+
+  /// No description provided for @connectionDebugStrategyClear.
+  ///
+  /// In zh, this message translates to:
+  /// **'清空缓存'**
+  String get connectionDebugStrategyClear;
+
+  /// No description provided for @connectionDebugStrategyEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前还没有站点策略缓存。某个 host 一旦触发协议回退或并发收敛，就会出现在这里。'**
+  String get connectionDebugStrategyEmpty;
+
+  /// No description provided for @connectionDebugStrategyCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'共 {count} 条站点策略'**
+  String connectionDebugStrategyCount(Object count);
+
+  /// No description provided for @connectionDebugStrategyPolicy.
+  ///
+  /// In zh, this message translates to:
+  /// **'协议'**
+  String get connectionDebugStrategyPolicy;
+
+  /// No description provided for @connectionDebugStrategyConcurrency.
+  ///
+  /// In zh, this message translates to:
+  /// **'并发'**
+  String get connectionDebugStrategyConcurrency;
+
+  /// No description provided for @connectionDebugStrategyTtl.
+  ///
+  /// In zh, this message translates to:
+  /// **'剩余时间'**
+  String get connectionDebugStrategyTtl;
+
+  /// No description provided for @connectionDebugStrategyExpired.
+  ///
+  /// In zh, this message translates to:
+  /// **'已过期'**
+  String get connectionDebugStrategyExpired;
 
   /// No description provided for @developerTestNotificationTitle.
   ///
@@ -4514,6 +4652,18 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'计算中'**
   String get downloadCalculating;
+
+  /// No description provided for @downloadMatchingHttpProtocol.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在匹配 HTTP 协议...'**
+  String get downloadMatchingHttpProtocol;
+
+  /// No description provided for @downloadMatchingHttpProtocolShort.
+  ///
+  /// In zh, this message translates to:
+  /// **'匹配协议中'**
+  String get downloadMatchingHttpProtocolShort;
 
   /// No description provided for @downloadSegmentsTitleWithCount.
   ///
@@ -5873,6 +6023,18 @@ abstract class AppLocalizations {
   /// **'清空日志'**
   String get logClearButton;
 
+  /// No description provided for @logCurrentTabLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'普通日志'**
+  String get logCurrentTabLabel;
+
+  /// No description provided for @logFullTabLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'FULL LOG'**
+  String get logFullTabLabel;
+
   /// No description provided for @logSearchPlaceholderRegex.
   ///
   /// In zh, this message translates to:
@@ -6424,6 +6586,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'导出当前筛选结果'**
   String get logArchiveExportFiltered;
+
+  /// No description provided for @logArchiveExportFull.
+  ///
+  /// In zh, this message translates to:
+  /// **'导出 FULL LOG'**
+  String get logArchiveExportFull;
 
   /// No description provided for @logArchiveExportBookmarked.
   ///
@@ -7109,6 +7277,24 @@ abstract class AppLocalizations {
   /// **'复制链接将不再弹窗提示'**
   String get settingsClipboardListenerDisabledMessage;
 
+  /// No description provided for @clipboardListenerMuteSessionButton.
+  ///
+  /// In zh, this message translates to:
+  /// **'本次静音'**
+  String get clipboardListenerMuteSessionButton;
+
+  /// No description provided for @clipboardListenerSessionMutedTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'本次会话已静音'**
+  String get clipboardListenerSessionMutedTitle;
+
+  /// No description provided for @clipboardListenerSessionMutedMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'自动抓取链接将暂停到你下次重新启动应用'**
+  String get clipboardListenerSessionMutedMessage;
+
   /// No description provided for @downloadDuplicateTitle.
   ///
   /// In zh, this message translates to:
@@ -7138,6 +7324,24 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'取消'**
   String get downloadDuplicateCancelButton;
+
+  /// No description provided for @downloadBadgeHostHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'站点缓存'**
+  String get downloadBadgeHostHint;
+
+  /// No description provided for @downloadBadgePolicyFallback.
+  ///
+  /// In zh, this message translates to:
+  /// **'已降级'**
+  String get downloadBadgePolicyFallback;
+
+  /// No description provided for @downloadBadgeConcurrencyCap.
+  ///
+  /// In zh, this message translates to:
+  /// **'限并发 x{count}'**
+  String downloadBadgeConcurrencyCap(Object count);
 
   /// No description provided for @downloadFailureHintAuth.
   ///

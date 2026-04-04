@@ -1,6 +1,8 @@
-import 'dart:collection';
 import 'dart:async';
+import 'dart:collection';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 
 enum LogLevel {
   debug,
@@ -14,7 +16,7 @@ class LogEntry {
   final LogLevel level;
   final String source;
   final String message;
-  
+
   // 缓存格式化结果，避免重复计算
   late final String formattedTime = _formatTime();
   late final String levelString = _formatLevel();
@@ -44,25 +46,39 @@ class LogEntry {
         return 'ERROR';
     }
   }
+
+  String format({bool fullTimestamp = false}) {
+    final timeText =
+        fullTimestamp ? timestamp.toIso8601String() : formattedTime;
+    return '[$timeText] [$levelString] [$source] $message';
+  }
 }
 
 class AppLoggerService extends ChangeNotifier {
   static final AppLoggerService _instance = AppLoggerService._internal();
+  static const bool _isFlutterTest = bool.fromEnvironment('FLUTTER_TEST');
   factory AppLoggerService() => _instance;
   AppLoggerService._internal();
 
   final Queue<LogEntry> _logs = Queue();
   final int _maxLogs = 1000;
   bool _consoleOutputEnabled = kDebugMode;
-  
+
   // 节流：最多每 100ms 通知一次
   Timer? _notifyTimer;
   bool _pendingNotify = false;
-  
+
   // 快照缓存：避免每次 Consumer 重建都 toList
   int _version = 0;
   int _snapshotVersion = -1;
   List<LogEntry> _snapshot = const [];
+
+  // FULL LOG 持久化缓冲，避免每条日志都立即刷盘。
+  final StringBuffer _fullLogBuffer = StringBuffer();
+  Timer? _fullLogFlushTimer;
+  bool _fullLogFlushing = false;
+  File? _fullLogFile;
+  Future<File>? _fullLogFileFuture;
 
   /// 日志版本号，每次新增/清空时递增
   int get version => _version;
@@ -74,7 +90,7 @@ class AppLoggerService extends ChangeNotifier {
     }
     return _snapshot;
   }
-  
+
   /// 直接访问内部队列长度，避免创建新 List
   int get logCount => _logs.length;
 
@@ -83,7 +99,7 @@ class AppLoggerService extends ChangeNotifier {
       _pendingNotify = true;
       return;
     }
-    
+
     // 始终延迟通知，避免在 build/layout 阶段触发重建导致递归
     _pendingNotify = false;
     _notifyTimer = Timer(const Duration(milliseconds: 100), () {
@@ -101,6 +117,117 @@ class AppLoggerService extends ChangeNotifier {
     _consoleOutputEnabled = enabled;
   }
 
+  Future<File> _createFullLogFile() async {
+    if (_isFlutterTest) {
+      final date = DateTime.now().toIso8601String().split('T')[0];
+      return File('${Directory.systemTemp.path}/hanabi_runtime_full_$date.log');
+    }
+
+    final directory = await getApplicationDocumentsDirectory();
+    final logDir = Directory('${directory.path}/HanabiDownloadManagerX/logs');
+    if (!await logDir.exists()) {
+      await logDir.create(recursive: true);
+    }
+
+    final date = DateTime.now().toIso8601String().split('T')[0];
+    return File('${logDir.path}/runtime_full_$date.log');
+  }
+
+  Future<File> _ensureFullLogFile() async {
+    final existing = _fullLogFile;
+    if (existing != null) {
+      return existing;
+    }
+
+    final pending = _fullLogFileFuture;
+    if (pending != null) {
+      return pending;
+    }
+
+    final creation = _createFullLogFile();
+    _fullLogFileFuture = creation;
+    try {
+      final file = await creation;
+      _fullLogFile = file;
+      return file;
+    } finally {
+      if (identical(_fullLogFileFuture, creation)) {
+        _fullLogFileFuture = null;
+      }
+    }
+  }
+
+  void _scheduleFullLogFlush() {
+    if (_fullLogFlushTimer != null) {
+      return;
+    }
+
+    _fullLogFlushTimer = Timer(const Duration(milliseconds: 500), () {
+      _fullLogFlushTimer = null;
+      unawaited(_flushFullLog());
+    });
+  }
+
+  Future<void> _flushFullLog() async {
+    if (_fullLogFlushing || _fullLogBuffer.isEmpty) {
+      return;
+    }
+
+    _fullLogFlushing = true;
+    final content = _fullLogBuffer.toString();
+    _fullLogBuffer.clear();
+
+    try {
+      final file = await _ensureFullLogFile();
+      await file.writeAsString(content, mode: FileMode.append);
+    } catch (e) {
+      final pending = _fullLogBuffer.toString();
+      _fullLogBuffer
+        ..clear()
+        ..write(content)
+        ..write(pending);
+      Zone.root.print('FULL LOG write failed: $e');
+    } finally {
+      _fullLogFlushing = false;
+      if (_fullLogBuffer.isNotEmpty) {
+        _scheduleFullLogFlush();
+      }
+    }
+  }
+
+  Future<void> flushFullLog() async {
+    _fullLogFlushTimer?.cancel();
+    _fullLogFlushTimer = null;
+    await _flushFullLog();
+  }
+
+  Future<void> _resetFullLogStorage() async {
+    _fullLogBuffer.clear();
+    _fullLogFlushTimer?.cancel();
+    _fullLogFlushTimer = null;
+
+    while (_fullLogFlushing) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+
+    final file = await _ensureFullLogFile();
+    await file.writeAsString('');
+  }
+
+  Future<File> getFullLogFile() async {
+    await flushFullLog();
+    return _ensureFullLogFile();
+  }
+
+  Future<List<String>> readFullLogLines() async {
+    final file = await getFullLogFile();
+    if (!await file.exists()) {
+      return const [];
+    }
+
+    return file.readAsLines();
+  }
+
   void log(LogLevel level, String source, String message, {bool? toConsole}) {
     final entry = LogEntry(
       timestamp: DateTime.now(),
@@ -115,10 +242,15 @@ class AppLoggerService extends ChangeNotifier {
     }
     _version++;
 
+    if (!_isFlutterTest) {
+      _fullLogBuffer.writeln(entry.format(fullTimestamp: true));
+      _scheduleFullLogFlush();
+    }
+
     final emitToConsole = toConsole ?? _consoleOutputEnabled;
     if (emitToConsole) {
       // 避免被 Zone 的 print 拦截导致递归
-      Zone.root.print('[${entry.formattedTime}] [${entry.levelString}] [$source] $message');
+      Zone.root.print(entry.format());
     }
 
     _scheduleNotify();
@@ -138,6 +270,7 @@ class AppLoggerService extends ChangeNotifier {
     _version++;
     _snapshot = const [];
     _snapshotVersion = _version;
+    unawaited(_resetFullLogStorage());
     notifyListeners();
   }
 

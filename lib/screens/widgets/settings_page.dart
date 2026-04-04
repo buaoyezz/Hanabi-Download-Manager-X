@@ -11,6 +11,7 @@ import '../../services/integrated_download_service.dart';
 import '../../services/kernel/kernel_manager.dart';
 import '../../services/developer_mode_service.dart';
 import '../../services/client_config_service.dart';
+import '../../services/clipboard_listener_service.dart';
 import '../../services/font_service.dart';
 import '../../services/performance_monitor_service.dart';
 import '../../widgets/folder_picker_dialog.dart';
@@ -398,6 +399,13 @@ class _SettingsPageState extends State<SettingsPage> {
               ? t.settingsClipboardListenerEnabledMessage
               : t.settingsClipboardListenerDisabledMessage,
         );
+
+        if (value) {
+          unawaited(
+            ClipboardListenerService.activeInstance
+                ?.promptFromCurrentClipboard(),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {

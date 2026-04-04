@@ -17,6 +17,7 @@ import 'package:screen_retriever/screen_retriever.dart';
 import 'package:scroll_animator/scroll_animator.dart';
 import 'services/integrated_download_service.dart';
 import 'services/kernel/kernel_manager.dart';
+import 'services/kernel/next/downloader/proxy_runtime.dart';
 import 'services/download_listener_service.dart';
 import 'services/clipboard_listener_service.dart';
 import 'services/system_tray_service.dart';
@@ -36,6 +37,7 @@ import 'services/pipe_listener_service.dart';
 import 'services/popup_progress_service.dart';
 import 'services/download_failure_stats_service.dart';
 import 'services/localization_service.dart';
+import 'services/single_instance_service.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
 import 'widgets/animated_notifications.dart';
@@ -98,12 +100,12 @@ Future<void> maximizeWindowProperly() async {
           debugPrint('[Window] Current window style: $style');
 
           // 确保窗口有 WS_MAXIMIZEBOX 和 WS_CAPTION 样式
-          const WS_MAXIMIZEBOX = 0x00010000;
-          const WS_CAPTION = 0x00C00000;
+          const wsMaximizeBox = 0x00010000;
+          const wsCaption = 0x00C00000;
 
-          if ((style & WS_MAXIMIZEBOX) == 0 || (style & WS_CAPTION) == 0) {
+          if ((style & wsMaximizeBox) == 0 || (style & wsCaption) == 0) {
             debugPrint('[Window] Adding WS_MAXIMIZEBOX and WS_CAPTION styles');
-            final newStyle = style | WS_MAXIMIZEBOX | WS_CAPTION;
+            final newStyle = style | wsMaximizeBox | wsCaption;
             SetWindowLongPtr(hwnd, GWL_STYLE, newStyle);
           }
 
@@ -256,6 +258,7 @@ void main(List<String> args) async {
     await windowEffectService.initialize();
     await updateService.initialize();
     await notificationSettings.init(); // 初始化通知设置
+    await NsfxProxyRuntime.ensureSystemProxyObserverStarted();
 
     // 初始化 FluentIcons（从 JSON 加载图标映射）
     await FluentIcons.initialize();
@@ -390,20 +393,18 @@ void main(List<String> args) async {
       debugPrint(
           'Window size requested: ${initialSize.width} x ${initialSize.height}');
 
-      if (clientConfig.getWindowMaximized()) {
-        debugPrint("Window maximized");
-        maximizeWindowProperly();
-      } else {
-        restoreWindowProperly();
-      }
-
-      // 注意：bitsdojo_window 不支持 onWindowClose 事件
-      // 我们需要在 CloseWindowButton 中自定义处理逻辑
-
-      // 如果是开机自启动，隐藏窗口；否则显示窗口
       if (isAutoStart) {
         win.hide();
       } else {
+        if (clientConfig.getWindowMaximized()) {
+          debugPrint("Window maximized");
+          await maximizeWindowProperly();
+        } else {
+          await restoreWindowProperly();
+        }
+
+        // 注意：bitsdojo_window 不支持 onWindowClose 事件
+        // 我们需要在 CloseWindowButton 中自定义处理逻辑
         win.show();
       }
 
@@ -430,19 +431,178 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   ClipboardListenerService? _clipboardListener;
   PipeListenerService? _pipeListener;
   PopupProgressService? _popupProgressService;
+  bool _showClientUi = !Platform.isWindows;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initSystemTray();
-      _initKernel(); // 异步启动，不阻塞 UI
-      _initDownloadListener();
-      _initClipboardListener();
-      _initPipeListener(); // 初始化管道监听
-      _initPopupProgressService(); // 初始化弹窗进度推送服务
+      _runStartupSequence();
     });
+  }
+
+  Future<void> _runStartupSequence() async {
+    final canContinue = await _resolveExistingInstanceConflictIfNeeded();
+    if (!canContinue || !mounted) return;
+
+    setState(() {
+      _showClientUi = true;
+    });
+
+    await _initSystemTray();
+    await _initKernel();
+    _initDownloadListener();
+    _initClipboardListener();
+    _initPipeListener();
+    _initPopupProgressService();
+  }
+
+  BuildContext? _currentDialogHostContext() =>
+      navigatorKey.currentState?.overlay?.context ??
+      navigatorKey.currentContext;
+
+  Future<bool> _showExistingInstanceConflictDialog(
+      BuildContext dialogHostContext) async {
+    final locale = Localizations.maybeLocaleOf(dialogHostContext);
+    final isZh = locale?.languageCode.toLowerCase() == 'zh';
+
+    final title = isZh ? '发现已运行的旧实例' : 'Existing Instance Detected';
+    final body = isZh
+        ? 'Hanabi Download ManagerX 已经在后台运行。\n\n是否关闭旧实例并打开新的窗口？'
+        : 'Hanabi Download ManagerX is already running in the background.\n\n'
+            'Do you want to close the old instance and open a new window?';
+    final closeLabel = isZh ? '关闭旧实例并继续' : 'Close Old and Continue';
+    final cancelLabel = isZh ? '取消打开' : 'Cancel Launch';
+    final workingLabel = isZh ? '正在关闭旧实例...' : 'Closing the old instance...';
+    final failedLabel = isZh
+        ? '无法关闭旧实例，请先手动退出后台中的旧实例后再重试。'
+        : 'Failed to close the existing instance. Please exit it manually and try again.';
+
+    final shouldContinue = await fluent.showDialog<bool>(
+          context: dialogHostContext,
+          barrierColor: Colors.transparent,
+          barrierDismissible: false,
+          builder: (dialogContext) {
+            bool isClosing = false;
+            String? errorText;
+
+            return StatefulBuilder(
+              builder: (dialogContext, setDialogState) {
+                Future<void> handleTakeover() async {
+                  if (isClosing) return;
+                  setDialogState(() {
+                    isClosing = true;
+                    errorText = null;
+                  });
+
+                  try {
+                    final success = await SingleInstanceService
+                        .closeExistingInstanceAndAcquireLock();
+                    if (!dialogContext.mounted) return;
+
+                    if (success) {
+                      Navigator.of(dialogContext).pop(true);
+                      return;
+                    }
+
+                    setDialogState(() {
+                      isClosing = false;
+                      errorText = failedLabel;
+                    });
+                  } catch (_) {
+                    if (!dialogContext.mounted) return;
+                    setDialogState(() {
+                      isClosing = false;
+                      errorText = failedLabel;
+                    });
+                  }
+                }
+
+                return PopScope(
+                  canPop: false,
+                  child: fluent.ContentDialog(
+                    title: Text(title),
+                    constraints: const BoxConstraints(maxWidth: 460),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(body),
+                        if (isClosing) ...[
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              const fluent.ProgressRing(strokeWidth: 3),
+                              const SizedBox(width: 12),
+                              Expanded(child: Text(workingLabel)),
+                            ],
+                          ),
+                        ],
+                        if (errorText != null) ...[
+                          const SizedBox(height: 16),
+                          Text(
+                            errorText!,
+                            style: TextStyle(color: fluent.Colors.red),
+                          ),
+                        ],
+                      ],
+                    ),
+                    actions: [
+                      fluent.Button(
+                        onPressed: isClosing
+                            ? null
+                            : () => Navigator.of(dialogContext).pop(false),
+                        child: Text(cancelLabel),
+                      ),
+                      fluent.FilledButton(
+                        onPressed: isClosing ? null : handleTakeover,
+                        child: Text(closeLabel),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        ) ??
+        false;
+
+    if (shouldContinue) {
+      return true;
+    }
+
+    await SingleInstanceService.focusExistingInstance();
+    exit(0);
+  }
+
+  Future<bool> _resolveExistingInstanceConflictIfNeeded() async {
+    if (!Platform.isWindows || !mounted) return true;
+
+    final hasConflict = await SingleInstanceService.hasStartupConflict();
+    if (!hasConflict || !mounted) return true;
+    final isAutoStartLaunch = context.read<bool>();
+
+    if (isAutoStartLaunch) {
+      exit(0);
+    }
+
+    var dialogHostContext = _currentDialogHostContext();
+    if (dialogHostContext == null) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return false;
+      dialogHostContext = _currentDialogHostContext();
+    }
+
+    if (!mounted) return false;
+    if (_currentDialogHostContext() == null) {
+      await SingleInstanceService.focusExistingInstance();
+      exit(0);
+    }
+
+    final resolvedDialogHostContext = _currentDialogHostContext()!;
+    // ignore: use_build_context_synchronously
+    return _showExistingInstanceConflictDialog(resolvedDialogHostContext);
   }
 
   @override
@@ -592,6 +752,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     // 停止弹窗进度推送服务
     _popupProgressService?.stop();
+    await NsfxProxyRuntime.stopSystemProxyObserver();
 
     // 停止新内核
     try {
@@ -610,6 +771,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _downloadListener?.stopListening();
     _clipboardListener?.stop();
     systemTrayService.dispose();
+    NsfxProxyRuntime.stopSystemProxyObserver();
 
     // 异步清理新内核（不等待）
     try {
@@ -717,6 +879,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               // Work around repeated AXTree update failures on Flutter Windows.
               content = ExcludeSemantics(child: content);
             }
+            content = _WindowCornerFrame(child: content);
             return MediaQuery(
               data: MediaQuery.of(context).copyWith(
                 textScaler: TextScaler.linear(scaleFactor),
@@ -724,9 +887,97 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               child: content,
             );
           },
-          home: const HomeScreen(),
+          home:
+              _showClientUi ? const HomeScreen() : const _StartupShellScreen(),
         );
       },
+    );
+  }
+}
+
+class _StartupShellScreen extends StatelessWidget {
+  const _StartupShellScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox.expand();
+  }
+}
+
+class _WindowCornerFrame extends StatefulWidget {
+  final Widget child;
+
+  const _WindowCornerFrame({required this.child});
+
+  @override
+  State<_WindowCornerFrame> createState() => _WindowCornerFrameState();
+}
+
+class _WindowCornerFrameState extends State<_WindowCornerFrame>
+    with WidgetsBindingObserver {
+  bool _isMaximized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _isMaximized = Platform.isWindows ? isWindowMaximized() : false;
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    if (!Platform.isWindows) return;
+    final next = isWindowMaximized();
+    if (next != _isMaximized && mounted) {
+      setState(() => _isMaximized = next);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!Platform.isWindows) {
+      return widget.child;
+    }
+
+    final windowEffect = context.watch<WindowEffectService>();
+    if (!windowEffect.usesCustomWindowClip) {
+      return widget.child;
+    }
+
+    final radius = windowEffect.roundedCornersEnabled && !_isMaximized
+        ? windowEffect.windowCornerRadius
+        : 0.0;
+    if (radius <= 0) {
+      return widget.child;
+    }
+
+    final borderRadius = BorderRadius.circular(radius);
+    return ClipRRect(
+      borderRadius: borderRadius,
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          widget.child,
+          IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: borderRadius,
+                border: Border.all(
+                  color: AppTheme.borderSubtle.withValues(alpha: 0.55),
+                  width: 1,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

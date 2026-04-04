@@ -1,6 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart' hide FluentIcons;
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as p;
@@ -8,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../../services/app_logger_service.dart';
 import '../../../services/download_failure_stats_service.dart';
 import '../../../services/client_config_service.dart';
+import '../../../services/developer_mode_service.dart';
 import '../../../widgets/folder_picker_dialog.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
@@ -85,6 +87,37 @@ class LogDisplayItem {
       '${primaryLog.timestamp.millisecondsSinceEpoch}_${primaryLog.message.hashCode}';
 }
 
+class _ParsedFullLogLine {
+  final LogEntry log;
+  final String preciseTimeText;
+
+  const _ParsedFullLogLine({
+    required this.log,
+    required this.preciseTimeText,
+  });
+}
+
+class _CurrentLogViewSnapshot {
+  final int version;
+  final String filterSignature;
+  final List<LogEntry> logs;
+  final List<LogDisplayItem> groupedLogs;
+  final LogStats stats;
+
+  const _CurrentLogViewSnapshot({
+    required this.version,
+    required this.filterSignature,
+    required this.logs,
+    required this.groupedLogs,
+    required this.stats,
+  });
+}
+
+enum _LogViewMode {
+  current,
+  full,
+}
+
 class LogPage extends StatefulWidget {
   const LogPage({super.key});
 
@@ -93,6 +126,7 @@ class LogPage extends StatefulWidget {
 }
 
 class _LogPageState extends State<LogPage> {
+  _LogViewMode _activeLogView = _LogViewMode.current;
   LogLevel? _filterLevel;
   String? _filterSource;
   Set<String> _filterTags = {};
@@ -103,11 +137,30 @@ class _LogPageState extends State<LogPage> {
   bool _showFailureStats = true;
   final ScrollController _scrollController =
       createSmoothScrollController(config: SmoothScrollConfig.fast);
+  final ScrollController _fullLogScrollController =
+      createSmoothScrollController(config: SmoothScrollConfig.fast);
   final TextEditingController _searchController = TextEditingController();
+  Future<List<String>>? _fullLogLinesFuture;
+  int _fullLogVersion = -1;
+  Timer? _fullLogRefreshTimer;
+  int _scheduledFullLogVersion = -1;
+  _CurrentLogViewSnapshot? _currentLogSnapshot;
+  List<String>? _lastFullLogSourceLines;
+  String _lastFullLogSearchQuery = '';
+  bool _lastFullLogRegexMode = false;
+  List<String> _cachedFullLogSearchResult = const [];
+  String _highlightCacheSignature = '';
+  List<_CompiledHighlightRule> _compiledBuiltinHighlightRules = const [];
+  List<_CompiledHighlightRule> _compiledCustomHighlightRules = const [];
+  RegExp? _compiledSearchHighlightRegex;
+  final Map<String, List<_HighlightMatch>> _highlightMatchCache = {};
 
   // 内置正则表达式（用于去重）
   final RegExp _logPrefixRegex = RegExp(
       r'^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}[.,]\d{3}\s-\s.*?\s-\s[A-Z]+\s-\s');
+  final RegExp _fullLogLineRegex = RegExp(
+    r'^\[([^\]]+)\]\s*\[(DEBUG|INFO|WARN|WARNING|ERROR)\]\s*\[([^\]]+)\]\s*(.*)$',
+  );
   final RegExp _portRegex =
       RegExp(r'(port\s*[:=]?\s*)\d+', caseSensitive: false);
   final RegExp _threadRegex =
@@ -318,11 +371,11 @@ class _LogPageState extends State<LogPage> {
   Future<void> _saveRegexRules() async {
     final config = context.read<ClientConfigService>();
     final rules = _customRules
-        .map((r) => {
+      .map((r) => {
               'name': r.name,
               'pattern': r.pattern,
               'enabled': r.enabled,
-              'color': r.highlightColor?.value ?? 0xFF60CDFF,
+              'color': r.highlightColor?.toARGB32() ?? 0xFF60CDFF,
             })
         .toList();
 
@@ -340,7 +393,9 @@ class _LogPageState extends State<LogPage> {
 
   @override
   void dispose() {
+    _fullLogRefreshTimer?.cancel();
     _scrollController.dispose();
+    _fullLogScrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -374,10 +429,11 @@ class _LogPageState extends State<LogPage> {
     );
   }
 
-  void _scrollToBottom() {
-    if (_autoScroll && _scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
+  void _scrollToBottom([ScrollController? controller]) {
+    final target = controller ?? _scrollController;
+    if (_autoScroll && target.hasClients) {
+      target.animateTo(
+        target.position.maxScrollExtent,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
@@ -512,71 +568,523 @@ class _LogPageState extends State<LogPage> {
     return grouped;
   }
 
-  Future<void> _exportLogs(BuildContext context) async {
-    String initialPath = 'C:\\';
+  List<LogEntry> _applyActiveFilters(List<LogEntry> sourceLogs) {
+    var logs = sourceLogs;
+
+    if (_startTime != null) {
+      logs = logs.where((log) => log.timestamp.isAfter(_startTime!)).toList();
+    }
+    if (_endTime != null) {
+      logs = logs.where((log) => log.timestamp.isBefore(_endTime!)).toList();
+    }
+
+    if (_filterLevel != null) {
+      logs = logs.where((log) => log.level == _filterLevel).toList();
+    }
+
+    if (_filterTags.isNotEmpty) {
+      logs = logs.where((log) => _filterTags.contains(log.source)).toList();
+    } else if (_filterSource != null) {
+      const appTagNames = {'App', 'Update', 'PopupTest'};
+      const systemTagNames = {'Console', 'Zone'};
+      if (_filterSource == 'Kernel') {
+        logs = logs
+            .where((log) =>
+                !appTagNames.contains(log.source) &&
+                !systemTagNames.contains(log.source))
+            .toList();
+      } else if (_filterSource == 'App') {
+        logs = logs.where((log) => appTagNames.contains(log.source)).toList();
+      } else if (_filterSource == 'System') {
+        logs =
+            logs.where((log) => systemTagNames.contains(log.source)).toList();
+      } else {
+        logs = logs.where((log) => log.source == _filterSource).toList();
+      }
+    }
+
+    if (_searchQuery.isNotEmpty) {
+      if (_useRegexSearch) {
+        try {
+          final regex = RegExp(_searchQuery, caseSensitive: false);
+          logs = logs
+              .where(
+                (log) =>
+                    regex.hasMatch(log.message) || regex.hasMatch(log.source),
+              )
+              .toList();
+        } catch (_) {
+          logs = logs
+              .where(
+                (log) =>
+                    log.message
+                        .toLowerCase()
+                        .contains(_searchQuery.toLowerCase()) ||
+                    log.source
+                        .toLowerCase()
+                        .contains(_searchQuery.toLowerCase()),
+              )
+              .toList();
+        }
+      } else {
+        logs = logs
+            .where(
+              (log) =>
+                  log.message
+                      .toLowerCase()
+                      .contains(_searchQuery.toLowerCase()) ||
+                  log.source.toLowerCase().contains(_searchQuery.toLowerCase()),
+            )
+            .toList();
+      }
+    }
+
+    return logs;
+  }
+
+  String _buildFilterSignature() {
+    final tags = _filterTags.toList()..sort();
+    return [
+      _filterLevel?.name ?? '',
+      _filterSource ?? '',
+      tags.join('|'),
+      _searchQuery,
+      _useRegexSearch ? 'regex' : 'plain',
+      _startTime?.millisecondsSinceEpoch.toString() ?? '',
+      _endTime?.millisecondsSinceEpoch.toString() ?? '',
+    ].join('::');
+  }
+
+  String _buildHighlightCacheSignature() {
+    final enabledBuiltinTypes = _builtinRuleEnabled.entries
+        .where((entry) => entry.value)
+        .map((entry) => entry.key.name)
+        .toList()
+      ..sort();
+    final enabledCustomRules = _customRules
+        .where((rule) => rule.enabled)
+        .map((rule) =>
+            '${rule.name}|${rule.pattern}|${rule.highlightColor?.toARGB32() ?? 0}')
+        .join('||');
+
+    return [
+      enabledBuiltinTypes.join(','),
+      _useRegexSearch ? 'regex' : 'plain',
+      _searchQuery,
+      enabledCustomRules,
+    ].join('::');
+  }
+
+  void _ensureHighlightCache() {
+    final signature = _buildHighlightCacheSignature();
+    if (_highlightCacheSignature == signature) {
+      return;
+    }
+
+    _highlightCacheSignature = signature;
+    _highlightMatchCache.clear();
+    final builtinRules = <_CompiledHighlightRule>[];
+    for (final rule in _builtinRules) {
+      if (_builtinRuleEnabled[rule.type] != true) {
+        continue;
+      }
+      try {
+        builtinRules.add(
+          _CompiledHighlightRule(
+            regex: RegExp(rule.pattern, caseSensitive: false),
+            color: rule.color,
+            type: rule.type,
+          ),
+        );
+      } catch (_) {}
+    }
+    _compiledBuiltinHighlightRules = List.unmodifiable(builtinRules);
+
+    final customRules = <_CompiledHighlightRule>[];
+    for (final rule in _customRules.where((rule) => rule.enabled)) {
+      try {
+        customRules.add(
+          _CompiledHighlightRule(
+            regex: RegExp(rule.pattern, caseSensitive: false),
+            color: rule.highlightColor ?? AppTheme.accentLight,
+            type: _HighlightType.custom,
+          ),
+        );
+      } catch (_) {}
+    }
+    _compiledCustomHighlightRules = List.unmodifiable(customRules);
+
+    if (_searchQuery.isEmpty) {
+      _compiledSearchHighlightRegex = null;
+      return;
+    }
+
+    try {
+      _compiledSearchHighlightRegex = _useRegexSearch
+          ? RegExp(_searchQuery, caseSensitive: false)
+          : RegExp(RegExp.escape(_searchQuery), caseSensitive: false);
+    } catch (_) {
+      _compiledSearchHighlightRegex = null;
+    }
+  }
+
+  List<_HighlightMatch> _resolveHighlightMatches(String message) {
+    _ensureHighlightCache();
+    final cached = _highlightMatchCache[message];
+    if (cached != null) {
+      return cached;
+    }
+
+    if (_highlightMatchCache.length >= 2048) {
+      _highlightMatchCache.clear();
+    }
+
+    final matches = <_HighlightMatch>[];
+
+    for (final rule in _compiledBuiltinHighlightRules) {
+      for (final match in rule.regex.allMatches(message)) {
+        matches.add(_HighlightMatch(
+          start: match.start,
+          end: match.end,
+          color: rule.color,
+          type: rule.type,
+        ));
+      }
+    }
+
+    for (final rule in _compiledCustomHighlightRules) {
+      for (final match in rule.regex.allMatches(message)) {
+        matches.add(_HighlightMatch(
+          start: match.start,
+          end: match.end,
+          color: rule.color,
+          type: rule.type,
+        ));
+      }
+    }
+
+    final searchRegex = _compiledSearchHighlightRegex;
+    if (searchRegex != null) {
+      for (final match in searchRegex.allMatches(message)) {
+        matches.add(_HighlightMatch(
+          start: match.start,
+          end: match.end,
+          color: AppTheme.statusWarning,
+          isSearch: true,
+        ));
+      }
+    }
+
+    final frozen = List<_HighlightMatch>.unmodifiable(matches);
+    _highlightMatchCache[message] = frozen;
+    return frozen;
+  }
+
+  _CurrentLogViewSnapshot _resolveCurrentLogSnapshot(AppLoggerService logger) {
+    final filterSignature = _buildFilterSignature();
+    final cached = _currentLogSnapshot;
+    if (cached != null &&
+        cached.version == logger.version &&
+        cached.filterSignature == filterSignature) {
+      return cached;
+    }
+
+    final logs = _applyActiveFilters(logger.logs);
+    final groupedLogs = _groupLogs(logs, logger.version);
+    final stats = _calculateStats(logs, groupedLogs);
+    final snapshot = _CurrentLogViewSnapshot(
+      version: logger.version,
+      filterSignature: filterSignature,
+      logs: logs,
+      groupedLogs: groupedLogs,
+      stats: stats,
+    );
+    _currentLogSnapshot = snapshot;
+    return snapshot;
+  }
+
+  void _ensureFullLogLinesFuture(AppLoggerService logger) {
+    if (_fullLogLinesFuture != null && _fullLogVersion == logger.version) {
+      return;
+    }
+
+    _fullLogVersion = logger.version;
+    _fullLogLinesFuture = logger.readFullLogLines();
+  }
+
+  void _scheduleFullLogRefresh(AppLoggerService logger) {
+    if (_fullLogVersion == logger.version) {
+      return;
+    }
+    _scheduledFullLogVersion = logger.version;
+    _fullLogRefreshTimer?.cancel();
+    _fullLogRefreshTimer = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _fullLogVersion = _scheduledFullLogVersion;
+        _fullLogLinesFuture = logger.readFullLogLines();
+        _lastFullLogSourceLines = null;
+        _cachedFullLogSearchResult = const [];
+      });
+    });
+  }
+
+  List<String> _applyFullLogSearch(List<String> lines) {
+    if (identical(_lastFullLogSourceLines, lines) &&
+        _lastFullLogSearchQuery == _searchQuery &&
+        _lastFullLogRegexMode == _useRegexSearch) {
+      return _cachedFullLogSearchResult;
+    }
+
+    List<String> filteredLines;
+    if (_searchQuery.isEmpty) {
+      filteredLines = lines;
+    } else if (_useRegexSearch) {
+      try {
+        final regex = RegExp(_searchQuery, caseSensitive: false);
+        filteredLines = lines.where(regex.hasMatch).toList(growable: false);
+      } catch (_) {
+        final query = _searchQuery.toLowerCase();
+        filteredLines = lines
+            .where((line) => line.toLowerCase().contains(query))
+            .toList(growable: false);
+      }
+    } else {
+      final query = _searchQuery.toLowerCase();
+      filteredLines = lines
+          .where((line) => line.toLowerCase().contains(query))
+          .toList(growable: false);
+    }
+
+    _lastFullLogSourceLines = lines;
+    _lastFullLogSearchQuery = _searchQuery;
+    _lastFullLogRegexMode = _useRegexSearch;
+    _cachedFullLogSearchResult = filteredLines;
+    return filteredLines;
+  }
+
+  void _setActiveLogView(_LogViewMode mode) {
+    if (_activeLogView == mode) {
+      return;
+    }
+
+    setState(() {
+      _activeLogView = mode;
+      if (mode == _LogViewMode.full) {
+        _lastFullLogSourceLines = null;
+        _cachedFullLogSearchResult = const [];
+      } else {
+        _fullLogRefreshTimer?.cancel();
+        _fullLogRefreshTimer = null;
+      }
+    });
+  }
+
+  String _buildFilteredExportLabel() {
+    final summaryParts = <String>[];
+
+    if (_filterLevel != null) {
+      summaryParts.add(_filterLevel!.name.toUpperCase());
+    }
+    if (_filterTags.isNotEmpty) {
+      summaryParts.add(
+        _filterTags.length == 1
+            ? _filterTags.first
+            : t.logFilterTagCount(_filterTags.length),
+      );
+    } else if (_filterSource != null) {
+      summaryParts.add(_filterSource!);
+    }
+    if (_searchQuery.isNotEmpty) {
+      summaryParts.add('"$_searchQuery"');
+    }
+    if (_startTime != null || _endTime != null) {
+      summaryParts.add(t.logFilterTimeSelectedLabel);
+    }
+
+    if (summaryParts.isEmpty) {
+      return t.logArchiveExportFiltered;
+    }
+
+    final primary = summaryParts.first;
+    final suffix = summaryParts.length == 1
+        ? primary
+        : '$primary +${summaryParts.length - 1}';
+    return '${t.logArchiveExportFiltered} ($suffix)';
+  }
+
+  Future<String?> _pickExportDirectory(BuildContext context) async {
+    var initialPath = 'C:\\';
     try {
       initialPath = Directory.current.path;
     } catch (_) {}
 
-    final selectedPath = await showDialog<String>(
+    return showDialog<String>(
       context: context,
       barrierDismissible: true,
-      builder: (context) => FolderPickerDialog(
-        initialPath: initialPath,
+      builder: (ctx) => FolderPickerDialog(initialPath: initialPath),
+    );
+  }
+
+  String _buildExportTimestamp() {
+    return DateTime.now()
+        .toIso8601String()
+        .replaceAll(':', '-')
+        .split('.')
+        .first;
+  }
+
+  Future<void> _showExportSuccess(
+    BuildContext context,
+    String message,
+  ) async {
+    if (!mounted) {
+      return;
+    }
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => ContentDialog(
+        title: Text(t.logExportSuccessTitle),
+        content: Text(message),
+        actions: [
+          Button(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(t.logDialogOk),
+          ),
+        ],
       ),
     );
+  }
 
-    if (selectedPath != null && mounted) {
-      try {
-        final timestamp = DateTime.now()
-            .toIso8601String()
-            .replaceAll(':', '-')
-            .split('.')
-            .first;
-        final file = File('$selectedPath\\log_export_$timestamp.txt');
-
-        final logs = context.read<AppLoggerService>().logs;
-        final buffer = StringBuffer();
-        for (var log in logs) {
-          buffer.writeln(
-              '[${log.formattedTime}] [${log.levelString}] [${log.source}] ${log.message}');
-        }
-
-        await file.writeAsString(buffer.toString());
-
-        if (mounted) {
-          showDialog(
-            context: context,
-            builder: (context) => ContentDialog(
-              title: Text(t.logExportSuccessTitle),
-              content: Text(t.logExportSavedMessage(file.path)),
-              actions: [
-                Button(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(t.logDialogOk),
-                ),
-              ],
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          showDialog(
-            context: context,
-            builder: (context) => ContentDialog(
-              title: Text(t.logExportFailedTitle),
-              content: Text(t.logExportFailedMessage(e)),
-              actions: [
-                Button(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(t.logDialogOk),
-                ),
-              ],
-            ),
-          );
-        }
-      }
+  Future<void> _showExportFailure(
+    BuildContext context,
+    Object error,
+  ) async {
+    if (!mounted) {
+      return;
     }
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => ContentDialog(
+        title: Text(t.logExportFailedTitle),
+        content: Text(t.logExportErrorMessage(error)),
+        actions: [
+          Button(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(t.logDialogOk),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _exportLogEntries(
+    BuildContext context,
+    List<LogEntry> logs, {
+    required String fileStem,
+    bool includeSummaryHeader = true,
+    bool fullTimestamp = false,
+  }) async {
+    final selectedPath = await _pickExportDirectory(context);
+    if (selectedPath == null || !mounted) {
+      return;
+    }
+
+    try {
+      final timestamp = _buildExportTimestamp();
+      final file = File('$selectedPath\\${fileStem}_$timestamp.log');
+      final buffer = StringBuffer();
+
+      if (includeSummaryHeader) {
+        buffer.writeln(t.logExportFileHeader(timestamp));
+        buffer.writeln(t.logExportFileTotal(logs.length));
+        buffer.writeln('');
+      }
+
+      for (final log in logs) {
+        buffer.writeln(log.format(fullTimestamp: fullTimestamp));
+      }
+
+      await file.writeAsString(buffer.toString());
+      await _showExportSuccess(
+        context,
+        includeSummaryHeader
+            ? t.logExportSavedCountMessage(logs.length, file.path)
+            : t.logExportSavedMessage(file.path),
+      );
+    } catch (e) {
+      await _showExportFailure(context, e);
+    }
+  }
+
+  Future<void> _exportTextLines(
+    BuildContext context,
+    List<String> lines, {
+    required String fileStem,
+    bool includeSummaryHeader = true,
+  }) async {
+    final selectedPath = await _pickExportDirectory(context);
+    if (selectedPath == null || !mounted) {
+      return;
+    }
+
+    try {
+      final timestamp = _buildExportTimestamp();
+      final file = File('$selectedPath\\${fileStem}_$timestamp.log');
+      final buffer = StringBuffer();
+
+      if (includeSummaryHeader) {
+        buffer.writeln(t.logExportFileHeader(timestamp));
+        buffer.writeln(t.logExportFileTotal(lines.length));
+        buffer.writeln('');
+      }
+
+      for (final line in lines) {
+        buffer.writeln(line);
+      }
+
+      await file.writeAsString(buffer.toString());
+      await _showExportSuccess(
+        context,
+        includeSummaryHeader
+            ? t.logExportSavedCountMessage(lines.length, file.path)
+            : t.logExportSavedMessage(file.path),
+      );
+    } catch (e) {
+      await _showExportFailure(context, e);
+    }
+  }
+
+  Future<void> _exportAllLogs(BuildContext context) async {
+    await _exportLogEntries(
+      context,
+      context.read<AppLoggerService>().logs,
+      fileStem: 'log_export',
+      includeSummaryHeader: false,
+    );
+  }
+
+  Future<void> _exportLogs(BuildContext context) async {
+    if (_activeLogView == _LogViewMode.full) {
+      await _exportFullLog(context);
+      return;
+    }
+
+    await _exportFilteredLogs(context);
+  }
+
+  Future<void> _exportFullLog(BuildContext context) async {
+    final logger = context.read<AppLoggerService>();
+    final fullLogLines = await logger.readFullLogLines();
+    await _exportTextLines(
+      context,
+      _applyFullLogSearch(fullLogLines),
+      fileStem: 'log_full',
+    );
   }
 
   Future<void> _exportDiagnostics(BuildContext context) async {
@@ -639,17 +1147,25 @@ class _LogPageState extends State<LogPage> {
 
       // 导出运行时日志（内存日志）
       final appLogger = context.read<AppLoggerService>();
-      final runtimeLogFile = File(p.join(logsDir.path, 'runtime_logs.txt'));
+      final runtimeLogFile = File(p.join(logsDir.path, 'runtime_logs.log'));
       if (appLogger.logs.isEmpty) {
         await runtimeLogFile.writeAsString('No runtime logs found.');
       } else {
         final buffer = StringBuffer();
         for (final log in appLogger.logs) {
-          buffer.writeln(
-            '[${log.formattedTime}] [${log.levelString}] [${log.source}] ${log.message}',
-          );
+          buffer.writeln(log.format());
         }
         await runtimeLogFile.writeAsString(buffer.toString());
+      }
+
+      final runtimeFullLogFile =
+          File(p.join(logsDir.path, 'runtime_full_logs.log'));
+      final persistedFullLog = await appLogger.getFullLogFile();
+      final persistedContent = await persistedFullLog.readAsString();
+      if (persistedContent.trim().isEmpty) {
+        await runtimeFullLogFile.writeAsString('No full runtime logs found.');
+      } else {
+        await runtimeFullLogFile.writeAsString(persistedContent);
       }
 
       final failureStats = context.read<DownloadFailureStatsService>();
@@ -743,6 +1259,24 @@ class _LogPageState extends State<LogPage> {
 
   @override
   Widget build(BuildContext context) {
+    final showFullLogView =
+        context.select<DeveloperModeService, bool>((s) => s.showFullLogView);
+    final activeLogView =
+        showFullLogView ? _activeLogView : _LogViewMode.current;
+    if (!showFullLogView && _activeLogView != _LogViewMode.current) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _fullLogRefreshTimer?.cancel();
+          _fullLogRefreshTimer = null;
+          _activeLogView = _LogViewMode.current;
+        });
+      });
+    }
+    final isCurrentView = activeLogView == _LogViewMode.current;
+
     return ScaffoldPage(
       header: PageHeader(
         title: Row(
@@ -772,36 +1306,39 @@ class _LogPageState extends State<LogPage> {
           ],
         ),
         commandBar: CommandBar(
+          key: ValueKey(activeLogView),
           mainAxisAlignment: MainAxisAlignment.end,
           primaryItems: [
-            SafeCommandBarButton(
-              icon: Icon(FluentIcons.filter),
-              label: Text(_filterLevel == null
-                  ? t.logFilterLevelLabel
-                  : _filterLevel!.name.toUpperCase()),
-              onPressed: () => _showFilterMenu(context),
-            ),
-            SafeCommandBarButton(
-              icon: Icon(FluentIcons.source),
-              label: Text(_filterTags.isNotEmpty
-                  ? _filterTags.length == 1
-                      ? _filterTags.first
-                      : t.logFilterTagCount(_filterTags.length)
-                  : _filterSource ?? t.logFilterSourceLabel),
-              onPressed: () => _showSourceFilterMenu(context),
-            ),
-            SafeCommandBarButton(
-              icon: Icon(FluentIcons.clock),
-              label: Text(_startTime != null || _endTime != null
-                  ? t.logFilterTimeSelectedLabel
-                  : t.logFilterTimeLabel),
-              onPressed: () => _showTimeRangeDialog(context),
-            ),
-            SafeCommandBarButton(
-              icon: Icon(FluentIcons.code),
-              label: Text(t.logRegexRulesButton),
-              onPressed: () => _showRegexRulesDialog(context),
-            ),
+            if (isCurrentView) ...[
+              SafeCommandBarButton(
+                icon: Icon(FluentIcons.filter),
+                label: Text(_filterLevel == null
+                    ? t.logFilterLevelLabel
+                    : _filterLevel!.name.toUpperCase()),
+                onPressed: () => _showFilterMenu(context),
+              ),
+              SafeCommandBarButton(
+                icon: Icon(FluentIcons.source),
+                label: Text(_filterTags.isNotEmpty
+                    ? _filterTags.length == 1
+                        ? _filterTags.first
+                        : t.logFilterTagCount(_filterTags.length)
+                    : _filterSource ?? t.logFilterSourceLabel),
+                onPressed: () => _showSourceFilterMenu(context),
+              ),
+              SafeCommandBarButton(
+                icon: Icon(FluentIcons.clock),
+                label: Text(_startTime != null || _endTime != null
+                    ? t.logFilterTimeSelectedLabel
+                    : t.logFilterTimeLabel),
+                onPressed: () => _showTimeRangeDialog(context),
+              ),
+              SafeCommandBarButton(
+                icon: Icon(FluentIcons.code),
+                label: Text(t.logRegexRulesButton),
+                onPressed: () => _showRegexRulesDialog(context),
+              ),
+            ],
           ],
           secondaryItems: [
             SafeCommandBarButton(
@@ -815,27 +1352,32 @@ class _LogPageState extends State<LogPage> {
                     .setLogAutoScroll(_autoScroll);
               },
             ),
-            SafeCommandBarButton(
-              icon: Icon(_showStats ? FluentIcons.chart : FluentIcons.hide3),
-              label: Text(_showStats ? t.logStatsShow : t.logStatsHide),
-              onPressed: () {
-                setState(() => _showStats = !_showStats);
-                context.read<ClientConfigService>().setLogShowStats(_showStats);
-              },
-            ),
-            SafeCommandBarButton(
-              icon: Icon(
-                  _showFailureStats ? FluentIcons.warning : FluentIcons.hide3),
-              label: Text(_showFailureStats
-                  ? t.logFailureStatsShow
-                  : t.logFailureStatsHide),
-              onPressed: () {
-                setState(() => _showFailureStats = !_showFailureStats);
-                context
-                    .read<ClientConfigService>()
-                    .setLogShowFailureStats(_showFailureStats);
-              },
-            ),
+            if (isCurrentView) ...[
+              SafeCommandBarButton(
+                icon: Icon(_showStats ? FluentIcons.chart : FluentIcons.hide3),
+                label: Text(_showStats ? t.logStatsShow : t.logStatsHide),
+                onPressed: () {
+                  setState(() => _showStats = !_showStats);
+                  context
+                      .read<ClientConfigService>()
+                      .setLogShowStats(_showStats);
+                },
+              ),
+              SafeCommandBarButton(
+                icon: Icon(_showFailureStats
+                    ? FluentIcons.warning
+                    : FluentIcons.hide3),
+                label: Text(_showFailureStats
+                    ? t.logFailureStatsShow
+                    : t.logFailureStatsHide),
+                onPressed: () {
+                  setState(() => _showFailureStats = !_showFailureStats);
+                  context
+                      .read<ClientConfigService>()
+                      .setLogShowFailureStats(_showFailureStats);
+                },
+              ),
+            ],
             const CommandBarSeparator(),
             SafeCommandBarButton(
               icon: Icon(FluentIcons.save),
@@ -863,99 +1405,39 @@ class _LogPageState extends State<LogPage> {
       ),
       content: Consumer2<AppLoggerService, DownloadFailureStatsService>(
         builder: (context, logger, failureStats, child) {
-          var logs = logger.logs;
+          final currentSnapshot =
+              isCurrentView ? _resolveCurrentLogSnapshot(logger) : null;
 
-          // 应用时间范围过滤
-          if (_startTime != null) {
-            logs = logs
-                .where((log) => log.timestamp.isAfter(_startTime!))
-                .toList();
-          }
-          if (_endTime != null) {
-            logs =
-                logs.where((log) => log.timestamp.isBefore(_endTime!)).toList();
-          }
-
-          // 应用级别过滤
-          if (_filterLevel != null) {
-            logs = logs.where((log) => log.level == _filterLevel).toList();
-          }
-
-          // 应用来源过滤
-          if (_filterTags.isNotEmpty) {
-            // 精确匹配选中的 tag
-            logs =
-                logs.where((log) => _filterTags.contains(log.source)).toList();
-          } else if (_filterSource != null) {
-            // 分类标签定义（与对话框保持一致）
-            const appTagNames = {'App', 'Update', 'PopupTest'};
-            const systemTagNames = {'Console', 'Zone'};
-            if (_filterSource == 'Kernel') {
-              logs = logs
-                  .where((log) =>
-                      !appTagNames.contains(log.source) &&
-                      !systemTagNames.contains(log.source))
-                  .toList();
-            } else if (_filterSource == 'App') {
-              logs = logs
-                  .where((log) => appTagNames.contains(log.source))
-                  .toList();
-            } else if (_filterSource == 'System') {
-              logs = logs
-                  .where((log) => systemTagNames.contains(log.source))
-                  .toList();
+          if (activeLogView == _LogViewMode.full) {
+            if (_fullLogLinesFuture == null) {
+              _ensureFullLogLinesFuture(logger);
             } else {
-              logs = logs.where((log) => log.source == _filterSource).toList();
+              _scheduleFullLogRefresh(logger);
             }
           }
-
-          // 应用搜索
-          if (_searchQuery.isNotEmpty) {
-            if (_useRegexSearch) {
-              try {
-                final regex = RegExp(_searchQuery, caseSensitive: false);
-                logs = logs
-                    .where((log) =>
-                        regex.hasMatch(log.message) ||
-                        regex.hasMatch(log.source))
-                    .toList();
-              } catch (_) {
-                // 正则无效时回退到普通搜索
-                logs = logs
-                    .where((log) =>
-                        log.message
-                            .toLowerCase()
-                            .contains(_searchQuery.toLowerCase()) ||
-                        log.source
-                            .toLowerCase()
-                            .contains(_searchQuery.toLowerCase()))
-                    .toList();
-              }
-            } else {
-              logs = logs
-                  .where((log) =>
-                      log.message
-                          .toLowerCase()
-                          .contains(_searchQuery.toLowerCase()) ||
-                      log.source
-                          .toLowerCase()
-                          .contains(_searchQuery.toLowerCase()))
-                  .toList();
-            }
-          }
-
-          final groupedLogs = _groupLogs(logs, logger.version);
-          final stats = _calculateStats(logs, groupedLogs);
 
           // 自动滚动
-          WidgetsBinding.instance
-              .addPostFrameCallback((_) => _scrollToBottom());
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) {
+              return;
+            }
+            _scrollToBottom(
+              isCurrentView ? _scrollController : _fullLogScrollController,
+            );
+          });
 
           return Column(
             children: [
+              if (showFullLogView)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: _buildLogViewTabs(
+                    activeLogView: activeLogView,
+                  ),
+                ),
               // 搜索栏
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: Row(
                   children: [
                     Expanded(
@@ -1013,66 +1495,349 @@ class _LogPageState extends State<LogPage> {
               ),
 
               // 统一信息栏（统计 + 筛选标签）
-              if (_showStats) _buildInfoBar(stats),
+              if (isCurrentView && _showStats && currentSnapshot != null)
+                _buildInfoBar(currentSnapshot.stats),
 
               // 下载失败统计
-              if (_showStats && _showFailureStats)
+              if (isCurrentView && _showStats && _showFailureStats)
                 _buildFailureStatsBar(failureStats),
 
               // 日志列表
               Expanded(
-                child: logs.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 64,
-                              height: 64,
-                              decoration: BoxDecoration(
-                                color: AppTheme.bgLayer2.withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Icon(
-                                FluentIcons.document,
-                                size: 28,
-                                color: AppTheme.textTertiary
-                                    .withValues(alpha: 0.5),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              t.logEmptyTitle,
-                              style: TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              t.logEmptySubtitle,
-                              style: TextStyle(
-                                color: AppTheme.textTertiary,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
+                child: isCurrentView
+                    ? _buildCurrentLogPane(
+                        currentSnapshot!.groupedLogs,
+                        currentSnapshot.logs,
                       )
-                    : SmoothListView.builder(
-                        config: SmoothScrollConfig.fast,
-                        controller: _scrollController,
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        itemCount: groupedLogs.length,
-                        itemBuilder: (context, index) =>
-                            _buildLogEntry(context, groupedLogs[index]),
-                      ),
+                    : _buildFullLogPane(),
               ),
             ],
           );
         },
       ),
     );
+  }
+
+  Widget _buildLogViewTabs({
+    required _LogViewMode activeLogView,
+  }) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceCard.withValues(alpha: 0.65),
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          border: Border.all(
+            color: AppTheme.borderSubtle.withValues(alpha: 0.45),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _LogViewTabButton(
+              icon: FluentIcons.document,
+              label: t.logCurrentTabLabel,
+              isSelected: activeLogView == _LogViewMode.current,
+              onTap: () => _setActiveLogView(_LogViewMode.current),
+            ),
+            const SizedBox(width: 4),
+            _LogViewTabButton(
+              icon: FluentIcons.text_document,
+              label: t.logFullTabLabel,
+              isSelected: activeLogView == _LogViewMode.full,
+              onTap: () => _setActiveLogView(_LogViewMode.full),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCurrentLogPane(
+    List<LogDisplayItem> groupedLogs,
+    List<LogEntry> logs,
+  ) {
+    if (logs.isEmpty) {
+      return _buildEmptyState(
+        title: t.logEmptyTitle,
+        subtitle: t.logEmptySubtitle,
+        icon: FluentIcons.document,
+      );
+    }
+
+    return SmoothListView.builder(
+      config: SmoothScrollConfig.fast,
+      controller: _scrollController,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      itemCount: groupedLogs.length,
+      itemBuilder: (context, index) =>
+          _buildLogEntry(context, groupedLogs[index]),
+    );
+  }
+
+  Widget _buildFullLogPane() {
+    return FutureBuilder<List<String>>(
+      future: _fullLogLinesFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return const Center(child: ProgressRing());
+        }
+
+        if (snapshot.hasError) {
+          return _buildEmptyState(
+            title: t.logEmptyTitle,
+            subtitle: snapshot.error.toString(),
+            icon: FluentIcons.text_document,
+          );
+        }
+
+        final allLines = snapshot.data ?? const <String>[];
+        final visibleLines = _applyFullLogSearch(allLines);
+        if (visibleLines.isEmpty) {
+          return _buildEmptyState(
+            title: t.logEmptyTitle,
+            subtitle: t.logEmptySubtitle,
+            icon: FluentIcons.text_document,
+          );
+        }
+
+        return SmoothListView.builder(
+          config: SmoothScrollConfig.fast,
+          controller: _fullLogScrollController,
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          itemCount: visibleLines.length,
+          itemBuilder: (context, index) {
+            return _buildFullLogLine(visibleLines[index], index + 1);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildFullLogLine(String line, int index) {
+    final parsedLine = _tryParseFullLogLine(line);
+    if (parsedLine != null) {
+      return _buildStructuredFullLogLine(parsedLine, index);
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceCard.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(
+          color: AppTheme.borderSubtle.withValues(alpha: 0.3),
+          width: 0.5,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 3,
+              height: 36,
+              decoration: BoxDecoration(
+                color: _getFullLogLineAccent(line),
+                borderRadius: BorderRadius.circular(1.5),
+              ),
+            ),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 40,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 1),
+                child: Text(
+                  '$index',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontFamily: 'Courier New',
+                    fontSize: 11,
+                    color: AppTheme.textTertiary,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 1),
+                child: Text(
+                  line,
+                  style: TextStyle(
+                    fontFamily: 'Courier New',
+                    fontSize: 12,
+                    height: 1.35,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStructuredFullLogLine(_ParsedFullLogLine parsedLine, int index) {
+    final levelColor = _getLevelColor(parsedLine.log.level);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceCard.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(
+          color: AppTheme.borderSubtle.withValues(alpha: 0.3),
+          width: 0.5,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 3,
+              height: 36,
+              decoration: BoxDecoration(
+                color: levelColor,
+                borderRadius: BorderRadius.circular(1.5),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _buildSingleLogRow(
+                context,
+                parsedLine.log,
+                timeText: parsedLine.preciseTimeText,
+                leading: SizedBox(
+                  width: 40,
+                  child: Text(
+                    '$index',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      color: AppTheme.textTertiary,
+                      fontSize: 11,
+                      fontFamily: 'Courier New',
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  _ParsedFullLogLine? _tryParseFullLogLine(String line) {
+    final match = _fullLogLineRegex.firstMatch(line);
+    if (match == null) {
+      return null;
+    }
+
+    final timestamp = DateTime.tryParse(match.group(1)!);
+    if (timestamp == null) {
+      return null;
+    }
+
+    final log = LogEntry(
+      timestamp: timestamp,
+      level: _parseFullLogLevel(match.group(2)!),
+      source: match.group(3) ?? 'Unknown',
+      message: match.group(4) ?? '',
+    );
+
+    return _ParsedFullLogLine(
+      log: log,
+      preciseTimeText: _formatPreciseTime(timestamp),
+    );
+  }
+
+  LogLevel _parseFullLogLevel(String text) {
+    switch (text.toUpperCase()) {
+      case 'DEBUG':
+        return LogLevel.debug;
+      case 'INFO':
+        return LogLevel.info;
+      case 'WARNING':
+      case 'WARN':
+        return LogLevel.warning;
+      case 'ERROR':
+        return LogLevel.error;
+      default:
+        return LogLevel.info;
+    }
+  }
+
+  String _formatPreciseTime(DateTime timestamp) {
+    return '${timestamp.hour.toString().padLeft(2, '0')}:'
+        '${timestamp.minute.toString().padLeft(2, '0')}:'
+        '${timestamp.second.toString().padLeft(2, '0')}.'
+        '${timestamp.millisecond.toString().padLeft(3, '0')}';
+  }
+
+  Widget _buildEmptyState({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+  }) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: AppTheme.bgLayer2.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              icon,
+              size: 28,
+              color: AppTheme.textTertiary.withValues(alpha: 0.5),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: TextStyle(
+              color: AppTheme.textTertiary,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getFullLogLineAccent(String line) {
+    if (line.contains('[ERROR]')) {
+      return AppTheme.statusError;
+    }
+    if (line.contains('[WARN]')) {
+      return AppTheme.statusWarning;
+    }
+    if (line.contains('[DEBUG]')) {
+      return const Color(0xFFB794F6);
+    }
+    if (line.contains('[INFO]')) {
+      return AppTheme.statusInfo;
+    }
+    return AppTheme.borderSubtle;
   }
 
   /// 构建统一的信息栏（统计 + 筛选标签整合）
@@ -1809,8 +2574,13 @@ class _LogPageState extends State<LogPage> {
     }
   }
 
-  Widget _buildSingleLogRow(BuildContext context, LogEntry log,
-      {bool isExpandedItem = false}) {
+  Widget _buildSingleLogRow(
+    BuildContext context,
+    LogEntry log, {
+    bool isExpandedItem = false,
+    String? timeText,
+    Widget? leading,
+  }) {
     final levelColor = _getLevelColor(log.level);
     final displayMessage = _stripLogPrefix(log.message);
     final alpha = isExpandedItem ? 0.6 : 1.0;
@@ -1818,9 +2588,13 @@ class _LogPageState extends State<LogPage> {
     final content = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (leading != null) ...[
+          leading,
+          const SizedBox(width: 10),
+        ],
         // 时间
         Text(
-          log.formattedTime,
+          timeText ?? log.formattedTime,
           style: TextStyle(
             color: AppTheme.textTertiary.withValues(alpha: alpha),
             fontSize: 11,
@@ -1907,56 +2681,7 @@ class _LogPageState extends State<LogPage> {
   }
 
   Widget _buildHighlightedMessage(String message, double alpha) {
-    // 收集所有匹配
-    final List<_HighlightMatch> matches = [];
-
-    // 1. 内置规则高亮
-    for (final rule in _builtinRules) {
-      if (_builtinRuleEnabled[rule.type] != true) continue;
-      try {
-        final regex = RegExp(rule.pattern, caseSensitive: false);
-        for (final match in regex.allMatches(message)) {
-          matches.add(_HighlightMatch(
-            start: match.start,
-            end: match.end,
-            color: rule.color,
-            type: rule.type,
-          ));
-        }
-      } catch (_) {}
-    }
-
-    // 2. 自定义规则高亮
-    for (final rule in _customRules.where((r) => r.enabled)) {
-      try {
-        final regex = RegExp(rule.pattern, caseSensitive: false);
-        for (final match in regex.allMatches(message)) {
-          matches.add(_HighlightMatch(
-            start: match.start,
-            end: match.end,
-            color: rule.highlightColor ?? AppTheme.accentLight,
-            type: _HighlightType.custom,
-          ));
-        }
-      } catch (_) {}
-    }
-
-    // 3. 搜索高亮（优先级最高）
-    if (_searchQuery.isNotEmpty) {
-      try {
-        final searchRegex = _useRegexSearch
-            ? RegExp(_searchQuery, caseSensitive: false)
-            : RegExp(RegExp.escape(_searchQuery), caseSensitive: false);
-        for (final match in searchRegex.allMatches(message)) {
-          matches.add(_HighlightMatch(
-            start: match.start,
-            end: match.end,
-            color: AppTheme.statusWarning,
-            isSearch: true,
-          ));
-        }
-      } catch (_) {}
-    }
+    final matches = _resolveHighlightMatches(message).toList(growable: false);
 
     if (matches.isEmpty) {
       return Text(
@@ -3077,6 +3802,8 @@ class _LogPageState extends State<LogPage> {
   }
 
   void _showArchiveDialog(BuildContext context) {
+    final isCurrentView = _activeLogView == _LogViewMode.current;
+
     showDialog(
       context: context,
       builder: (ctx) => ContentDialog(
@@ -3090,47 +3817,57 @@ class _LogPageState extends State<LogPage> {
             Button(
               onPressed: () {
                 Navigator.pop(ctx);
-                _exportLogs(context);
+                if (isCurrentView) {
+                  _exportAllLogs(context);
+                } else {
+                  _exportFullLog(context);
+                }
               },
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(FluentIcons.save, size: 16),
                   SizedBox(width: 8),
-                  Text(t.logArchiveExportAll),
+                  Text(
+                    isCurrentView
+                        ? t.logArchiveExportAll
+                        : t.logArchiveExportFull,
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 8),
-            Button(
-              onPressed: () {
-                Navigator.pop(ctx);
-                _exportFilteredLogs(context);
-              },
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(FluentIcons.filter, size: 16),
-                  SizedBox(width: 8),
-                  Text(t.logArchiveExportFiltered),
-                ],
+            if (isCurrentView) ...[
+              const SizedBox(height: 8),
+              Button(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _exportFilteredLogs(context);
+                },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(FluentIcons.filter, size: 16),
+                    SizedBox(width: 8),
+                    Text(_buildFilteredExportLabel()),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Button(
-              onPressed: () {
-                Navigator.pop(ctx);
-                _exportBookmarkedLogs(context);
-              },
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(FluentIcons.single_bookmark, size: 16),
-                  const SizedBox(width: 8),
-                  Text(t.logArchiveExportBookmarked(_bookmarkedIds.length)),
-                ],
+              const SizedBox(height: 8),
+              Button(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _exportBookmarkedLogs(context);
+                },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(FluentIcons.single_bookmark, size: 16),
+                    const SizedBox(width: 8),
+                    Text(t.logArchiveExportBookmarked(_bookmarkedIds.length)),
+                  ],
+                ),
               ),
-            ),
+            ],
           ],
         ),
         actions: [
@@ -3171,32 +3908,11 @@ class _LogPageState extends State<LogPage> {
 
   Future<void> _exportFilteredLogs(BuildContext context) async {
     final logger = context.read<AppLoggerService>();
-    var logs = logger.logs;
-
-    if (_startTime != null)
-      logs = logs.where((l) => l.timestamp.isAfter(_startTime!)).toList();
-    if (_endTime != null)
-      logs = logs.where((l) => l.timestamp.isBefore(_endTime!)).toList();
-    if (_filterLevel != null)
-      logs = logs.where((l) => l.level == _filterLevel).toList();
-    if (_filterSource != null) {
-      if (_filterSource == 'Kernel') {
-        // Kernel 类别包含所有下载核心相关的来源
-        logs = logs.where((l) => l.source != 'App').toList();
-      } else if (_filterSource == 'App') {
-        logs = logs.where((l) => l.source == 'App').toList();
-      } else {
-        logs = logs.where((l) => l.source == _filterSource).toList();
-      }
-    }
-    if (_searchQuery.isNotEmpty) {
-      logs = logs
-          .where((l) =>
-              l.message.toLowerCase().contains(_searchQuery.toLowerCase()))
-          .toList();
-    }
-
-    await _doExport(context, logs, 'filtered');
+    await _exportLogEntries(
+      context,
+      _applyActiveFilters(logger.logs),
+      fileStem: 'log_filtered',
+    );
   }
 
   Future<void> _exportBookmarkedLogs(BuildContext context) async {
@@ -3206,75 +3922,91 @@ class _LogPageState extends State<LogPage> {
       return _bookmarkedIds.contains(id);
     }).toList();
 
-    await _doExport(context, logs, 'bookmarked');
-  }
-
-  Future<void> _doExport(
-      BuildContext context, List<LogEntry> logs, String suffix) async {
-    String initialPath = 'C:\\';
-    try {
-      initialPath = Directory.current.path;
-    } catch (_) {}
-
-    final selectedPath = await showDialog<String>(
-      context: context,
-      barrierDismissible: true,
-      builder: (ctx) => FolderPickerDialog(initialPath: initialPath),
+    await _exportLogEntries(
+      context,
+      logs,
+      fileStem: 'log_bookmarked',
     );
+  }
+}
 
-    if (selectedPath != null && mounted) {
-      try {
-        final timestamp = DateTime.now()
-            .toIso8601String()
-            .replaceAll(':', '-')
-            .split('.')
-            .first;
-        final file = File('$selectedPath\\log_${suffix}_$timestamp.txt');
+class _LogViewTabButton extends StatefulWidget {
+  const _LogViewTabButton({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
 
-        final buffer = StringBuffer();
-        buffer.writeln(t.logExportFileHeader(timestamp));
-        buffer.writeln(t.logExportFileTotal(logs.length));
-        buffer.writeln('');
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
 
-        for (var log in logs) {
-          buffer.writeln(
-              '[${log.formattedTime}] [${log.levelString}] [${log.source}] ${log.message}');
-        }
+  @override
+  State<_LogViewTabButton> createState() => _LogViewTabButtonState();
+}
 
-        await file.writeAsString(buffer.toString());
+class _LogViewTabButtonState extends State<_LogViewTabButton> {
+  bool _isHovered = false;
 
-        if (mounted) {
-          await showDialog(
-            context: context,
-            builder: (ctx) => ContentDialog(
-              title: Text(t.logExportSuccessTitle),
-              content:
-                  Text(t.logExportSavedCountMessage(logs.length, file.path)),
-              actions: [
-                Button(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: Text(t.logDialogOk)),
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 104),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: widget.isSelected
+                  ? AppTheme.accentPrimary.withValues(alpha: 0.14)
+                  : (_isHovered
+                      ? AppTheme.bgLayer2.withValues(alpha: 0.55)
+                      : Colors.transparent),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(
+                color: widget.isSelected
+                    ? AppTheme.accentPrimary.withValues(alpha: 0.34)
+                    : (_isHovered
+                        ? AppTheme.borderSubtle.withValues(alpha: 0.55)
+                        : Colors.transparent),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  widget.icon,
+                  size: 12,
+                  color: widget.isSelected
+                      ? AppTheme.accentLight
+                      : AppTheme.textSecondary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  widget.label,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight:
+                        widget.isSelected ? FontWeight.w600 : FontWeight.w500,
+                    color: widget.isSelected
+                        ? AppTheme.accentLight
+                        : AppTheme.textSecondary,
+                  ),
+                ),
               ],
             ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          await showDialog(
-            context: context,
-            builder: (ctx) => ContentDialog(
-              title: Text(t.logExportFailedTitle),
-              content: Text(t.logExportErrorMessage(e)),
-              actions: [
-                Button(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: Text(t.logDialogOk)),
-              ],
-            ),
-          );
-        }
-      }
-    }
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -3291,6 +4023,18 @@ class _HighlightMatch {
     required this.color,
     this.isSearch = false,
     this.type,
+  });
+}
+
+class _CompiledHighlightRule {
+  final RegExp regex;
+  final Color color;
+  final _HighlightType type;
+
+  const _CompiledHighlightRule({
+    required this.regex,
+    required this.color,
+    required this.type,
   });
 }
 

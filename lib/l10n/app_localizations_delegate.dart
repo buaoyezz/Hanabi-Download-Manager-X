@@ -297,6 +297,26 @@ class PluginAppLocalizations extends AppLocalizations {
       _string('trayMenuExitSubtitle', _fallback.trayMenuExitSubtitle);
 
   @override
+  String get exitWithActiveDownloadsTitle => _string(
+      'exitWithActiveDownloadsTitle', _fallback.exitWithActiveDownloadsTitle);
+
+  @override
+  String exitWithActiveDownloadsMessage(Object count) => _format(
+      'exitWithActiveDownloadsMessage',
+      {'count': count},
+      _fallback.exitWithActiveDownloadsMessage(count));
+
+  @override
+  String get exitWithActiveDownloadsCancelButton => _string(
+      'exitWithActiveDownloadsCancelButton',
+      _fallback.exitWithActiveDownloadsCancelButton);
+
+  @override
+  String get exitWithActiveDownloadsConfirmButton => _string(
+      'exitWithActiveDownloadsConfirmButton',
+      _fallback.exitWithActiveDownloadsConfirmButton);
+
+  @override
   String get tempFilesDialogTitle =>
       _string('tempFilesDialogTitle', _fallback.tempFilesDialogTitle);
 
@@ -1808,6 +1828,21 @@ class PluginAppLocalizations extends AppLocalizations {
       _fallback.appearanceWindowEffectsDragSuspendDisabledSubtitle);
 
   @override
+  String get appearanceWindowEffectsRoundedCornersTitle => _string(
+      'appearanceWindowEffectsRoundedCornersTitle',
+      _fallback.appearanceWindowEffectsRoundedCornersTitle);
+
+  @override
+  String get appearanceWindowEffectsRoundedCornersEnabledSubtitle => _string(
+      'appearanceWindowEffectsRoundedCornersEnabledSubtitle',
+      _fallback.appearanceWindowEffectsRoundedCornersEnabledSubtitle);
+
+  @override
+  String get appearanceWindowEffectsRoundedCornersDisabledSubtitle => _string(
+      'appearanceWindowEffectsRoundedCornersDisabledSubtitle',
+      _fallback.appearanceWindowEffectsRoundedCornersDisabledSubtitle);
+
+  @override
   String get appearanceWindowEffectsMicaHint => _string(
       'appearanceWindowEffectsMicaHint',
       _fallback.appearanceWindowEffectsMicaHint);
@@ -2256,6 +2291,34 @@ class PluginAppLocalizations extends AppLocalizations {
       'developerToolLogHiddenMessage', _fallback.developerToolLogHiddenMessage);
 
   @override
+  String get developerToolFullLogTitle =>
+      _string('developerToolFullLogTitle', _fallback.developerToolFullLogTitle);
+
+  @override
+  String get developerToolFullLogSubtitle => _string(
+      'developerToolFullLogSubtitle', _fallback.developerToolFullLogSubtitle);
+
+  @override
+  String get developerToolFullLogShownTitle => _string(
+      'developerToolFullLogShownTitle',
+      _fallback.developerToolFullLogShownTitle);
+
+  @override
+  String get developerToolFullLogShownMessage => _string(
+      'developerToolFullLogShownMessage',
+      _fallback.developerToolFullLogShownMessage);
+
+  @override
+  String get developerToolFullLogHiddenTitle => _string(
+      'developerToolFullLogHiddenTitle',
+      _fallback.developerToolFullLogHiddenTitle);
+
+  @override
+  String get developerToolFullLogHiddenMessage => _string(
+      'developerToolFullLogHiddenMessage',
+      _fallback.developerToolFullLogHiddenMessage);
+
+  @override
   String get developerToolStatusTitle =>
       _string('developerToolStatusTitle', _fallback.developerToolStatusTitle);
 
@@ -2449,6 +2512,52 @@ class PluginAppLocalizations extends AppLocalizations {
   @override
   String get connectionDebugFileSize =>
       _string('connectionDebugFileSize', _fallback.connectionDebugFileSize);
+
+  @override
+  String get connectionDebugStrategyTitle => _string(
+      'connectionDebugStrategyTitle', _fallback.connectionDebugStrategyTitle);
+
+  @override
+  String get connectionDebugStrategySubtitle => _string(
+      'connectionDebugStrategySubtitle',
+      _fallback.connectionDebugStrategySubtitle);
+
+  @override
+  String get connectionDebugStrategyRefresh => _string(
+      'connectionDebugStrategyRefresh',
+      _fallback.connectionDebugStrategyRefresh);
+
+  @override
+  String get connectionDebugStrategyClear => _string(
+      'connectionDebugStrategyClear', _fallback.connectionDebugStrategyClear);
+
+  @override
+  String get connectionDebugStrategyEmpty => _string(
+      'connectionDebugStrategyEmpty', _fallback.connectionDebugStrategyEmpty);
+
+  @override
+  String connectionDebugStrategyCount(Object count) => _format(
+      'connectionDebugStrategyCount',
+      {'count': count},
+      _fallback.connectionDebugStrategyCount(count));
+
+  @override
+  String get connectionDebugStrategyPolicy => _string(
+      'connectionDebugStrategyPolicy', _fallback.connectionDebugStrategyPolicy);
+
+  @override
+  String get connectionDebugStrategyConcurrency => _string(
+      'connectionDebugStrategyConcurrency',
+      _fallback.connectionDebugStrategyConcurrency);
+
+  @override
+  String get connectionDebugStrategyTtl => _string(
+      'connectionDebugStrategyTtl', _fallback.connectionDebugStrategyTtl);
+
+  @override
+  String get connectionDebugStrategyExpired => _string(
+      'connectionDebugStrategyExpired',
+      _fallback.connectionDebugStrategyExpired);
 
   @override
   String get connectionDebugRangeSupported => _string(
@@ -3330,6 +3439,15 @@ class PluginAppLocalizations extends AppLocalizations {
   @override
   String get downloadCalculating =>
       _string('downloadCalculating', _fallback.downloadCalculating);
+
+  @override
+  String get downloadMatchingHttpProtocol => _string(
+      'downloadMatchingHttpProtocol', _fallback.downloadMatchingHttpProtocol);
+
+  @override
+  String get downloadMatchingHttpProtocolShort => _string(
+      'downloadMatchingHttpProtocolShort',
+      _fallback.downloadMatchingHttpProtocolShort);
 
   @override
   String downloadSegmentsTitleWithCount(Object count) => _format(
@@ -4338,6 +4456,14 @@ class PluginAppLocalizations extends AppLocalizations {
       _string('logClearButton', _fallback.logClearButton);
 
   @override
+  String get logCurrentTabLabel =>
+      _string('logCurrentTabLabel', _fallback.logCurrentTabLabel);
+
+  @override
+  String get logFullTabLabel =>
+      _string('logFullTabLabel', _fallback.logFullTabLabel);
+
+  @override
   String get logSearchPlaceholderRegex =>
       _string('logSearchPlaceholderRegex', _fallback.logSearchPlaceholderRegex);
 
@@ -4723,6 +4849,10 @@ class PluginAppLocalizations extends AppLocalizations {
   @override
   String get logArchiveExportFiltered =>
       _string('logArchiveExportFiltered', _fallback.logArchiveExportFiltered);
+
+  @override
+  String get logArchiveExportFull =>
+      _string('logArchiveExportFull', _fallback.logArchiveExportFull);
 
   @override
   String logArchiveExportBookmarked(Object count) => _format(
@@ -5257,6 +5387,21 @@ class PluginAppLocalizations extends AppLocalizations {
       _fallback.settingsClipboardListenerDisabledMessage);
 
   @override
+  String get clipboardListenerMuteSessionButton => _string(
+      'clipboardListenerMuteSessionButton',
+      _fallback.clipboardListenerMuteSessionButton);
+
+  @override
+  String get clipboardListenerSessionMutedTitle => _string(
+      'clipboardListenerSessionMutedTitle',
+      _fallback.clipboardListenerSessionMutedTitle);
+
+  @override
+  String get clipboardListenerSessionMutedMessage => _string(
+      'clipboardListenerSessionMutedMessage',
+      _fallback.clipboardListenerSessionMutedMessage);
+
+  @override
   String get downloadDuplicateTitle =>
       _string('downloadDuplicateTitle', _fallback.downloadDuplicateTitle);
 
@@ -5278,6 +5423,20 @@ class PluginAppLocalizations extends AppLocalizations {
   @override
   String get downloadDuplicateCancelButton => _string(
       'downloadDuplicateCancelButton', _fallback.downloadDuplicateCancelButton);
+
+  @override
+  String get downloadBadgeHostHint =>
+      _string('downloadBadgeHostHint', _fallback.downloadBadgeHostHint);
+
+  @override
+  String get downloadBadgePolicyFallback => _string(
+      'downloadBadgePolicyFallback', _fallback.downloadBadgePolicyFallback);
+
+  @override
+  String downloadBadgeConcurrencyCap(Object count) => _format(
+      'downloadBadgeConcurrencyCap',
+      {'count': count},
+      _fallback.downloadBadgeConcurrencyCap(count));
 
   @override
   String get downloadFailureHintAuth =>

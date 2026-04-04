@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../services/kernel/kernel_manager.dart';
 import '../../../services/kernel/kernel_interface.dart';
+import '../../../services/kernel/next/downloader/proxy_runtime.dart';
 import '../../../theme/app_theme.dart';
 import '../../../utils/fluent_icons.dart';
 import '../../../widgets/smooth_scroll_wrapper.dart';
@@ -40,6 +41,50 @@ class _ConnectionTestResult {
   });
 }
 
+class _HostStrategyEntry {
+  final String host;
+  final String? policy;
+  final DateTime? policyExpiresAt;
+  final int? maxConcurrency;
+  final DateTime? maxConcurrencyExpiresAt;
+
+  const _HostStrategyEntry({
+    required this.host,
+    this.policy,
+    this.policyExpiresAt,
+    this.maxConcurrency,
+    this.maxConcurrencyExpiresAt,
+  });
+
+  bool get hasPolicy => policy != null && policy!.trim().isNotEmpty;
+  bool get hasConcurrency => maxConcurrency != null && maxConcurrency! > 0;
+
+  static _HostStrategyEntry? fromJson(String host, dynamic value) {
+    if (value is! Map<String, dynamic>) return null;
+
+    DateTime? parseDate(dynamic raw) {
+      final text = raw?.toString();
+      if (text == null || text.isEmpty) return null;
+      return DateTime.tryParse(text)?.toLocal();
+    }
+
+    final policy = value['policy']?.toString();
+    final maxConcurrency = (value['maxConcurrency'] as num?)?.toInt();
+    final entry = _HostStrategyEntry(
+      host: host,
+      policy: policy,
+      policyExpiresAt: parseDate(value['policyExpiresAt']),
+      maxConcurrency: maxConcurrency,
+      maxConcurrencyExpiresAt: parseDate(value['maxConcurrencyExpiresAt']),
+    );
+
+    if (!entry.hasPolicy && !entry.hasConcurrency) {
+      return null;
+    }
+    return entry;
+  }
+}
+
 class ConnectionDebugPage extends StatefulWidget {
   const ConnectionDebugPage({super.key});
 
@@ -51,9 +96,20 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
   final _urlController = TextEditingController(
       text: 'https://dl.google.com/chrome/install/latest/chrome_installer.exe');
   final List<_ConnectionTestResult> _results = [];
+  List<_HostStrategyEntry> _hostStrategies = const [];
   bool _isTesting = false;
+  bool _isLoadingHostStrategies = false;
+  bool _isClearingHostStrategies = false;
   final ScrollController _scrollController =
       createSmoothScrollController(config: SmoothScrollConfig.fast);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadHostStrategies();
+    });
+  }
 
   @override
   void dispose() {
@@ -75,14 +131,12 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
     // 获取代理配置
     String? proxyInfo;
     ProxyConfig? proxyConfig;
+    NsfxResolvedProxy resolvedProxy = const NsfxResolvedProxy.direct();
     try {
       final kernelManager = context.read<KernelManager>();
       final config = await kernelManager.getConfig();
       if (config?.proxy != null && config!.proxy!.enabled) {
         proxyConfig = config.proxy;
-        final host =
-            proxyConfig!.host.isNotEmpty ? proxyConfig.host : '127.0.0.1';
-        proxyInfo = '$host:${proxyConfig.port}';
       }
     } catch (_) {}
 
@@ -95,14 +149,12 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
       client.idleTimeout = const Duration(seconds: 10);
       client.badCertificateCallback = (cert, host, port) => true;
 
-      // 应用代理
-      if (proxyConfig != null && proxyConfig.enabled) {
-        final host =
-            proxyConfig.host.isNotEmpty ? proxyConfig.host : '127.0.0.1';
-        client.findProxy = (_) => 'PROXY $host:${proxyConfig!.port}';
-      }
-
       final uri = Uri.parse(url);
+      resolvedProxy =
+          NsfxProxyRuntime.resolveFromKernelConfig(proxyConfig, uri);
+      proxyInfo = resolvedProxy.displayLabel;
+      NsfxProxyRuntime.applyToHttpClient(client, resolvedProxy);
+
       final request = await client.getUrl(uri);
       request.headers.set('User-Agent', 'NSFX/2.0 Connection Debug');
       request.headers.set('Accept', '*/*');
@@ -177,6 +229,51 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
     }
   }
 
+  Future<void> _loadHostStrategies() async {
+    if (!mounted) return;
+    setState(() => _isLoadingHostStrategies = true);
+
+    try {
+      final kernelManager = context.read<KernelManager>();
+      final json = await kernelManager.getAdaptiveHostStrategies();
+      final entries = <_HostStrategyEntry>[];
+      for (final entry in json.entries) {
+        final parsed = _HostStrategyEntry.fromJson(entry.key, entry.value);
+        if (parsed != null) {
+          entries.add(parsed);
+        }
+      }
+      entries.sort((a, b) => a.host.compareTo(b.host));
+
+      if (!mounted) return;
+      setState(() {
+        _hostStrategies = entries;
+        _isLoadingHostStrategies = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoadingHostStrategies = false);
+    }
+  }
+
+  Future<void> _clearHostStrategies() async {
+    if (!mounted) return;
+    setState(() => _isClearingHostStrategies = true);
+
+    try {
+      final kernelManager = context.read<KernelManager>();
+      await kernelManager.clearAdaptiveHostStrategies();
+      if (!mounted) return;
+      setState(() {
+        _hostStrategies = const [];
+        _isClearingHostStrategies = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isClearingHostStrategies = false);
+    }
+  }
+
   String _resolveLocalIp() {
     final t = AppLocalizations.of(context);
     return t?.connectionDebugLocalHost ?? 'Local';
@@ -191,6 +288,31 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
 
   void _clearResults() {
     setState(() => _results.clear());
+  }
+
+  String _formatHttpPolicy(String? policy) {
+    switch (policy) {
+      case 'http3_only':
+        return 'HTTP/3';
+      case 'http2_only':
+        return 'HTTP/2';
+      case 'http1_only':
+        return 'HTTP/1.1';
+      case 'auto':
+        return 'HTTP Auto';
+      default:
+        return policy ?? '--';
+    }
+  }
+
+  String _formatRemainingTtl(DateTime? expiresAt) {
+    final t = AppLocalizations.of(context)!;
+    if (expiresAt == null) return '--';
+    final remaining = expiresAt.difference(DateTime.now());
+    if (remaining.inSeconds <= 0) return t.connectionDebugStrategyExpired;
+    if (remaining.inMinutes < 1) return '${remaining.inSeconds}s';
+    if (remaining.inHours < 1) return '${remaining.inMinutes}m';
+    return '${remaining.inHours}h ${remaining.inMinutes % 60}m';
   }
 
   @override
@@ -208,6 +330,8 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
               children: [
                 _buildInputSection(),
                 const SizedBox(height: 16),
+                _buildHostStrategySection(),
+                if (_results.isNotEmpty) const SizedBox(height: 16),
                 if (_results.isNotEmpty) _buildResultsList(),
               ],
             ),
@@ -358,6 +482,175 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
                       },
                 child: const Text('Baidu'),
               ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHostStrategySection() {
+    final t = AppLocalizations.of(context)!;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceCard.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(
+          color: AppTheme.borderSubtle.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      t.connectionDebugStrategyTitle,
+                      style: FluentTheme.of(context)
+                          .typography
+                          .bodyStrong
+                          ?.copyWith(
+                            color: AppTheme.textPrimary,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      t.connectionDebugStrategySubtitle,
+                      style:
+                          FluentTheme.of(context).typography.caption?.copyWith(
+                                color: AppTheme.textTertiary,
+                                fontSize: 11,
+                              ),
+                    ),
+                  ],
+                ),
+              ),
+              Button(
+                onPressed:
+                    _isLoadingHostStrategies ? null : _loadHostStrategies,
+                child: Text(t.connectionDebugStrategyRefresh),
+              ),
+              const SizedBox(width: 8),
+              Button(
+                onPressed:
+                    (_isClearingHostStrategies || _hostStrategies.isEmpty)
+                        ? null
+                        : _clearHostStrategies,
+                child: _isClearingHostStrategies
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: ProgressRing(strokeWidth: 2),
+                      )
+                    : Text(t.connectionDebugStrategyClear),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_isLoadingHostStrategies)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: ProgressRing(strokeWidth: 2),
+              ),
+            )
+          else if (_hostStrategies.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.bgLayer2.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              ),
+              child: Text(
+                t.connectionDebugStrategyEmpty,
+                style: FluentTheme.of(context).typography.caption?.copyWith(
+                      color: AppTheme.textTertiary,
+                      fontSize: 11,
+                    ),
+              ),
+            )
+          else ...[
+            Text(
+              t.connectionDebugStrategyCount(_hostStrategies.length),
+              style: FluentTheme.of(context).typography.caption?.copyWith(
+                    color: AppTheme.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+            const SizedBox(height: 10),
+            ..._hostStrategies.map(
+              (entry) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _buildHostStrategyCard(entry),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHostStrategyCard(_HostStrategyEntry entry) {
+    final t = AppLocalizations.of(context)!;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.bgLayer2.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        border: Border.all(
+          color: AppTheme.borderSubtle.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            entry.host,
+            style: FluentTheme.of(context).typography.body?.copyWith(
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              if (entry.hasPolicy)
+                _buildInfoChip(
+                  FluentIcons.plug_disconnected,
+                  t.connectionDebugStrategyPolicy,
+                  _formatHttpPolicy(entry.policy),
+                  color: AppTheme.accentLight,
+                ),
+              if (entry.hasPolicy)
+                _buildInfoChip(
+                  FluentIcons.clock,
+                  t.connectionDebugStrategyTtl,
+                  _formatRemainingTtl(entry.policyExpiresAt),
+                ),
+              if (entry.hasConcurrency)
+                _buildInfoChip(
+                  FluentIcons.split,
+                  t.connectionDebugStrategyConcurrency,
+                  '${entry.maxConcurrency}',
+                  color: AppTheme.statusWarning,
+                ),
+              if (entry.hasConcurrency)
+                _buildInfoChip(
+                  FluentIcons.clock,
+                  t.connectionDebugStrategyTtl,
+                  _formatRemainingTtl(entry.maxConcurrencyExpiresAt),
+                ),
             ],
           ),
         ],

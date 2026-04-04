@@ -99,6 +99,15 @@
   "trayMenuKernelSubtitleStopped": "Stopped",
   "trayMenuExitTitle": "Exit",
   "trayMenuExitSubtitle": "Close all windows",
+  "exitWithActiveDownloadsTitle": "Active downloads in progress",
+  "exitWithActiveDownloadsMessage": "{count} download(s) are still running. Exiting now will stop them. Are you sure you want to quit?",
+  "@exitWithActiveDownloadsMessage": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "exitWithActiveDownloadsCancelButton": "Cancel",
+  "exitWithActiveDownloadsConfirmButton": "Exit anyway",
   "tempFilesDialogTitle": "Clean Temporary Files",
   "tempFilesDialogScanPath": "Scan path: {path}",
   "@tempFilesDialogScanPath": {
@@ -281,7 +290,7 @@
   "settingsGlobalSpeedLimitSubtitle": "Limit total download bandwidth",
   "settingsHttpVersionTitle": "HTTP protocol",
   "settingsHttpVersionSubtitle": "Choose protocol strategy for HTTPS downloads",
-  "settingsHttpVersionAuto": "Auto (recommended)",
+  "settingsHttpVersionAuto": "Auto (prefer HTTP/1.1)",
   "settingsHttpVersionHttp1Only": "Force HTTP/1.1",
   "settingsHttpVersionHttp2Only": "Force HTTP/2",
   "settingsHttpVersionHttp3Only": "Force HTTP/3 (fallback)",
@@ -585,6 +594,9 @@
   "appearanceWindowEffectsDragSuspendTitle": "Disable effects while dragging",
   "appearanceWindowEffectsDragSuspendEnabledSubtitle": "Temporarily disable effects while dragging for smoothness",
   "appearanceWindowEffectsDragSuspendDisabledSubtitle": "Keep effects while dragging (may lag on Win10)",
+  "appearanceWindowEffectsRoundedCornersTitle": "Rounded corners",
+  "appearanceWindowEffectsRoundedCornersEnabledSubtitle": "Use rounded window clipping on Win10 and on Win11 Acrylic/Blur windows",
+  "appearanceWindowEffectsRoundedCornersDisabledSubtitle": "Use square window edges",
   "appearanceWindowEffectsMicaHint": "Mica is only available on Windows 11 and follows system theme",
   "appearanceWindowEffectsAcrylicHint": "Acrylic uses extra GPU. Disable if it stutters.",
   "appearanceWindowEffectsDisabledHint": "Effects are off for best performance",
@@ -687,6 +699,12 @@
   "developerToolLogShownMessage": "Log page added to navigation",
   "developerToolLogHiddenTitle": "Log viewer hidden",
   "developerToolLogHiddenMessage": "Log page removed from navigation",
+  "developerToolFullLogTitle": "FULL LOG toggle",
+  "developerToolFullLogSubtitle": "Show the FULL LOG view toggle on the log page",
+  "developerToolFullLogShownTitle": "FULL LOG toggle shown",
+  "developerToolFullLogShownMessage": "The FULL LOG view toggle is now visible on the log page",
+  "developerToolFullLogHiddenTitle": "FULL LOG toggle hidden",
+  "developerToolFullLogHiddenMessage": "The FULL LOG view toggle is now hidden on the log page",
   "developerToolStatusTitle": "System status",
   "developerToolStatusSubtitle": "Kernel & extension",
   "developerToolStatusShownTitle": "System status shown",
@@ -740,6 +758,21 @@
   "connectionDebugFileSize": "File Size",
   "connectionDebugRangeSupported": "Supported",
   "connectionDebugRangeNotSupported": "Not Supported",
+  "connectionDebugStrategyTitle": "Host Strategy Cache",
+  "connectionDebugStrategySubtitle": "Observe protocol downgrade and concurrency caps learned per host from previous download failures",
+  "connectionDebugStrategyRefresh": "Refresh",
+  "connectionDebugStrategyClear": "Clear Cache",
+  "connectionDebugStrategyEmpty": "No host strategy cache yet. Once a host triggers protocol fallback or concurrency throttling, it will appear here.",
+  "connectionDebugStrategyCount": "{count} host strategy entries",
+  "@connectionDebugStrategyCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "connectionDebugStrategyPolicy": "Policy",
+  "connectionDebugStrategyConcurrency": "Concurrency",
+  "connectionDebugStrategyTtl": "TTL",
+  "connectionDebugStrategyExpired": "expired",
   "developerTestNotificationTitle": "Notification test",
   "developerTestNotificationTitlePlaceholder": "Title",
   "developerTestNotificationMessagePlaceholder": "Message (optional)",
@@ -1025,6 +1058,8 @@
   "downloadMergingStatus": "Verifying and merging data",
   "downloadCalculatingSize": "Calculating file size...",
   "downloadCalculating": "Calculating",
+  "downloadMatchingHttpProtocol": "Matching HTTP protocol...",
+  "downloadMatchingHttpProtocolShort": "Matching protocol",
   "downloadSegmentsTitleWithCount": "Segments ({count})",
   "downloadSegmentsTitle": "Segments",
   "downloadSegmentsStatusCompleted": "Done",
@@ -1463,6 +1498,8 @@
   "logExportDiagnosticsButton": "Export diagnostics",
   "logArchiveButton": "Archive logs",
   "logClearButton": "Clear logs",
+  "logCurrentTabLabel": "Current",
+  "logFullTabLabel": "FULL LOG",
   "logSearchPlaceholderRegex": "Enter regex...",
   "logSearchPlaceholder": "Search logs...",
   "logEmptyTitle": "No logs",
@@ -1655,6 +1692,7 @@
   "logArchivePrompt": "Choose archive option:",
   "logArchiveExportAll": "Export all logs",
   "logArchiveExportFiltered": "Export current filter",
+  "logArchiveExportFull": "Export FULL LOG",
   "logArchiveExportBookmarked": "Export bookmarked logs ({count})",
   "@logArchiveExportBookmarked": {
     "placeholders": {
@@ -1867,6 +1905,9 @@
   "settingsClipboardListenerEnabledMessage": "URLs copied to clipboard will trigger a download prompt",
   "settingsClipboardListenerDisabledTitle": "Clipboard listener disabled",
   "settingsClipboardListenerDisabledMessage": "Clipboard URLs will no longer trigger a prompt",
+  "clipboardListenerMuteSessionButton": "Mute This Session",
+  "clipboardListenerSessionMutedTitle": "Muted for this session",
+  "clipboardListenerSessionMutedMessage": "Automatic clipboard prompts are paused until the app restarts",
   "downloadDuplicateTitle": "Duplicate download detected",
   "downloadDuplicateMessage": "A task with the same URL already exists: {fileName} ({status}). What would you like to do?",
   "@downloadDuplicateMessage": {
@@ -1878,6 +1919,14 @@
   "downloadDuplicateUseExistingButton": "Use existing",
   "downloadDuplicateAddNewButton": "Add new",
   "downloadDuplicateCancelButton": "Cancel",
+  "downloadBadgeHostHint": "Host hint",
+  "downloadBadgePolicyFallback": "Fallback",
+  "downloadBadgeConcurrencyCap": "Cap x{count}",
+  "@downloadBadgeConcurrencyCap": {
+    "placeholders": {
+      "count": {}
+    }
+  },
   "downloadFailureHintAuth": "Check login or add Referer/Cookie; the link may have expired.",
   "downloadFailureHintNotFound": "The file may be removed or the link is invalid.",
   "downloadFailureHintRange": "Server may not support resume; try single-thread or restart.",

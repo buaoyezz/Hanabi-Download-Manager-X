@@ -190,6 +190,7 @@ class _HomeScreenState extends State<HomeScreen>
   void initState() {
     super.initState();
     AppLoggerService().info('App', 'HomeScreen initialized');
+    systemTrayService.onExitRequested = _confirmExitRequest;
 
     // 初始化窗口最大化状态（一次性 FFI 调用）
     _isMaximized = isWindowMaximized();
@@ -317,6 +318,9 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void dispose() {
+    if (identical(systemTrayService.onExitRequested, _confirmExitRequest)) {
+      systemTrayService.onExitRequested = null;
+    }
     WidgetsBinding.instance.removeObserver(this);
     _sidebarController.dispose();
     _windowSizeCheckTimer?.cancel();
@@ -410,6 +414,59 @@ class _HomeScreenState extends State<HomeScreen>
         _sidebarController.forward();
       }
     });
+  }
+
+  Future<bool> _confirmExitRequest() async {
+    if (!mounted) return true;
+
+    final downloadService =
+        Provider.of<IntegratedDownloadService>(context, listen: false);
+    final activeTasks = downloadService.tasks
+        .where((task) =>
+            task.status == DownloadStatus.downloading ||
+            task.status == DownloadStatus.merging)
+        .toList(growable: false);
+
+    if (activeTasks.isEmpty) {
+      return true;
+    }
+
+    final wasVisible = appWindow.isVisible;
+    if (!wasVisible) {
+      systemTrayService.showMainWindow();
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+    }
+
+    if (!mounted) return true;
+
+    final t = AppLocalizations.of(context)!;
+    final shouldExit = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => ContentDialog(
+            title: Text(t.exitWithActiveDownloadsTitle),
+            content: Text(
+              t.exitWithActiveDownloadsMessage(activeTasks.length),
+            ),
+            actions: [
+              Button(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: Text(t.exitWithActiveDownloadsCancelButton),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: Text(t.exitWithActiveDownloadsConfirmButton),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!shouldExit && !wasVisible) {
+      systemTrayService.hideMainWindow();
+    }
+
+    return shouldExit;
   }
 
   @override
@@ -695,25 +752,19 @@ class _HomeScreenState extends State<HomeScreen>
     final isDebugPage = _debugPageIds.contains(currentPageId);
 
     if (isKernelRunning || isDebugPage) {
-      // 使用 AnimatedSwitcher 实现页面切换的淡入淡出效果
       return RepaintBoundary(
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 180),
-          switchInCurve: Curves.easeInOutCubic,
-          switchOutCurve: Curves.easeInOutCubic,
-          transitionBuilder: (child, animation) {
-            // 仅淡入淡出，移除 SlideTransition 减少合成层开销
-            return FadeTransition(
-              opacity: animation,
-              child: child,
-            );
-          },
-          child: KeyedSubtree(
-            // 核心修复点：使用标题作为 Key，而不是索引
-            // 这样即使列表发生变化导致索引改变，只要标题没变，就不会触发页面重绘或跳转
-            key: ValueKey(navItems[_currentIndex].id),
-            child: navItems[_currentIndex].body,
-          ),
+        child: IndexedStack(
+          index: _currentIndex,
+          children: [
+            for (var index = 0; index < navItems.length; index++)
+              TickerMode(
+                enabled: index == _currentIndex,
+                child: KeyedSubtree(
+                  key: ValueKey(navItems[index].id),
+                  child: navItems[index].body,
+                ),
+              ),
+          ],
         ),
       );
     }
@@ -1235,7 +1286,7 @@ class _HomeScreenState extends State<HomeScreen>
           if (closeButtonBehavior == 'minimize_to_tray') {
             systemTrayService.hideMainWindow();
           } else {
-            await systemTrayService.exitApp();
+            await systemTrayService.requestExit();
           }
         } catch (e) {
           AppLoggerService().error('App', 'Error handling close button: $e');

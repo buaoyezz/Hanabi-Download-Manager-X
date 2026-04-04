@@ -18,11 +18,13 @@ enum _DuplicateAction {
 class AddDownloadDialog extends StatefulWidget {
   final String? initialUrl;
   final String? initialFileName;
+  final VoidCallback? onMuteClipboardForSession;
 
   const AddDownloadDialog({
     super.key,
     this.initialUrl,
     this.initialFileName,
+    this.onMuteClipboardForSession,
   });
 
   @override
@@ -37,6 +39,9 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
   bool _isLoading = false;
   bool _showAdvanced = false;
   String? _parsedFileName;
+  String? _lastSuggestedFileName;
+  bool _hasUserEditedFileName = false;
+  bool _isUpdatingFileNameProgrammatically = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
@@ -51,9 +56,11 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
     if (widget.initialFileName != null &&
         widget.initialFileName!.trim().isNotEmpty) {
       _fileNameController.text = widget.initialFileName!.trim();
+      _hasUserEditedFileName = true;
     }
     // 监听 URL 变化，自动解析文件名
     _urlController.addListener(_onUrlChanged);
+    _fileNameController.addListener(_onFileNameChanged);
     if (_urlController.text.trim().isNotEmpty) {
       _onUrlChanged();
     }
@@ -73,13 +80,21 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
   void _onUrlChanged() {
     final url = _urlController.text.trim();
     if (url.isEmpty) {
+      final shouldClearSuggestedName = !_hasUserEditedFileName &&
+          (_fileNameController.text.trim().isEmpty ||
+              _fileNameController.text.trim() == _lastSuggestedFileName);
       setState(() => _parsedFileName = null);
+      if (shouldClearSuggestedName) {
+        _setFileNameFromSuggestion('');
+      }
+      _lastSuggestedFileName = null;
       return;
     }
 
     try {
       final uri = Uri.parse(url);
       final path = uri.path;
+      String? nextSuggestedName;
       if (path.isNotEmpty) {
         final segments = path.split('/');
         final lastSegment =
@@ -87,21 +102,50 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
         if (lastSegment.isNotEmpty && lastSegment.contains('.')) {
           // 解码 URL 编码的文件名
           final decodedName = Uri.decodeComponent(lastSegment);
-          setState(() => _parsedFileName = decodedName);
-          // 如果用户没有手动输入文件名，自动填充
-          if (_fileNameController.text.isEmpty) {
-            _fileNameController.text = decodedName;
-          }
+          nextSuggestedName = decodedName;
         }
+      }
+
+      final previousSuggestion = _lastSuggestedFileName;
+      final currentFileName = _fileNameController.text.trim();
+      final shouldApplySuggestion = currentFileName.isEmpty ||
+          !_hasUserEditedFileName ||
+          (previousSuggestion != null && currentFileName == previousSuggestion);
+
+      setState(() => _parsedFileName = nextSuggestedName);
+      _lastSuggestedFileName = nextSuggestedName;
+
+      if (shouldApplySuggestion) {
+        _setFileNameFromSuggestion(nextSuggestedName ?? '');
       }
     } catch (e) {
       // 忽略解析错误
     }
   }
 
+  void _onFileNameChanged() {
+    if (_isUpdatingFileNameProgrammatically) {
+      return;
+    }
+
+    final text = _fileNameController.text.trim();
+    final suggestion = _lastSuggestedFileName?.trim();
+    _hasUserEditedFileName = text.isNotEmpty && text != (suggestion ?? '');
+  }
+
+  void _setFileNameFromSuggestion(String value) {
+    _isUpdatingFileNameProgrammatically = true;
+    _fileNameController.text = value;
+    _fileNameController.selection =
+        TextSelection.collapsed(offset: _fileNameController.text.length);
+    _isUpdatingFileNameProgrammatically = false;
+    _hasUserEditedFileName = false;
+  }
+
   @override
   void dispose() {
     _urlController.removeListener(_onUrlChanged);
+    _fileNameController.removeListener(_onFileNameChanged);
     _urlController.dispose();
     _fileNameController.dispose();
     _animationController.dispose();
@@ -110,10 +154,19 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
 
   @override
   Widget build(BuildContext context) {
+    final dialogWidth =
+        (MediaQuery.sizeOf(context).width - 32).clamp(320.0, 520.0).toDouble();
+    final dialogMaxHeight =
+        (MediaQuery.sizeOf(context).height - 48).clamp(340.0, 760.0).toDouble();
+
     return FadeTransition(
       opacity: _fadeAnimation,
       child: ContentDialog(
-        constraints: const BoxConstraints(maxWidth: 520),
+        constraints: BoxConstraints(
+          minWidth: dialogWidth,
+          maxWidth: dialogWidth,
+          maxHeight: dialogMaxHeight,
+        ),
         style: ContentDialogThemeData(
           decoration: BoxDecoration(
             color: AppTheme.surfaceCard.withValues(alpha: 0.95),
@@ -132,7 +185,12 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
           ),
         ),
         title: _buildHeader(context),
-        content: _buildContent(context),
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: (dialogMaxHeight * 0.6).clamp(220.0, 420.0).toDouble(),
+          ),
+          child: _buildContent(context),
+        ),
         actions: _buildActions(context),
       ),
     );
@@ -515,6 +573,26 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
 
   List<Widget> _buildActions(BuildContext context) {
     return [
+      if (widget.onMuteClipboardForSession != null)
+        Button(
+          onPressed: _isLoading ? null : _handleMuteClipboardForSession,
+          style: ButtonStyle(
+            padding: WidgetStateProperty.all(
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            ),
+          ),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(FluentIcons.volume_disabled, size: 14),
+                const SizedBox(width: 8),
+                Text(t.clipboardListenerMuteSessionButton),
+              ],
+            ),
+          ),
+        ),
       Button(
         onPressed: _isLoading ? null : () => Navigator.pop(context),
         style: ButtonStyle(
@@ -541,28 +619,43 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
           }),
         ),
         child: _isLoading
-            ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: ProgressRing(strokeWidth: 2),
-                  ),
-                  SizedBox(width: 10),
-                  Text(t.addDownloadAdding),
-                ],
+            ? FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: ProgressRing(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(t.addDownloadAdding),
+                  ],
+                ),
               )
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(FluentIcons.download, size: 16),
-                  SizedBox(width: 8),
-                  Text(t.addDownloadStart),
-                ],
+            : FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(FluentIcons.download, size: 16),
+                    const SizedBox(width: 8),
+                    Text(t.addDownloadStart),
+                  ],
+                ),
               ),
       ),
     ];
+  }
+
+  void _handleMuteClipboardForSession() {
+    widget.onMuteClipboardForSession?.call();
+    NotificationManager.of(context)?.showInfo(
+      t.clipboardListenerSessionMutedTitle,
+      message: t.clipboardListenerSessionMutedMessage,
+    );
+    Navigator.pop(context, false);
   }
 
   String _getStatusLabel(DownloadStatus status) {

@@ -46,8 +46,7 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
       pathToLoad = _getDefaultPath();
     } else {
       // 检查路径是否存在
-      final dir = Directory(pathToLoad);
-      if (!await dir.exists()) {
+      if (!await _directoryExistsSafe(pathToLoad)) {
         pathToLoad = _getDefaultPath();
       }
     }
@@ -66,14 +65,30 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
     final downloads = '$home\\Downloads';
 
     // 如果下载目录存在，使用它；否则使用用户目录
-    if (Directory(downloads).existsSync()) {
+    if (_directoryExistsSafeSync(downloads)) {
       return downloads;
-    } else if (Directory(home).existsSync()) {
+    } else if (_directoryExistsSafeSync(home)) {
       return home;
     }
 
     // 最后回退到 C 盘
     return 'C:\\';
+  }
+
+  Future<bool> _directoryExistsSafe(String path) async {
+    try {
+      return await Directory(path).exists();
+    } on FileSystemException {
+      return false;
+    }
+  }
+
+  bool _directoryExistsSafeSync(String path) {
+    try {
+      return Directory(path).existsSync();
+    } on FileSystemException {
+      return false;
+    }
   }
 
   @override
@@ -262,7 +277,7 @@ class _FolderPickerDialogState extends State<FolderPickerDialog> {
     final drives = <String>[];
     for (var letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')) {
       final drive = '$letter:\\';
-      if (Directory(drive).existsSync()) {
+      if (_directoryExistsSafeSync(drive)) {
         drives.add(drive);
       }
     }

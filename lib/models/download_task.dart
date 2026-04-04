@@ -86,6 +86,12 @@ class DownloadTask {
   String? effectiveHttpVersionPolicy;
   String? negotiatedHttpVersion;
   bool? targetReachable;
+  String? httpPolicyDecisionReason;
+  String? startupStatusKey;
+  String? resumeDecisionLabel;
+  String? resumeDecisionReason;
+  int? hostConcurrencyCap;
+  String? hostConcurrencyReason;
 
   DownloadTask({
     required this.id,
@@ -111,6 +117,12 @@ class DownloadTask {
     this.effectiveHttpVersionPolicy,
     this.negotiatedHttpVersion,
     this.targetReachable,
+    this.httpPolicyDecisionReason,
+    this.startupStatusKey,
+    this.resumeDecisionLabel,
+    this.resumeDecisionReason,
+    this.hostConcurrencyCap,
+    this.hostConcurrencyReason,
   }) : createdAt = createdAt ?? DateTime.now();
 
   String get formattedFileSize {
