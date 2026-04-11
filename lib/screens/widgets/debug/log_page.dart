@@ -10,6 +10,7 @@ import '../../../services/app_logger_service.dart';
 import '../../../services/download_failure_stats_service.dart';
 import '../../../services/client_config_service.dart';
 import '../../../services/developer_mode_service.dart';
+import '../../../services/native_render_log_service.dart';
 import '../../../widgets/folder_picker_dialog.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../theme/app_theme.dart';
@@ -135,6 +136,7 @@ class _LogPageState extends State<LogPage> {
   bool _useRegexSearch = false;
   bool _showStats = true;
   bool _showFailureStats = true;
+  bool _showRenderLogs = false;
   final ScrollController _scrollController =
       createSmoothScrollController(config: SmoothScrollConfig.fast);
   final ScrollController _fullLogScrollController =
@@ -148,6 +150,7 @@ class _LogPageState extends State<LogPage> {
   List<String>? _lastFullLogSourceLines;
   String _lastFullLogSearchQuery = '';
   bool _lastFullLogRegexMode = false;
+  bool _lastFullLogShowRenderLogs = false;
   List<String> _cachedFullLogSearchResult = const [];
   String _highlightCacheSignature = '';
   List<_CompiledHighlightRule> _compiledBuiltinHighlightRules = const [];
@@ -352,6 +355,7 @@ class _LogPageState extends State<LogPage> {
       _showStats = config.getLogShowStats();
       _showFailureStats = config.getLogShowFailureStats();
       _autoScroll = config.getLogAutoScroll();
+      _showRenderLogs = config.getLogShowRenderLogs();
 
       // 恢复内置规则启用状态
       for (final entry in builtinStates.entries) {
@@ -371,7 +375,7 @@ class _LogPageState extends State<LogPage> {
   Future<void> _saveRegexRules() async {
     final config = context.read<ClientConfigService>();
     final rules = _customRules
-      .map((r) => {
+        .map((r) => {
               'name': r.name,
               'pattern': r.pattern,
               'enabled': r.enabled,
@@ -389,6 +393,40 @@ class _LogPageState extends State<LogPage> {
       states[entry.key.name] = entry.value;
     }
     await config.saveLogBuiltinRuleStates(states);
+  }
+
+  Future<void> _setRenderLogVisibility(bool value) async {
+    setState(() {
+      _showRenderLogs = value;
+      _lastFullLogSourceLines = null;
+      _cachedFullLogSearchResult = const [];
+
+      if (!value) {
+        if (_filterSource == 'Render') {
+          _filterSource = null;
+        }
+        _filterTags.remove('Render');
+      }
+    });
+
+    await context.read<ClientConfigService>().setLogShowRenderLogs(value);
+  }
+
+  bool _shouldShowLogEntry(LogEntry entry) {
+    return _showRenderLogs || entry.source != 'Render';
+  }
+
+  bool _shouldShowFullLogLine(String line) {
+    if (_showRenderLogs) {
+      return true;
+    }
+
+    final match = _fullLogLineRegex.firstMatch(line);
+    if (match != null) {
+      return (match.group(3)?.trim() ?? '') != 'Render';
+    }
+
+    return !line.contains('[Render]');
   }
 
   @override
@@ -569,7 +607,7 @@ class _LogPageState extends State<LogPage> {
   }
 
   List<LogEntry> _applyActiveFilters(List<LogEntry> sourceLogs) {
-    var logs = sourceLogs;
+    var logs = sourceLogs.where(_shouldShowLogEntry).toList();
 
     if (_startTime != null) {
       logs = logs.where((log) => log.timestamp.isAfter(_startTime!)).toList();
@@ -650,6 +688,7 @@ class _LogPageState extends State<LogPage> {
       tags.join('|'),
       _searchQuery,
       _useRegexSearch ? 'regex' : 'plain',
+      _showRenderLogs ? 'render-on' : 'render-off',
       _startTime?.millisecondsSinceEpoch.toString() ?? '',
       _endTime?.millisecondsSinceEpoch.toString() ?? '',
     ].join('::');
@@ -834,26 +873,28 @@ class _LogPageState extends State<LogPage> {
   List<String> _applyFullLogSearch(List<String> lines) {
     if (identical(_lastFullLogSourceLines, lines) &&
         _lastFullLogSearchQuery == _searchQuery &&
-        _lastFullLogRegexMode == _useRegexSearch) {
+        _lastFullLogRegexMode == _useRegexSearch &&
+        _lastFullLogShowRenderLogs == _showRenderLogs) {
       return _cachedFullLogSearchResult;
     }
 
-    List<String> filteredLines;
+    List<String> filteredLines =
+        lines.where(_shouldShowFullLogLine).toList(growable: false);
     if (_searchQuery.isEmpty) {
-      filteredLines = lines;
     } else if (_useRegexSearch) {
       try {
         final regex = RegExp(_searchQuery, caseSensitive: false);
-        filteredLines = lines.where(regex.hasMatch).toList(growable: false);
+        filteredLines =
+            filteredLines.where(regex.hasMatch).toList(growable: false);
       } catch (_) {
         final query = _searchQuery.toLowerCase();
-        filteredLines = lines
+        filteredLines = filteredLines
             .where((line) => line.toLowerCase().contains(query))
             .toList(growable: false);
       }
     } else {
       final query = _searchQuery.toLowerCase();
-      filteredLines = lines
+      filteredLines = filteredLines
           .where((line) => line.toLowerCase().contains(query))
           .toList(growable: false);
     }
@@ -861,6 +902,7 @@ class _LogPageState extends State<LogPage> {
     _lastFullLogSourceLines = lines;
     _lastFullLogSearchQuery = _searchQuery;
     _lastFullLogRegexMode = _useRegexSearch;
+    _lastFullLogShowRenderLogs = _showRenderLogs;
     _cachedFullLogSearchResult = filteredLines;
     return filteredLines;
   }
@@ -1168,6 +1210,11 @@ class _LogPageState extends State<LogPage> {
         await runtimeFullLogFile.writeAsString(persistedContent);
       }
 
+      final renderLogFile = await NativeRenderLogService().getRawLogFile();
+      if (await renderLogFile.exists()) {
+        await renderLogFile.copy(p.join(logsDir.path, 'window_render.log'));
+      }
+
       final failureStats = context.read<DownloadFailureStatsService>();
 
       // 导出错误码与失败记录
@@ -1378,6 +1425,12 @@ class _LogPageState extends State<LogPage> {
                 },
               ),
             ],
+            SafeCommandBarButton(
+              icon:
+                  Icon(_showRenderLogs ? FluentIcons.code : FluentIcons.hide3),
+              label: Text(_showRenderLogs ? '显示 Render' : '隐藏 Render'),
+              onPressed: () => _setRenderLogVisibility(!_showRenderLogs),
+            ),
             const CommandBarSeparator(),
             SafeCommandBarButton(
               icon: Icon(FluentIcons.save),
@@ -1472,19 +1525,74 @@ class _LogPageState extends State<LogPage> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    ToggleButton(
-                      checked: _useRegexSearch,
-                      onChanged: (v) => setState(() => _useRegexSearch = v),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        child: Text(
-                          '.*',
-                          style: TextStyle(
-                            fontFamily: 'Courier New',
-                            fontWeight: FontWeight.w600,
+                    SizedBox(
+                      width: 40,
+                      height: 32,
+                      child: ToggleButton(
+                        style: ToggleButtonThemeData(
+                          checkedButtonStyle: ButtonStyle(
+                            padding:
+                                const WidgetStatePropertyAll(EdgeInsets.zero),
+                            backgroundColor: WidgetStateProperty.resolveWith(
+                              (states) => states.contains(WidgetState.pressed)
+                                  ? AppTheme.bgLayer2
+                                  : AppTheme.surfaceCard,
+                            ),
+                            foregroundColor: const WidgetStatePropertyAll(
+                              AppTheme.textPrimary,
+                            ),
+                            shape: WidgetStatePropertyAll(
+                              RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusMd,
+                                ),
+                                side: BorderSide(
+                                  color: AppTheme.borderSubtle
+                                      .withValues(alpha: 0.75),
+                                ),
+                              ),
+                            ),
+                          ),
+                          uncheckedButtonStyle: ButtonStyle(
+                            padding:
+                                const WidgetStatePropertyAll(EdgeInsets.zero),
+                            backgroundColor: WidgetStateProperty.resolveWith(
+                              (states) {
+                                if (states.contains(WidgetState.pressed)) {
+                                  return AppTheme.bgLayer2;
+                                }
+                                if (states.contains(WidgetState.hovered)) {
+                                  return AppTheme.surfaceCard
+                                      .withValues(alpha: 0.88);
+                                }
+                                return AppTheme.surfaceCard
+                                    .withValues(alpha: 0.6);
+                              },
+                            ),
+                            foregroundColor: const WidgetStatePropertyAll(
+                              AppTheme.textTertiary,
+                            ),
+                            shape: WidgetStatePropertyAll(
+                              RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusMd,
+                                ),
+                                side: BorderSide(
+                                  color: AppTheme.borderSubtle
+                                      .withValues(alpha: 0.45),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        checked: _useRegexSearch,
+                        onChanged: (v) => setState(() => _useRegexSearch = v),
+                        child: Center(
+                          child: Icon(
+                            FluentIcons.code,
+                            size: 16,
                             color: _useRegexSearch
-                                ? AppTheme.accentLight
+                                ? AppTheme.textPrimary
                                 : AppTheme.textTertiary,
                           ),
                         ),
@@ -2866,6 +2974,9 @@ class _LogPageState extends State<LogPage> {
     // 从日志中动态收集所有 source 标签及其计数
     final sourceCounts = <String, int>{};
     for (final log in logger.logs) {
+      if (!_shouldShowLogEntry(log)) {
+        continue;
+      }
       sourceCounts[log.source] = (sourceCounts[log.source] ?? 0) + 1;
     }
 

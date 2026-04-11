@@ -188,6 +188,7 @@ class ClientConfigService extends ChangeNotifier {
         'show_stats': true,
         'auto_scroll': true,
         'show_failure_stats': true,
+        'show_render_logs': false,
       },
       'regex_rules': [
         {
@@ -302,6 +303,17 @@ class ClientConfigService extends ChangeNotifier {
   Future<void> setLogAutoScroll(bool value) async {
     await _setToConfig(
         _logConfig, _logConfigPath, 'display.auto_scroll', value);
+  }
+
+  bool getLogShowRenderLogs() {
+    return _getFromConfig<bool>(_logConfig, 'display.show_render_logs',
+            defaultValue: false) ??
+        false;
+  }
+
+  Future<void> setLogShowRenderLogs(bool value) async {
+    await _setToConfig(
+        _logConfig, _logConfigPath, 'display.show_render_logs', value);
   }
 
   /// 获取内置高亮规则的启用状态
