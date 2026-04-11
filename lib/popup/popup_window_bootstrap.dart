@@ -1208,15 +1208,15 @@ class _WindowFrameButtonState extends State<_WindowFrameButton> {
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          width: 28,
-          height: 22,
+          width: 26,
+          height: 20,
           decoration: BoxDecoration(
             color: backgroundColor,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(3.5),
           ),
           child: Icon(
             widget.icon,
-            size: 12,
+            size: 11,
             color: foregroundColor,
           ),
         ),
