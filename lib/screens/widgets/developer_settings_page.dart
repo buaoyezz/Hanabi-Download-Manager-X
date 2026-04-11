@@ -675,7 +675,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
     });
 
     final stopwatch = Stopwatch()..start();
-    appLogger.info('PopupTest', '开始测试弹窗窗口...');
+    appLogger.info('PopupTest', '开始测试独立 popup 窗口...');
 
     try {
       await PopupWindowService.showPopupDownloadWindow(
@@ -685,8 +685,8 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
       );
 
       stopwatch.stop();
-      appLogger.info(
-          'PopupTest', '主窗口下载弹窗创建成功，耗时: ${stopwatch.elapsedMilliseconds}ms');
+      appLogger.info('PopupTest',
+          '独立 popup 窗口创建成功，耗时: ${stopwatch.elapsedMilliseconds}ms');
 
       if (!mounted) return;
       setState(() {
@@ -697,7 +697,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
       });
     } catch (e) {
       stopwatch.stop();
-      appLogger.error('PopupTest', '主窗口下载弹窗创建失败: $e');
+      appLogger.error('PopupTest', '独立 popup 窗口创建失败: $e');
 
       if (!mounted) return;
       setState(() {
@@ -714,7 +714,6 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
       }
     }
   }
-
 }
 
 /// 工具项数据模型

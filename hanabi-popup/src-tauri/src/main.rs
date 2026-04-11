@@ -22,9 +22,19 @@ struct Args {
     /// Locale tag (optional, e.g. en, zh, en-US)
     #[arg(short, long)]
     locale: Option<String>,
+
+    /// Encoded browser request metadata (referer, headers, cookies)
+    #[arg(long)]
+    request_meta: Option<String>,
 }
 
 fn main() {
     let args = Args::parse();
-    app_lib::run(args.url, args.filename, args.path, args.locale);
+    app_lib::run(
+        args.url,
+        args.filename,
+        args.path,
+        args.locale,
+        args.request_meta,
+    );
 }

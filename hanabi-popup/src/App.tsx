@@ -245,6 +245,10 @@ interface InitialData {
   filename: string | null;
   path: string | null;
   locale?: string | null;
+  referer?: string | null;
+  user_agent?: string | null;
+  cookies?: string | null;
+  headers?: Record<string, string> | null;
 }
 
 // WebSocket progress service URL
@@ -259,6 +263,12 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [, setLocaleVersion] = useState(0);
+  const [requestMeta, setRequestMeta] = useState<{
+    referer?: string | null;
+    userAgent?: string | null;
+    cookies?: string | null;
+    headers?: Record<string, string> | null;
+  }>({});
 
   // Progress state
   const [viewState, setViewState] = useState<ViewState>('form');
@@ -276,6 +286,12 @@ function App() {
           setLocale(data.locale);
           setLocaleVersion(v => v + 1);
         }
+        setRequestMeta({
+          referer: data.referer,
+          userAgent: data.user_agent,
+          cookies: data.cookies,
+          headers: data.headers,
+        });
         if (data.url) setUrl(data.url);
         if (data.filename) setFilename(data.filename);
         if (data.path) {
@@ -446,6 +462,10 @@ function App() {
           url: url.trim(),
           filename: filename.trim(),
           save_path: savePath.trim(),
+          referer: requestMeta.referer ?? undefined,
+          user_agent: requestMeta.userAgent ?? undefined,
+          cookies: requestMeta.cookies ?? undefined,
+          headers: requestMeta.headers ?? undefined,
         },
       });
 
@@ -458,7 +478,7 @@ function App() {
       setError(typeof e === 'string' ? e : t('errorConnectMainApp'));
       setIsSubmitting(false);
     }
-  }, [url, filename, savePath, isSubmitting]);
+  }, [url, filename, savePath, isSubmitting, requestMeta]);
 
   // 选择保存路径
   const handleSelectFolder = useCallback(async () => {

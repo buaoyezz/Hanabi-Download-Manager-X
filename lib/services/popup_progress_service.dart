@@ -32,17 +32,17 @@ class DownloadProgressData {
   });
 
   Map<String, dynamic> toJson() => {
-    'task_id': taskId,
-    'filename': filename,
-    'status': status,
-    'progress': progress,
-    'downloaded_size': downloadedSize,
-    'total_size': totalSize,
-    'speed': speed,
-    'remaining_seconds': remainingSeconds,
-    'segments': segments.map((s) => s.toJson()).toList(),
-    'error': error,
-  };
+        'task_id': taskId,
+        'filename': filename,
+        'status': status,
+        'progress': progress,
+        'downloaded_size': downloadedSize,
+        'total_size': totalSize,
+        'speed': speed,
+        'remaining_seconds': remainingSeconds,
+        'segments': segments.map((s) => s.toJson()).toList(),
+        'error': error,
+      };
 }
 
 class SegmentProgressData {
@@ -57,10 +57,10 @@ class SegmentProgressData {
   });
 
   Map<String, dynamic> toJson() => {
-    'index': index,
-    'progress': progress,
-    'status': status,
-  };
+        'index': index,
+        'progress': progress,
+        'status': status,
+      };
 }
 
 /// 弹窗进度推送服务
@@ -125,8 +125,10 @@ class PopupProgressService {
 
     // CORS headers for Tauri WebView
     request.response.headers.add('Access-Control-Allow-Origin', '*');
-    request.response.headers.add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    request.response.headers.add('Access-Control-Allow-Headers', 'Content-Type');
+    request.response.headers
+        .add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    request.response.headers
+        .add('Access-Control-Allow-Headers', 'Content-Type');
 
     if (request.method == 'OPTIONS') {
       request.response.statusCode = HttpStatus.ok;
@@ -145,7 +147,8 @@ class PopupProgressService {
           (data) => _handleMessage(socket, data),
           onDone: () {
             _clients.remove(socket);
-            _logger.info('WebSocket client disconnected, total: ${_clients.length}');
+            _logger.info(
+                'WebSocket client disconnected, total: ${_clients.length}');
           },
           onError: (e) {
             _clients.remove(socket);
@@ -169,7 +172,8 @@ class PopupProgressService {
       final progress = _getProgressData(taskId);
 
       request.response.headers.contentType = ContentType.json;
-      request.response.write(jsonEncode(progress?.toJson() ?? {'error': 'No active task'}));
+      request.response
+          .write(jsonEncode(progress?.toJson() ?? {'error': 'No active task'}));
       await request.response.close();
       return;
     }
@@ -184,7 +188,8 @@ class PopupProgressService {
         if (taskId != null) {
           setActiveTask(taskId);
           request.response.headers.contentType = ContentType.json;
-          request.response.write(jsonEncode({'success': true, 'task_id': taskId}));
+          request.response
+              .write(jsonEncode({'success': true, 'task_id': taskId}));
         } else {
           request.response.statusCode = HttpStatus.badRequest;
           request.response.write(jsonEncode({'error': 'task_id required'}));
@@ -199,7 +204,8 @@ class PopupProgressService {
 
     // 获取所有任务列表
     if (request.uri.path == '/api/tasks' && request.method == 'GET') {
-      final tasks = _downloadService.tasks.map((t) => _convertTask(t).toJson()).toList();
+      final tasks =
+          _downloadService.tasks.map((t) => _convertTask(t).toJson()).toList();
       request.response.headers.contentType = ContentType.json;
       request.response.write(jsonEncode({'tasks': tasks}));
       await request.response.close();
@@ -213,25 +219,89 @@ class PopupProgressService {
         final json = jsonDecode(body) as Map<String, dynamic>;
         final url = json['url'] as String?;
         final filename = json['filename'] as String?;
-        // save_path is received but not used currently (uses default path)
+        final savePath = json['save_path']?.toString().trim();
+        final referer = json['referer']?.toString();
+        final userAgent = (json['user_agent'] ?? json['userAgent'])?.toString();
+        final cookies = json['cookies']?.toString();
+        final headersRaw = json['headers'];
+        final headers = headersRaw is Map
+            ? headersRaw.map(
+                (key, value) => MapEntry(key.toString(), value),
+              )
+            : null;
 
         if (url != null && filename != null) {
           _logger.info('Received download request via HTTP: $filename');
-          _downloadService.addTask(url, filename);
+          final taskId = await _downloadService.addTask(
+            url,
+            filename,
+            referer: referer,
+            userAgent: userAgent,
+            cookies: cookies,
+            headers: headers,
+            saveDir: (savePath?.isNotEmpty ?? false) ? savePath : null,
+          );
+          if (taskId == null) {
+            throw StateError('Failed to add download task');
+          }
+          setActiveTask(taskId);
 
           request.response.headers.contentType = ContentType.json;
           request.response.write(jsonEncode({
             'success': true,
             'message': 'Download task added',
+            'task_id': taskId,
             'filename': filename,
           }));
         } else {
           request.response.statusCode = HttpStatus.badRequest;
-          request.response.write(jsonEncode({'error': 'url and filename required'}));
+          request.response
+              .write(jsonEncode({'error': 'url and filename required'}));
         }
       } catch (e) {
         _logger.error('Failed to add download task: $e');
         request.response.statusCode = HttpStatus.internalServerError;
+        request.response.write(jsonEncode({'error': e.toString()}));
+      }
+      await request.response.close();
+      return;
+    }
+
+    if (request.uri.path == '/api/log' && request.method == 'POST') {
+      try {
+        final body = await utf8.decoder.bind(request).join();
+        final json = jsonDecode(body) as Map<String, dynamic>;
+        final level = json['level']?.toString().trim().toLowerCase() ?? 'info';
+        final source = json['source']?.toString().trim().isNotEmpty == true
+            ? json['source']!.toString().trim()
+            : 'PopupWindow';
+        final message = json['message']?.toString().trim() ?? '';
+
+        if (message.isEmpty) {
+          request.response.statusCode = HttpStatus.badRequest;
+          request.response.write(jsonEncode({'error': 'message required'}));
+        } else {
+          switch (level) {
+            case 'debug':
+              _logger.debug(message, source: source);
+              break;
+            case 'warning':
+            case 'warn':
+              _logger.warning(message, source: source);
+              break;
+            case 'error':
+              _logger.error(message, source: source);
+              break;
+            default:
+              _logger.info(message, source: source);
+              break;
+          }
+
+          request.response.headers.contentType = ContentType.json;
+          request.response.write(jsonEncode({'success': true}));
+        }
+      } catch (e) {
+        request.response.statusCode = HttpStatus.badRequest;
         request.response.write(jsonEncode({'error': e.toString()}));
       }
       await request.response.close();
@@ -248,7 +318,8 @@ class PopupProgressService {
         if (taskId != null) {
           await _downloadService.pauseTask(taskId);
           request.response.headers.contentType = ContentType.json;
-          request.response.write(jsonEncode({'success': true, 'task_id': taskId}));
+          request.response
+              .write(jsonEncode({'success': true, 'task_id': taskId}));
         } else {
           request.response.statusCode = HttpStatus.badRequest;
           request.response.write(jsonEncode({'error': 'No active task'}));
@@ -271,7 +342,8 @@ class PopupProgressService {
         if (taskId != null) {
           await _downloadService.resumeTask(taskId);
           request.response.headers.contentType = ContentType.json;
-          request.response.write(jsonEncode({'success': true, 'task_id': taskId}));
+          request.response
+              .write(jsonEncode({'success': true, 'task_id': taskId}));
         } else {
           request.response.statusCode = HttpStatus.badRequest;
           request.response.write(jsonEncode({'error': 'No active task'}));
@@ -345,7 +417,8 @@ class PopupProgressService {
 
     if (taskId == null || taskId.isEmpty) {
       // 如果没有指定任务，返回最新的下载中任务
-      final activeTasks = tasks.where((t) => t.status == DownloadStatus.downloading).toList();
+      final activeTasks =
+          tasks.where((t) => t.status == DownloadStatus.downloading).toList();
       if (activeTasks.isNotEmpty) {
         return _convertTask(activeTasks.first);
       }
@@ -374,11 +447,16 @@ class PopupProgressService {
     final remainingSeconds = speed > 0 ? (remainingBytes / speed).round() : 0;
 
     // 转换分段信息
-    final segments = task.segments?.asMap().entries.map((e) => SegmentProgressData(
-      index: e.key,
-      progress: e.value.progress,
-      status: e.value.status,
-    )).toList() ?? [];
+    final segments = task.segments
+            ?.asMap()
+            .entries
+            .map((e) => SegmentProgressData(
+                  index: e.key,
+                  progress: e.value.progress,
+                  status: e.value.status,
+                ))
+            .toList() ??
+        [];
 
     return DownloadProgressData(
       taskId: task.id,

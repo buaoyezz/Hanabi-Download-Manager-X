@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'app_logger_service.dart';
 
@@ -54,6 +55,7 @@ class LogCapture {
           () => body(),
           (error, stack) {
             logger.error('Zone', '$error\n$stack');
+            unawaited(logger.flushFullLog());
           },
           zoneSpecification: ZoneSpecification(
             print: (self, parent, zone, line) {

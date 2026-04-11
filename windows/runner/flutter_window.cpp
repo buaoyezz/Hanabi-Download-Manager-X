@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstddef>
 #include <thread>
+#include <vector>
 #include <stdio.h>
 #include <string.h>
 #include <dwmapi.h>
@@ -80,10 +81,22 @@ typedef struct WINDOWCOMPOSITIONATTRIBUTEDATA {
 static BOOL (WINAPI* pSetWindowCompositionAttribute)(HWND, WINDOWCOMPOSITIONATTRIBUTEDATA*) = nullptr;
 
 static void LogA(const char* s) {
-  OutputDebugStringA(s);
+  SYSTEMTIME local_time;
+  GetLocalTime(&local_time);
+
+  char formatted[4096];
+  sprintf_s(
+      formatted, sizeof(formatted),
+      "[%04d-%02d-%02dT%02d:%02d:%02d.%03d] [INFO] [Render] %s",
+      local_time.wYear, local_time.wMonth, local_time.wDay,
+      local_time.wHour, local_time.wMinute, local_time.wSecond,
+      local_time.wMilliseconds, s);
+
+  OutputDebugStringA(formatted);
   OutputDebugStringA("\n");
 
   // Write to log file (open, write, close each time to avoid locking)
+  static bool initialized_for_process = false;
   char exePath[MAX_PATH] = {0};
   GetModuleFileNameA(NULL, exePath, MAX_PATH);
   char* slash = strrchr(exePath, '\\');
@@ -91,12 +104,108 @@ static void LogA(const char* s) {
   strcat_s(exePath, MAX_PATH, "window_render.log");
 
   FILE* fp = nullptr;
-  fopen_s(&fp, exePath, "a");
+  fopen_s(&fp, exePath, initialized_for_process ? "a" : "w");
   if (fp) {
-    fprintf(fp, "%s\n", s);
+    fprintf(fp, "%s\n", formatted);
     fclose(fp);
+    initialized_for_process = true;
   }
 }
+
+namespace {
+
+std::vector<std::unique_ptr<FlutterWindow>> g_popup_windows;
+
+std::wstring Utf8ToWide(const std::string& value) {
+  if (value.empty()) {
+    return std::wstring();
+  }
+
+  const int size_needed = MultiByteToWideChar(
+      CP_UTF8, 0, value.c_str(), static_cast<int>(value.size()), nullptr, 0);
+  if (size_needed <= 0) {
+    return std::wstring(value.begin(), value.end());
+  }
+
+  std::wstring result(static_cast<size_t>(size_needed), L'\0');
+  MultiByteToWideChar(CP_UTF8, 0, value.c_str(), static_cast<int>(value.size()),
+                      result.data(), size_needed);
+  return result;
+}
+
+std::string WideToUtf8(const std::wstring& value) {
+  if (value.empty()) {
+    return std::string();
+  }
+
+  const int size_needed = WideCharToMultiByte(
+      CP_UTF8, 0, value.c_str(), static_cast<int>(value.size()), nullptr, 0,
+      nullptr, nullptr);
+  if (size_needed <= 0) {
+    return std::string();
+  }
+
+  std::string result(static_cast<size_t>(size_needed), '\0');
+  WideCharToMultiByte(CP_UTF8, 0, value.c_str(), static_cast<int>(value.size()),
+                      result.data(), size_needed, nullptr, nullptr);
+  return result;
+}
+
+std::wstring GetWindowTitle(HWND hwnd) {
+  if (!hwnd) {
+    return L"";
+  }
+
+  const int length = GetWindowTextLengthW(hwnd);
+  if (length <= 0) {
+    return L"";
+  }
+
+  std::wstring title(static_cast<size_t>(length) + 1, L'\0');
+  GetWindowTextW(hwnd, title.data(), length + 1);
+  title.resize(static_cast<size_t>(length));
+  return title;
+}
+
+void CleanupClosedPopupWindows() {
+  g_popup_windows.erase(
+      std::remove_if(
+          g_popup_windows.begin(), g_popup_windows.end(),
+          [](const std::unique_ptr<FlutterWindow>& window) {
+            return window == nullptr || window->GetHandle() == nullptr;
+          }),
+      g_popup_windows.end());
+}
+
+void CenterWindowOnWorkArea(HWND hwnd) {
+  if (!hwnd) {
+    return;
+  }
+
+  RECT window_rect;
+  if (!GetWindowRect(hwnd, &window_rect)) {
+    return;
+  }
+
+  MONITORINFO monitor_info{};
+  monitor_info.cbSize = sizeof(monitor_info);
+  const HMONITOR monitor =
+      MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+  if (!GetMonitorInfo(monitor, &monitor_info)) {
+    return;
+  }
+
+  const RECT& work_area = monitor_info.rcWork;
+  const int width = window_rect.right - window_rect.left;
+  const int height = window_rect.bottom - window_rect.top;
+  const int x = work_area.left + ((work_area.right - work_area.left) - width) / 2;
+  const int y = work_area.top + ((work_area.bottom - work_area.top) - height) / 2;
+
+  SetWindowPos(hwnd, nullptr, x, y, 0, 0,
+               SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOSIZE | SWP_NOZORDER);
+}
+
+}  // namespace
 
 struct FlutterWindow::CloseExistingInstanceRequest {
   std::unique_ptr<flutter::MethodResult<>> result;
@@ -104,8 +213,13 @@ struct FlutterWindow::CloseExistingInstanceRequest {
 };
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project,
+                             WindowKind kind,
                              bool launch_hidden)
-    : project_(project), launch_hidden_(launch_hidden) {}
+    : project_(project), launch_hidden_(launch_hidden), kind_(kind) {
+  if (kind_ == WindowKind::kPopup) {
+    effect_mode_ = 0;
+  }
+}
 
 FlutterWindow::~FlutterWindow() {}
 
@@ -125,7 +239,9 @@ bool FlutterWindow::OnCreate() {
   if (!flutter_controller_->engine() || !flutter_controller_->view()) {
     return false;
   }
-  RegisterPlugins(flutter_controller_->engine());
+  if (kind_ == WindowKind::kMain) {
+    RegisterPlugins(flutter_controller_->engine());
+  }
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   SetupMethodChannel();
@@ -135,7 +251,11 @@ bool FlutterWindow::OnCreate() {
     LogA("NextFrameCallback begin");
     HWND hwnd = GetHandle();
     if (!launch_hidden_) {
-      this->Show();
+      if (kind_ == WindowKind::kPopup) {
+        BringWindowToFront();
+      } else {
+        this->Show();
+      }
     } else {
       LogA("NextFrameCallback: skipping native show for auto-start launch");
     }
@@ -252,6 +372,30 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
       delete request;
       return 0;
     }
+    case kPopupCloseMessage:
+      {
+        char buffer[256];
+        sprintf_s(buffer, "Popup close message received hwnd=%p", hwnd);
+        LogA(buffer);
+      }
+      CloseCurrentWindow();
+      return 0;
+    case kPopupMinimizeMessage:
+      {
+        char buffer[256];
+        sprintf_s(buffer, "Popup minimize message received hwnd=%p", hwnd);
+        LogA(buffer);
+      }
+      MinimizeCurrentWindow();
+      return 0;
+    case kPopupStartDragMessage:
+      {
+        char buffer[256];
+        sprintf_s(buffer, "Popup drag message received hwnd=%p", hwnd);
+        LogA(buffer);
+      }
+      StartWindowDrag();
+      return 0;
   }
 
   return Win32Window::MessageHandler(hwnd, message, wparam, lparam);
@@ -271,6 +415,34 @@ void FlutterWindow::SetupMethodChannel() {
           BringWindowToFront();
           OutputDebugStringA("bringToFront executed");
           result->Success();
+        } else if (call.method_name() == "showPopupWindow") {
+          const auto* arguments =
+              std::get_if<flutter::EncodableMap>(call.arguments());
+          if (arguments) {
+            auto payload_it = arguments->find(flutter::EncodableValue("payload"));
+            if (payload_it != arguments->end()) {
+              if (const std::string* payload =
+                      std::get_if<std::string>(&payload_it->second)) {
+                std::wstring window_title = L"Hanabi Download Pop";
+                auto title_it = arguments->find(flutter::EncodableValue("title"));
+                if (title_it != arguments->end()) {
+                  if (const std::string* title =
+                          std::get_if<std::string>(&title_it->second)) {
+                    std::wstring parsed_title = Utf8ToWide(*title);
+                    if (!parsed_title.empty()) {
+                      window_title = parsed_title;
+                    }
+                  }
+                }
+
+                result->Success(
+                    flutter::EncodableValue(
+                        CreatePopupWindow(*payload, window_title)));
+                return;
+              }
+            }
+          }
+          result->Error("INVALID_ARGUMENT", "Missing payload parameter");
         } else if (call.method_name() == "setAlwaysOnTop") {
           const auto* arguments = std::get_if<flutter::EncodableMap>(call.arguments());
           if (arguments) {
@@ -288,6 +460,34 @@ void FlutterWindow::SetupMethodChannel() {
           FlashWindowAttention();
           OutputDebugStringA("flashWindow executed");
           result->Success();
+        } else if (call.method_name() == "getWindowDebugInfo") {
+          const HWND hwnd = GetHandle();
+          flutter::EncodableMap payload;
+          payload[flutter::EncodableValue("hwnd")] =
+              flutter::EncodableValue(
+                  static_cast<int64_t>(reinterpret_cast<intptr_t>(hwnd)));
+          payload[flutter::EncodableValue("kind")] =
+              flutter::EncodableValue(
+                  kind_ == WindowKind::kPopup ? "popup" : "main");
+          payload[flutter::EncodableValue("title")] =
+              flutter::EncodableValue(WideToUtf8(GetWindowTitle(hwnd)));
+          result->Success(flutter::EncodableValue(payload));
+          return;
+        } else if (call.method_name() == "closeWindow") {
+          const HWND hwnd = GetHandle();
+          result->Success(flutter::EncodableValue(hwnd != nullptr));
+          CloseCurrentWindow();
+          return;
+        } else if (call.method_name() == "minimizeWindow") {
+          const HWND hwnd = GetHandle();
+          result->Success(flutter::EncodableValue(hwnd != nullptr));
+          MinimizeCurrentWindow();
+          return;
+        } else if (call.method_name() == "startWindowDrag") {
+          const HWND hwnd = GetHandle();
+          result->Success(flutter::EncodableValue(hwnd != nullptr));
+          StartWindowDrag();
+          return;
         } else if (call.method_name() == "setWindowEffect") {
           const auto* arguments = std::get_if<flutter::EncodableMap>(call.arguments());
           if (arguments) {
@@ -396,16 +596,51 @@ void FlutterWindow::SetupMethodChannel() {
 void FlutterWindow::BringWindowToFront() {
   HWND hwnd = GetHandle();
   if (hwnd) {
+    const DWORD current_thread = GetCurrentThreadId();
+    const HWND foreground_before = GetForegroundWindow();
+    const DWORD foreground_thread = foreground_before != nullptr
+        ? GetWindowThreadProcessId(foreground_before, nullptr)
+        : 0;
+    const DWORD target_thread = GetWindowThreadProcessId(hwnd, nullptr);
+    const bool attached_foreground =
+        foreground_thread != 0 && foreground_thread != current_thread &&
+        AttachThreadInput(current_thread, foreground_thread, TRUE) != FALSE;
+    const bool attached_target =
+        target_thread != 0 && target_thread != current_thread &&
+        AttachThreadInput(current_thread, target_thread, TRUE) != FALSE;
+
     // Show window
     ShowWindow(hwnd, SW_SHOW);
     // Restore window if minimized
     ShowWindow(hwnd, SW_RESTORE);
+    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    BringWindowToTop(hwnd);
     // Set as foreground window
-    SetForegroundWindow(hwnd);
+    const BOOL foreground_result = SetForegroundWindow(hwnd);
     // Activate window
-    SetActiveWindow(hwnd);
+    const HWND active_result = SetActiveWindow(hwnd);
     // Set focus
-    SetFocus(hwnd);
+    const HWND focus_result = SetFocus(hwnd);
+
+    if (attached_target) {
+      AttachThreadInput(current_thread, target_thread, FALSE);
+    }
+    if (attached_foreground) {
+      AttachThreadInput(current_thread, foreground_thread, FALSE);
+    }
+
+    char buffer[512];
+    sprintf_s(
+        buffer, sizeof(buffer),
+        "BringWindowToFront hwnd=%p currentThread=%lu targetThread=%lu foregroundBefore=%p foregroundThread=%lu attachedForeground=%d attachedTarget=%d foregroundResult=%d activeResult=%p focusResult=%p foregroundNow=%p activeNow=%p",
+        hwnd, current_thread, target_thread, foreground_before,
+        foreground_thread, attached_foreground, attached_target,
+        foreground_result, active_result, focus_result, GetForegroundWindow(),
+        GetActiveWindow());
+    LogA(buffer);
   }
 }
 
@@ -428,6 +663,60 @@ void FlutterWindow::FlashWindowAttention() {
     fwi.dwTimeout = 0;
     FlashWindowEx(&fwi);
   }
+}
+
+void FlutterWindow::CloseCurrentWindow() {
+  const HWND hwnd = GetHandle();
+  if (hwnd) {
+    PostMessage(hwnd, WM_CLOSE, 0, 0);
+  }
+}
+
+void FlutterWindow::MinimizeCurrentWindow() {
+  const HWND hwnd = GetHandle();
+  if (hwnd) {
+    ShowWindow(hwnd, SW_MINIMIZE);
+  }
+}
+
+void FlutterWindow::StartWindowDrag() {
+  const HWND hwnd = GetHandle();
+  if (!hwnd || !HasCustomFrame()) {
+    return;
+  }
+
+  ReleaseCapture();
+  SendMessage(hwnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
+}
+
+bool FlutterWindow::CreatePopupWindow(const std::string& payload_json,
+                                      const std::wstring& window_title) {
+  CleanupPopupWindows();
+
+  flutter::DartProject popup_project(L"data");
+  popup_project.set_dart_entrypoint("popupMain");
+  popup_project.set_dart_entrypoint_arguments(
+      std::vector<std::string>{payload_json});
+
+  auto popup_window = std::make_unique<FlutterWindow>(
+      popup_project, WindowKind::kPopup);
+
+  Win32Window::Point origin(120, 120);
+  Win32Window::Size size(745, 396);
+  if (!popup_window->Create(window_title, origin, size)) {
+    return false;
+  }
+
+  popup_window->SetQuitOnClose(false);
+  CenterWindowOnWorkArea(popup_window->GetHandle());
+  popup_window->BringWindowToFront();
+  LogA("CreatePopupWindow immediate activation requested");
+  g_popup_windows.push_back(std::move(popup_window));
+  return true;
+}
+
+void FlutterWindow::CleanupPopupWindows() {
+  CleanupClosedPopupWindows();
 }
 
 
@@ -464,6 +753,14 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
   lastRoundedCornersEnabled = rounded_corners_enabled_;
   lastCornerRadius = corner_radius_;
   lastWindowRect = windowRect;
+
+  if (kind_ == WindowKind::kPopup) {
+    BOOL dark = TRUE;
+    DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark,
+                          sizeof(dark));
+    ApplyRoundedCorners(hwnd, GetWindowsBuildNumber(), width, height);
+    return;
+  }
 
   DWORD buildNumber = GetWindowsBuildNumber();
   char logBuf[256];
@@ -604,6 +901,25 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
   if (modeChanged || cornerSettingChanged) {
     RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW | RDW_FRAME);
   }
+}
+
+DWORD FlutterWindow::WindowStyle() const {
+  if (kind_ == WindowKind::kPopup) {
+    return WS_POPUP | WS_THICKFRAME | WS_SYSMENU | WS_MINIMIZEBOX;
+  }
+  return Win32Window::WindowStyle();
+}
+
+DWORD FlutterWindow::WindowExStyle() const {
+  return Win32Window::WindowExStyle();
+}
+
+bool FlutterWindow::HasCustomFrame() const {
+  return true;
+}
+
+bool FlutterWindow::CanResize() const {
+  return kind_ != WindowKind::kPopup;
 }
 
 void FlutterWindow::ApplyRoundedCorners(HWND hwnd,

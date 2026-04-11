@@ -210,11 +210,11 @@
   "settingsAutoDownloadDisabledTitle": "Auto download disabled",
   "settingsAutoDownloadDisabledMessage": "New tasks will wait until you start them",
   "settingsPopupWindowTitle": "Popup window",
-  "settingsPopupWindowSubtitle": "Show the add-download dialog in the main window",
+  "settingsPopupWindowSubtitle": "Show downloads in a standalone popup window without bringing the main window forward",
   "settingsPopupEnabledTitle": "Popup enabled",
-  "settingsPopupEnabledMessage": "Browser downloads will open the add-download dialog in the main window",
+  "settingsPopupEnabledMessage": "Browser downloads will open the standalone popup window while the main window stays in the background",
   "settingsPopupDisabledTitle": "Popup disabled",
-  "settingsPopupDisabledMessage": "Browser downloads will be accepted without opening the add-download dialog",
+  "settingsPopupDisabledMessage": "Browser downloads will be accepted directly without opening the standalone popup window",
   "settingsCompleteNotifyTitle": "Completion notifications",
   "settingsCompleteNotifySubtitle": "Notify when downloads finish",
   "settingsCompleteNotifyEnabledTitle": "Notifications enabled",
@@ -900,6 +900,8 @@
   "popupDownloadLinkPlaceholder": "HTTP/HTTPS URL",
   "popupDownloadFileNameLabel": "File name",
   "popupDownloadFileNamePlaceholder": "Save as filename",
+  "popupDownloadSavePathLabel": "Save to",
+  "popupDownloadSavePathPlaceholder": "Download folder",
   "popupDownloadAutoStart": "Start download immediately",
   "popupDownloadFeatureHint": "Supports multi-threading, resume, and speed limits",
   "popupDownloadCancel": "Cancel",
@@ -1330,7 +1332,7 @@
   "statusAutoStartFixButton": "Fix auto-start",
   "statusSectionPopupTest": "Popup window test",
   "statusItemDescription": "Description",
-  "statusPopupTestDescription": "Test whether browser-triggered downloads can bring up the main-window add-download dialog",
+  "statusPopupTestDescription": "Test whether browser-triggered downloads can open the standalone popup window",
   "statusItemTestResult": "Test result",
   "statusPopupTestResultSuccess": "Success ({time}ms)",
   "@statusPopupTestResultSuccess": {
@@ -1348,7 +1350,7 @@
   "statusPopupTestButton": "Test add-download dialog",
   "statusPopupDialogTestButton": "Legacy dialog test",
   "statusPopupTestInfoTitle": "Test notes",
-  "statusPopupTestInfoBody": "• This version no longer ships the standalone popup\\n• Browser-triggered downloads now bring the main window to the front and open the add-download dialog\\n• Results and timing are recorded in logs",
+  "statusPopupTestInfoBody": "• Browser-triggered downloads open a standalone Flutter popup window\\n• The main window stays in the background and is not brought to the front\\n• Results and timing are recorded in logs",
   "statusExtensionDownloadAddedTitle": "Download added",
   "statusExtensionDownloadAddedMessage": "Browser extension added to download list",
   "statusExtensionDownloadFailedTitle": "Download failed",
@@ -1377,8 +1379,8 @@
     }
   },
   "statusPopupTestCreating": "Opening add-download dialog...",
-  "statusPopupTestStartLog": "Starting main-window add-download dialog test...",
-  "statusPopupTestSuccessLog": "Main-window add-download dialog opened in {time}ms",
+  "statusPopupTestStartLog": "Starting standalone popup window test...",
+  "statusPopupTestSuccessLog": "Standalone popup window opened in {time}ms",
   "@statusPopupTestSuccessLog": {
     "placeholders": {
       "time": {}
@@ -1392,7 +1394,7 @@
       "time": {}
     }
   },
-  "statusPopupTestFailedLog": "Main-window add-download dialog failed: {error}",
+  "statusPopupTestFailedLog": "Standalone popup window failed: {error}",
   "@statusPopupTestFailedLog": {
     "placeholders": {
       "error": {}

@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:fluent_ui/fluent_ui.dart' as fluent;
 import 'package:flutter/services.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import '../widgets/popup_download_dialog.dart';
+import 'kernel/kernel_manager.dart';
 import 'logger_service.dart';
 import '../main.dart';
 
@@ -12,33 +15,98 @@ class PopupWindowService {
   static const platform = MethodChannel('com.hanabi.download/window');
   static final _logger = LoggerService();
 
-  // 当前版本统一拉起主窗口并显示 Flutter 下载对话框。
   static Future<void> showPopupDownloadWindow({
     required String url,
     String? suggestedFilename,
     String? referer,
     String? userAgent,
+    String? cookies,
     Map<String, dynamic>? headers,
     bool isFromBrowser = false,
   }) async {
-    _logger.info(
-        'Popup window request routed to main window: url=$url, filename=$suggestedFilename');
+    final opened = await _openNativePopupWindow(
+      url: url,
+      suggestedFilename: suggestedFilename,
+      referer: referer,
+      userAgent: userAgent,
+      cookies: cookies,
+      headers: headers,
+    );
+    if (opened) {
+      return;
+    }
+
+    _logger.warning(
+      'Standalone popup unavailable, falling back to embedded dialog',
+    );
 
     final ctx = navigatorKey.currentContext;
     if (ctx == null || !ctx.mounted) {
       _logger.warning('Main window context unavailable for popup request');
       return;
     }
-
     await showPopupDownload(
       ctx,
       url: url,
       suggestedFilename: suggestedFilename,
       referer: referer,
       userAgent: userAgent,
+      cookies: cookies,
       headers: headers,
       isFromBrowser: isFromBrowser,
     );
+  }
+
+  static Future<bool> _openNativePopupWindow({
+    required String url,
+    String? suggestedFilename,
+    String? referer,
+    String? userAgent,
+    String? cookies,
+    Map<String, dynamic>? headers,
+  }) async {
+    if (!Platform.isWindows) return false;
+
+    try {
+      final downloadDir = await KernelManager().getDownloadDir();
+      final localeTag =
+          WidgetsBinding.instance.platformDispatcher.locale.toLanguageTag();
+      final windowTitle =
+          'Hanabi Download Pop ${DateTime.now().microsecondsSinceEpoch}';
+
+      final payload = <String, dynamic>{
+        'url': url,
+        if (suggestedFilename?.trim().isNotEmpty ?? false)
+          'filename': suggestedFilename!.trim(),
+        'window_title': windowTitle,
+        'save_path': (downloadDir?.trim().isNotEmpty ?? false)
+            ? downloadDir!.trim()
+            : '',
+        if (localeTag.trim().isNotEmpty) 'locale': localeTag,
+        if (referer?.trim().isNotEmpty ?? false) 'referer': referer!.trim(),
+        if (userAgent?.trim().isNotEmpty ?? false)
+          'user_agent': userAgent!.trim(),
+        if (cookies?.trim().isNotEmpty ?? false) 'cookies': cookies!.trim(),
+        if (headers != null && headers.isNotEmpty) 'headers': headers,
+      };
+
+      final result = await platform.invokeMethod<bool>(
+        'showPopupWindow',
+        {
+          'payload': jsonEncode(payload),
+          'title': windowTitle,
+        },
+      );
+
+      final success = result == true;
+      if (!success) {
+        _logger.warning('Runner declined popup window request');
+      }
+      return success;
+    } catch (e) {
+      _logger.error('Failed to open native popup window: $e');
+      return false;
+    }
   }
 
   // 显示弹窗下载对话框（旧方式，需要拉起主窗口）
@@ -48,6 +116,7 @@ class PopupWindowService {
     String? suggestedFilename,
     String? referer,
     String? userAgent,
+    String? cookies,
     Map<String, dynamic>? headers,
     bool isFromBrowser = false,
   }) async {
@@ -75,6 +144,7 @@ class PopupWindowService {
           suggestedFilename: suggestedFilename,
           referer: referer,
           userAgent: userAgent,
+          cookies: cookies,
           headers: headers,
           isFromBrowser: isFromBrowser,
         ),
@@ -123,7 +193,8 @@ class PopupWindowService {
 
     try {
       _logger.debug('Invoke setAlwaysOnTop=$alwaysOnTop');
-      await platform.invokeMethod('setAlwaysOnTop', {'alwaysOnTop': alwaysOnTop});
+      await platform
+          .invokeMethod('setAlwaysOnTop', {'alwaysOnTop': alwaysOnTop});
       _logger.debug('setAlwaysOnTop done');
     } catch (e) {
       _logger.error('setAlwaysOnTop failed: $e');

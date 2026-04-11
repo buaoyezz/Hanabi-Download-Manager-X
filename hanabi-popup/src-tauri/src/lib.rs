@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::Mutex;
 use tauri::{Manager, State};
 
@@ -11,6 +12,15 @@ pub struct AppState {
     pub initial_filename: Mutex<Option<String>>,
     pub initial_path: Mutex<Option<String>>,
     pub initial_locale: Mutex<Option<String>>,
+    pub initial_request_meta: Mutex<DownloadRequestMeta>,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct DownloadRequestMeta {
+    pub referer: Option<String>,
+    pub user_agent: Option<String>,
+    pub cookies: Option<String>,
+    pub headers: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -18,6 +28,10 @@ pub struct DownloadRequest {
     pub url: String,
     pub filename: String,
     pub save_path: String,
+    pub referer: Option<String>,
+    pub user_agent: Option<String>,
+    pub cookies: Option<String>,
+    pub headers: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -26,16 +40,25 @@ pub struct InitialData {
     pub filename: Option<String>,
     pub path: Option<String>,
     pub locale: Option<String>,
+    pub referer: Option<String>,
+    pub user_agent: Option<String>,
+    pub cookies: Option<String>,
+    pub headers: Option<HashMap<String, String>>,
 }
 
 // Get initial data from CLI arguments
 #[tauri::command]
 fn get_initial_data(state: State<AppState>) -> InitialData {
+    let request_meta = state.initial_request_meta.lock().unwrap().clone();
     InitialData {
         url: state.initial_url.lock().unwrap().clone(),
         filename: state.initial_filename.lock().unwrap().clone(),
         path: state.initial_path.lock().unwrap().clone(),
         locale: state.initial_locale.lock().unwrap().clone(),
+        referer: request_meta.referer,
+        user_agent: request_meta.user_agent,
+        cookies: request_meta.cookies,
+        headers: request_meta.headers,
     }
 }
 
@@ -87,8 +110,12 @@ async fn send_download_request(request: DownloadRequest) -> Result<String, Strin
         }
 
         // If pipe failed, try HTTP fallback
-        send_via_http(&request).await
-            .map_err(|http_err| format!("Pipe error: {}. HTTP fallback also failed: {}", last_error, http_err))
+        send_via_http(&request).await.map_err(|http_err| {
+            format!(
+                "Pipe error: {}. HTTP fallback also failed: {}",
+                last_error, http_err
+            )
+        })
     }
 
     #[cfg(not(target_os = "windows"))]
@@ -111,7 +138,10 @@ async fn send_via_http(request: &DownloadRequest) -> Result<String, String> {
     if response.status().is_success() {
         Ok("Download request sent via HTTP".to_string())
     } else {
-        Err(format!("HTTP request failed with status: {}", response.status()))
+        Err(format!(
+            "HTTP request failed with status: {}",
+            response.status()
+        ))
     }
 }
 
@@ -163,16 +193,26 @@ fn open_main_app() -> Result<(), String> {
 
                 // 开发模式：从 hanabi-popup/src-tauri/target/debug 向上找到项目根目录
                 // 然后查找 build/windows/x64/runner/Release 或 Debug
-                if let Some(target_dir) = parent.parent() {  // target
-                    if let Some(src_tauri_dir) = target_dir.parent() {  // src-tauri
-                        if let Some(popup_dir) = src_tauri_dir.parent() {  // hanabi-popup
-                            if let Some(project_root) = popup_dir.parent() {  // 项目根目录
+                if let Some(target_dir) = parent.parent() {
+                    // target
+                    if let Some(src_tauri_dir) = target_dir.parent() {
+                        // src-tauri
+                        if let Some(popup_dir) = src_tauri_dir.parent() {
+                            // hanabi-popup
+                            if let Some(project_root) = popup_dir.parent() {
+                                // 项目根目录
                                 // Release 版本
-                                possible_paths.push(project_root.join("build/windows/x64/runner/Release/HanabiDownloadManagerX.exe"));
+                                possible_paths.push(project_root.join(
+                                    "build/windows/x64/runner/Release/HanabiDownloadManagerX.exe",
+                                ));
                                 // Debug 版本
-                                possible_paths.push(project_root.join("build/windows/x64/runner/Debug/HanabiDownloadManagerX.exe"));
+                                possible_paths.push(project_root.join(
+                                    "build/windows/x64/runner/Debug/HanabiDownloadManagerX.exe",
+                                ));
                                 // Profile 版本
-                                possible_paths.push(project_root.join("build/windows/x64/runner/Profile/HanabiDownloadManagerX.exe"));
+                                possible_paths.push(project_root.join(
+                                    "build/windows/x64/runner/Profile/HanabiDownloadManagerX.exe",
+                                ));
                             }
                         }
                     }
@@ -181,14 +221,28 @@ fn open_main_app() -> Result<(), String> {
         }
 
         // 常见安装路径
-        possible_paths.push(PathBuf::from(r"C:\Program Files\Hanabi Download ManagerX\HanabiDownloadManagerX.exe"));
-        possible_paths.push(PathBuf::from(r"C:\Program Files\Hanabi Download ManagerX\hanabi_download_managerx.exe"));
-        possible_paths.push(PathBuf::from(r"C:\Program Files (x86)\Hanabi Download ManagerX\HanabiDownloadManagerX.exe"));
+        possible_paths.push(PathBuf::from(
+            r"C:\Program Files\Hanabi Download ManagerX\HanabiDownloadManagerX.exe",
+        ));
+        possible_paths.push(PathBuf::from(
+            r"C:\Program Files\Hanabi Download ManagerX\hanabi_download_managerx.exe",
+        ));
+        possible_paths.push(PathBuf::from(
+            r"C:\Program Files (x86)\Hanabi Download ManagerX\HanabiDownloadManagerX.exe",
+        ));
 
         // 用户目录下的安装路径
         if let Some(local_app_data) = dirs::data_local_dir() {
-            possible_paths.push(local_app_data.join("Hanabi Download ManagerX").join("HanabiDownloadManagerX.exe"));
-            possible_paths.push(local_app_data.join("Hanabi Download ManagerX").join("hanabi_download_managerx.exe"));
+            possible_paths.push(
+                local_app_data
+                    .join("Hanabi Download ManagerX")
+                    .join("HanabiDownloadManagerX.exe"),
+            );
+            possible_paths.push(
+                local_app_data
+                    .join("Hanabi Download ManagerX")
+                    .join("hanabi_download_managerx.exe"),
+            );
         }
 
         for path in &possible_paths {
@@ -201,7 +255,9 @@ fn open_main_app() -> Result<(), String> {
         }
 
         // 如果找不到，返回错误提示用户
-        return Err(format!("找不到主程序，请确保 Hanabi Download ManagerX 已正确安装"));
+        return Err(format!(
+            "找不到主程序，请确保 Hanabi Download ManagerX 已正确安装"
+        ));
     }
 
     #[cfg(not(target_os = "windows"))]
@@ -217,7 +273,11 @@ fn parse_filename_from_url(url: String) -> Option<String> {
         .last()
         .and_then(|s| s.split('?').next())
         .filter(|s| !s.is_empty() && s.contains('.'))
-        .map(|s| urlencoding::decode(s).unwrap_or_else(|_| s.into()).to_string())
+        .map(|s| {
+            urlencoding::decode(s)
+                .unwrap_or_else(|_| s.into())
+                .to_string()
+        })
 }
 
 // Get default download path
@@ -292,12 +352,19 @@ pub fn run(
     initial_filename: Option<String>,
     initial_path: Option<String>,
     initial_locale: Option<String>,
+    initial_request_meta: Option<String>,
 ) {
+    let request_meta = initial_request_meta
+        .as_deref()
+        .and_then(|payload| serde_json::from_str::<DownloadRequestMeta>(payload).ok())
+        .unwrap_or_default();
+
     let app_state = AppState {
         initial_url: Mutex::new(initial_url),
         initial_filename: Mutex::new(initial_filename),
         initial_path: Mutex::new(initial_path),
         initial_locale: Mutex::new(initial_locale),
+        initial_request_meta: Mutex::new(request_meta),
     };
 
     tauri::Builder::default()

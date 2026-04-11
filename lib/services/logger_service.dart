@@ -15,6 +15,8 @@ class LoggerService {
   final StringBuffer _buffer = StringBuffer();
   Timer? _flushTimer;
   bool _flushing = false;
+  bool _initialized = false;
+  bool _hasWrittenEntry = false;
 
   Future<void> _ensureLogFile() async {
     if (_logFile != null) return;
@@ -29,6 +31,15 @@ class LoggerService {
     _logFile = File('${logDir.path}/log_$timestamp.log');
   }
 
+  Future<void> initialize() async {
+    if (_initialized) return;
+    await _ensureLogFile();
+    if (!await _logFile!.exists()) {
+      await _logFile!.create(recursive: true);
+    }
+    _initialized = true;
+  }
+
   void _writeLog(String level, String message, LogLevel appLogLevel,
       {String source = 'Kernel'}) {
     final timestamp = DateTime.now().toIso8601String();
@@ -39,13 +50,25 @@ class LoggerService {
 
     // 追加到缓冲区，延迟批量写入磁盘
     _buffer.write(logEntry);
-    _scheduleFlush();
+    final shouldFlushImmediately =
+        !_hasWrittenEntry ||
+        appLogLevel == LogLevel.warning ||
+        appLogLevel == LogLevel.error;
+    _hasWrittenEntry = true;
+    _scheduleFlush(immediate: shouldFlushImmediately);
   }
 
   /// 调度延迟刷盘，500ms 内的日志合并为一次写入
-  void _scheduleFlush() {
+  void _scheduleFlush({bool immediate = false}) {
+    if (immediate) {
+      _flushTimer?.cancel();
+      _flushTimer = null;
+      unawaited(_flush());
+      return;
+    }
+
     if (_flushTimer != null) return;
-    _flushTimer = Timer(const Duration(milliseconds: 500), () {
+    _flushTimer = Timer(const Duration(milliseconds: 150), () {
       _flushTimer = null;
       _flush();
     });
@@ -62,7 +85,14 @@ class LoggerService {
 
     try {
       await _ensureLogFile();
-      await _logFile!.writeAsString(content, mode: FileMode.append);
+      if (!await _logFile!.exists()) {
+        await _logFile!.create(recursive: true);
+      }
+      await _logFile!.writeAsString(
+        content,
+        mode: FileMode.append,
+        flush: true,
+      );
     } catch (e) {
       // 避免递归调用，直接输出
       // ignore: avoid_print
@@ -74,6 +104,12 @@ class LoggerService {
         _scheduleFlush();
       }
     }
+  }
+
+  Future<void> flush() async {
+    _flushTimer?.cancel();
+    _flushTimer = null;
+    await _flush();
   }
 
   void info(String message, {String source = 'Kernel'}) =>

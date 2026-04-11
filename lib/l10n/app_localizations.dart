@@ -839,7 +839,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsPopupWindowSubtitle.
   ///
   /// In zh, this message translates to:
-  /// **'在主窗口中显示新建下载对话框'**
+  /// **'浏览器下载时显示独立 popup 窗口，不拉起主窗口'**
   String get settingsPopupWindowSubtitle;
 
   /// No description provided for @settingsPopupEnabledTitle.
@@ -851,7 +851,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsPopupEnabledMessage.
   ///
   /// In zh, this message translates to:
-  /// **'浏览器下载将拉起主窗口并显示新建下载对话框'**
+  /// **'浏览器下载将打开独立 popup 窗口，主窗口保持后台'**
   String get settingsPopupEnabledMessage;
 
   /// No description provided for @settingsPopupDisabledTitle.
@@ -863,7 +863,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsPopupDisabledMessage.
   ///
   /// In zh, this message translates to:
-  /// **'浏览器下载将直接加入任务，不再弹出新建下载对话框'**
+  /// **'浏览器下载将直接加入任务，不再弹出独立 popup 窗口'**
   String get settingsPopupDisabledMessage;
 
   /// No description provided for @settingsCompleteNotifyTitle.
@@ -3945,6 +3945,18 @@ abstract class AppLocalizations {
   /// **'保存为文件名'**
   String get popupDownloadFileNamePlaceholder;
 
+  /// No description provided for @popupDownloadSavePathLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'保存到'**
+  String get popupDownloadSavePathLabel;
+
+  /// No description provided for @popupDownloadSavePathPlaceholder.
+  ///
+  /// In zh, this message translates to:
+  /// **'下载目录'**
+  String get popupDownloadSavePathPlaceholder;
+
   /// No description provided for @popupDownloadAutoStart.
   ///
   /// In zh, this message translates to:
@@ -5534,7 +5546,7 @@ abstract class AppLocalizations {
   /// No description provided for @statusPopupTestDescription.
   ///
   /// In zh, this message translates to:
-  /// **'测试浏览器触发下载时，是否能拉起主窗口并显示新建下载对话框'**
+  /// **'测试浏览器触发下载时，是否能打开独立 popup 窗口'**
   String get statusPopupTestDescription;
 
   /// No description provided for @statusItemTestResult.
@@ -5582,7 +5594,7 @@ abstract class AppLocalizations {
   /// No description provided for @statusPopupTestInfoBody.
   ///
   /// In zh, this message translates to:
-  /// **'• 当前版本不再附带独立 popup 窗口\\n• 浏览器触发下载时会拉起主窗口并显示新建下载对话框\\n• 测试结果和耗时会记录到日志中'**
+  /// **'• 浏览器触发下载时会打开独立的 Flutter popup 窗口\\n• 主窗口会继续留在后台，不会被拉到前台\\n• 测试结果和耗时会记录到日志中'**
   String get statusPopupTestInfoBody;
 
   /// No description provided for @statusExtensionDownloadAddedTitle.
@@ -5666,13 +5678,13 @@ abstract class AppLocalizations {
   /// No description provided for @statusPopupTestStartLog.
   ///
   /// In zh, this message translates to:
-  /// **'开始测试主窗口新建下载对话框...'**
+  /// **'开始测试独立 popup 窗口...'**
   String get statusPopupTestStartLog;
 
   /// No description provided for @statusPopupTestSuccessLog.
   ///
   /// In zh, this message translates to:
-  /// **'主窗口新建下载对话框已打开，耗时: {time}ms'**
+  /// **'独立 popup 窗口已打开，耗时: {time}ms'**
   String statusPopupTestSuccessLog(Object time);
 
   /// No description provided for @statusPopupTestSuccessMessage.
@@ -5696,7 +5708,7 @@ abstract class AppLocalizations {
   /// No description provided for @statusPopupTestFailedLog.
   ///
   /// In zh, this message translates to:
-  /// **'主窗口新建下载对话框打开失败: {error}'**
+  /// **'独立 popup 窗口打开失败: {error}'**
   String statusPopupTestFailedLog(Object error);
 
   /// No description provided for @statusPopupTestFailedTitle.

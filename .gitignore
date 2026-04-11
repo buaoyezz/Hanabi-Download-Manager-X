@@ -61,6 +61,10 @@ devtools_options.yaml
 *.dylib
 !assets/update/Update.exe
 
+# Docs(not ready now)
+.docs/
+docs/
+
 # Web and deployment related
 web_stats/
 x.zzbuaoye.top/node_modules/

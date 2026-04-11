@@ -142,12 +142,22 @@ class NsfxKernel implements KernelInterface {
     String? userAgent,
     String? cookies,
     Map<String, dynamic>? headers,
+    String? saveDir,
+    bool startPaused = false,
   }) async {
     if (!_isRunning) return null;
 
     final id = _generateId();
-    final resolvedFilename = await _resolveFileNameConflict(filename);
-    final filepath = p.join(_downloadDir, resolvedFilename);
+    final targetDir =
+        (saveDir?.trim().isNotEmpty ?? false) ? saveDir!.trim() : _downloadDir;
+    final dir = Directory(targetDir);
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+
+    final resolvedFilename =
+        await _resolveFileNameConflict(filename, targetDir);
+    final filepath = p.join(targetDir, resolvedFilename);
 
     if (resolvedFilename != filename) {
       _logger.info(
@@ -161,6 +171,7 @@ class NsfxKernel implements KernelInterface {
       url: url,
       filename: resolvedFilename,
       filepath: filepath,
+      status: startPaused ? TaskStatus.paused : TaskStatus.pending,
       userAgent: userAgent,
       referer: referer,
       cookies: cookies,
@@ -172,7 +183,9 @@ class NsfxKernel implements KernelInterface {
     // 绔嬪嵆淇濆瓨浠诲姟鍒楄〃
     await _storage.saveTasks(_tasks);
 
-    _checkQueue();
+    if (!startPaused) {
+      _checkQueue();
+    }
 
     _logger.info('NSFX', 'Download added with ID: $id');
     return id;
@@ -195,17 +208,20 @@ class NsfxKernel implements KernelInterface {
     }
   }
 
-  Future<String> _resolveFileNameConflict(String filename) async {
+  Future<String> _resolveFileNameConflict(
+    String filename,
+    String targetDir,
+  ) async {
     final cleaned = filename.trim();
     if (cleaned.isEmpty) return filename;
 
-    final originalPath = p.join(_downloadDir, cleaned);
+    final originalPath = p.join(targetDir, cleaned);
     final strategy = _config.conflictStrategy;
+    final taskConflict = _hasTaskConflict(originalPath);
+    final fileExists = await File(originalPath).exists();
+    if (!taskConflict && !fileExists) return cleaned;
 
-    final exists = await _conflictExists(originalPath, cleaned);
-    if (!exists) return cleaned;
-
-    if (strategy == 'overwrite') {
+    if (strategy == 'overwrite' && !taskConflict && fileExists) {
       await _deleteIfExists(originalPath);
       return cleaned;
     }
@@ -216,8 +232,8 @@ class NsfxKernel implements KernelInterface {
     if (strategy == 'timestamp') {
       final stamp = _formatTimestamp(DateTime.now());
       var candidate = '${baseName}_$stamp$extension';
-      var candidatePath = p.join(_downloadDir, candidate);
-      if (await _conflictExists(candidatePath, candidate)) {
+      var candidatePath = p.join(targetDir, candidate);
+      if (await _pathConflictExists(candidatePath)) {
         candidate =
             '${baseName}_${stamp}_${DateTime.now().millisecondsSinceEpoch}$extension';
       }
@@ -227,8 +243,8 @@ class NsfxKernel implements KernelInterface {
     // 默认：递增序号 (1)(2)...
     for (int i = 1; i < 10000; i++) {
       final candidate = '$baseName ($i)$extension';
-      final candidatePath = p.join(_downloadDir, candidate);
-      if (!await _conflictExists(candidatePath, candidate)) {
+      final candidatePath = p.join(targetDir, candidate);
+      if (!await _pathConflictExists(candidatePath)) {
         return candidate;
       }
     }
@@ -236,13 +252,15 @@ class NsfxKernel implements KernelInterface {
     return '${baseName}_${DateTime.now().millisecondsSinceEpoch}$extension';
   }
 
-  Future<bool> _conflictExists(String filepath, String filename) async {
-    final lower = filename.toLowerCase();
-    final hasTaskConflict = _tasks.values.any((task) {
-      final name = p.basename(task.filepath).toLowerCase();
-      return name == lower;
-    });
-    if (hasTaskConflict) return true;
+  bool _hasTaskConflict(String filepath) {
+    final normalizedPath = p.normalize(filepath).toLowerCase();
+    return _tasks.values.any(
+      (task) => p.normalize(task.filepath).toLowerCase() == normalizedPath,
+    );
+  }
+
+  Future<bool> _pathConflictExists(String filepath) async {
+    if (_hasTaskConflict(filepath)) return true;
     return await File(filepath).exists();
   }
 

@@ -413,19 +413,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsPopupWindowTitle => '浏览器下载弹窗';
 
   @override
-  String get settingsPopupWindowSubtitle => '在主窗口中显示新建下载对话框';
+  String get settingsPopupWindowSubtitle => '浏览器下载时显示独立 popup 窗口，不拉起主窗口';
 
   @override
   String get settingsPopupEnabledTitle => '弹窗已开启';
 
   @override
-  String get settingsPopupEnabledMessage => '浏览器下载将拉起主窗口并显示新建下载对话框';
+  String get settingsPopupEnabledMessage => '浏览器下载将打开独立 popup 窗口，主窗口保持后台';
 
   @override
   String get settingsPopupDisabledTitle => '弹窗已关闭';
 
   @override
-  String get settingsPopupDisabledMessage => '浏览器下载将直接加入任务，不再弹出新建下载对话框';
+  String get settingsPopupDisabledMessage => '浏览器下载将直接加入任务，不再弹出独立 popup 窗口';
 
   @override
   String get settingsCompleteNotifyTitle => '完成通知';
@@ -2049,6 +2049,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get popupDownloadFileNamePlaceholder => '保存为文件名';
 
   @override
+  String get popupDownloadSavePathLabel => '保存到';
+
+  @override
+  String get popupDownloadSavePathPlaceholder => '下载目录';
+
+  @override
   String get popupDownloadAutoStart => '立即开始下载';
 
   @override
@@ -2909,7 +2915,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get statusItemDescription => '说明';
 
   @override
-  String get statusPopupTestDescription => '测试浏览器触发下载时，是否能拉起主窗口并显示新建下载对话框';
+  String get statusPopupTestDescription => '测试浏览器触发下载时，是否能打开独立 popup 窗口';
 
   @override
   String get statusItemTestResult => '测试结果';
@@ -2938,7 +2944,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get statusPopupTestInfoBody =>
-      '• 当前版本不再附带独立 popup 窗口\\n• 浏览器触发下载时会拉起主窗口并显示新建下载对话框\\n• 测试结果和耗时会记录到日志中';
+      '• 浏览器触发下载时会打开独立的 Flutter popup 窗口\\n• 主窗口会继续留在后台，不会被拉到前台\\n• 测试结果和耗时会记录到日志中';
 
   @override
   String get statusExtensionDownloadAddedTitle => '下载已添加';
@@ -2986,11 +2992,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get statusPopupTestCreating => '正在打开新建下载对话框...';
 
   @override
-  String get statusPopupTestStartLog => '开始测试主窗口新建下载对话框...';
+  String get statusPopupTestStartLog => '开始测试独立 popup 窗口...';
 
   @override
   String statusPopupTestSuccessLog(Object time) {
-    return '主窗口新建下载对话框已打开，耗时: ${time}ms';
+    return '独立 popup 窗口已打开，耗时: ${time}ms';
   }
 
   @override
@@ -3006,7 +3012,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String statusPopupTestFailedLog(Object error) {
-    return '主窗口新建下载对话框打开失败: $error';
+    return '独立 popup 窗口打开失败: $error';
   }
 
   @override

@@ -10,18 +10,35 @@ class PopupDownloadRequest {
   final String url;
   final String filename;
   final String savePath;
+  final String? referer;
+  final String? userAgent;
+  final String? cookies;
+  final Map<String, dynamic>? headers;
 
   PopupDownloadRequest({
     required this.url,
     required this.filename,
     required this.savePath,
+    this.referer,
+    this.userAgent,
+    this.cookies,
+    this.headers,
   });
 
   factory PopupDownloadRequest.fromJson(Map<String, dynamic> json) {
+    final headersRaw = json['headers'];
     return PopupDownloadRequest(
-      url: json['url'] as String,
-      filename: json['filename'] as String,
-      savePath: json['save_path'] as String,
+      url: json['url']?.toString() ?? '',
+      filename: json['filename']?.toString() ?? '',
+      savePath: json['save_path']?.toString() ?? '',
+      referer: json['referer']?.toString(),
+      userAgent: (json['user_agent'] ?? json['userAgent'])?.toString(),
+      cookies: json['cookies']?.toString(),
+      headers: headersRaw is Map
+          ? headersRaw.map(
+              (key, value) => MapEntry(key.toString(), value),
+            )
+          : null,
     );
   }
 
@@ -29,6 +46,10 @@ class PopupDownloadRequest {
         'url': url,
         'filename': filename,
         'save_path': savePath,
+        'referer': referer,
+        'user_agent': userAgent,
+        'cookies': cookies,
+        'headers': headers,
       };
 
   @override
@@ -47,7 +68,7 @@ class PipeListenerService with ChangeNotifier {
   Timer? _reconnectTimer;
 
   /// Callback when a download request is received
-  Function(PopupDownloadRequest)? onDownloadRequest;
+  FutureOr<void> Function(PopupDownloadRequest)? onDownloadRequest;
 
   /// Whether the pipe listener is currently running
   bool get isRunning => _isRunning;
@@ -190,7 +211,7 @@ class PipeListenerService with ChangeNotifier {
 
       // Notify callback
       if (onDownloadRequest != null) {
-        onDownloadRequest!(request);
+        unawaited(Future.sync(() => onDownloadRequest!(request)));
       }
     } catch (e) {
       debugPrint('[PipeListener] Failed to parse message: $e');

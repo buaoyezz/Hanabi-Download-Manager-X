@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:fluent_ui/fluent_ui.dart' as fluent;
@@ -22,10 +23,12 @@ import 'services/download_listener_service.dart';
 import 'services/clipboard_listener_service.dart';
 import 'services/system_tray_service.dart';
 import 'services/app_logger_service.dart';
+import 'services/logger_service.dart';
 import 'services/log_capture.dart';
 import 'services/network_status_service.dart';
 import 'services/developer_mode_service.dart';
 import 'services/client_config_service.dart';
+import 'services/native_render_log_service.dart';
 import 'services/speed_history_service.dart';
 import 'services/quick_path_service.dart';
 import 'services/font_service.dart';
@@ -35,8 +38,10 @@ import 'services/user_profile_service.dart';
 import 'services/notification_settings_service.dart';
 import 'services/download_failure_stats_service.dart';
 import 'services/localization_service.dart';
+import 'services/popup_bridge_service.dart';
 import 'services/single_instance_service.dart';
 import 'screens/home_screen.dart';
+import 'popup/popup_window_bootstrap.dart';
 import 'theme/app_theme.dart';
 import 'widgets/animated_notifications.dart';
 import 'utils/fluent_icons.dart';
@@ -202,6 +207,11 @@ Future<void> _loadCustomFonts(FontService fontService) async {
   }
 }
 
+@pragma('vm:entry-point')
+Future<void> popupMain(List<String> args) async {
+  await runPopupWindowApp(args);
+}
+
 void main(List<String> args) async {
   final appLogger = AppLoggerService();
   appLogger.setConsoleOutputEnabled(false);
@@ -209,6 +219,9 @@ void main(List<String> args) async {
 
   await LogCapture.runZoned(appLogger, () async {
     WidgetsFlutterBinding.ensureInitialized();
+    await appLogger.initialize();
+    await LoggerService().initialize();
+    await NativeRenderLogService().start();
     await AppConstants.initialize();
     // 以下是主窗口的初始化代码
 
@@ -222,7 +235,16 @@ void main(List<String> args) async {
       }
       // 其他错误正常处理
       appLogger.error('Flutter', '${details.exception}\n${details.stack}');
+      unawaited(appLogger.flushFullLog());
+      unawaited(LoggerService().flush());
       FlutterError.presentError(details);
+    };
+
+    PlatformDispatcher.instance.onError = (error, stack) {
+      appLogger.error('Platform', '$error\n$stack');
+      unawaited(appLogger.flushFullLog());
+      unawaited(LoggerService().flush());
+      return true;
     };
 
     // 初始化 Acrylic/Mica 效果 - 只初始化，不设置效果
@@ -427,7 +449,10 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   DownloadListenerService? _downloadListener;
   ClipboardListenerService? _clipboardListener;
+  PopupBridgeService? _popupBridgeService;
+  ClientConfigService? _clientConfig;
   bool _showClientUi = !Platform.isWindows;
+  bool _syncingPopupBridge = false;
 
   @override
   void initState() {
@@ -436,6 +461,17 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _runStartupSequence();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final clientConfig = context.read<ClientConfigService>();
+    if (!identical(_clientConfig, clientConfig)) {
+      _clientConfig?.removeListener(_handleClientConfigChanged);
+      _clientConfig = clientConfig;
+      _clientConfig?.addListener(_handleClientConfigChanged);
+    }
   }
 
   Future<void> _runStartupSequence() async {
@@ -448,8 +484,13 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     await _initSystemTray();
     await _initKernel();
+    await _syncPopupBridgeState();
     _initDownloadListener();
     _initClipboardListener();
+  }
+
+  void _handleClientConfigChanged() {
+    unawaited(_syncPopupBridgeState());
   }
 
   BuildContext? _currentDialogHostContext() =>
@@ -643,6 +684,31 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _syncPopupBridgeState() async {
+    if (!Platform.isWindows || _syncingPopupBridge) return;
+
+    final clientConfig = _clientConfig ?? context.read<ClientConfigService>();
+    final enablePopupWindow = clientConfig.getEnablePopupWindow();
+    _syncingPopupBridge = true;
+
+    try {
+      if (enablePopupWindow) {
+        if (_popupBridgeService != null) return;
+
+        final downloadService = context.read<IntegratedDownloadService>();
+        final popupBridgeService = PopupBridgeService(downloadService);
+        await popupBridgeService.start();
+        _popupBridgeService = popupBridgeService;
+        return;
+      }
+
+      await _popupBridgeService?.stop();
+      _popupBridgeService = null;
+    } finally {
+      _syncingPopupBridge = false;
+    }
+  }
+
   void _showKernelError({String? error}) {
     NotificationManager.of(context)?.showError(
       error != null ? '启动内核时发生错误' : '下载内核启动失败',
@@ -707,6 +773,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     _downloadListener?.stopListening();
     _clipboardListener?.stop();
+    await _popupBridgeService?.stop();
+    _popupBridgeService = null;
     await NsfxProxyRuntime.stopSystemProxyObserver();
 
     // 停止新内核
@@ -722,9 +790,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _clientConfig?.removeListener(_handleClientConfigChanged);
     // 同步清理，不等待异步操作
     _downloadListener?.stopListening();
     _clipboardListener?.stop();
+    _popupBridgeService?.stop();
+    _popupBridgeService = null;
     systemTrayService.dispose();
     NsfxProxyRuntime.stopSystemProxyObserver();
 

@@ -211,11 +211,11 @@
   "settingsAutoDownloadDisabledTitle": "自动下载已关闭",
   "settingsAutoDownloadDisabledMessage": "新任务将等待手动开始",
   "settingsPopupWindowTitle": "浏览器下载弹窗",
-  "settingsPopupWindowSubtitle": "在主窗口中显示新建下载对话框",
+  "settingsPopupWindowSubtitle": "浏览器下载时显示独立 popup 窗口，不拉起主窗口",
   "settingsPopupEnabledTitle": "弹窗已开启",
-  "settingsPopupEnabledMessage": "浏览器下载将拉起主窗口并显示新建下载对话框",
+  "settingsPopupEnabledMessage": "浏览器下载将打开独立 popup 窗口，主窗口保持后台",
   "settingsPopupDisabledTitle": "弹窗已关闭",
-  "settingsPopupDisabledMessage": "浏览器下载将直接加入任务，不再弹出新建下载对话框",
+  "settingsPopupDisabledMessage": "浏览器下载将直接加入任务，不再弹出独立 popup 窗口",
   "settingsCompleteNotifyTitle": "完成通知",
   "settingsCompleteNotifySubtitle": "下载完成时通知",
   "settingsCompleteNotifyEnabledTitle": "完成通知已开启",
@@ -897,6 +897,8 @@
   "popupDownloadLinkPlaceholder": "HTTP/HTTPS 链接",
   "popupDownloadFileNameLabel": "文件名",
   "popupDownloadFileNamePlaceholder": "保存为文件名",
+  "popupDownloadSavePathLabel": "保存到",
+  "popupDownloadSavePathPlaceholder": "下载目录",
   "popupDownloadAutoStart": "立即开始下载",
   "popupDownloadFeatureHint": "支持多线程、断点续传和限速",
   "popupDownloadCancel": "取消",
@@ -1327,7 +1329,7 @@
   "statusAutoStartFixButton": "自动修复注册",
   "statusSectionPopupTest": "弹窗窗口测试",
   "statusItemDescription": "说明",
-  "statusPopupTestDescription": "测试浏览器触发下载时，是否能拉起主窗口并显示新建下载对话框",
+  "statusPopupTestDescription": "测试浏览器触发下载时，是否能打开独立 popup 窗口",
   "statusItemTestResult": "测试结果",
   "statusPopupTestResultSuccess": "成功 ({time}ms)",
   "@statusPopupTestResultSuccess": {
@@ -1345,7 +1347,7 @@
   "statusPopupTestButton": "测试新建下载框",
   "statusPopupDialogTestButton": "旧版 Dialog 测试",
   "statusPopupTestInfoTitle": "测试说明",
-  "statusPopupTestInfoBody": "• 当前版本不再附带独立 popup 窗口\\n• 浏览器触发下载时会拉起主窗口并显示新建下载对话框\\n• 测试结果和耗时会记录到日志中",
+  "statusPopupTestInfoBody": "• 浏览器触发下载时会打开独立的 Flutter popup 窗口\\n• 主窗口会继续留在后台，不会被拉到前台\\n• 测试结果和耗时会记录到日志中",
   "statusExtensionDownloadAddedTitle": "下载已添加",
   "statusExtensionDownloadAddedMessage": "浏览器扩展插件已添加到下载列表",
   "statusExtensionDownloadFailedTitle": "下载失败",
@@ -1374,8 +1376,8 @@
     }
   },
   "statusPopupTestCreating": "正在打开新建下载对话框...",
-  "statusPopupTestStartLog": "开始测试主窗口新建下载对话框...",
-  "statusPopupTestSuccessLog": "主窗口新建下载对话框已打开，耗时: {time}ms",
+  "statusPopupTestStartLog": "开始测试独立 popup 窗口...",
+  "statusPopupTestSuccessLog": "独立 popup 窗口已打开，耗时: {time}ms",
   "@statusPopupTestSuccessLog": {
     "placeholders": {
       "time": {}
@@ -1389,7 +1391,7 @@
       "time": {}
     }
   },
-  "statusPopupTestFailedLog": "主窗口新建下载对话框打开失败: {error}",
+  "statusPopupTestFailedLog": "独立 popup 窗口打开失败: {error}",
   "@statusPopupTestFailedLog": {
     "placeholders": {
       "error": {}

@@ -2936,6 +2936,15 @@ class PluginAppLocalizations extends AppLocalizations {
       _fallback.popupDownloadFileNamePlaceholder);
 
   @override
+  String get popupDownloadSavePathLabel => _string(
+      'popupDownloadSavePathLabel', _fallback.popupDownloadSavePathLabel);
+
+  @override
+  String get popupDownloadSavePathPlaceholder => _string(
+      'popupDownloadSavePathPlaceholder',
+      _fallback.popupDownloadSavePathPlaceholder);
+
+  @override
   String get popupDownloadAutoStart =>
       _string('popupDownloadAutoStart', _fallback.popupDownloadAutoStart);
 

@@ -749,7 +749,10 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
     setState(() => _isLoading = true);
 
     try {
-      downloadService.addTask(url, fileName);
+      final taskId = await downloadService.addTask(url, fileName);
+      if (taskId == null) {
+        throw StateError('Failed to add task');
+      }
 
       if (mounted) {
         Navigator.pop(context);

@@ -81,6 +81,57 @@ int Scale(int source, double scale_factor) {
   return static_cast<int>(source * scale_factor);
 }
 
+void LogRenderA(const char* s) {
+  SYSTEMTIME local_time;
+  GetLocalTime(&local_time);
+
+  char formatted[4096];
+  sprintf_s(
+      formatted, sizeof(formatted),
+      "[%04d-%02d-%02dT%02d:%02d:%02d.%03d] [INFO] [Render] %s",
+      local_time.wYear, local_time.wMonth, local_time.wDay,
+      local_time.wHour, local_time.wMinute, local_time.wSecond,
+      local_time.wMilliseconds, s);
+
+  OutputDebugStringA(formatted);
+  OutputDebugStringA("\n");
+
+  static bool initialized_for_process = false;
+  char exe_path[MAX_PATH] = {0};
+  GetModuleFileNameA(NULL, exe_path, MAX_PATH);
+  char* slash = strrchr(exe_path, '\\');
+  if (slash) {
+    *(slash + 1) = '\0';
+  }
+  strcat_s(exe_path, MAX_PATH, "window_render.log");
+
+  FILE* fp = nullptr;
+  fopen_s(&fp, exe_path, initialized_for_process ? "a" : "w");
+  if (fp) {
+    fprintf(fp, "%s\n", formatted);
+    fclose(fp);
+    initialized_for_process = true;
+  }
+}
+
+void LogWindowStyles(const char* prefix, HWND hwnd) {
+  if (!hwnd) {
+    return;
+  }
+
+  char buffer[256];
+  const auto style = static_cast<unsigned long long>(
+      GetWindowLongPtr(hwnd, GWL_STYLE));
+  const auto ex_style = static_cast<unsigned long long>(
+      GetWindowLongPtr(hwnd, GWL_EXSTYLE));
+  const BOOL enabled = IsWindowEnabled(hwnd);
+  const BOOL visible = IsWindowVisible(hwnd);
+  sprintf_s(buffer, sizeof(buffer),
+            "%s hwnd=%p style=0x%llX exStyle=0x%llX enabled=%d visible=%d",
+            prefix, hwnd, style, ex_style, enabled, visible);
+  LogRenderA(buffer);
+}
+
 // Dynamically loads the |EnableNonClientDpiScaling| from the User32 module.
 // This API is only needed for PerMonitor V1 awareness mode.
 void EnableFullDpiSupportIfAvailable(HWND hwnd) {
@@ -179,9 +230,9 @@ bool Win32Window::Create(const std::wstring& title,
   double scale_factor = dpi / 96.0;
 
   HWND window = CreateWindowEx(
-      WS_EX_APPWINDOW,
+      WindowExStyle(),
       window_class, title.c_str(), 
-      WS_POPUP | WS_THICKFRAME | WS_MAXIMIZEBOX | WS_MINIMIZEBOX,
+      WindowStyle(),
       Scale(origin.x, scale_factor), Scale(origin.y, scale_factor),
       Scale(size.width, scale_factor), Scale(size.height, scale_factor),
       nullptr, nullptr, GetModuleHandle(nullptr), this);
@@ -208,30 +259,40 @@ bool Win32Window::Create(const std::wstring& title,
       }
     }
     sprintf_s(buf, sizeof(buf), "Win32Window Create: Windows build=%lu", buildNumber);
-    OutputDebugStringA(buf);
+    LogRenderA(buf);
     
     // Dark mode
     BOOL dark = TRUE;
     DwmSetWindowAttribute(window, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
     
-    if (buildNumber >= 22000) {
-      // Windows 11: Use native DWM features with rounded corners
-      MARGINS margins = {-1, -1, -1, -1};
-      DwmExtendFrameIntoClientArea(window, &margins);
-      
-      DWORD corner = 2; // DWMWCP_ROUND
-      DwmSetWindowAttribute(window, 33, &corner, sizeof(corner));
-      OutputDebugStringA("Win32Window Create: Win11 native rounded corners");
+    if (HasCustomFrame()) {
+      if (buildNumber >= 22000) {
+        // Windows 11: Use native DWM features with rounded corners
+        MARGINS margins = {-1, -1, -1, -1};
+        DwmExtendFrameIntoClientArea(window, &margins);
+
+        DWORD corner = 2; // DWMWCP_ROUND
+        DwmSetWindowAttribute(window, 33, &corner, sizeof(corner));
+        LogRenderA("Win32Window Create: Win11 native rounded corners");
+      } else {
+        // Windows 10: Extend frame for acrylic, accept square corners
+        // Native rounded corners are not supported on Win10
+        MARGINS margins = {-1, -1, -1, -1};
+        DwmExtendFrameIntoClientArea(window, &margins);
+        LogRenderA("Win32Window Create: Win10 - no native rounded corners");
+      }
+
+      BOOL transitionsDisabled = TRUE;
+      DwmSetWindowAttribute(window, DWMWA_TRANSITIONS_FORCEDISABLED,
+                            &transitionsDisabled,
+                            sizeof(transitionsDisabled));
     } else {
-      // Windows 10: Extend frame for acrylic, accept square corners
-      // Native rounded corners are not supported on Win10
-      MARGINS margins = {-1, -1, -1, -1};
-      DwmExtendFrameIntoClientArea(window, &margins);
-      OutputDebugStringA("Win32Window Create: Win10 - no native rounded corners");
+      if (buildNumber >= 22000) {
+        DWORD corner = 2; // DWMWCP_ROUND
+        DwmSetWindowAttribute(window, 33, &corner, sizeof(corner));
+      }
+      LogRenderA("Win32Window Create: native window frame");
     }
-    
-    BOOL transitionsDisabled = TRUE;
-    DwmSetWindowAttribute(window, DWMWA_TRANSITIONS_FORCEDISABLED, &transitionsDisabled, sizeof(transitionsDisabled));
   }
 
   UpdateTheme(window);
@@ -270,7 +331,7 @@ Win32Window::MessageHandler(HWND hwnd,
                             LPARAM const lparam) noexcept {
   switch (message) {
     case WM_CLOSE:
-      OutputDebugStringA("=== WM_CLOSE ===");
+      LogRenderA("=== WM_CLOSE ===");
       break;
       
     case WM_DESTROY:
@@ -292,7 +353,7 @@ Win32Window::MessageHandler(HWND hwnd,
       return 0;
     }
     case WM_SIZE: {
-      OutputDebugStringA("Win32Window WM_SIZE");
+      LogRenderA("Win32Window WM_SIZE");
       RECT rect = GetClientArea();
       if (child_content_ != nullptr) {
         // Size and position the child window.
@@ -303,19 +364,58 @@ Win32Window::MessageHandler(HWND hwnd,
     }
 
     case WM_ACTIVATE:
-      OutputDebugStringA("Win32Window WM_ACTIVATE");
+      LogRenderA("Win32Window WM_ACTIVATE");
       if (child_content_ != nullptr) {
         SetFocus(child_content_);
       }
       return 0;
 
-    case WM_NCACTIVATE:
-    case WM_NCPAINT:
+    case WM_SETFOCUS:
+      LogRenderA("Win32Window WM_SETFOCUS");
+      if (child_content_ != nullptr) {
+        SetFocus(child_content_);
+      }
       return 0;
+
+    case WM_MOUSEACTIVATE:
+      {
+        char buffer[256];
+        sprintf_s(
+            buffer, sizeof(buffer),
+            "Win32Window WM_MOUSEACTIVATE hwnd=%p foreground=%p active=%p child=%p",
+            hwnd, GetForegroundWindow(), GetActiveWindow(), child_content_);
+        LogRenderA(buffer);
+      }
+      break;
+
+    case WM_LBUTTONDOWN:
+      LogRenderA("Win32Window WM_LBUTTONDOWN");
+      break;
+
+    case WM_LBUTTONUP:
+      LogRenderA("Win32Window WM_LBUTTONUP");
+      break;
+
+    case WM_NCACTIVATE:
+      if (HasCustomFrame()) {
+        char buffer[128];
+        sprintf_s(buffer, sizeof(buffer), "Win32Window WM_NCACTIVATE active=%d",
+                  wparam != FALSE);
+        LogRenderA(buffer);
+        return DefWindowProc(hwnd, message, wparam, -1);
+      }
+      break;
+
+    case WM_NCPAINT:
+      if (HasCustomFrame()) {
+        LogRenderA("Win32Window WM_NCPAINT");
+        return 0;
+      }
+      break;
 
     case WM_NCCALCSIZE:
       // Keep the client area the same size as the window
-      if (wparam == TRUE) {
+      if (HasCustomFrame() && wparam == TRUE) {
         // Let the client area fill the entire window
         return 0;
       }
@@ -324,7 +424,13 @@ Win32Window::MessageHandler(HWND hwnd,
     case WM_NCHITTEST: {
       // Let bitsdojo_window handle hit testing
       LRESULT hit = DefWindowProc(hwnd, message, wparam, lparam);
-      if (hit == HTCLIENT) {
+      if (!HasCustomFrame()) {
+        return hit;
+      }
+      if (!CanResize()) {
+        return HTCLIENT;
+      }
+      if (hit == HTCLIENT && CanResize()) {
         POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
         ScreenToClient(hwnd, &pt);
         RECT rect;
@@ -377,13 +483,30 @@ Win32Window* Win32Window::GetThisFromHandle(HWND const window) noexcept {
 
 void Win32Window::SetChildContent(HWND content) {
   child_content_ = content;
+  LogWindowStyles("SetChildContent before reparent", child_content_);
   SetParent(content, window_handle_);
+
+  auto style = static_cast<LONG_PTR>(GetWindowLongPtr(content, GWL_STYLE));
+  style &= ~static_cast<LONG_PTR>(WS_POPUP);
+  style &= ~static_cast<LONG_PTR>(WS_DISABLED);
+  style |= static_cast<LONG_PTR>(WS_CHILD | WS_VISIBLE);
+  SetWindowLongPtr(content, GWL_STYLE, style);
+
+  auto ex_style = static_cast<LONG_PTR>(GetWindowLongPtr(content, GWL_EXSTYLE));
+  ex_style &= ~static_cast<LONG_PTR>(WS_EX_APPWINDOW | WS_EX_NOACTIVATE);
+  SetWindowLongPtr(content, GWL_EXSTYLE, ex_style);
+
   RECT frame = GetClientArea();
 
-  MoveWindow(content, frame.left, frame.top, frame.right - frame.left,
-             frame.bottom - frame.top, true);
+  SetWindowPos(content, nullptr, frame.left, frame.top,
+               frame.right - frame.left, frame.bottom - frame.top,
+               SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED |
+                   SWP_SHOWWINDOW);
 
+  EnableWindow(child_content_, TRUE);
+  ShowWindow(child_content_, SW_SHOW);
   SetFocus(child_content_);
+  LogWindowStyles("SetChildContent after reparent", child_content_);
 }
 
 RECT Win32Window::GetClientArea() {
@@ -407,6 +530,22 @@ bool Win32Window::OnCreate() {
 
 void Win32Window::OnDestroy() {
   // No-op; provided for subclasses.
+}
+
+DWORD Win32Window::WindowStyle() const {
+  return WS_POPUP | WS_THICKFRAME | WS_MAXIMIZEBOX | WS_MINIMIZEBOX;
+}
+
+DWORD Win32Window::WindowExStyle() const {
+  return WS_EX_APPWINDOW;
+}
+
+bool Win32Window::HasCustomFrame() const {
+  return true;
+}
+
+bool Win32Window::CanResize() const {
+  return (WindowStyle() & WS_THICKFRAME) != 0;
 }
 
 void Win32Window::UpdateTheme(HWND const window) {

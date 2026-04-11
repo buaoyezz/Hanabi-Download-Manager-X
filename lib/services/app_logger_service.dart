@@ -79,6 +79,8 @@ class AppLoggerService extends ChangeNotifier {
   bool _fullLogFlushing = false;
   File? _fullLogFile;
   Future<File>? _fullLogFileFuture;
+  bool _initialized = false;
+  bool _hasPersistedEntry = false;
 
   /// 日志版本号，每次新增/清空时递增
   int get version => _version;
@@ -115,6 +117,22 @@ class AppLoggerService extends ChangeNotifier {
 
   void setConsoleOutputEnabled(bool enabled) {
     _consoleOutputEnabled = enabled;
+  }
+
+  Future<void> initialize() async {
+    if (_initialized) {
+      return;
+    }
+    if (_isFlutterTest) {
+      _initialized = true;
+      return;
+    }
+
+    final file = await _ensureFullLogFile();
+    if (!await file.exists()) {
+      await file.create(recursive: true);
+    }
+    _initialized = true;
   }
 
   Future<File> _createFullLogFile() async {
@@ -157,12 +175,19 @@ class AppLoggerService extends ChangeNotifier {
     }
   }
 
-  void _scheduleFullLogFlush() {
+  void _scheduleFullLogFlush({bool immediate = false}) {
+    if (immediate) {
+      _fullLogFlushTimer?.cancel();
+      _fullLogFlushTimer = null;
+      unawaited(_flushFullLog());
+      return;
+    }
+
     if (_fullLogFlushTimer != null) {
       return;
     }
 
-    _fullLogFlushTimer = Timer(const Duration(milliseconds: 500), () {
+    _fullLogFlushTimer = Timer(const Duration(milliseconds: 150), () {
       _fullLogFlushTimer = null;
       unawaited(_flushFullLog());
     });
@@ -179,7 +204,11 @@ class AppLoggerService extends ChangeNotifier {
 
     try {
       final file = await _ensureFullLogFile();
-      await file.writeAsString(content, mode: FileMode.append);
+      await file.writeAsString(
+        content,
+        mode: FileMode.append,
+        flush: true,
+      );
     } catch (e) {
       final pending = _fullLogBuffer.toString();
       _fullLogBuffer
@@ -205,6 +234,7 @@ class AppLoggerService extends ChangeNotifier {
     _fullLogBuffer.clear();
     _fullLogFlushTimer?.cancel();
     _fullLogFlushTimer = null;
+    _hasPersistedEntry = false;
 
     while (_fullLogFlushing) {
       await Future<void>.delayed(const Duration(milliseconds: 10));
@@ -228,23 +258,23 @@ class AppLoggerService extends ChangeNotifier {
     return file.readAsLines();
   }
 
-  void log(LogLevel level, String source, String message, {bool? toConsole}) {
-    final entry = LogEntry(
-      timestamp: DateTime.now(),
-      level: level,
-      source: source,
-      message: message,
-    );
-
+  void ingest(
+    LogEntry entry, {
+    bool? toConsole,
+    bool immediateFlush = false,
+    bool persist = true,
+  }) {
     _logs.addLast(entry);
     if (_logs.length > _maxLogs) {
       _logs.removeFirst();
     }
     _version++;
 
-    if (!_isFlutterTest) {
+    if (!_isFlutterTest && persist) {
       _fullLogBuffer.writeln(entry.format(fullTimestamp: true));
-      _scheduleFullLogFlush();
+      final shouldFlushImmediately = immediateFlush || !_hasPersistedEntry;
+      _hasPersistedEntry = true;
+      _scheduleFullLogFlush(immediate: shouldFlushImmediately);
     }
 
     final emitToConsole = toConsole ?? _consoleOutputEnabled;
@@ -256,14 +286,43 @@ class AppLoggerService extends ChangeNotifier {
     _scheduleNotify();
   }
 
+  void log(
+    LogLevel level,
+    String source,
+    String message, {
+    bool? toConsole,
+    bool immediateFlush = false,
+  }) {
+    ingest(
+      LogEntry(
+        timestamp: DateTime.now(),
+        level: level,
+        source: source,
+        message: message,
+      ),
+      toConsole: toConsole,
+      immediateFlush: immediateFlush,
+    );
+  }
+
   void debug(String source, String message, {bool? toConsole}) =>
       log(LogLevel.debug, source, message, toConsole: toConsole);
   void info(String source, String message, {bool? toConsole}) =>
       log(LogLevel.info, source, message, toConsole: toConsole);
-  void warning(String source, String message, {bool? toConsole}) =>
-      log(LogLevel.warning, source, message, toConsole: toConsole);
-  void error(String source, String message, {bool? toConsole}) =>
-      log(LogLevel.error, source, message, toConsole: toConsole);
+  void warning(String source, String message, {bool? toConsole}) => log(
+        LogLevel.warning,
+        source,
+        message,
+        toConsole: toConsole,
+        immediateFlush: true,
+      );
+  void error(String source, String message, {bool? toConsole}) => log(
+        LogLevel.error,
+        source,
+        message,
+        toConsole: toConsole,
+        immediateFlush: true,
+      );
 
   void clear() {
     _logs.clear();

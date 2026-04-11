@@ -424,21 +424,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsPopupWindowSubtitle =>
-      'Show the add-download dialog in the main window';
+      'Show downloads in a standalone popup window without bringing the main window forward';
 
   @override
   String get settingsPopupEnabledTitle => 'Popup enabled';
 
   @override
   String get settingsPopupEnabledMessage =>
-      'Browser downloads will open the add-download dialog in the main window';
+      'Browser downloads will open the standalone popup window while the main window stays in the background';
 
   @override
   String get settingsPopupDisabledTitle => 'Popup disabled';
 
   @override
   String get settingsPopupDisabledMessage =>
-      'Browser downloads will be accepted without opening the add-download dialog';
+      'Browser downloads will be accepted directly without opening the standalone popup window';
 
   @override
   String get settingsCompleteNotifyTitle => 'Completion notifications';
@@ -2158,6 +2158,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get popupDownloadFileNamePlaceholder => 'Save as filename';
 
   @override
+  String get popupDownloadSavePathLabel => 'Save to';
+
+  @override
+  String get popupDownloadSavePathPlaceholder => 'Download folder';
+
+  @override
   String get popupDownloadAutoStart => 'Start download immediately';
 
   @override
@@ -3035,7 +3041,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statusPopupTestDescription =>
-      'Test whether browser-triggered downloads can bring up the main-window add-download dialog';
+      'Test whether browser-triggered downloads can open the standalone popup window';
 
   @override
   String get statusItemTestResult => 'Test result';
@@ -3064,7 +3070,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statusPopupTestInfoBody =>
-      '• This version no longer ships the standalone popup\\n• Browser-triggered downloads now bring the main window to the front and open the add-download dialog\\n• Results and timing are recorded in logs';
+      '• Browser-triggered downloads open a standalone Flutter popup window\\n• The main window stays in the background and is not brought to the front\\n• Results and timing are recorded in logs';
 
   @override
   String get statusExtensionDownloadAddedTitle => 'Download added';
@@ -3116,11 +3122,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statusPopupTestStartLog =>
-      'Starting main-window add-download dialog test...';
+      'Starting standalone popup window test...';
 
   @override
   String statusPopupTestSuccessLog(Object time) {
-    return 'Main-window add-download dialog opened in ${time}ms';
+    return 'Standalone popup window opened in ${time}ms';
   }
 
   @override
@@ -3137,7 +3143,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String statusPopupTestFailedLog(Object error) {
-    return 'Main-window add-download dialog failed: $error';
+    return 'Standalone popup window failed: $error';
   }
 
   @override

@@ -82,6 +82,8 @@ class KernelManager extends ChangeNotifier {
     String? userAgent,
     String? cookies,
     Map<String, dynamic>? headers,
+    String? saveDir,
+    bool startPaused = false,
   }) async {
     return _kernel?.addDownload(
       url,
@@ -90,6 +92,8 @@ class KernelManager extends ChangeNotifier {
       userAgent: userAgent,
       cookies: cookies,
       headers: headers,
+      saveDir: saveDir,
+      startPaused: startPaused,
     );
   }
 

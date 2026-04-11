@@ -15,7 +15,7 @@ class DownloadListenerService {
   Timer? _pollTimer;
   final String _baseUrl = 'http://127.0.0.1:9710';
   bool _isChecking = false;
-  bool _isShowingPopup = false; // 防止主窗口下载对话框期间重复触发
+  bool _isShowingPopup = false; // 防止独立 popup 创建期间重复触发
 
   DownloadListenerService(this.context);
 
@@ -43,16 +43,19 @@ class DownloadListenerService {
     _isChecking = true;
 
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/download/pending-popup'),
-      ).timeout(const Duration(seconds: 2));
+      final response = await http
+          .get(
+            Uri.parse('$_baseUrl/download/pending-popup'),
+          )
+          .timeout(const Duration(seconds: 2));
 
       if (response.statusCode == 200) {
         final result = jsonDecode(response.body);
         final success = result['success'] == true;
         if (success && result['data'] != null) {
           final downloadData = result['data'] as Map<String, dynamic>;
-          _logger.info('New download from browser: ${downloadData['filename']}');
+          _logger
+              .info('New download from browser: ${downloadData['filename']}');
           await _handleDownloadRequest(downloadData);
         }
       }
@@ -79,15 +82,18 @@ class DownloadListenerService {
       return;
     }
 
-    final downloadService = Provider.of<IntegratedDownloadService>(context, listen: false);
+    final downloadService =
+        Provider.of<IntegratedDownloadService>(context, listen: false);
     final headersRaw = downloadData['headers'];
-    final headers = headersRaw is Map ? headersRaw.cast<String, dynamic>() : null;
+    final headers =
+        headersRaw is Map ? headersRaw.cast<String, dynamic>() : null;
 
     await downloadService.addTask(
       url,
       filename,
       referer: downloadData['referer']?.toString(),
-      userAgent: (downloadData['user_agent'] ?? downloadData['userAgent'])?.toString(),
+      userAgent:
+          (downloadData['user_agent'] ?? downloadData['userAgent'])?.toString(),
       cookies: downloadData['cookies']?.toString(),
       headers: headers,
     );
@@ -95,7 +101,7 @@ class DownloadListenerService {
     _logger.info('Download auto-accepted: $filename');
   }
 
-  // 为新下载显示下载对话框（拉起主窗口处理）
+  // 为新下载显示独立 popup 窗口
   Future<void> _showPopupForDownload(Map<String, dynamic> downloadData) async {
     if (_isShowingPopup) return;
 
@@ -106,11 +112,12 @@ class DownloadListenerService {
         suggestedFilename: downloadData['filename'],
         referer: downloadData['referer'],
         userAgent: downloadData['user_agent'],
+        cookies: downloadData['cookies']?.toString(),
         headers: downloadData['headers'] as Map<String, dynamic>?,
         isFromBrowser: true,
       );
     } catch (e) {
-      _logger.error('Failed to show main-window download dialog: $e');
+      _logger.error('Failed to show popup download window: $e');
     } finally {
       // 延迟重置标志，给窗口和对话框一些时间完成切换
       Future.delayed(const Duration(milliseconds: 500), () {

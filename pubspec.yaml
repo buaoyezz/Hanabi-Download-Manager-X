@@ -46,6 +46,9 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^3.0.0
 
+dependency_overrides:
+  flutter_rust_bridge: 2.11.1
+
 flutter:
   generate: true
   uses-material-design: true

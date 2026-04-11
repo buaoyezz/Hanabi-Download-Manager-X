@@ -34,7 +34,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 
-  FlutterWindow window(project, launch_hidden);
+  FlutterWindow window(project, FlutterWindow::WindowKind::kMain, launch_hidden);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 800);
   if (!window.Create(L"Hanabi Download ManagerX", origin, size)) {

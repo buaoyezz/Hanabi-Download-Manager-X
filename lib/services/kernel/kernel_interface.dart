@@ -390,6 +390,8 @@ abstract class KernelInterface {
     String? userAgent,
     String? cookies,
     Map<String, dynamic>? headers,
+    String? saveDir,
+    bool startPaused = false,
   });
 
   Future<bool> pauseDownload(String taskId);

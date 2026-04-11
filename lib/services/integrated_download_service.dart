@@ -606,23 +606,24 @@ class IntegratedDownloadService extends ChangeNotifier {
     );
   }
 
-  Future<void> addTask(
+  Future<String?> addTask(
     String url,
     String fileName, {
     String? referer,
     String? userAgent,
     String? cookies,
     Map<String, dynamic>? headers,
+    String? saveDir,
+    bool startPaused = false,
   }) async {
     // 检查是否是测试任务
     if (url.startsWith('test_task_')) {
-      _addTestTask(url, fileName);
-      return;
+      return _addTestTask(url, fileName);
     }
 
     if (!isKernelRunning) {
       _appLogger.error('App', 'Kernel not running');
-      return;
+      return null;
     }
 
     // 确保已订阅内核 Stream（内核可能刚启动）
@@ -635,8 +636,9 @@ class IntegratedDownloadService extends ChangeNotifier {
     if (referer != null ||
         userAgent != null ||
         cookies != null ||
-        headers != null) {
-      _appLogger.info('App', 'With authentication headers');
+        headers != null ||
+        (saveDir?.trim().isNotEmpty ?? false)) {
+      _appLogger.info('App', 'With download request metadata');
     }
 
     final taskId = await _kernelManager.addDownload(
@@ -646,6 +648,8 @@ class IntegratedDownloadService extends ChangeNotifier {
       userAgent: userAgent,
       cookies: cookies,
       headers: headers,
+      saveDir: saveDir,
+      startPaused: startPaused,
     );
 
     if (taskId != null) {
@@ -658,10 +662,12 @@ class IntegratedDownloadService extends ChangeNotifier {
     } else {
       _appLogger.error('App', 'Failed to add task: $fileName');
     }
+
+    return taskId;
   }
 
   // 添加测试任务
-  void _addTestTask(String testType, String fileName) {
+  String? _addTestTask(String testType, String fileName) {
     final id = 'test_${DateTime.now().millisecondsSinceEpoch}';
     DownloadTask testTask;
 
@@ -739,13 +745,14 @@ class IntegratedDownloadService extends ChangeNotifier {
 
       default:
         _appLogger.warning('App', 'Unknown test task type: $testType');
-        return;
+        return null;
     }
 
     _tasks.add(testTask);
     _appLogger.info(
         'App', 'Test task added: ${testTask.fileName} (${testTask.status})');
     notifyNow();
+    return id;
   }
 
   // 生成测试分段

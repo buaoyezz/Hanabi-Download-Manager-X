@@ -5,6 +5,7 @@ import '../services/kernel/next/downloader/download_header_builder.dart';
 import '../models/download_task.dart';
 import '../theme/app_theme.dart';
 import '../l10n/app_localizations.dart';
+import 'animated_notifications.dart';
 import '../utils/fluent_icons.dart' as CustomIcons;
 
 enum _DuplicateAction {
@@ -19,6 +20,7 @@ class PopupDownloadDialog extends StatefulWidget {
   final String? suggestedFilename;
   final String? referer;
   final String? userAgent;
+  final String? cookies;
   final Map<String, dynamic>? headers;
   final bool isFromBrowser;
 
@@ -28,6 +30,7 @@ class PopupDownloadDialog extends StatefulWidget {
     this.suggestedFilename,
     this.referer,
     this.userAgent,
+    this.cookies,
     this.headers,
     this.isFromBrowser = false,
   });
@@ -40,8 +43,11 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
   late TextEditingController _urlController;
   late TextEditingController _fileNameController;
   bool _isLoading = false;
-  bool _autoStart = true;
   String _defaultFileName = 'download';
+  String? _parsedFileName;
+  String? _lastSuggestedFileName;
+  bool _hasUserEditedFileName = false;
+  bool _isUpdatingFileNameProgrammatically = false;
 
   AppLocalizations get t => AppLocalizations.of(context)!;
 
@@ -49,12 +55,21 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
   void initState() {
     super.initState();
     _urlController = TextEditingController(text: widget.url);
+    final initialFileName = (widget.suggestedFilename ?? '').trim();
+    final fallbackFileName = _extractFilenameFromUrl(widget.url);
     _fileNameController = TextEditingController(
-      text: widget.suggestedFilename ?? _extractFilenameFromUrl(widget.url),
+      text: initialFileName.isNotEmpty ? initialFileName : fallbackFileName,
     );
-
-    // 如果是从浏览器来的，自动开始下载
-    _autoStart = widget.isFromBrowser;
+    _lastSuggestedFileName =
+        initialFileName.isNotEmpty ? initialFileName : null;
+    _parsedFileName =
+        initialFileName.isNotEmpty ? initialFileName : fallbackFileName;
+    _hasUserEditedFileName = initialFileName.isNotEmpty;
+    _urlController.addListener(_onUrlChanged);
+    _fileNameController.addListener(_onFileNameChanged);
+    if (initialFileName.isEmpty) {
+      _onUrlChanged();
+    }
   }
 
   @override
@@ -70,11 +85,16 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
       if (_fileNameController.text == previous) {
         _fileNameController.text = localized;
       }
+      if ((_parsedFileName ?? '').isEmpty || _parsedFileName == previous) {
+        _parsedFileName = localized;
+      }
     }
   }
 
   @override
   void dispose() {
+    _urlController.removeListener(_onUrlChanged);
+    _fileNameController.removeListener(_onFileNameChanged);
     _urlController.dispose();
     _fileNameController.dispose();
     super.dispose();
@@ -85,12 +105,63 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
       final uri = Uri.parse(url);
       final segments = uri.pathSegments;
       if (segments.isNotEmpty) {
-        return segments.last;
+        final fileName = Uri.decodeComponent(segments.last);
+        if (fileName.trim().isNotEmpty) {
+          return fileName;
+        }
       }
-    } catch (e) {
+    } catch (_) {
       // ignore
     }
     return _defaultFileName;
+  }
+
+  void _onUrlChanged() {
+    final url = _urlController.text.trim();
+    if (url.isEmpty) {
+      final shouldClearSuggestedName = !_hasUserEditedFileName &&
+          (_fileNameController.text.trim().isEmpty ||
+              _fileNameController.text.trim() == _lastSuggestedFileName);
+      setState(() => _parsedFileName = null);
+      if (shouldClearSuggestedName) {
+        _setFileNameFromSuggestion('');
+      }
+      _lastSuggestedFileName = null;
+      return;
+    }
+
+    final nextSuggestedName = _extractFilenameFromUrl(url);
+    final previousSuggestion = _lastSuggestedFileName;
+    final currentFileName = _fileNameController.text.trim();
+    final shouldApplySuggestion = currentFileName.isEmpty ||
+        !_hasUserEditedFileName ||
+        (previousSuggestion != null && currentFileName == previousSuggestion);
+
+    setState(() => _parsedFileName = nextSuggestedName);
+    _lastSuggestedFileName = nextSuggestedName;
+
+    if (shouldApplySuggestion) {
+      _setFileNameFromSuggestion(nextSuggestedName);
+    }
+  }
+
+  void _onFileNameChanged() {
+    if (_isUpdatingFileNameProgrammatically) {
+      return;
+    }
+
+    final text = _fileNameController.text.trim();
+    final suggestion = _lastSuggestedFileName?.trim();
+    _hasUserEditedFileName = text.isNotEmpty && text != (suggestion ?? '');
+  }
+
+  void _setFileNameFromSuggestion(String value) {
+    _isUpdatingFileNameProgrammatically = true;
+    _fileNameController.text = value;
+    _fileNameController.selection =
+        TextSelection.collapsed(offset: _fileNameController.text.length);
+    _isUpdatingFileNameProgrammatically = false;
+    _hasUserEditedFileName = false;
   }
 
   @override
@@ -221,15 +292,6 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
             ),
           ),
           const SizedBox(height: 16),
-          Checkbox(
-            checked: _autoStart,
-            onChanged: (value) => setState(() => _autoStart = value ?? true),
-            content: Text(
-              t.popupDownloadAutoStart,
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
-            ),
-          ),
-          const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -405,16 +467,26 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
 
   Future<void> _handleDownload() async {
     final url = _urlController.text.trim();
-    final filename = _fileNameController.text.trim();
+    var filename = _fileNameController.text.trim();
 
-    if (url.isEmpty || filename.isEmpty) {
+    if (url.isEmpty) {
       await _showError(t.popupDownloadErrorMissingInfo);
       return;
     }
 
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    final uri = Uri.tryParse(url);
+    if (uri == null ||
+        !uri.isAbsolute ||
+        (uri.scheme != 'http' && uri.scheme != 'https')) {
       await _showError(t.popupDownloadErrorInvalidUrl);
       return;
+    }
+
+    if (filename.isEmpty) {
+      filename = (_parsedFileName ?? '').trim();
+    }
+    if (filename.isEmpty) {
+      filename = _defaultFileName;
     }
 
     try {
@@ -428,12 +500,11 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
           return;
         }
         if (action == _DuplicateAction.useExisting) {
-          if (duplicate.status == DownloadStatus.paused ||
-              duplicate.status == DownloadStatus.failed ||
-              duplicate.status == DownloadStatus.pending) {
-            await downloadService.resumeTask(duplicate.id);
-          }
           if (mounted) {
+            NotificationManager.of(context)?.showSuccess(
+              t.addDownloadSuccessTitle,
+              message: t.addDownloadSuccessMessage(duplicate.fileName),
+            );
             Navigator.of(context).pop(true);
           }
           return;
@@ -443,16 +514,23 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
       setState(() => _isLoading = true);
 
       // 传递浏览器的身份验证信息
-      downloadService.addTask(
+      final taskId = await downloadService.addTask(
         url,
         filename,
         referer: widget.referer,
         userAgent: widget.userAgent,
-        cookies: lookupHeaderValue(widget.headers, 'cookie'),
+        cookies: widget.cookies ?? lookupHeaderValue(widget.headers, 'cookie'),
         headers: widget.headers,
       );
+      if (taskId == null) {
+        throw StateError('Failed to add task');
+      }
 
       if (mounted) {
+        NotificationManager.of(context)?.showSuccess(
+          t.addDownloadSuccessTitle,
+          message: t.addDownloadSuccessMessage(filename),
+        );
         Navigator.of(context).pop(true);
       }
     } catch (e) {

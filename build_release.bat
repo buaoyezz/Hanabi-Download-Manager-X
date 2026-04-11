@@ -78,12 +78,6 @@ if not exist "%ASSETS_DIR%" (
     echo   %C_GREEN%+%C_RESET% Created %ASSETS_DIR%
 )
 
-:: Remove legacy standalone popup from release assets
-if exist "%ASSETS_DIR%\hanabi-popup.exe" (
-    del /Q "%ASSETS_DIR%\hanabi-popup.exe"
-    echo   %C_GREEN%+%C_RESET% Removed legacy hanabi-popup.exe
-)
-
 :: Copy Update.exe to zzbuaoye_assets
 if exist "assets\update\Update.exe" (
     copy /Y "assets\update\Update.exe" "%ASSETS_DIR%\" >nul
