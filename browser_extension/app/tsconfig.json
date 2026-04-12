@@ -1,0 +1,21 @@
+{
+  "extends": "./.wxt/tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "jsx": "react-jsx"
+  },
+  "include": [
+    ".wxt/wxt.d.ts",
+    ".wxt/types/**/*.d.ts",
+    "entrypoints/**/*.ts",
+    "entrypoints/**/*.tsx",
+    "lib/**/*.ts",
+    "types/**/*.d.ts",
+    "wxt.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "../chrome_extension",
+    "../firefox_extension"
+  ]
+}

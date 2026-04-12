@@ -1,0 +1,33 @@
+{
+  "name": "hanabi-browser-extension",
+  "description": "Hanabi Download Manager X browser extension source",
+  "private": true,
+  "version": "1.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox --mv3",
+    "build:chrome": "node ./scripts/build.mjs chrome",
+    "build:firefox": "node ./scripts/build.mjs firefox",
+    "build:all": "node ./scripts/build.mjs all",
+    "zip:chrome": "wxt zip -b chrome --mv3",
+    "zip:firefox": "wxt zip -b firefox --mv3",
+    "lint:firefox": "npx web-ext lint --source-dir ../firefox_extension",
+    "verify": "npm run compile && npm run build:all && npm run lint:firefox",
+    "compile": "tsc --noEmit",
+    "postinstall": "wxt prepare"
+  },
+  "dependencies": {
+    "@fluentui/react-components": "^9.73.7",
+    "@fluentui/react-icons": "^2.0.323",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@wxt-dev/module-react": "^1.2.2",
+    "typescript": "^6.0.2",
+    "wxt": "^0.20.20"
+  }
+}

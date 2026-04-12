@@ -1,0 +1,22 @@
+html,
+body,
+#root {
+  margin: 0;
+  min-width: 356px;
+  min-height: 420px;
+  background: #1a1a1a;
+}
+
+body {
+  font-family:
+    'Segoe UI Variable Text',
+    'Segoe UI',
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
