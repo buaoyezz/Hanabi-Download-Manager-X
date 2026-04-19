@@ -38,4 +38,4 @@ bundle, and rebuilds the target output.
 
 - Chrome and Edge use automatic download interception.
 - Firefox uses observed download relay plus explicit Hanabi context-menu actions.
-- Both targets talk to the local Hanabi desktop service at `http://127.0.0.1:9710`.
+- Both targets talk to the local Hanabi desktop service on the configured bridge port (default `http://127.0.0.1:9710`).

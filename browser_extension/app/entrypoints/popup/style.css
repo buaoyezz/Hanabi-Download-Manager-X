@@ -5,6 +5,8 @@ body,
   min-width: 356px;
   min-height: 420px;
   background: #1a1a1a;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 body {
@@ -15,8 +17,17 @@ body {
     -apple-system,
     BlinkMacSystemFont,
     sans-serif;
+  overflow-y: auto;
 }
 
 * {
   box-sizing: border-box;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+#root::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }

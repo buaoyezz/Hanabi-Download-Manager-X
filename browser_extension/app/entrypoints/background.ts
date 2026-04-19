@@ -6,15 +6,20 @@ import {
   supportsDownloadDeterminingFilename,
 } from '@/lib/browser';
 import {
+  DEFAULT_DESKTOP_SERVICE_PORT,
   EXTENSION_NOTIFICATION_TITLE,
-  HANABI_DESKTOP_SERVICE_URL,
+  getAutoDiscoveryCandidatePorts,
+  getHanabiDesktopServiceUrl,
+  normalizeDesktopServicePort,
 } from '@/lib/extension-meta';
-import { STORAGE_KEYS } from '@/lib/storage';
+import { STORAGE_DEFAULTS, STORAGE_KEYS, normalizePortMode } from '@/lib/storage';
 
-const API_BASE_URL = HANABI_DESKTOP_SERVICE_URL;
 const HEARTBEAT_ALARM = 'hanabi-connection-heartbeat';
 const HEADER_SNAPSHOT_TTL = 2 * 60 * 1000;
 const HEADER_SNAPSHOT_LIMIT = 200;
+const NOTIFICATION_DEDUP_TTL = 4000;
+const AUTO_HANDOFF_DEDUP_TTL = 4000;
+const AUTO_HANDOFF_ID_DEDUP_TTL = 6000;
 const MENU_IDS = {
   link: 'hanabi-send-link',
   image: 'hanabi-send-image',
@@ -23,12 +28,25 @@ const MENU_IDS = {
   page: 'hanabi-send-page',
 } as const;
 let initializePromise: Promise<void> | null = null;
+let contextMenuSyncPromise: Promise<void> = Promise.resolve();
 
 type HeaderRecord = Record<string, string>;
 type HeaderSnapshot = {
   headers: HeaderRecord;
   capturedAt: number;
   supportsRange: boolean;
+};
+
+type DesktopBridgeResponse = {
+  api_port?: number;
+  connected_port?: number;
+  requires_port_switch?: boolean;
+  service_host?: string;
+};
+
+type DesktopHealthResponse = DesktopBridgeResponse & {
+  status?: string;
+  locale?: string;
 };
 
 type DownloadPayload = {
@@ -44,6 +62,118 @@ type DownloadPayload = {
 
 const requestHeadersByRequestId = new Map<string, HeaderSnapshot>();
 const headerSnapshotsByUrl = new Map<string, HeaderSnapshot>();
+const recentNotifications = new Map<string, number>();
+const recentAutomaticHandoffs = new Map<string, number>();
+const recentAutomaticDownloadIds = new Map<string, number>();
+
+function pruneRecentEntries(cache: Map<string, number>, now = Date.now()) {
+  for (const [key, expiresAt] of cache.entries()) {
+    if (expiresAt <= now) {
+      cache.delete(key);
+    }
+  }
+}
+
+function buildAutomaticHandoffSignature(downloadItem: Record<string, any>) {
+  const url = String(downloadItem.finalUrl || downloadItem.url || '').trim();
+  const filename = String(downloadItem.filename || '').trim();
+  const referer = String(downloadItem.referrer || '').trim();
+  return `${url}::${filename}::${referer}`;
+}
+
+function dedupePorts(ports: Array<number | undefined>) {
+  return [...new Set(ports.map((port) => normalizeDesktopServicePort(port)))];
+}
+
+async function getStoredDesktopServicePort() {
+  const values = await browser.storage.local.get({
+    [STORAGE_KEYS.desktopServicePort]:
+      STORAGE_DEFAULTS[STORAGE_KEYS.desktopServicePort],
+  });
+
+  return normalizeDesktopServicePort(values[STORAGE_KEYS.desktopServicePort]);
+}
+
+async function getPortMode() {
+  const values = await browser.storage.local.get({
+    [STORAGE_KEYS.portMode]: STORAGE_DEFAULTS[STORAGE_KEYS.portMode],
+  });
+  return normalizePortMode(values[STORAGE_KEYS.portMode]);
+}
+
+async function persistDesktopServicePort(port: number) {
+  // In 'fixed' or 'manual' mode, do not auto-update the stored port
+  const mode = await getPortMode();
+  if (mode === 'fixed' || mode === 'manual') {
+    return normalizeDesktopServicePort(port);
+  }
+  const normalizedPort = normalizeDesktopServicePort(port);
+  await browser.storage.local.set({
+    [STORAGE_KEYS.desktopServicePort]: normalizedPort,
+  });
+  return normalizedPort;
+}
+
+async function resolveDesktopServicePorts(preferredPort?: number) {
+  const mode = await getPortMode();
+
+  // 'fixed' mode: always use default 9710 only
+  if (mode === 'fixed') {
+    return dedupePorts([DEFAULT_DESKTOP_SERVICE_PORT]);
+  }
+
+  const storedPort =
+    preferredPort === undefined
+      ? await getStoredDesktopServicePort()
+      : normalizeDesktopServicePort(preferredPort);
+
+  // 'manual' mode: only try the user-specified stored port, no fallback probing
+  if (mode === 'manual') {
+    return dedupePorts([storedPort]);
+  }
+
+  // 'auto' mode: try stored port first, then default, then scan nearby ports
+  const primaryPorts = dedupePorts([storedPort, DEFAULT_DESKTOP_SERVICE_PORT]);
+  const scanPorts = getAutoDiscoveryCandidatePorts(primaryPorts);
+  return [...primaryPorts, ...scanPorts];
+}
+
+async function fetchDesktopJson<T extends DesktopBridgeResponse>(
+  path: string,
+  init?: RequestInit,
+  preferredPort?: number,
+) {
+  const candidatePorts = await resolveDesktopServicePorts(preferredPort);
+  let lastError: unknown = null;
+
+  for (const candidatePort of candidatePorts) {
+    try {
+      const response = await fetch(`${getHanabiDesktopServiceUrl(candidatePort)}${path}`, init);
+      if (!response.ok) {
+        lastError = new Error(`HTTP ${response.status}`);
+        continue;
+      }
+
+      const data = (await response.json()) as T;
+      const resolvedPort = normalizeDesktopServicePort(
+        data.api_port ?? candidatePort,
+      );
+
+      if (resolvedPort !== candidatePort || resolvedPort !== candidatePorts[0]) {
+        await persistDesktopServicePort(resolvedPort);
+      }
+
+      return {
+        data,
+        port: resolvedPort,
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError ?? new Error(`Failed to reach Hanabi desktop service: ${path}`);
+}
 
 function isSupportedUrl(url: string | undefined | null) {
   return typeof url === 'string' && /^https?:\/\//i.test(url);
@@ -185,26 +315,49 @@ function resolveHeadersForUrl(url: string) {
 
 async function getDisableState() {
   const values = await browser.storage.local.get({
-    [STORAGE_KEYS.shouldDisableExtension]: false,
+    [STORAGE_KEYS.shouldDisableExtension]: STORAGE_DEFAULTS[STORAGE_KEYS.shouldDisableExtension],
   });
 
   return values[STORAGE_KEYS.shouldDisableExtension] === true;
 }
 
-async function updateConnectionStatus(connected: boolean) {
+async function shouldShowNotifications() {
+  const values = await browser.storage.local.get({
+    [STORAGE_KEYS.showNotifications]: STORAGE_DEFAULTS[STORAGE_KEYS.showNotifications],
+  });
+
+  return values[STORAGE_KEYS.showNotifications] !== false;
+}
+
+async function syncConnectionBadge() {
+  const values = await browser.storage.local.get({
+    [STORAGE_KEYS.isConnected]: STORAGE_DEFAULTS[STORAGE_KEYS.isConnected],
+    [STORAGE_KEYS.showConnectionBadge]:
+      STORAGE_DEFAULTS[STORAGE_KEYS.showConnectionBadge],
+  });
+
+  if (values[STORAGE_KEYS.showConnectionBadge] === false) {
+    await browser.action.setBadgeText({ text: '' });
+    return;
+  }
+
+  const connected = values[STORAGE_KEYS.isConnected] === true;
   await browser.action.setBadgeBackgroundColor({
     color: connected ? '#6CCB5F' : '#FF6B6B',
   });
   await browser.action.setBadgeText({ text: connected ? '√' : '×' });
+}
+
+async function updateConnectionStatus(connected: boolean) {
   await browser.storage.local.set({
     [STORAGE_KEYS.isConnected]: connected,
   });
+  await syncConnectionBadge();
 }
 
 async function checkConnection() {
   try {
-    const response = await fetch(`${API_BASE_URL}/health`);
-    const data = (await response.json()) as { status?: string; locale?: string };
+    const { data } = await fetchDesktopJson<DesktopHealthResponse>('/health');
     const connected = data.status === 'ok';
     await updateConnectionStatus(connected);
     if (data.locale) {
@@ -220,7 +373,35 @@ async function checkConnection() {
   }
 }
 
+async function getConnectionSnapshot() {
+  const connected = await checkConnection().catch(() => false);
+  const desktopServicePort = await getStoredDesktopServicePort();
+  const values = await browser.storage.local.get({
+    [STORAGE_KEYS.popupLocale]: STORAGE_DEFAULTS[STORAGE_KEYS.popupLocale],
+  });
+  return {
+    status: connected ? 'connected' : 'disconnected',
+    apiPort: desktopServicePort,
+    locale: String(values[STORAGE_KEYS.popupLocale] ?? 'en'),
+  };
+}
+
 async function createNotification(message: string) {
+  if (!(await shouldShowNotifications())) {
+    return;
+  }
+
+  const now = Date.now();
+  pruneRecentEntries(recentNotifications, now);
+  const cacheKey = message.trim();
+  if (cacheKey) {
+    const duplicateUntil = recentNotifications.get(cacheKey);
+    if (duplicateUntil && duplicateUntil > now) {
+      return;
+    }
+    recentNotifications.set(cacheKey, now + NOTIFICATION_DEDUP_TTL);
+  }
+
   try {
     await browser.notifications.create({
       type: 'basic',
@@ -255,7 +436,12 @@ function buildPayloadFromHeaders(
   };
 }
 
-async function sendDownloadToHanabi(payload: DownloadPayload) {
+async function sendDownloadToHanabi(
+  payload: DownloadPayload,
+  options: { notifyOnSuccess?: boolean } = {},
+) {
+  const _notifyOnSuccess = options.notifyOnSuccess ?? false;
+  void _notifyOnSuccess;
   const connected = await checkConnection();
   if (!connected) {
     await createNotification('Hanabi desktop client is disconnected.');
@@ -263,17 +449,19 @@ async function sendDownloadToHanabi(payload: DownloadPayload) {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/download/add`, {
+    const { data } = await fetchDesktopJson<DesktopBridgeResponse & {
+      success?: boolean;
+      error?: string;
+    }>('/download/add', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
     });
-
-    const data = (await response.json()) as { success?: boolean; error?: string };
     if (data.success) {
-      await createNotification('Download task added successfully.');
+      // Suppress success toast to avoid duplicate Windows notifications
+      // under repeated browser download event emissions.
       return { success: true };
     }
 
@@ -307,6 +495,26 @@ async function handoffAutomaticDownload(
   downloadItem: Record<string, any>,
   options: { eraseFromHistory?: boolean } = {},
 ) {
+  const now = Date.now();
+  pruneRecentEntries(recentAutomaticHandoffs, now);
+  pruneRecentEntries(recentAutomaticDownloadIds, now);
+
+  const downloadId = String(downloadItem.id ?? '').trim();
+  if (downloadId) {
+    const duplicateIdUntil = recentAutomaticDownloadIds.get(downloadId);
+    if (duplicateIdUntil && duplicateIdUntil > now) {
+      return;
+    }
+    recentAutomaticDownloadIds.set(downloadId, now + AUTO_HANDOFF_ID_DEDUP_TTL);
+  }
+
+  const handoffSignature = buildAutomaticHandoffSignature(downloadItem);
+  const duplicateUntil = recentAutomaticHandoffs.get(handoffSignature);
+  if (duplicateUntil && duplicateUntil > now) {
+    return;
+  }
+  recentAutomaticHandoffs.set(handoffSignature, now + AUTO_HANDOFF_DEDUP_TTL);
+
   const disabled = await getDisableState();
   const connected = await checkConnection();
   if (!shouldHandleAutomaticDownload(downloadItem, disabled, connected)) {
@@ -412,16 +620,10 @@ async function handleContextMenuAction(info: Record<string, any>, tab?: Record<s
     return;
   }
 
-  await sendDownloadToHanabi(payload);
+  await sendDownloadToHanabi(payload, { notifyOnSuccess: true });
 }
 
 async function ensureContextMenus() {
-  try {
-    await browser.contextMenus.removeAll();
-  } catch (error) {
-    console.warn('Failed to clear context menus', error);
-  }
-
   const menuItems = [
     {
       id: MENU_IDS.link,
@@ -459,6 +661,36 @@ async function ensureContextMenus() {
   }
 }
 
+async function removeContextMenus() {
+  try {
+    await browser.contextMenus.removeAll();
+  } catch (error) {
+    console.warn('Failed to clear context menus', error);
+  }
+}
+
+async function syncContextMenusNow() {
+  const values = await browser.storage.local.get({
+    [STORAGE_KEYS.enableContextMenus]: STORAGE_DEFAULTS[STORAGE_KEYS.enableContextMenus],
+  });
+
+  await removeContextMenus();
+
+  if (values[STORAGE_KEYS.enableContextMenus] === false) {
+    return;
+  }
+
+  await ensureContextMenus();
+}
+
+function scheduleContextMenuSync() {
+  contextMenuSyncPromise = contextMenuSyncPromise
+    .catch(() => undefined)
+    .then(() => syncContextMenusNow());
+
+  return contextMenuSyncPromise;
+}
+
 function handleRequestHeaders(details: Record<string, any>) {
   const headers = normalizeHeaders(details.requestHeaders);
   const supportsRange = (details.requestHeaders ?? []).some((header: Record<string, any>) => {
@@ -480,17 +712,21 @@ function clearRequestHeaders(requestId: string) {
 }
 
 async function initialize() {
-  const state = await browser.storage.local.get({
-    [STORAGE_KEYS.shouldDisableExtension]: false,
-  });
+  const state = await browser.storage.local.get(STORAGE_DEFAULTS);
+  const pendingDefaults: Record<string, boolean | string | number> = {};
 
-  if (typeof state[STORAGE_KEYS.shouldDisableExtension] !== 'boolean') {
-    await browser.storage.local.set({
-      [STORAGE_KEYS.shouldDisableExtension]: false,
-    });
+  for (const [key, value] of Object.entries(STORAGE_DEFAULTS)) {
+    if (typeof state[key] !== typeof value) {
+      pendingDefaults[key] = value;
+    }
   }
 
-  await ensureContextMenus();
+  if (Object.keys(pendingDefaults).length > 0) {
+    await browser.storage.local.set(pendingDefaults);
+  }
+
+  await scheduleContextMenuSync();
+  await syncConnectionBadge();
   await checkConnection();
   await browser.alarms.create(HEARTBEAT_ALARM, { periodInMinutes: 1 });
 }
@@ -568,12 +804,30 @@ export default defineBackground(() => {
 
     const action = (message as { action?: string }).action;
     if (action === 'checkConnection') {
-      return checkConnection().then((connected) => ({
-        status: connected ? 'connected' : 'disconnected',
-      }));
+      return getConnectionSnapshot();
     }
 
     return false;
+  });
+
+  browser.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== 'local') {
+      return;
+    }
+
+    if (STORAGE_KEYS.enableContextMenus in changes) {
+      void scheduleContextMenuSync();
+    }
+
+    if (
+      STORAGE_KEYS.desktopServicePort in changes ||
+      STORAGE_KEYS.portMode in changes ||
+      STORAGE_KEYS.showConnectionBadge in changes ||
+      STORAGE_KEYS.isConnected in changes
+    ) {
+      void checkConnection();
+      void syncConnectionBadge();
+    }
   });
 
   void scheduleInitialize();
