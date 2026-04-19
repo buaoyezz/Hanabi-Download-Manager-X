@@ -17,6 +17,11 @@ if (Test-Path -LiteralPath $rhttpFixScript) {
   }
 }
 
+& dart run (Join-Path $repoRoot 'tool\sync_l10n.dart')
+if ($LASTEXITCODE -ne 0) {
+  exit $LASTEXITCODE
+}
+
 if (-not $FlutterArgs -or $FlutterArgs.Count -eq 0) {
   $FlutterArgs = @('run', '-d', 'windows')
 }

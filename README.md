@@ -40,6 +40,12 @@ flutter pub get
 flutter run
 ```
 
+```bash
+dart run tool/sync_l10n.dart
+```
+
+> `app_en.arb` can now be auto-synced from `app_zh.arb`; the Windows run/build scripts invoke this step automatically before launch.
+
 > [!TIP]
 > Use `build_release.bat` for quick builds on Windows.
 

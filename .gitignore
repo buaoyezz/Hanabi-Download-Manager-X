@@ -75,8 +75,9 @@ x.zzbuaoye.top/
 chromium-main/
 # Full X.zzbuaoye.top not open sources
 
-# Browser extensions (Open Sources)
-# browser_extension/
+# Browser extensions
+browser_extension/chrome_extension/
+browser_extension/firefox_extension/
 
 # Python
 __pycache__/
@@ -276,3 +277,4 @@ integration_test/http_policy_range_integration_test.dart
 tools/run_http_integration.ps1
 log_export_*.txt
 lib/services/kernel/next/server/log_export_*.txt
+mustfix！！！！！！！！！！！！！

@@ -6,7 +6,13 @@
 > 一个现代化下载解决方案
 
 > [!important]
-[官网传送门](https://x.zzbuaoye.top)
+> 再次明确声明
+> - 本项目有AI参与
+> - 并且很大一部分由AI参与共同完成
+> - 若存在比较好笑的质量问题也请见谅
+>  本README是人写的XD
+> + `不建议`给本项目`提交PR`，有问题建议提交`ISSUE`，因为生活繁忙我没空合并
+> + [官网地址](https://x.zzbuaoye.top) | [NOTICE](https://x.zzbuaoye.top/web-notices.html) | [RELEASE](https://github.com/buaoyezz/Hanabi-Download-Manager-X/releases)
 
 ![Preview](readme_assets/image1.png)
 
@@ -17,6 +23,7 @@
 > 环境要求
 > - Flutter SDK 3.0.0+
 > - Windows 10/11
+> - 本项目圆角和窗口效果对Win10/11都有适配
 
 ### 运行
 
@@ -27,28 +34,31 @@ flutter pub get
 flutter run
 ```
 
+```bash
+dart run tool/sync_l10n.dart
+```
+
+> `app_en.arb` 现在可以从 `app_zh.arb` 自动同步；Windows 运行/构建脚本也会在启动前自动执行这一步 (为了方便我懒得改Eng arb)
+
 > [!TIP]
 > 其实可使用 `build_release.bat` 快速构建
 > 注意`rhttp`可能存在的编译失败问题
 
-### 构建
+## 构建
 
+##### 自动化脚本:
 ```bash
-build_release.bat
+build_release.bat 
 ```
-
-或：
+##### 常规编译:
 
 ```bash
 flutter build windows --release
 ```
-
+> 这两个没有本质上的区别，按需选择，脚本之前是为了更方便打包内核和下载器本体，现在下载器和内核都是flutter了，可以直接指令编译
 ---
 
-## 导航
-
-详见 [CONTRIBUTING_CN.md](CONTRIBUTING_CN.md)
-
+## LINK
 - [报告 Bug](https://github.com/buaoyezz/hanabi-download-manager-x/issues)
 - [功能建议](https://github.com/buaoyezz/hanabi-download-manager-x/issues)
 - [隐私政策](https://x.zzbuaoye.top/privacy)

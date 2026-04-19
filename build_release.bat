@@ -54,6 +54,16 @@ if exist "%RHTTP_FIX_SCRIPT%" (
     echo.
 )
 
+echo %C_WHITE%[0.5/3] Syncing l10n...%C_RESET%
+call dart run tool\sync_l10n.dart
+if errorlevel 1 (
+    echo %C_RED%[ERROR] l10n sync failed!%C_RESET%
+    pause
+    exit /b 1
+)
+echo %C_YELLOW%[OK] l10n synced%C_RESET%
+echo.
+
 :: ========== Flutter Build ==========
 if %SKIP_FLUTTER%==0 (
     echo %C_WHITE%[1/3] Building Flutter app...%C_RESET%
