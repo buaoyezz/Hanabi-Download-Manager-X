@@ -533,7 +533,7 @@ void Win32Window::OnDestroy() {
 }
 
 DWORD Win32Window::WindowStyle() const {
-  return WS_POPUP | WS_THICKFRAME | WS_MAXIMIZEBOX | WS_MINIMIZEBOX;
+  return WS_POPUP | WS_THICKFRAME | WS_MINIMIZEBOX;
 }
 
 DWORD Win32Window::WindowExStyle() const {

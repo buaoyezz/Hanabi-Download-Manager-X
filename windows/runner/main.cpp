@@ -24,6 +24,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   ::AttachConsole(ATTACH_PARENT_PROCESS);
 
+  const HRESULT com_init_hr =
+      ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+
   flutter::DartProject project(L"data");
 
   std::vector<std::string> command_line_arguments =
@@ -50,6 +53,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   // Release mutex
   single_instance::ReleaseMutexHandle();
+
+  if (SUCCEEDED(com_init_hr)) {
+    ::CoUninitialize();
+  }
 
   return EXIT_SUCCESS;
 }

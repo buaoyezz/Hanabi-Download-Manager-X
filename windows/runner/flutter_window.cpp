@@ -3,6 +3,7 @@
 #include <optional>
 #include <cstdio>
 #include <cstddef>
+#include <cstdlib>
 #include <thread>
 #include <vector>
 #include <stdio.h>
@@ -115,6 +116,9 @@ static void LogA(const char* s) {
 namespace {
 
 std::vector<std::unique_ptr<FlutterWindow>> g_popup_windows;
+std::unique_ptr<FlutterWindow> g_tray_menu_window;
+HWND g_main_window_handle = nullptr;
+FlutterWindow* g_main_flutter_window = nullptr;
 
 std::wstring Utf8ToWide(const std::string& value) {
   if (value.empty()) {
@@ -177,6 +181,68 @@ void CleanupClosedPopupWindows() {
       g_popup_windows.end());
 }
 
+bool TryExtractPayloadDouble(const std::string& payload_json,
+                             const char* key,
+                             double& out_value) {
+  const std::string search = std::string("\"") + key + "\":";
+  size_t pos = payload_json.find(search);
+  if (pos == std::string::npos) {
+    return false;
+  }
+
+  pos += search.size();
+  while (pos < payload_json.size() &&
+         (payload_json[pos] == ' ' || payload_json[pos] == '\t')) {
+    pos++;
+  }
+  if (pos >= payload_json.size()) {
+    return false;
+  }
+
+  const size_t end = payload_json.find_first_of(",} \t\n\r", pos);
+  const std::string value = payload_json.substr(pos, end - pos);
+  char* endptr = nullptr;
+  const double parsed = std::strtod(value.c_str(), &endptr);
+  if (endptr == value.c_str()) {
+    return false;
+  }
+
+  out_value = parsed;
+  return true;
+}
+
+void PositionTrayMenuWindow(HWND hwnd, double target_x, double target_y) {
+  if (!hwnd) {
+    return;
+  }
+
+  RECT menu_rect{};
+  GetWindowRect(hwnd, &menu_rect);
+  const int menu_width = menu_rect.right - menu_rect.left;
+  const int menu_height = menu_rect.bottom - menu_rect.top;
+
+  int pos_x = static_cast<int>(target_x) - (menu_width / 2);
+  int pos_y = static_cast<int>(target_y) - menu_height + 8;
+
+  RECT work_area{};
+  SystemParametersInfo(SPI_GETWORKAREA, 0, &work_area, 0);
+  if (pos_x + menu_width > work_area.right) {
+    pos_x = work_area.right - menu_width;
+  }
+  if (pos_x < work_area.left) {
+    pos_x = work_area.left;
+  }
+  if (pos_y + menu_height > work_area.bottom) {
+    pos_y = work_area.bottom - menu_height;
+  }
+  if (pos_y < work_area.top) {
+    pos_y = work_area.top;
+  }
+
+  SetWindowPos(hwnd, HWND_TOPMOST, pos_x, pos_y, 0, 0,
+               SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+}
+
 void CenterWindowOnWorkArea(HWND hwnd) {
   if (!hwnd) {
     return;
@@ -219,6 +285,9 @@ FlutterWindow::FlutterWindow(const flutter::DartProject& project,
   if (kind_ == WindowKind::kPopup) {
     effect_mode_ = 0;
   }
+  if (kind_ == WindowKind::kTrayMenu) {
+    effect_mode_ = 0;
+  }
 }
 
 FlutterWindow::~FlutterWindow() {}
@@ -240,6 +309,8 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   if (kind_ == WindowKind::kMain) {
+    g_main_window_handle = GetHandle();
+    g_main_flutter_window = this;
     RegisterPlugins(flutter_controller_->engine());
   }
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
@@ -274,6 +345,13 @@ bool FlutterWindow::OnCreate() {
 
 void FlutterWindow::OnDestroy() {
   LogA("=== FlutterWindow::OnDestroy START ===");
+  if (kind_ == WindowKind::kPopup) {
+    RestorePreviousForegroundWindow();
+  }
+  if (kind_ == WindowKind::kMain && g_main_flutter_window == this) {
+    g_main_flutter_window = nullptr;
+    g_main_window_handle = nullptr;
+  }
   LogA("=== FlutterWindow::OnDestroy END ===");
 
   if (flutter_controller_) {
@@ -299,7 +377,15 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
 
   switch (message) {
     case WM_FONTCHANGE:
-      flutter_controller_->engine()->ReloadSystemFonts();
+      if (flutter_controller_ && flutter_controller_->engine()) {
+        flutter_controller_->engine()->ReloadSystemFonts();
+      }
+      break;
+    case WM_ACTIVATE:
+      if (kind_ == WindowKind::kTrayMenu && LOWORD(wparam) == WA_INACTIVE) {
+        ShowWindow(hwnd, SW_HIDE);
+        return 0;
+      }
       break;
     case WM_DWMCOMPOSITIONCHANGED:
     case WM_THEMECHANGED:
@@ -378,6 +464,10 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
         sprintf_s(buffer, "Popup close message received hwnd=%p", hwnd);
         LogA(buffer);
       }
+      if (kind_ != WindowKind::kPopup) {
+        LogA("Popup close message ignored by non-popup window");
+        return 0;
+      }
       CloseCurrentWindow();
       return 0;
     case kPopupMinimizeMessage:
@@ -385,6 +475,10 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
         char buffer[256];
         sprintf_s(buffer, "Popup minimize message received hwnd=%p", hwnd);
         LogA(buffer);
+      }
+      if (kind_ != WindowKind::kPopup) {
+        LogA("Popup minimize message ignored by non-popup window");
+        return 0;
       }
       MinimizeCurrentWindow();
       return 0;
@@ -394,7 +488,21 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
         sprintf_s(buffer, "Popup drag message received hwnd=%p", hwnd);
         LogA(buffer);
       }
+      if (kind_ != WindowKind::kPopup) {
+        LogA("Popup drag message ignored by non-popup window");
+        return 0;
+      }
       StartWindowDrag();
+      return 0;
+    case kTrayMenuCloseMessage:
+      {
+        char buffer[256];
+        sprintf_s(buffer, "Tray menu close message received hwnd=%p", hwnd);
+        LogA(buffer);
+      }
+      if (g_tray_menu_window && g_tray_menu_window->GetHandle() == hwnd) {
+        g_tray_menu_window.reset();
+      }
       return 0;
   }
 
@@ -443,6 +551,41 @@ void FlutterWindow::SetupMethodChannel() {
             }
           }
           result->Error("INVALID_ARGUMENT", "Missing payload parameter");
+        } else if (call.method_name() == "showTrayMenu") {
+          const auto* arguments =
+              std::get_if<flutter::EncodableMap>(call.arguments());
+          if (arguments) {
+            auto payload_it = arguments->find(flutter::EncodableValue("payload"));
+            if (payload_it != arguments->end()) {
+              if (const std::string* payload =
+                      std::get_if<std::string>(&payload_it->second)) {
+                std::wstring window_title = L"Hanabi Tray Menu";
+
+                result->Success(
+                    flutter::EncodableValue(
+                        CreateTrayMenuWindow(*payload, window_title)));
+                return;
+              }
+            }
+          }
+          result->Error("INVALID_ARGUMENT", "Missing payload parameter");
+        } else if (call.method_name() == "prepareTrayMenu") {
+          const auto* arguments =
+              std::get_if<flutter::EncodableMap>(call.arguments());
+          if (arguments) {
+            auto payload_it = arguments->find(flutter::EncodableValue("payload"));
+            if (payload_it != arguments->end()) {
+              if (const std::string* payload =
+                      std::get_if<std::string>(&payload_it->second)) {
+                std::wstring window_title = L"Hanabi Tray Menu";
+                result->Success(
+                    flutter::EncodableValue(
+                        CreateTrayMenuWindow(*payload, window_title, false)));
+                return;
+              }
+            }
+          }
+          result->Error("INVALID_ARGUMENT", "Missing payload parameter");
         } else if (call.method_name() == "setAlwaysOnTop") {
           const auto* arguments = std::get_if<flutter::EncodableMap>(call.arguments());
           if (arguments) {
@@ -460,6 +603,19 @@ void FlutterWindow::SetupMethodChannel() {
           FlashWindowAttention();
           OutputDebugStringA("flashWindow executed");
           result->Success();
+        } else if (call.method_name() == "getCursorPos") {
+          POINT cursor;
+          if (GetCursorPos(&cursor)) {
+            flutter::EncodableMap payload;
+            payload[flutter::EncodableValue("x")] =
+                flutter::EncodableValue(static_cast<double>(cursor.x));
+            payload[flutter::EncodableValue("y")] =
+                flutter::EncodableValue(static_cast<double>(cursor.y));
+            result->Success(flutter::EncodableValue(payload));
+          } else {
+            result->Error("FAILED", "GetCursorPos failed");
+          }
+          return;
         } else if (call.method_name() == "getWindowDebugInfo") {
           const HWND hwnd = GetHandle();
           flutter::EncodableMap payload;
@@ -476,7 +632,13 @@ void FlutterWindow::SetupMethodChannel() {
         } else if (call.method_name() == "closeWindow") {
           const HWND hwnd = GetHandle();
           result->Success(flutter::EncodableValue(hwnd != nullptr));
-          CloseCurrentWindow();
+          if (kind_ == WindowKind::kTrayMenu && hwnd) {
+            ::ShowWindow(hwnd, SW_HIDE);
+          } else if (kind_ == WindowKind::kPopup) {
+            CloseCurrentWindow();
+          } else {
+            CloseCurrentWindow();
+          }
           return;
         } else if (call.method_name() == "minimizeWindow") {
           const HWND hwnd = GetHandle();
@@ -487,6 +649,72 @@ void FlutterWindow::SetupMethodChannel() {
           const HWND hwnd = GetHandle();
           result->Success(flutter::EncodableValue(hwnd != nullptr));
           StartWindowDrag();
+          return;
+        } else if (call.method_name() == "resizeWindow") {
+          const auto* arguments =
+              std::get_if<flutter::EncodableMap>(call.arguments());
+          if (!arguments) {
+            result->Error("INVALID_ARGUMENT", "Missing map");
+            return;
+          }
+
+          auto height_it = arguments->find(flutter::EncodableValue("height"));
+          if (height_it == arguments->end()) {
+            result->Error("INVALID_ARGUMENT", "Missing height");
+            return;
+          }
+
+          int height = 0;
+          if (const int32_t* int32_value =
+                  std::get_if<int32_t>(&height_it->second)) {
+            height = *int32_value;
+          } else if (const int64_t* int64_value =
+                         std::get_if<int64_t>(&height_it->second)) {
+            height = static_cast<int>(*int64_value);
+          } else {
+            result->Error("INVALID_ARGUMENT", "Height must be int");
+            return;
+          }
+
+          const HWND hwnd = GetHandle();
+          if (hwnd == nullptr) {
+            result->Success(flutter::EncodableValue(false));
+            return;
+          }
+
+          RECT rect{};
+          GetWindowRect(hwnd, &rect);
+          const int current_width = rect.right - rect.left;
+          int width = current_width;
+
+          auto width_it = arguments->find(flutter::EncodableValue("width"));
+          if (width_it != arguments->end()) {
+            if (const int32_t* int32_value =
+                    std::get_if<int32_t>(&width_it->second)) {
+              width = *int32_value;
+            } else if (const int64_t* int64_value =
+                           std::get_if<int64_t>(&width_it->second)) {
+              width = static_cast<int>(*int64_value);
+            } else {
+              result->Error("INVALID_ARGUMENT", "Width must be int");
+              return;
+            }
+          }
+
+          const int min_width =
+              kind_ == WindowKind::kTrayMenu ? 172 : current_width;
+          const int max_width =
+              kind_ == WindowKind::kTrayMenu ? 420 : current_width;
+          const int min_height =
+              kind_ == WindowKind::kTrayMenu ? 120 : 220;
+          const int max_height =
+              kind_ == WindowKind::kTrayMenu ? 600 : 900;
+          const int safe_width = std::max(min_width, std::min(max_width, width));
+          const int safe_height = std::max(min_height, std::min(max_height, height));
+          const BOOL ok = SetWindowPos(
+              hwnd, nullptr, 0, 0, safe_width, safe_height,
+              SWP_NOMOVE | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOZORDER);
+          result->Success(flutter::EncodableValue(ok != FALSE));
           return;
         } else if (call.method_name() == "setWindowEffect") {
           const auto* arguments = std::get_if<flutter::EncodableMap>(call.arguments());
@@ -587,6 +815,75 @@ void FlutterWindow::SetupMethodChannel() {
             ::ExitProcess(0);
           }).detach();
           return;
+        } else if (call.method_name() == "positionTrayMenu") {
+          const HWND hwnd = GetHandle();
+          if (kind_ == WindowKind::kTrayMenu && hwnd) {
+            const auto* arguments =
+                std::get_if<flutter::EncodableMap>(call.arguments());
+            if (arguments) {
+              auto x_it = arguments->find(flutter::EncodableValue("x"));
+              auto y_it = arguments->find(flutter::EncodableValue("y"));
+              if (x_it != arguments->end() && y_it != arguments->end()) {
+                double target_x = std::get<double>(x_it->second);
+                double target_y = std::get<double>(y_it->second);
+                PositionTrayMenuWindow(hwnd, target_x, target_y);
+                SetForegroundWindow(hwnd);
+                SetFocus(hwnd);
+              }
+            }
+          }
+          result->Success();
+          return;
+        } else if (call.method_name() == "showMainWindow") {
+          if (g_main_window_handle && ::IsWindow(g_main_window_handle)) {
+            ::ShowWindow(g_main_window_handle, SW_RESTORE);
+            ::SetForegroundWindow(g_main_window_handle);
+          }
+          result->Success();
+          return;
+        } else if (call.method_name() == "showMainWindowWithAction") {
+          std::string action;
+          const auto* arguments =
+              std::get_if<flutter::EncodableMap>(call.arguments());
+          if (arguments) {
+            auto action_it =
+                arguments->find(flutter::EncodableValue("action"));
+            if (action_it != arguments->end()) {
+              if (const std::string* parsed_action =
+                      std::get_if<std::string>(&action_it->second)) {
+                action = *parsed_action;
+              }
+            }
+          }
+
+          if (g_main_window_handle && ::IsWindow(g_main_window_handle)) {
+            ::ShowWindow(g_main_window_handle, SW_RESTORE);
+            ::SetForegroundWindow(g_main_window_handle);
+          }
+
+          if (!action.empty() && g_main_flutter_window != nullptr &&
+              g_main_flutter_window->flutter_controller_ &&
+              g_main_flutter_window->flutter_controller_->engine()) {
+            flutter::MethodChannel<> main_channel(
+                g_main_flutter_window->flutter_controller_->engine()->messenger(),
+                "com.hanabi.download/window",
+                &flutter::StandardMethodCodec::GetInstance());
+            flutter::EncodableMap payload;
+            payload[flutter::EncodableValue("action")] =
+                flutter::EncodableValue(action);
+            main_channel.InvokeMethod(
+                "handleMainWindowAction",
+                std::make_unique<flutter::EncodableValue>(payload));
+          }
+
+          result->Success();
+          return;
+        } else if (call.method_name() == "exitApp") {
+          if (g_main_window_handle && ::IsWindow(g_main_window_handle)) {
+            ::PostMessage(g_main_window_handle, WM_CLOSE, 0, 0);
+          }
+          result->Success();
+          return;
         } else {
           result->NotImplemented();
         }
@@ -598,6 +895,9 @@ void FlutterWindow::BringWindowToFront() {
   if (hwnd) {
     const DWORD current_thread = GetCurrentThreadId();
     const HWND foreground_before = GetForegroundWindow();
+    if (kind_ == WindowKind::kPopup && foreground_before != hwnd) {
+      previous_foreground_window_ = foreground_before;
+    }
     const DWORD foreground_thread = foreground_before != nullptr
         ? GetWindowThreadProcessId(foreground_before, nullptr)
         : 0;
@@ -644,6 +944,53 @@ void FlutterWindow::BringWindowToFront() {
   }
 }
 
+void FlutterWindow::RestorePreviousForegroundWindow() {
+  const HWND hwnd = previous_foreground_window_;
+  previous_foreground_window_ = nullptr;
+  if (hwnd == nullptr || !::IsWindow(hwnd)) {
+    return;
+  }
+  if (g_main_window_handle != nullptr && hwnd == g_main_window_handle) {
+    LogA("RestorePreviousForegroundWindow skipped main window target");
+    return;
+  }
+
+  const DWORD current_thread = GetCurrentThreadId();
+  const HWND foreground_before = GetForegroundWindow();
+  const DWORD foreground_thread = foreground_before != nullptr
+      ? GetWindowThreadProcessId(foreground_before, nullptr)
+      : 0;
+  const DWORD target_thread = GetWindowThreadProcessId(hwnd, nullptr);
+  const bool attached_foreground =
+      foreground_thread != 0 && foreground_thread != current_thread &&
+      AttachThreadInput(current_thread, foreground_thread, TRUE) != FALSE;
+  const bool attached_target =
+      target_thread != 0 && target_thread != current_thread &&
+      AttachThreadInput(current_thread, target_thread, TRUE) != FALSE;
+
+  AllowSetForegroundWindow(ASFW_ANY);
+  BringWindowToTop(hwnd);
+  const BOOL foreground_result = SetForegroundWindow(hwnd);
+  const HWND active_result = SetActiveWindow(hwnd);
+  const HWND focus_result = SetFocus(hwnd);
+
+  if (attached_target) {
+    AttachThreadInput(current_thread, target_thread, FALSE);
+  }
+  if (attached_foreground) {
+    AttachThreadInput(current_thread, foreground_thread, FALSE);
+  }
+
+  char buffer[512];
+  sprintf_s(
+      buffer, sizeof(buffer),
+      "RestorePreviousForegroundWindow target=%p foregroundBefore=%p targetThread=%lu foregroundThread=%lu foregroundResult=%d activeResult=%p focusResult=%p foregroundNow=%p activeNow=%p",
+      hwnd, foreground_before, target_thread, foreground_thread,
+      foreground_result, active_result, focus_result, GetForegroundWindow(),
+      GetActiveWindow());
+  LogA(buffer);
+}
+
 void FlutterWindow::SetAlwaysOnTop(bool alwaysOnTop) {
   HWND hwnd = GetHandle();
   if (hwnd) {
@@ -672,6 +1019,15 @@ void FlutterWindow::CloseCurrentWindow() {
   }
 }
 
+void FlutterWindow::DestroyPopupWindow() {
+  const HWND hwnd = GetHandle();
+  if (!hwnd) {
+    return;
+  }
+
+  PostMessage(hwnd, WM_CLOSE, 0, 0);
+}
+
 void FlutterWindow::MinimizeCurrentWindow() {
   const HWND hwnd = GetHandle();
   if (hwnd) {
@@ -689,6 +1045,25 @@ void FlutterWindow::StartWindowDrag() {
   SendMessage(hwnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
 }
 
+void FlutterWindow::SendTrayMenuPayloadToFlutter(
+    const std::string& payload_json) {
+  if (kind_ != WindowKind::kTrayMenu || payload_json.empty() ||
+      !flutter_controller_ || !flutter_controller_->engine()) {
+    return;
+  }
+
+  flutter::MethodChannel<> tray_channel(
+      flutter_controller_->engine()->messenger(),
+      "com.hanabi.download/window",
+      &flutter::StandardMethodCodec::GetInstance());
+  flutter::EncodableMap payload;
+  payload[flutter::EncodableValue("payload")] =
+      flutter::EncodableValue(payload_json);
+  tray_channel.InvokeMethod(
+      "updateTrayMenuPayload",
+      std::make_unique<flutter::EncodableValue>(payload));
+}
+
 bool FlutterWindow::CreatePopupWindow(const std::string& payload_json,
                                       const std::wstring& window_title) {
   CleanupPopupWindows();
@@ -702,16 +1077,63 @@ bool FlutterWindow::CreatePopupWindow(const std::string& payload_json,
       popup_project, WindowKind::kPopup);
 
   Win32Window::Point origin(120, 120);
-  Win32Window::Size size(745, 396);
+  Win32Window::Size size(565, 388);
   if (!popup_window->Create(window_title, origin, size)) {
     return false;
   }
 
   popup_window->SetQuitOnClose(false);
   CenterWindowOnWorkArea(popup_window->GetHandle());
-  popup_window->BringWindowToFront();
-  LogA("CreatePopupWindow immediate activation requested");
+  LogA("CreatePopupWindow waiting for first Flutter frame before showing");
   g_popup_windows.push_back(std::move(popup_window));
+  return true;
+}
+
+bool FlutterWindow::CreateTrayMenuWindow(const std::string& payload_json,
+                                         const std::wstring& window_title,
+                                         bool show_immediately) {
+  CleanupClosedPopupWindows();
+
+  double target_x = 0.0;
+  double target_y = 0.0;
+  TryExtractPayloadDouble(payload_json, "mouse_x", target_x);
+  TryExtractPayloadDouble(payload_json, "mouse_y", target_y);
+
+  if (g_tray_menu_window && g_tray_menu_window->GetHandle()) {
+    g_tray_menu_window->SendTrayMenuPayloadToFlutter(payload_json);
+    if (show_immediately) {
+      const HWND existing_hwnd = g_tray_menu_window->GetHandle();
+      PositionTrayMenuWindow(existing_hwnd, target_x, target_y);
+      ::ShowWindow(existing_hwnd, SW_SHOW);
+      SetForegroundWindow(existing_hwnd);
+      SetFocus(existing_hwnd);
+    }
+    return true;
+  }
+
+  flutter::DartProject tray_project(L"data");
+  tray_project.set_dart_entrypoint("trayMenuMain");
+  tray_project.set_dart_entrypoint_arguments(
+      std::vector<std::string>{payload_json});
+
+  auto tray_window = std::make_unique<FlutterWindow>(
+      tray_project, WindowKind::kTrayMenu, true);
+
+  Win32Window::Point origin(0, 0);
+  Win32Window::Size size(184, 320);
+  if (!tray_window->Create(window_title, origin, size)) {
+    return false;
+  }
+
+  tray_window->SetQuitOnClose(false);
+  HWND hwnd = tray_window->GetHandle();
+  g_tray_menu_window = std::move(tray_window);
+  if (show_immediately && hwnd) {
+    PositionTrayMenuWindow(hwnd, target_x, target_y);
+    ::ShowWindow(hwnd, SW_SHOW);
+    SetForegroundWindow(hwnd);
+    SetFocus(hwnd);
+  }
   return true;
 }
 
@@ -755,6 +1177,14 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
   lastWindowRect = windowRect;
 
   if (kind_ == WindowKind::kPopup) {
+    BOOL dark = TRUE;
+    DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark,
+                          sizeof(dark));
+    ApplyRoundedCorners(hwnd, GetWindowsBuildNumber(), width, height);
+    return;
+  }
+
+  if (kind_ == WindowKind::kTrayMenu) {
     BOOL dark = TRUE;
     DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark,
                           sizeof(dark));
@@ -907,6 +1337,9 @@ DWORD FlutterWindow::WindowStyle() const {
   if (kind_ == WindowKind::kPopup) {
     return WS_POPUP | WS_THICKFRAME | WS_SYSMENU | WS_MINIMIZEBOX;
   }
+  if (kind_ == WindowKind::kTrayMenu) {
+    return WS_POPUP;
+  }
   return Win32Window::WindowStyle();
 }
 
@@ -919,7 +1352,7 @@ bool FlutterWindow::HasCustomFrame() const {
 }
 
 bool FlutterWindow::CanResize() const {
-  return kind_ != WindowKind::kPopup;
+  return kind_ != WindowKind::kPopup && kind_ != WindowKind::kTrayMenu;
 }
 
 void FlutterWindow::ApplyRoundedCorners(HWND hwnd,

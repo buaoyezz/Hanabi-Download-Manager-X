@@ -15,6 +15,7 @@ class FlutterWindow : public Win32Window {
   enum class WindowKind {
     kMain,
     kPopup,
+    kTrayMenu,
   };
 
   // Creates a new FlutterWindow hosting a Flutter view running |project|.
@@ -47,19 +48,26 @@ class FlutterWindow : public Win32Window {
   void SetAlwaysOnTop(bool alwaysOnTop);
   void FlashWindowAttention();
   void CloseCurrentWindow();
+  void DestroyPopupWindow();
   void MinimizeCurrentWindow();
   void StartWindowDrag();
+  void RestorePreviousForegroundWindow();
   void ApplyWindowEffect(HWND hwnd);
   void ApplyRoundedCorners(HWND hwnd, DWORD buildNumber, int width, int height);
+  void SendTrayMenuPayloadToFlutter(const std::string& payload_json);
   std::string PickFolder();
   bool CreatePopupWindow(const std::string& payload_json,
                          const std::wstring& window_title);
+  bool CreateTrayMenuWindow(const std::string& payload_json,
+                            const std::wstring& window_title,
+                            bool show_immediately = true);
   static void CleanupPopupWindows();
   struct CloseExistingInstanceRequest;
   static constexpr UINT kCloseExistingInstanceCompleteMessage = WM_APP + 1;
   static constexpr UINT kPopupCloseMessage = WM_APP + 2;
   static constexpr UINT kPopupMinimizeMessage = WM_APP + 3;
   static constexpr UINT kPopupStartDragMessage = WM_APP + 4;
+  static constexpr UINT kTrayMenuCloseMessage = WM_APP + 5;
   int effect_mode_ = 2;
   int effect_alpha_ = 160;
   bool rounded_corners_enabled_ = true;
@@ -69,6 +77,7 @@ class FlutterWindow : public Win32Window {
   bool is_suspended_ = false;
   bool launch_hidden_ = false;
   WindowKind kind_ = WindowKind::kMain;
+  HWND previous_foreground_window_ = nullptr;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_
