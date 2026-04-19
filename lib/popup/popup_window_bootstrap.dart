@@ -2412,9 +2412,15 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
       }
       if (Platform.isWindows) {
         final safePath = file.path.replaceAll('/', '\\');
+        // Cmd.exe interprets some characters as operators, we must escape them with ^
+        // We pass the whole command as a single string to cmd /c so Dart doesn't auto-quote the path
+        final escapedPath = safePath.replaceAllMapped(
+          RegExp(r'[&|()<>^]'),
+          (Match m) => '^${m.group(0)}',
+        );
         await Process.start(
-          'rundll32.exe',
-          ['shell32.dll,OpenAs_RunDLL', safePath],
+          'cmd',
+          ['/c', 'rundll32.exe shell32.dll,OpenAs_RunDLL $escapedPath'],
           mode: ProcessStartMode.detached,
         );
       } else {
