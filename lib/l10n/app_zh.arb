@@ -171,6 +171,7 @@
   "homeNavPerformance": "性能监控",
   "homeNavConnectionDebug": "连接调试",
   "homeNavSettings": "设置",
+  "homeNavNotice": "通知",
   "homeNavAbout": "关于",
   "homeUpdateFoundTitle": "检测到了新版本",
   "homeUpdateFoundMessage": "本次更新为 {currentVersion} -> {newVersion}\\n快去设置页面更新吧！",
@@ -250,6 +251,38 @@
     }
   },
   "@settingsSaveFailedMessage": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "settingsBrowserExtensionPortTitle": "浏览器桥接端口",
+  "settingsBrowserExtensionPortSubtitle": "当前本地 API 地址为 http://127.0.0.1:{port} | 修改后扩展会自动为您迁移到新端口",
+  "@settingsBrowserExtensionPortSubtitle": {
+    "placeholders": {
+      "port": {}
+    }
+  },
+  "settingsBrowserExtensionPortChangeButton": "更改",
+  "settingsBrowserExtensionPortDialogTitle": "更改浏览器桥接端口",
+  "settingsBrowserExtensionPortDialogPrompt": "请输入浏览器扩展桥接使用的本地 API 端口",
+  "settingsBrowserExtensionPortPlaceholder": "1024 - 65535",
+  "settingsBrowserExtensionPortHintBody": "Hanabi 会立即把本地桥接切到新端口，并在迁移期间保留旧端口作为兼容入口，浏览器扩展会自动切换过去。",
+  "settingsBrowserExtensionPortInvalidTitle": "端口无效",
+  "settingsBrowserExtensionPortInvalidMessage": "抱歉您输入的端口号不合法\n请输入 {min} 到 {max} 之间的端口号",
+  "@settingsBrowserExtensionPortInvalidMessage": {
+    "placeholders": {
+      "min": {},
+      "max": {}
+    }
+  },
+  "settingsBrowserExtensionPortSavedMessage": "浏览器桥接端口已切换到 {port}，扩展会自动更新。",
+  "@settingsBrowserExtensionPortSavedMessage": {
+    "placeholders": {
+      "port": {}
+    }
+  },
+  "settingsBrowserExtensionPortSaveFailedMessage": "切换浏览器桥接端口失败: {error}",
+  "@settingsBrowserExtensionPortSaveFailedMessage": {
     "placeholders": {
       "error": {}
     }
@@ -350,7 +383,7 @@
   "settingsProxyDisabledMessage": "已禁用代理",
   "settingsProxyTypeTitle": "代理类型",
   "settingsProxyTypeSubtitle": "选择代理协议",
-  "settingsProxyTypeSystem": "system",
+  "settingsProxyTypeSystem": "系统代理",
   "settingsProxyTypeHttp": "HTTP",
   "settingsProxyTypeSocks5": "SOCKS5",
   "settingsProxyServerTitle": "代理服务器",
@@ -582,7 +615,7 @@
   "appearanceWindowEffectsDisabledMessage": "已切换为纯色背景以提升性能",
   "appearanceWindowEffectsTypeTitle": "效果类型",
   "appearanceWindowEffectSwitchedTitle": "效果已切换",
-  "appearanceWindowEffectAcrylic": "acrylic",
+  "appearanceWindowEffectAcrylic": "Acrylic",
   "appearanceWindowEffectBlur": "模糊",
   "appearanceWindowEffectMica": "mica_main",
   "appearanceWindowEffectMicaAlt": "Mica Alt",
@@ -910,6 +943,48 @@
   "popupDownloadErrorTitle": "错误",
   "popupDownloadErrorConfirm": "确定",
   "popupDownloadDefaultFileName": "download",
+  "popupDownloadProgressTitle": "下载中",
+  "popupDownloadCompletedTitle": "下载完成",
+  "popupDownloadProgressHint": "Powered by NSFX Kernel",
+  "popupDownloadCompletedHint": "文件已保存到目标目录，可直接打开文件或文件夹",
+  "popupDownloadStatusPending": "准备中",
+  "popupDownloadStatusDownloading": "下载中",
+  "popupDownloadStatusPaused": "已暂停",
+  "popupDownloadStatusMerging": "校验中",
+  "popupDownloadStatusCompleted": "完成",
+  "popupDownloadStatusFailed": "失败",
+  "popupDownloadStatusUnknown": "等待中",
+  "popupDownloadMetricProgress": "进度",
+  "popupDownloadMetricDownloaded": "已下载",
+  "popupDownloadMetricTotalSize": "总大小",
+  "popupDownloadMetricSpeed": "速度",
+  "popupDownloadMetricEta": "剩余时间",
+  "popupDownloadMetricSegments": "分段",
+  "popupDownloadMetricStatus": "状态",
+  "popupDownloadMetricSaveTo": "保存位置",
+  "popupDownloadMetricHost": "来源",
+  "popupDownloadProgressLiveLabel": "实时传输",
+  "popupDownloadProgressSegmentTitle": "分段进度",
+  "popupDownloadProgressWaiting": "正在准备连接与文件信息",
+  "popupDownloadProgressCompletedMessage": "下载已完成，你可以打开文件夹查看结果",
+  "popupDownloadActionBackground": "后台下载",
+  "popupDownloadActionPause": "暂停",
+  "popupDownloadActionResume": "继续",
+  "popupDownloadActionOpenFile": "打开文件",
+  "popupDownloadActionOpenFolder": "打开文件夹",
+  "popupDownloadActionClose": "关闭",
+  "popupDownloadErrorOpenFileFailed": "打开文件失败: {error}",
+  "@popupDownloadErrorOpenFileFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "popupDownloadErrorOpenFolderFailed": "打开文件夹失败: {error}",
+  "@popupDownloadErrorOpenFolderFailed": {
+    "placeholders": {
+      "error": {}
+    }
+  },
   "addDownloadTitle": "新建下载",
   "addDownloadSubtitle": "支持多线程下载和断点续传",
   "addDownloadUrlLabel": "下载链接",
@@ -1942,7 +2017,62 @@
   "settingsConflictStrategySubtitle": "当文件已存在时的处理方式",
   "settingsConflictStrategyIncrement": "自动加 (1)(2)",
   "settingsConflictStrategyTimestamp": "追加时间戳",
-  "settingsConflictStrategyOverwrite": "覆盖原文件"
+  "settingsConflictStrategyOverwrite": "覆盖原文件",
+  "noticePageTitle": "通知",
+  "noticePinned": "置顶",
+  "noticeEmpty": "暂无通知",
+  "noticeRefresh": "刷新",
+  "noticeRetry": "重试",
+  "noticeLoadError": "加载通知失败",
+  "noticeLastSynced": "已同步 {timeAgo}",
+  "@noticeLastSynced": {
+    "placeholders": {
+      "timeAgo": {}
+    }
+  },
+  "noticeJustNow": "刚刚",
+  "noticeMinutesAgo": "{count} 分钟前",
+  "@noticeMinutesAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "noticeHoursAgo": "{count} 小时前",
+  "@noticeHoursAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "noticeDaysAgo": "{count} 天前",
+  "@noticeDaysAgo": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "noticeOpenLink": "打开链接",
+  "settingsLogManagementSection": "日志管理",
+  "settingsLogClearTitle": "清空日志",
+  "settingsLogClearSubtitle": "删除所有日志记录和日志文件",
+  "settingsLogClearButton": "清空",
+  "settingsLogClearConfirmTitle": "确认清空日志",
+  "settingsLogClearConfirmMessage": "确定要删除所有日志记录和日志文件吗？此操作不可撤销。",
+  "settingsLogClearConfirmButton": "确认清空",
+  "settingsLogClearSuccessTitle": "日志已清空",
+  "settingsLogClearSuccessMessage": "所有日志记录和文件已删除",
+  "settingsLogOpenDirTitle": "打开日志目录",
+  "settingsLogOpenDirSubtitle": "在文件资源管理器中查看日志文件",
+  "settingsLogOpenDirButton": "打开",
+  "settingsLogOpenDirNotFound": "日志目录不存在",
+  "settingsLogOpenDirError": "无法打开日志目录",
+  "settingsLogRetentionTitle": "自动清理",
+  "settingsLogRetentionSubtitle": "自动删除 {days} 天前的日志",
+  "@settingsLogRetentionSubtitle": {
+    "placeholders": {
+      "days": {}
+    }
+  },
+  "settingsLogRetentionDays": "天",
+  "settingsLogRetentionSaved": "日志清理设置已保存"
 }
 
 

@@ -9,39 +9,40 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'Hanabi Download ManagerX';
+  String get appTitle => 'Hanabi Download Manager X';
 
   @override
-  String get aboutEasterEggCongrats => 'Congrats, you found the easter egg!';
+  String get aboutEasterEggCongrats =>
+      'Congratulations on discovering this easter egg!';
 
   @override
-  String get aboutEasterEggTitle => 'This easter egg doesn\'t do much.';
+  String get aboutEasterEggTitle => 'This easter egg is useless';
 
   @override
   String aboutEasterEggMessage(Object appName) {
-    return 'Thanks for using $appName!\\nThanks for your support.\\nHope you can give it a star.';
+    return 'But thanks for using $appName! \\nThank you for your support\\nI hope you can give him a Star';
   }
 
   @override
-  String get aboutEasterEggDismiss => 'Pretend I didn\'t see it';
+  String get aboutEasterEggDismiss => 'pretend not to know';
 
   @override
   String aboutMadeBy(Object developer) {
-    return 'Made by $developer';
+    return 'Author $developer';
   }
 
   @override
   String get aboutEasterEggDialogTitle => 'Hey!';
 
   @override
-  String get aboutPageTitle => 'About';
+  String get aboutPageTitle => 'about';
 
   @override
-  String get aboutSectionAppInfo => 'App Info';
+  String get aboutSectionAppInfo => 'Application information';
 
   @override
   String aboutTapHintRemaining(Object count) {
-    return 'Tap $count more times...';
+    return 'Click $count more times...';
   }
 
   @override
@@ -65,10 +66,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutDetailUiFrameworkValue => 'Fluent UI for Flutter';
 
   @override
-  String get aboutSectionLinks => 'Links';
+  String get aboutSectionLinks => 'Link';
 
   @override
-  String get aboutLinkOfficialTitle => 'Official Website';
+  String get aboutLinkOfficialTitle => 'Official website';
 
   @override
   String get aboutLinkOfficialSubtitle => 'Visit the project homepage';
@@ -77,10 +78,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutLinkGithubTitle => 'GitHub';
 
   @override
-  String get aboutLinkGithubSubtitle => 'View source code and contribute';
+  String get aboutLinkGithubSubtitle => 'View source code and contributions';
 
   @override
-  String get aboutLinkContactTitle => 'Contact Us';
+  String get aboutLinkContactTitle => 'Contact us';
 
   @override
   String aboutCopyrightMessage(Object year, Object developer) {
@@ -88,7 +89,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get aboutOpenLinkErrorTitle => 'Error';
+  String get aboutOpenLinkErrorTitle => 'mistake';
 
   @override
   String aboutOpenLinkErrorMessage(Object error) {
@@ -96,38 +97,38 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get settingsTitle => 'Settings';
+  String get settingsTitle => 'set up';
 
   @override
-  String get settingsTabGeneral => 'General';
+  String get settingsTabGeneral => 'conventional';
 
   @override
-  String get settingsTabDownload => 'Downloads';
+  String get settingsTabDownload => 'download';
 
   @override
-  String get settingsTabAppearance => 'Appearance';
+  String get settingsTabAppearance => 'interface';
 
   @override
-  String get settingsTabUpdate => 'Updates';
+  String get settingsTabUpdate => 'renew';
 
   @override
-  String get settingsTabAdvanced => 'Advanced';
+  String get settingsTabAdvanced => 'advanced';
 
   @override
   String get settingsTabDeveloper => 'Developer';
 
   @override
-  String get appearanceSectionLanguage => 'Language';
+  String get appearanceSectionLanguage => 'language';
 
   @override
-  String get appearanceLanguageTitle => 'Interface Language';
+  String get appearanceLanguageTitle => 'interface language';
 
   @override
   String get appearanceLanguageSubtitle =>
-      'Follow system by default: the app will automatically choose the appropriate language for you';
+      'Follow the system by default: the system will automatically select the appropriate interface language for you';
 
   @override
-  String get appearanceLanguageSystem => 'Follow system';
+  String get appearanceLanguageSystem => 'Follow the system';
 
   @override
   String get appearanceLanguageChinese => 'Chinese';
@@ -136,11 +137,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appearanceLanguageEnglish => 'English';
 
   @override
-  String get appearanceLanguageSwitchedTitle => 'Language switched';
+  String get appearanceLanguageSwitchedTitle => 'Language has been switched';
 
   @override
   String get appearanceLanguageSwitchedSystem =>
-      'It will follow your system language';
+      'will be automatically selected based on the system language';
 
   @override
   String appearanceLanguageSwitchedTo(Object language) {
@@ -148,33 +149,32 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get appearanceLanguagePacksTitle => 'Language Packs';
+  String get appearanceLanguagePacksTitle => 'Language pack';
 
   @override
   String appearanceLanguagePacksSubtitle(Object path) {
-    return 'Put .json/.arb files into $path, then click refresh';
+    return 'Put .json/.arb into $path and click refresh';
   }
 
   @override
-  String get appearanceLanguagePacksRefreshedTitle =>
-      'Language packs refreshed';
+  String get appearanceLanguagePacksRefreshedTitle => 'Language pack refreshed';
 
   @override
   String appearanceLanguagePacksRefreshedMessage(Object count) {
-    return 'Found $count language pack(s)';
+    return 'Found $count language packs';
   }
 
   @override
-  String get appearanceLanguageRefreshButton => 'Refresh language packs';
+  String get appearanceLanguageRefreshButton => 'Refresh language pack';
 
   @override
-  String get trayMenuShowWindowTitle => 'Show Window';
+  String get trayMenuShowWindowTitle => 'display window';
 
   @override
-  String get trayMenuShowWindowSubtitle => 'Open main window';
+  String get trayMenuShowWindowSubtitle => 'Open the main interface';
 
   @override
-  String get trayMenuKernelTitle => 'Download Kernel';
+  String get trayMenuKernelTitle => 'Download kernel';
 
   @override
   String get trayMenuKernelSubtitleRunning => 'Running';
@@ -183,17 +183,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get trayMenuKernelSubtitleStopped => 'Stopped';
 
   @override
-  String get trayMenuExitTitle => 'Exit';
+  String get trayMenuExitTitle => 'Exit application';
 
   @override
   String get trayMenuExitSubtitle => 'Close all windows';
 
   @override
-  String get exitWithActiveDownloadsTitle => 'Active downloads in progress';
+  String get exitWithActiveDownloadsTitle =>
+      'There is still downloading in progress';
 
   @override
   String exitWithActiveDownloadsMessage(Object count) {
-    return '$count download(s) are still running. Exiting now will stop them. Are you sure you want to quit?';
+    return 'There are currently $count download tasks running. Exiting now will interrupt these downloads. Are you sure you want to continue exiting?';
   }
 
   @override
@@ -203,7 +204,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get exitWithActiveDownloadsConfirmButton => 'Exit anyway';
 
   @override
-  String get tempFilesDialogTitle => 'Clean Temporary Files';
+  String get tempFilesDialogTitle => 'Clean temporary files';
 
   @override
   String tempFilesDialogScanPath(Object path) {
@@ -211,41 +212,41 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get tempFilesStatFiles => 'Files';
+  String get tempFilesStatFiles => 'Number of files';
 
   @override
-  String get tempFilesStatTotalSize => 'Total size';
+  String get tempFilesStatTotalSize => 'total size';
 
   @override
   String get tempFilesStatSelected => 'Selected';
 
   @override
   String get tempFilesSupportedFormats =>
-      'Supported: .temp, .tmp, .download, .partN (segments), .crdownload, .partial, .!ut';
+      'Supported formats: .temp, .tmp, .download, .partN (partitioned), .crdownload, .partial, .!ut';
 
   @override
   String get tempFilesSelectAll => 'Select all';
 
   @override
-  String get tempFilesIncludeTempDirs => 'Include temp folders';
+  String get tempFilesIncludeTempDirs => 'Contains temporary directory';
 
   @override
-  String get tempFilesSortLabel => 'Sort:';
+  String get tempFilesSortLabel => 'Sort by:';
 
   @override
-  String get tempFilesSortName => 'Name';
+  String get tempFilesSortName => 'name';
 
   @override
-  String get tempFilesSortSize => 'Size';
+  String get tempFilesSortSize => 'size';
 
   @override
-  String get tempFilesSortTime => 'Time';
+  String get tempFilesSortTime => 'time';
 
   @override
-  String get tempFilesEmpty => 'No temporary files found';
+  String get tempFilesEmpty => 'Temporary file not found';
 
   @override
-  String get tempFilesCloseButton => 'Close';
+  String get tempFilesCloseButton => 'closure';
 
   @override
   String tempFilesDeleteSelected(Object count) {
@@ -257,7 +258,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String tempFilesDeleteConfirmMessage(Object count) {
-    return 'Delete $count temporary files?';
+    return 'Are you sure you want to delete $count temporary files?';
   }
 
   @override
@@ -266,239 +267,254 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get tempFilesDeleteWarning => 'This action cannot be undone';
+  String get tempFilesDeleteWarning => 'This operation is irreversible';
 
   @override
   String get tempFilesCancelButton => 'Cancel';
 
   @override
-  String get tempFilesDeleteButton => 'Delete';
+  String get tempFilesDeleteButton => 'delete';
 
   @override
-  String get tempFilesDeleteDoneTitle => 'Deletion complete';
+  String get tempFilesDeleteDoneTitle => 'Deletion completed';
 
   @override
   String tempFilesDeleteDoneWithFailures(Object success, Object failed) {
-    return 'Deleted $success, failed $failed';
+    return 'Successfully deleted $success items, failed $failed items';
   }
 
   @override
   String tempFilesDeleteDoneSuccess(Object success) {
-    return 'Deleted $success temporary files';
+    return 'Successfully deleted $success temporary files';
   }
 
   @override
-  String get homeNavDownloading => 'Download Task';
+  String get homeNavDownloading => 'Download task';
 
   @override
   String get homeNavCompleted => 'Completed';
 
   @override
-  String get homeNavLog => 'Logs';
+  String get homeNavLog => 'log';
 
   @override
-  String get homeNavStatus => 'Status';
+  String get homeNavStatus => 'state';
 
   @override
-  String get homeNavOnlineStats => 'Online Stats';
+  String get homeNavOnlineStats => 'Online statistics';
 
   @override
-  String get homeNavPerformance => 'Performance';
+  String get homeNavPerformance => 'Performance monitoring';
 
   @override
-  String get homeNavConnectionDebug => 'Connection';
+  String get homeNavConnectionDebug => 'Connection debugging';
 
   @override
-  String get homeNavSettings => 'Settings';
+  String get homeNavSettings => 'set up';
 
   @override
-  String get homeNavAbout => 'About';
+  String get homeNavNotice => 'notify';
+
+  @override
+  String get homeNavAbout => 'about';
 
   @override
   String get homeUpdateFoundTitle => 'New version detected';
 
   @override
   String homeUpdateFoundMessage(Object currentVersion, Object newVersion) {
-    return 'Update: $currentVersion -> $newVersion\\nGo to Settings to update.';
+    return 'This update is $currentVersion -> $newVersion\\nGo to the settings page to update!';
   }
 
   @override
-  String get homeKernelStartingTitle => 'Starting download kernel...';
+  String get homeKernelStartingTitle => 'Starting to download kernel...';
 
   @override
   String get homeKernelStartingHint =>
       'Please wait, this may take a few seconds';
 
   @override
-  String get homeViewLog => 'View logs';
+  String get homeViewLog => 'View log';
 
   @override
-  String get homeRetry => 'Retry';
+  String get homeRetry => 'Try again';
 
   @override
   String get homeNewTask => 'New';
 
   @override
-  String get fileName => 'File name';
+  String get fileName => 'file name';
 
   @override
   String get id => 'ID';
 
   @override
-  String get name => 'Name';
+  String get name => 'name';
 
   @override
-  String get segments => 'Segments';
+  String get segments => 'segmentation';
 
   @override
-  String get speed => 'Speed';
+  String get speed => 'speed';
 
   @override
-  String get status => 'Status';
+  String get status => 'state';
 
   @override
   String get url => 'URL';
 
   @override
-  String get settingsSectionSystem => 'System';
+  String get settingsSectionSystem => 'System settings';
 
   @override
-  String get settingsAutoStartTitle => 'Launch on startup';
+  String get settingsAutoStartTitle => 'Start automatically at boot';
 
   @override
   String get settingsAutoStartSubtitle =>
-      'Start the app when the system starts';
+      'Automatically run applications when the system starts';
 
   @override
-  String get settingsAutoStartEnabledTitle => 'Auto start enabled';
+  String get settingsAutoStartEnabledTitle => 'Auto-start at boot is on';
 
   @override
   String get settingsAutoStartEnabledMessage =>
-      'The app will launch on startup';
+      'The software will run automatically when the system starts';
 
   @override
-  String get settingsAutoStartDisabledTitle => 'Auto start disabled';
+  String get settingsAutoStartDisabledTitle =>
+      'Autostart at power on is turned off';
 
   @override
   String get settingsAutoStartDisabledMessage =>
-      'The app will not launch on startup';
+      'The software will not run automatically';
 
   @override
-  String get settingsAutoStartEnableFailed => 'Failed to enable auto start';
+  String get settingsAutoStartEnableFailed =>
+      'Unable to enable auto-start at boot';
 
   @override
-  String get settingsAutoStartDisableFailed => 'Failed to disable auto start';
+  String get settingsAutoStartDisableFailed =>
+      'Unable to turn off auto-start at boot';
 
   @override
-  String get settingsAutoStartFixedTitle => 'Auto start fixed';
+  String get settingsAutoStartFixedTitle => 'Autostart has been fixed';
 
   @override
   String get settingsAutoStartFixedMessage =>
-      'Auto start path has been corrected';
+      'An old version of self-starting registration was detected and has been automatically updated to the current version.';
 
   @override
-  String get settingsSectionBehavior => 'Behavior';
+  String get settingsSectionBehavior => 'Behavior settings';
 
   @override
-  String get settingsAutoDownloadTitle => 'Auto start downloads';
+  String get settingsAutoDownloadTitle => 'Automatically start downloading';
 
   @override
-  String get settingsAutoDownloadSubtitle => 'Start new tasks automatically';
+  String get settingsAutoDownloadSubtitle =>
+      'New tasks will automatically start downloading';
 
   @override
-  String get settingsAutoDownloadEnabledTitle => 'Auto download enabled';
+  String get settingsAutoDownloadEnabledTitle =>
+      'Automatically start downloading is turned on';
 
   @override
   String get settingsAutoDownloadEnabledMessage =>
-      'New tasks will start automatically';
+      'New tasks will automatically start downloading';
 
   @override
-  String get settingsAutoDownloadDisabledTitle => 'Auto download disabled';
+  String get settingsAutoDownloadDisabledTitle =>
+      'Automatic download is turned off';
 
   @override
   String get settingsAutoDownloadDisabledMessage =>
-      'New tasks will wait until you start them';
+      'New tasks will wait to be started manually';
 
   @override
-  String get settingsPopupWindowTitle => 'Popup window';
+  String get settingsPopupWindowTitle => 'Browser download pop-up window';
 
   @override
   String get settingsPopupWindowSubtitle =>
-      'Show downloads in a standalone popup window without bringing the main window forward';
+      'When the browser downloads, it displays an independent popup window and does not open the main window.';
 
   @override
-  String get settingsPopupEnabledTitle => 'Popup enabled';
+  String get settingsPopupEnabledTitle => 'Pop-up window is open';
 
   @override
   String get settingsPopupEnabledMessage =>
-      'Browser downloads will open the standalone popup window while the main window stays in the background';
+      'Browser download will open a separate popup window, and the main window remains in the background';
 
   @override
-  String get settingsPopupDisabledTitle => 'Popup disabled';
+  String get settingsPopupDisabledTitle => 'Pop-up window has been closed';
 
   @override
   String get settingsPopupDisabledMessage =>
-      'Browser downloads will be accepted directly without opening the standalone popup window';
+      'The browser download will be directly added to the task and no independent popup window will pop up.';
 
   @override
-  String get settingsCompleteNotifyTitle => 'Completion notifications';
+  String get settingsCompleteNotifyTitle => 'Completion notification';
 
   @override
-  String get settingsCompleteNotifySubtitle => 'Notify when downloads finish';
+  String get settingsCompleteNotifySubtitle =>
+      'Notify when download is complete';
 
   @override
-  String get settingsCompleteNotifyEnabledTitle => 'Notifications enabled';
+  String get settingsCompleteNotifyEnabledTitle =>
+      'Completion notification is on';
 
   @override
   String get settingsCompleteNotifyEnabledMessage =>
-      'You\'ll be notified on completion';
+      'Notification will be sent when download is complete';
 
   @override
-  String get settingsCompleteNotifyDisabledTitle => 'Notifications disabled';
+  String get settingsCompleteNotifyDisabledTitle =>
+      'Completion notification is closed';
 
   @override
   String get settingsCompleteNotifyDisabledMessage =>
-      'No completion notifications';
+      'No more notifications when download is complete';
 
   @override
-  String get settingsOnlineStatsTitle => 'Online stats';
+  String get settingsOnlineStatsTitle => 'Participate in online statistics';
 
   @override
-  String get settingsOnlineStatsSubtitle => 'Enable online user statistics';
+  String get settingsOnlineStatsSubtitle =>
+      'Participate in online user statistics';
 
   @override
-  String get settingsOnlineStatsEnabledTitle => 'Online stats enabled';
+  String get settingsOnlineStatsEnabledTitle => 'Online statistics is enabled';
 
   @override
   String get settingsOnlineStatsEnabledMessage =>
-      'Online stats are now enabled';
+      'Your device will participate in online user statistics to help us understand software usage';
 
   @override
-  String get settingsOnlineStatsDisabledTitle => 'Online stats disabled';
+  String get settingsOnlineStatsDisabledTitle => 'Online statistics disabled';
 
   @override
   String get settingsOnlineStatsDisabledMessage =>
-      'Online stats are now disabled';
+      'Your device will no longer send statistics';
 
   @override
-  String get settingsTrayHintTitle => 'Tray running status';
+  String get settingsTrayHintTitle => 'Tray tip';
 
   @override
-  String get settingsTrayHintSubtitle => 'Show running status in tray tooltip';
+  String get settingsTrayHintSubtitle => 'Tray prompt shows running status';
 
   @override
-  String get settingsTrayHintEnabledTitle => 'Tray hint enabled';
+  String get settingsTrayHintEnabledTitle =>
+      'Background running prompt has been turned on';
 
   @override
   String get settingsTrayHintEnabledMessage =>
-      'Tray tooltip will show running status';
+      'When the window is hidden, the tray icon will say \"Running in the background\"';
 
   @override
-  String get settingsTrayHintDisabledTitle => 'Tray hint disabled';
+  String get settingsTrayHintDisabledTitle =>
+      'Background running prompt has been closed';
 
   @override
   String get settingsTrayHintDisabledMessage =>
-      'Tray tooltip will be simplified';
+      'The tray icon will always show only the app name';
 
   @override
   String get settingsCloseBehaviorTitle => 'Close button behavior';
@@ -507,143 +523,191 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsCloseBehaviorMinimizeLabel => 'Minimize to tray';
 
   @override
-  String get settingsCloseBehaviorExitLabel => 'Exit app';
+  String get settingsCloseBehaviorExitLabel => 'Exit application';
 
   @override
-  String get settingsCloseBehaviorMinimize => 'Minimize to tray';
+  String get settingsCloseBehaviorMinimize =>
+      'Minimize to system tray and keep running in the background';
 
   @override
-  String get settingsCloseBehaviorExit => 'Exit app';
+  String get settingsCloseBehaviorExit => 'Exit the application completely';
 
   @override
-  String get settingsCloseBehaviorUnknown => 'Unknown';
+  String get settingsCloseBehaviorUnknown => 'unknown behavior';
 
   @override
   String settingsCloseBehaviorSavedMessage(Object behavior) {
-    return 'Close behavior set to $behavior';
+    return 'Close button behavior has been set to $behavior';
   }
 
   @override
-  String get settingsSaveSuccessTitle => 'Saved';
+  String get settingsSaveSuccessTitle => 'Settings saved';
 
   @override
-  String get settingsSaveFailedTitle => 'Save failed';
+  String get settingsSaveFailedTitle => 'Setup failed';
 
   @override
   String settingsSaveFailedMessage(Object error) {
-    return 'Failed to save: $error';
+    return 'Unable to save settings: $error';
+  }
+
+  @override
+  String get settingsBrowserExtensionPortTitle => 'browser bridge port';
+
+  @override
+  String settingsBrowserExtensionPortSubtitle(Object port) {
+    return 'The current local API address is http://127.0.0.1:$port | After modification, the extension will automatically migrate to the new port for you';
+  }
+
+  @override
+  String get settingsBrowserExtensionPortChangeButton => 'Change';
+
+  @override
+  String get settingsBrowserExtensionPortDialogTitle =>
+      'Change browser bridge port';
+
+  @override
+  String get settingsBrowserExtensionPortDialogPrompt =>
+      'Please enter the local API port used by the browser extension bridge';
+
+  @override
+  String get settingsBrowserExtensionPortPlaceholder => '1024-65535';
+
+  @override
+  String get settingsBrowserExtensionPortHintBody =>
+      'Hanabi will immediately switch the local bridge to the new port, and retain the old port as a compatible entry point during the migration, and the browser extension will automatically switch over.';
+
+  @override
+  String get settingsBrowserExtensionPortInvalidTitle => 'Invalid port';
+
+  @override
+  String settingsBrowserExtensionPortInvalidMessage(Object min, Object max) {
+    return 'Sorry, the port number you entered is illegal \n Please enter a port number between $min and $max';
+  }
+
+  @override
+  String settingsBrowserExtensionPortSavedMessage(Object port) {
+    return 'The browser bridge port has been switched to $port and the extension will update automatically.';
+  }
+
+  @override
+  String settingsBrowserExtensionPortSaveFailedMessage(Object error) {
+    return 'Failed to switch browser bridge port: $error';
   }
 
   @override
   String get settingsDownloadPathSection => 'Download path';
 
   @override
-  String get settingsDownloadPathTitle => 'Download folder';
+  String get settingsDownloadPathTitle => 'save location';
 
   @override
   String get settingsDownloadPathChangeButton => 'Change';
 
   @override
-  String get settingsDownloadPathDialogTitle => 'Change download folder';
+  String get settingsDownloadPathDialogTitle => 'Set download path';
 
   @override
   String get settingsDownloadPathDialogPrompt =>
-      'Please choose or input a download folder';
+      'Please enter or browse to select the download save path:';
 
   @override
-  String get settingsDownloadPathPlaceholder => 'Enter folder path';
+  String get settingsDownloadPathPlaceholder => 'C:\\\\Downloads';
 
   @override
   String get settingsBrowseButton => 'Browse';
 
   @override
-  String get settingsDownloadPathHintTitle => 'Tip';
+  String get settingsDownloadPathHintTitle => 'hint:';
 
   @override
   String get settingsDownloadPathHintBody =>
-      'Use a local disk folder for better performance';
+      '• You can enter the complete folder path directly\\n• Click the \"Browse\" button to visually select the folder\\n• Example: C:\\\\Users\\\\username\\\\Downloads';
 
   @override
   String get settingsCancelButton => 'Cancel';
 
   @override
-  String get settingsConfirmButton => 'Confirm';
+  String get settingsConfirmButton => 'Sure';
 
   @override
   String settingsDownloadPathChangedMessage(Object path) {
-    return 'Download path updated to $path';
+    return 'The download path has been changed to: $path';
   }
 
   @override
   String get settingsDownloadPathChangeFailedMessage =>
-      'Failed to update download path';
+      'Unable to change download path, please check if the path is valid';
 
   @override
-  String get settingsDownloadConfigSection => 'Download settings';
+  String get settingsDownloadConfigSection => 'Download configuration';
 
   @override
-  String get settingsDownloadModeTitle => 'Download mode';
+  String get settingsDownloadModeTitle => 'download mode';
 
   @override
-  String get settingsDownloadModeAuto => 'Auto';
+  String get settingsDownloadModeAuto => 'automatic';
 
   @override
   String get settingsDownloadModeThreadsOnly => 'Threads only';
 
   @override
-  String get settingsDownloadModeSegmentsOnly => 'Segments only';
+  String get settingsDownloadModeSegmentsOnly => 'segment only';
 
   @override
   String get settingsDownloadModeManual => 'Manual';
 
   @override
-  String get settingsThreadsTitle => 'Threads';
+  String get settingsThreadsTitle => 'Number of threads';
 
   @override
   String get settingsThreadsSubtitle => 'Number of download threads';
 
   @override
-  String get settingsSegmentsTitle => 'Segments';
+  String get settingsSegmentsTitle => 'Number of segments';
 
   @override
-  String get settingsSegmentsSubtitle => 'Number of segments per download';
+  String get settingsSegmentsSubtitle => 'Number of segments per task';
 
   @override
-  String get settingsDynamicSegmentsTitle => 'Dynamic segments';
+  String get settingsDynamicSegmentsTitle => 'dynamic segmentation';
 
   @override
   String get settingsDynamicSegmentsSubtitle =>
-      'Adjust segments based on file size';
+      'Automatically adjust segments based on file size';
 
   @override
-  String get settingsDynamicSegmentsEnabledTitle => 'Dynamic segments enabled';
+  String get settingsDynamicSegmentsEnabledTitle =>
+      'Dynamic segmentation is on';
 
   @override
   String get settingsDynamicSegmentsEnabledMessage =>
-      'Segments will adjust automatically';
+      'The number of segments will automatically adjust';
 
   @override
   String get settingsDynamicSegmentsDisabledTitle =>
-      'Dynamic segments disabled';
+      'Dynamic segmentation is turned off';
 
   @override
   String get settingsDynamicSegmentsDisabledMessage =>
-      'Segments will stay fixed';
+      'The number of segments will remain fixed';
 
   @override
-  String get settingsMaxConcurrentTitle => 'Max concurrent tasks';
+  String get settingsMaxConcurrentTitle =>
+      'Maximum number of simultaneous download tasks';
 
   @override
-  String get settingsMaxConcurrentSubtitle => 'Limit concurrent downloads';
+  String get settingsMaxConcurrentSubtitle =>
+      'Limit the number of concurrent download tasks';
 
   @override
-  String get settingsSegmentSpeedLimitTitle => 'Per-segment speed limit';
+  String get settingsSegmentSpeedLimitTitle => 'Sectional speed limit';
 
   @override
-  String get settingsSegmentSpeedLimitSubtitle => 'Limit speed per segment';
+  String get settingsSegmentSpeedLimitSubtitle => 'Limit single segment speed';
 
   @override
-  String get settingsGlobalSpeedLimitTitle => 'Global speed limit';
+  String get settingsGlobalSpeedLimitTitle => 'global speed limit';
 
   @override
   String get settingsGlobalSpeedLimitSubtitle =>
@@ -654,10 +718,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsHttpVersionSubtitle =>
-      'Choose protocol strategy for HTTPS downloads';
+      'Select a protocol policy for HTTPS downloads';
 
   @override
-  String get settingsHttpVersionAuto => 'Auto (prefer HTTP/1.1)';
+  String get settingsHttpVersionAuto => 'Automatic (HTTP/1.1 preferred)';
 
   @override
   String get settingsHttpVersionHttp1Only => 'Force HTTP/1.1';
@@ -666,10 +730,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsHttpVersionHttp2Only => 'Force HTTP/2';
 
   @override
-  String get settingsHttpVersionHttp3Only => 'Force HTTP/3 (fallback)';
+  String get settingsHttpVersionHttp3Only =>
+      'Force HTTP/3 (automatic fallback)';
 
   @override
-  String get settingsDownloadCardHttpBadgeTitle => 'Card protocol badges';
+  String get settingsDownloadCardHttpBadgeTitle =>
+      'Download Card Agreement Logo';
 
   @override
   String get settingsDownloadCardHttpBadgeSubtitle =>
@@ -680,21 +746,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsDefaultUserAgentSubtitle =>
-      'Used when a task does not provide User-Agent';
+      'Used when the task does not provide User-Agent';
 
   @override
-  String get settingsDefaultUserAgentPlaceholder => 'Enter default User-Agent';
+  String get settingsDefaultUserAgentPlaceholder =>
+      'Enter the default User-Agent';
 
   @override
-  String get settingsUaPresetTitle => 'User-Agent presets';
+  String get settingsUaPresetTitle => 'User-Agent default';
 
   @override
   String get settingsUaPresetSubtitle =>
-      'Quickly switch browser disguise, manual input, or custom UA packs';
+      'Quickly switch between browser cloaking, manual input or custom UA packages';
 
   @override
   String get settingsUaPresetManualOption =>
-      'Manual input (keep current value)';
+      'Manual entry (keep current value)';
 
   @override
   String settingsUaPresetBuiltinOption(Object name) {
@@ -707,62 +774,62 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get settingsUaCustomCreateTitle => 'Create custom UA pack';
+  String get settingsUaCustomCreateTitle => 'Create a custom UA package';
 
   @override
-  String get settingsUaCustomCreateSubtitle => 'Save once and switch anytime';
+  String get settingsUaCustomCreateSubtitle =>
+      'You can switch to use it at any time after saving.';
 
   @override
-  String get settingsUaCustomNamePlaceholder => 'Name';
+  String get settingsUaCustomNamePlaceholder => 'name';
 
   @override
   String get settingsUaCustomValuePlaceholder => 'User-Agent string';
 
   @override
-  String get settingsUaCustomAddButton => 'Add';
+  String get settingsUaCustomAddButton => 'Add to';
 
   @override
-  String get settingsUaCustomListTitle => 'Custom UA packs';
+  String get settingsUaCustomListTitle => 'Custom UA package';
 
   @override
-  String get settingsUaCustomListEmpty => 'No custom UA packs yet';
+  String get settingsUaCustomListEmpty => 'No custom UA package yet';
 
   @override
   String settingsUaCustomListCount(Object count) {
-    return '$count packs, can apply or delete';
+    return 'Total $count, can be applied or deleted';
   }
 
   @override
-  String get settingsUaCustomListHint =>
-      'Create one custom UA pack above first';
+  String get settingsUaCustomListHint => 'First create a UA package above';
 
   @override
   String get settingsUaCustomEnabledButton => 'Enabled';
 
   @override
-  String get settingsUaCustomApplyButton => 'Apply';
+  String get settingsUaCustomApplyButton => 'application';
 
   @override
-  String get settingsSpeedUnlimited => 'Unlimited';
+  String get settingsSpeedUnlimited => 'no speed limit';
 
   @override
   String settingsSpeedTotal(Object speed) {
-    return 'Total $speed KB/s';
+    return 'Total: $speed KB/s';
   }
 
   @override
   String settingsPopupSaveFailedMessage(Object error) {
-    return 'Failed to save: $error';
+    return 'Unable to save popup settings: $error';
   }
 
   @override
-  String get settingsProxySection => 'Proxy';
+  String get settingsProxySection => 'proxy settings';
 
   @override
-  String get settingsProxyEnableTitle => 'Enable proxy';
+  String get settingsProxyEnableTitle => 'Use a proxy';
 
   @override
-  String get settingsProxyEnableSubtitle => 'Use proxy for downloads';
+  String get settingsProxyEnableSubtitle => 'Enable proxy for downloads';
 
   @override
   String get settingsProxySavedTitle => 'Proxy settings saved';
@@ -777,16 +844,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'Proxy enabled: follow system settings';
 
   @override
-  String get settingsProxyDisabledMessage => 'Proxy disabled';
+  String get settingsProxyDisabledMessage => 'proxy disabled';
 
   @override
-  String get settingsProxyTypeTitle => 'Proxy type';
+  String get settingsProxyTypeTitle => 'Agent type';
 
   @override
-  String get settingsProxyTypeSubtitle => 'Choose proxy protocol';
+  String get settingsProxyTypeSubtitle => 'Select agency agreement';
 
   @override
-  String get settingsProxyTypeSystem => 'System';
+  String get settingsProxyTypeSystem => 'system agent';
 
   @override
   String get settingsProxyTypeHttp => 'HTTP';
@@ -795,87 +862,94 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsProxyTypeSocks5 => 'SOCKS5';
 
   @override
-  String get settingsProxyServerTitle => 'Proxy server';
+  String get settingsProxyServerTitle => 'proxy server';
 
   @override
   String get settingsProxyServerSubtitle => 'Server address and port';
 
   @override
-  String get settingsProxyHostPlaceholder => 'Host';
+  String get settingsProxyHostPlaceholder => 'Proxy address (eg: 127.0.0.1)';
 
   @override
-  String get settingsProxyAuthTitle => 'Authentication';
+  String get settingsProxyAuthTitle => 'Agency certification';
 
   @override
-  String get settingsProxyAuthSubtitle => 'Requires username/password';
+  String get settingsProxyAuthSubtitle => 'Username and password required';
 
   @override
-  String get settingsProxyUsernameTitle => 'Username';
+  String get settingsProxyUsernameTitle => 'username';
 
   @override
-  String get settingsProxyUsernameSubtitle => 'Proxy account username';
+  String get settingsProxyUsernameSubtitle => 'Agent account username';
 
   @override
-  String get settingsProxyUsernamePlaceholder => 'Enter username';
+  String get settingsProxyUsernamePlaceholder => 'username';
 
   @override
-  String get settingsProxyPasswordTitle => 'Password';
+  String get settingsProxyPasswordTitle => 'password';
 
   @override
-  String get settingsProxyPasswordSubtitle => 'Proxy account password';
+  String get settingsProxyPasswordSubtitle => 'Agent account password';
 
   @override
-  String get settingsProxyPasswordPlaceholder => 'Enter password';
+  String get settingsProxyPasswordPlaceholder => 'password';
 
   @override
-  String get settingsProxyTipsTitle => 'Proxy tips';
+  String get settingsProxyTipsTitle => 'Agent configuration tips';
 
   @override
-  String get settingsProxyTipsSystem => 'Use system proxy settings';
+  String get settingsProxyTipsSystem =>
+      '• Automatically uses system configured proxy settings \n • Supports Windows, macOS and Linux system proxies \n • Once configured will be applied to all new download tasks \n • In-progress downloads will not be affected';
 
   @override
-  String get settingsProxyTipsHttp => 'HTTP proxy format: host:port';
+  String get settingsProxyTipsHttp =>
+      '• Use HTTP/HTTPS proxy protocol \n • Once configured, it will be applied to all new download tasks \n • Ongoing downloads will not be affected \n • Support username and password authentication';
 
   @override
-  String get settingsProxyTipsSocks5 => 'SOCKS5 proxy format: host:port';
+  String get settingsProxyTipsSocks5 =>
+      '• Uses SOCKS5 proxy protocol \n • Requires installation of aiohttp-socks library support \n • Once configured will be applied to all new download tasks \n • Ongoing downloads will not be affected';
 
   @override
-  String get settingsProxyTipsDefault => 'Configure your proxy settings';
+  String get settingsProxyTipsDefault =>
+      '• Supports system proxies, HTTP/HTTPS and SOCKS5 proxies \n • Once configured will be applied to all new download tasks \n • In-progress downloads will not be affected';
 
   @override
-  String get settingsProxyTestButton => 'Test proxy';
+  String get settingsProxyTestButton => 'test connection';
 
   @override
-  String get settingsProxyTestingTitle => 'Testing proxy...';
+  String get settingsProxyTestingTitle => 'Testing...';
 
   @override
   String get settingsProxyTestingMessage => 'Please wait';
 
   @override
-  String get settingsProxyTestSuccessTitle => 'Proxy works';
+  String get settingsProxyTestSuccessTitle => 'Connection successful';
 
   @override
-  String get settingsProxyTestSuccessMessage => 'Proxy connection successful';
+  String get settingsProxyTestSuccessMessage =>
+      'The proxy server connection is normal and can be used normally.';
 
   @override
-  String get settingsProxyTestFailedTitle => 'Proxy failed';
+  String get settingsProxyTestFailedTitle => 'Connection failed';
 
   @override
-  String get settingsProxyTestFailedMessage => 'Could not connect to proxy';
+  String get settingsProxyTestFailedMessage =>
+      'Unable to connect to proxy server, please check configuration';
 
   @override
-  String get settingsProxyTestErrorTitle => 'Proxy error';
+  String get settingsProxyTestErrorTitle => 'test failed';
 
   @override
   String settingsProxyTestErrorMessage(Object error) {
-    return 'Test failed: $error';
+    return 'Agent connection test failed: $error';
   }
 
   @override
-  String get settingsProxyErrorTitle => 'Proxy config error';
+  String get settingsProxyErrorTitle => 'Configuration error';
 
   @override
-  String get settingsProxyErrorMessage => 'Please enter a proxy host';
+  String get settingsProxyErrorMessage =>
+      'Please enter the proxy server address first';
 
   @override
   String get settingsKernelSection => 'Download kernel';
@@ -884,35 +958,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsKernelCurrentTitle => 'Current kernel';
 
   @override
-  String get settingsKernelOnline => 'Online';
+  String get settingsKernelOnline => 'online';
 
   @override
   String get settingsKernelOffline => 'Offline';
 
   @override
-  String get settingsKernelNsfxTitle => 'Use NSFX kernel';
+  String get settingsKernelNsfxTitle => 'NSFX';
 
   @override
-  String get settingsKernelNsfxSubtitle => 'Switch to the new kernel';
+  String get settingsKernelNsfxSubtitle => 'Switch to new kernel';
 
   @override
   String get settingsKernelNsfxHint =>
-      'NSFX provides better performance and stability';
+      'NSFX Kernel: Efficient | Simple | New ideas';
 
   @override
   String get settingsKernelSwitchedTitle => 'Kernel switched';
 
   @override
   String settingsKernelSwitchedMessage(Object kernelName) {
-    return 'Now using $kernelName';
+    return 'Currently using: $kernelName';
   }
 
   @override
-  String get settingsKernelSwitchFailedTitle => 'Kernel switch failed';
+  String get settingsKernelSwitchFailedTitle => 'Switch failed';
 
   @override
   String get settingsKernelSwitchFailedNewMessage =>
-      'Failed to start new kernel';
+      'Unable to start new kernel, please try again later';
 
   @override
   String get settingsStatusTitle => 'System status';
@@ -921,21 +995,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsStatusKernelNsfx => 'NSFX Kernel';
 
   @override
-  String get settingsStatusBrowserExtension => 'Browser extension';
+  String get settingsStatusBrowserExtension => 'Browser Extension';
 
   @override
   String get settingsModeDescriptionAuto =>
-      'Automatically balance threads and segments';
+      'Intelligent dynamic segmentation, automatic optimization based on file size (recommended)';
 
   @override
-  String get settingsModeDescriptionThreadsOnly => 'Use threads only';
+  String get settingsModeDescriptionThreadsOnly =>
+      'Manually set the number of threads and automatically calculate the number of segments';
 
   @override
-  String get settingsModeDescriptionSegmentsOnly => 'Use segments only';
+  String get settingsModeDescriptionSegmentsOnly =>
+      'Manually set the number of segments and automatically calculate the number of threads';
 
   @override
   String get settingsModeDescriptionManual =>
-      'Manually control threads and segments';
+      'Full manual control for advanced users';
 
   @override
   String get settingsModeDescriptionUnknown => 'Unknown mode';
@@ -952,64 +1028,67 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsDeveloperModeHint =>
-      'Developer features are for debugging only';
+      'Developer mode is enabled, please switch to the \"Developer\" tab for detailed configuration';
 
   @override
-  String get settingsDeveloperModeEnabledTitle => 'Developer mode enabled';
+  String get settingsDeveloperModeEnabledTitle => 'Developer mode is on';
 
   @override
   String get settingsDeveloperModeEnabledMessage =>
-      'Advanced debugging is enabled';
+      'Advanced debugging enabled';
 
   @override
-  String get settingsDeveloperModeDisabledTitle => 'Developer mode disabled';
+  String get settingsDeveloperModeDisabledTitle =>
+      'Developer mode is turned off';
 
   @override
   String get settingsDeveloperModeDisabledMessage =>
-      'Advanced debugging is disabled';
+      'Advanced debugging features disabled';
 
   @override
-  String get settingsDeveloperPageVisibilityTitle => 'Debug page visibility';
+  String get settingsDeveloperPageVisibilityTitle =>
+      'Debug page display settings';
 
   @override
   String get settingsDeveloperShowLogTitle => 'Show log page';
 
   @override
   String get settingsDeveloperShowLogSubtitle =>
-      'Show log viewer in navigation';
+      'Show log viewer in navigation bar';
 
   @override
   String get settingsDeveloperShowStatusTitle => 'Show status page';
 
   @override
   String get settingsDeveloperShowStatusSubtitle =>
-      'Show system status in navigation';
+      'Display system status monitoring in the navigation bar';
 
   @override
-  String get settingsDeveloperShowOnlineStatsTitle => 'Show online stats page';
+  String get settingsDeveloperShowOnlineStatsTitle =>
+      'Show online statistics page';
 
   @override
   String get settingsDeveloperShowOnlineStatsSubtitle =>
-      'Show online stats in navigation';
+      'Display online user statistics in the navigation bar';
 
   @override
   String get settingsDeveloperShowConnectionDebugTitle =>
-      'Show connection debug page';
+      'Show connection debugging page';
 
   @override
   String get settingsDeveloperShowConnectionDebugSubtitle =>
-      'Show connection diagnostics in navigation';
+      'Show connection diagnostic tool in navigation bar';
 
   @override
   String get settingsDeveloperPageHint =>
-      'Debug pages may consume resources; enable only when needed';
+      'The debugging page will occupy system resources. It is recommended to enable it only when needed.';
 
   @override
   String get settingsDangerCleanTempTitle => 'Clean temporary files';
 
   @override
   String get settingsDangerCleanTempSubtitle =>
-      'Scan and delete .temp files in the download folder';
+      'Scan and delete temporary .temp files in the download directory';
 
   @override
   String get settingsDangerCleanTempButton => 'Clean temporary files';
@@ -1022,17 +1101,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Delete all download tasks and history';
 
   @override
-  String get settingsDangerClearDataButton => 'Clear data';
+  String get settingsDangerClearDataButton => 'clear data';
 
   @override
   String get settingsDangerConfirmTitle => 'Confirm clear';
 
   @override
   String get settingsDangerConfirmMessage =>
-      'Clear all download tasks and history? This cannot be undone.';
+      'Are you sure you want to clear all download tasks and history? This operation is irreversible.';
 
   @override
-  String get settingsDangerConfirmButton => 'Confirm';
+  String get settingsDangerConfirmButton => 'Confirm clear';
 
   @override
   String get settingsDangerClearingTitle => 'Clearing...';
@@ -1041,37 +1120,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsDangerClearingMessage => 'Please wait';
 
   @override
-  String get settingsDangerClearedTitle => 'Cleared';
+  String get settingsDangerClearedTitle => 'cleared';
 
   @override
   String get settingsDangerClearedMessage =>
-      'All download tasks and history have been cleared';
+      'All download tasks and history cleared';
 
   @override
   String get settingsDangerClearFailedTitle => 'Clear failed';
 
   @override
   String get settingsDangerClearFailedMessage =>
-      'Unable to clear data. Make sure the download kernel is running.';
+      'Unable to clear data, please ensure download core is running';
 
   @override
-  String get settingsUserLoading => 'Loading...';
+  String get settingsUserLoading => 'Getting...';
 
   @override
-  String get settingsUserLoadFailed => 'Failed to load';
+  String get settingsUserLoadFailed => 'Failed to obtain';
 
   @override
-  String get settingsUserUnknown => 'Unknown';
+  String get settingsUserUnknown => 'unknown user';
 
   @override
-  String get appearanceWindowSizeSection => 'Window size';
+  String get appearanceWindowSizeSection => 'window size';
 
   @override
-  String get appearanceWindowRememberTitle => 'Remember window size';
+  String get appearanceWindowRememberTitle => 'memory window size';
 
   @override
   String get appearanceWindowRememberSubtitleOn =>
-      'Use last window size on startup';
+      'Start using the last window size when it was closed';
 
   @override
   String get appearanceWindowRememberSubtitleOff =>
@@ -1082,7 +1161,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String appearanceWindowDefaultWidthSubtitle(Object max) {
-    return 'Default width on startup (600-$max)';
+    return 'Start default width (600-$max)';
   }
 
   @override
@@ -1090,20 +1169,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String appearanceWindowDefaultHeightSubtitle(Object max) {
-    return 'Default height on startup (400-$max)';
+    return 'Start default height (400-$max)';
   }
 
   @override
-  String get appearanceWindowSaveTitle => 'Saved';
+  String get appearanceWindowSaveTitle => 'saved';
 
   @override
   String appearanceWindowSaveMessage(Object width, Object height) {
-    return 'Current window size set as default ($width?$height)';
+    return 'Current window size has been set to default ($width×$height)';
   }
 
   @override
   String appearanceWindowSaveButton(Object width, Object height) {
-    return 'Use current size ($width?$height)';
+    return 'Use current size ($width×$height)';
   }
 
   @override
@@ -1111,47 +1190,48 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get appearanceWindowResetMessage =>
-      'Default window size reset to 889?586';
+      'Default window size reset to 889×586';
 
   @override
-  String get appearanceWindowResetButton => 'Reset to default';
+  String get appearanceWindowResetButton => 'reset to default';
 
   @override
   String get appearanceWindowApplyTitle => 'Applied';
 
   @override
   String appearanceWindowApplyMessage(Object width, Object height) {
-    return 'Window size adjusted to $width?$height';
+    return 'Window resized to $width×$height';
   }
 
   @override
   String appearanceWindowApplyButton(Object width, Object height) {
-    return 'Apply default size ($width?$height)';
+    return 'Apply the default size immediately ($width×$height)';
   }
 
   @override
   String get appearanceWindowRememberHintOn =>
-      'Remember mode is enabled; the app will restore last window size';
+      'Memory mode is currently enabled, the app will remember the window size when it was last closed';
 
   @override
   String get appearanceWindowRememberHintOff =>
-      'Default size mode is enabled; the app will use the configured size';
+      'Default size mode is enabled, the app will use the set dimensions';
 
   @override
-  String get appearanceUiScaleSection => 'UI scale';
+  String get appearanceUiScaleSection => 'UI scaling';
 
   @override
-  String get appearanceUiScaleTitle => 'Interface scale';
+  String get appearanceUiScaleTitle => 'Interface scaling';
 
   @override
   String get appearanceUiScaleSubtitle =>
-      'Adjust UI scale for high-DPI screens (50%-200%)';
+      'Adjust high-resolution screen UI scaling (50%-200%)';
 
   @override
   String get appearanceUiScaleResetTitle => 'Reset';
 
   @override
-  String get appearanceUiScaleResetMessage => 'UI scale reset to 100%';
+  String get appearanceUiScaleResetMessage =>
+      'UI scaling has been reset to 100%';
 
   @override
   String get appearanceUiScaleResetButton => 'Reset to 100%';
@@ -1161,20 +1241,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get appearanceUiScaleApplyMessage =>
-      'UI scale set to 125% (recommended for 4K)';
+      'UI scaling set to 125% (4K recommended)';
 
   @override
   String get appearanceUiScale4kButton => '4K recommended (125%)';
 
   @override
   String get appearanceUiScaleHint =>
-      'Adjusting this helps on high-DPI screens. 4K recommended 125%-150%.';
+      'Adjust this setting to make your app appear clearer on high-resolution screens. 4K screen recommended 125%-150%';
 
   @override
-  String get appearanceFontSection => 'Font';
+  String get appearanceFontSection => 'font';
 
   @override
-  String get appearanceFontTitle => 'App font';
+  String get appearanceFontTitle => 'Apply font';
 
   @override
   String get appearanceFontSystemSubtitle => 'Use system default font';
@@ -1185,28 +1265,29 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get appearanceFontSystemLabel => 'System default';
+  String get appearanceFontSystemLabel => 'system';
 
   @override
-  String get appearanceFontImportButton => 'Import font';
+  String get appearanceFontImportButton => 'Import fonts';
 
   @override
   String get appearanceFontDeleteButton => 'Delete current font';
 
   @override
-  String get appearanceFontHint => 'Supports .ttf and .otf font files';
+  String get appearanceFontHint =>
+      'Supports importing font files in .ttf and .otf formats';
 
   @override
   String get appearanceFontChangedTitle => 'Font changed';
 
   @override
-  String get appearanceFontChangedMessage => 'The new font has been applied';
+  String get appearanceFontChangedMessage => 'Font has been applied';
 
   @override
   String get appearanceFontImportDialogTitle => 'Select font file';
 
   @override
-  String get appearanceFontImportingTitle => 'Importing font...';
+  String get appearanceFontImportingTitle => 'Importing fonts...';
 
   @override
   String get appearanceFontImportingMessage => 'Please wait';
@@ -1222,7 +1303,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get appearanceFontImportFailedMessage =>
-      'Unable to import font file, please check format';
+      'Unable to import font file, please check the format';
 
   @override
   String appearanceFontImportFailedWithErrorMessage(Object error) {
@@ -1234,20 +1315,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String appearanceFontDeleteConfirmMessage(Object fontName) {
-    return 'Delete font \"$fontName\"?';
+    return 'Are you sure you want to delete the font \"$fontName\"?';
   }
 
   @override
   String get appearanceFontDeleteCancelButton => 'Cancel';
 
   @override
-  String get appearanceFontDeleteConfirmButton => 'Delete';
+  String get appearanceFontDeleteConfirmButton => 'delete';
 
   @override
-  String get appearanceFontDeleteSuccessTitle => 'Deleted';
+  String get appearanceFontDeleteSuccessTitle => 'Delete successfully';
 
   @override
-  String get appearanceFontDeleteSuccessMessage => 'Font deleted';
+  String get appearanceFontDeleteSuccessMessage => 'Font removed';
 
   @override
   String get appearanceFontDeleteFailedTitle => 'Delete failed';
@@ -1256,30 +1337,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appearanceFontDeleteFailedMessage => 'Unable to delete font';
 
   @override
-  String get appearanceFontPickerTitle => 'Choose font';
+  String get appearanceFontPickerTitle => 'Select font';
 
   @override
   String get appearanceFontPickerSearchPlaceholder => 'Search fonts...';
 
   @override
   String appearanceFontPickerCount(Object count) {
-    return '$count fonts';
+    return 'Total $count fonts';
   }
 
   @override
   String get appearanceFontPickerFilteredLabel => '(filtered)';
 
   @override
-  String get appearanceFontPickerEmpty => 'No matching fonts found';
+  String get appearanceFontPickerEmpty => 'No matching font found';
 
   @override
-  String get appearanceFontPickerRecommended => 'Recommended';
+  String get appearanceFontPickerRecommended => 'recommend';
 
   @override
   String get appearanceFontPickerCancel => 'Cancel';
 
   @override
-  String get appearanceWindowEffectsSection => 'Window effects';
+  String get appearanceWindowEffectsSection => 'window effect';
 
   @override
   String get appearanceWindowEffectsEnableTitle => 'Enable window effects';
@@ -1289,49 +1370,53 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get appearanceWindowEffectsDisabledSubtitle =>
-      'Window effects disabled (performance mode)';
+      'Window effects are turned off (performance mode)';
 
   @override
-  String get appearanceWindowEffectsEnabledTitle => 'Window effects enabled';
+  String get appearanceWindowEffectsEnabledTitle =>
+      'Window effects are enabled';
 
   @override
-  String get appearanceWindowEffectsDisabledTitle => 'Window effects disabled';
+  String get appearanceWindowEffectsDisabledTitle =>
+      'Window effects are turned off';
 
   @override
-  String get appearanceWindowEffectsEnabledMessage => 'Window effects are on';
+  String get appearanceWindowEffectsEnabledMessage => 'Window effect is on';
 
   @override
   String get appearanceWindowEffectsDisabledMessage =>
-      'Switched to solid background for performance';
+      'Switched to solid color background to improve performance';
 
   @override
   String get appearanceWindowEffectsTypeTitle => 'Effect type';
 
   @override
-  String get appearanceWindowEffectSwitchedTitle => 'Effect switched';
+  String get appearanceWindowEffectSwitchedTitle =>
+      'The effect has been switched';
 
   @override
   String get appearanceWindowEffectAcrylic => 'Acrylic';
 
   @override
-  String get appearanceWindowEffectBlur => 'Blur';
+  String get appearanceWindowEffectBlur => 'Vague';
 
   @override
-  String get appearanceWindowEffectMica => 'Mica';
+  String get appearanceWindowEffectMica => 'mica_main';
 
   @override
   String get appearanceWindowEffectMicaAlt => 'Mica Alt';
 
   @override
-  String get appearanceWindowEffectsAcrylicOpacityTitle => 'Acrylic opacity';
+  String get appearanceWindowEffectsAcrylicOpacityTitle =>
+      'Acrylic transparency';
 
   @override
   String get appearanceWindowEffectsAcrylicOpacityHint =>
-      'Adjust background opacity (0-255, lower is more transparent)';
+      'Adjust background opacity (0-255, the smaller the value, the more transparent)';
 
   @override
   String get appearanceWindowEffectsAcrylicOpacityMicaHint =>
-      'Mica does not support opacity adjustments';
+      'Mica effect does not support adjusting transparency';
 
   @override
   String get appearanceWindowEffectsDragSuspendTitle =>
@@ -1339,80 +1424,83 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get appearanceWindowEffectsDragSuspendEnabledSubtitle =>
-      'Temporarily disable effects while dragging for smoothness';
+      'Temporarily disable special effects when dragging the window to ensure smooth dragging';
 
   @override
   String get appearanceWindowEffectsDragSuspendDisabledSubtitle =>
-      'Keep effects while dragging (may lag on Win10)';
+      'Maintain special effects when dragging (Win10 may freeze)';
 
   @override
-  String get appearanceWindowEffectsRoundedCornersTitle => 'Rounded corners';
+  String get appearanceWindowEffectsRoundedCornersTitle =>
+      'window rounded corners';
 
   @override
   String get appearanceWindowEffectsRoundedCornersEnabledSubtitle =>
-      'Use rounded window clipping on Win10 and on Win11 Acrylic/Blur windows';
+      'Enable window rounded corner cropping (Win10 and Win11 Acrylic/Blur mode will use custom cropping)';
 
   @override
   String get appearanceWindowEffectsRoundedCornersDisabledSubtitle =>
-      'Use square window edges';
+      'Use right-angled window edges';
 
   @override
   String get appearanceWindowEffectsMicaHint =>
-      'Mica is only available on Windows 11 and follows system theme';
+      'The Mica effect is only available on Windows 11 and automatically adopts the system theme color';
 
   @override
   String get appearanceWindowEffectsAcrylicHint =>
-      'Acrylic uses extra GPU. Disable if it stutters.';
+      'Acrylic effects will consume additional GPU resources. If you feel stuck, you can turn off this option.';
 
   @override
   String get appearanceWindowEffectsDisabledHint =>
-      'Effects are off for best performance';
+      'Special effects turned off for best performance';
 
   @override
   String get appearanceEffectNone => 'No effect';
 
   @override
-  String get appearanceEffectBlur => 'Blur - simple background blur';
+  String get appearanceEffectBlur => 'Blur Effect - Simple background blur';
 
   @override
-  String get appearanceEffectAcrylic => 'Acrylic - translucent blur background';
+  String get appearanceEffectAcrylic =>
+      'Acrylic Effect - Semi-Transparent Blurred Background';
 
   @override
-  String get appearanceEffectMica => 'Mica - Windows 11 native effect';
+  String get appearanceEffectMica =>
+      'Mica Effect - Windows 11 native mica effect';
 
   @override
   String get appearanceEffectMicaAlt =>
-      'Mica Alt - Windows 11 transient effect';
+      'Mica Alt Effect - Windows 11 Temporary Window Mica Effect';
 
   @override
-  String get appearanceEffectUnknown => 'Unknown effect';
+  String get appearanceEffectUnknown => 'unknown effect';
 
   @override
-  String get appearanceSidebarSection => 'Sidebar';
+  String get appearanceSidebarSection => 'sidebar';
 
   @override
-  String get appearanceSidebarDefaultTitle => 'Default expanded';
+  String get appearanceSidebarDefaultTitle => 'Default expanded state';
 
   @override
   String get appearanceSidebarDefaultSubtitle =>
-      'Default sidebar state on startup';
+      'The default state of the sidebar at startup';
 
   @override
-  String get appearanceSidebarExpandedLabel => 'Expanded';
+  String get appearanceSidebarExpandedLabel => 'Expand';
 
   @override
-  String get appearanceSidebarCollapsedLabel => 'Collapsed';
+  String get appearanceSidebarCollapsedLabel => 'close';
 
   @override
-  String get appearanceSidebarSavedTitle => 'Saved';
+  String get appearanceSidebarSavedTitle => 'saved';
 
   @override
   String appearanceSidebarSavedMessage(Object state) {
-    return 'Sidebar default set to $state';
+    return 'The sidebar default state is set to $state';
   }
 
   @override
-  String get appearanceNotificationSection => 'Notifications';
+  String get appearanceNotificationSection => 'notify';
 
   @override
   String get appearanceNotificationEnableTitle => 'Enable notifications';
@@ -1422,28 +1510,29 @@ class AppLocalizationsEn extends AppLocalizations {
       'Show download completion and error notifications';
 
   @override
-  String get appearanceNotificationSchemeTitle => 'Color scheme';
+  String get appearanceNotificationSchemeTitle => 'color scheme';
 
   @override
-  String get appearanceNotificationSchemeSystem => 'Follow theme';
+  String get appearanceNotificationSchemeSystem => 'follow the topic';
 
   @override
-  String get appearanceNotificationSchemeLight => 'Light';
+  String get appearanceNotificationSchemeLight => 'light color';
 
   @override
-  String get appearanceNotificationSchemeDark => 'Dark';
+  String get appearanceNotificationSchemeDark => 'dark color';
 
   @override
-  String get appearanceNotificationSchemeFluent2 => 'Fluent 2 (Recommended)';
+  String get appearanceNotificationSchemeFluent2 =>
+      'Fluent 2 color series (recommended)';
 
   @override
-  String get appearanceNotificationSchemeUnknown => 'Unknown';
+  String get appearanceNotificationSchemeUnknown => 'unknown';
 
   @override
-  String get appearanceNotificationSchemeDefaultOption => 'Default';
+  String get appearanceNotificationSchemeDefaultOption => 'dark';
 
   @override
-  String get appearanceNotificationSchemeLightOption => 'Light';
+  String get appearanceNotificationSchemeLightOption => 'light color';
 
   @override
   String get appearanceNotificationSchemeDarkOption => 'Dark';
@@ -1452,48 +1541,49 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appearanceNotificationSchemeFluent2Option => 'Fluent 2';
 
   @override
-  String get appearanceNotificationPositionTitle => 'Position';
+  String get appearanceNotificationPositionTitle => 'show location';
 
   @override
   String get appearanceNotificationPositionTopRight =>
-      'Top right (below title bar)';
+      'Upper right corner (below the title bar)';
 
   @override
-  String get appearanceNotificationPositionBottomRight => 'Bottom right';
+  String get appearanceNotificationPositionBottomRight => 'lower right corner';
 
   @override
-  String get appearanceNotificationPositionUnknown => 'Unknown';
+  String get appearanceNotificationPositionUnknown => 'unknown';
 
   @override
-  String get appearanceNotificationPositionTopRightOption => 'Top right';
+  String get appearanceNotificationPositionTopRightOption =>
+      'upper right corner';
 
   @override
-  String get appearanceNotificationPositionBottomRightOption => 'Bottom right';
+  String get appearanceNotificationPositionBottomRightOption =>
+      'lower right corner';
 
   @override
-  String get appearanceNotificationPerformanceTitle => 'Render performance';
+  String get appearanceNotificationPerformanceTitle =>
+      'Rendering performance mode';
 
   @override
-  String get appearanceNotificationPerformanceOptionPerformance =>
-      'Performance';
+  String get appearanceNotificationPerformanceOptionPerformance => 'balanced';
 
   @override
-  String get appearanceNotificationPerformanceOptionBalanced => 'Balanced';
+  String get appearanceNotificationPerformanceOptionBalanced => 'balance';
 
   @override
-  String get appearanceNotificationPerformanceOptionQuality => 'Quality';
+  String get appearanceNotificationPerformanceOptionQuality => 'high quality';
 
   @override
   String get appearanceNotificationPerformanceHint =>
-      'Blur effects can impact smoothness. Choose Performance if stuttering.';
+      'The frosted glass effect will affect the smoothness of the animation. If you feel stuck, it is recommended to select \"Performance Priority\" mode';
 
   @override
-  String get appearanceNotificationPreviewButtonTitle =>
-      'Preview notifications';
+  String get appearanceNotificationPreviewButtonTitle => 'Preview notification';
 
   @override
   String get appearanceNotificationPreviewButtonSubtitle =>
-      'Click to preview current scheme';
+      'Click to preview the current color scheme';
 
   @override
   String get appearanceNotificationPreviewButton => 'Preview';
@@ -1502,438 +1592,450 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appearanceNotificationPreviewTitle => 'Color preview';
 
   @override
-  String get appearanceNotificationPreviewSuccessTitle => 'Success';
+  String get appearanceNotificationPreviewSuccessTitle =>
+      'Success notification';
 
   @override
   String get appearanceNotificationPreviewSuccessMessage =>
       'Operation completed successfully';
 
   @override
-  String get appearanceNotificationPreviewWarningTitle => 'Warning';
+  String get appearanceNotificationPreviewWarningTitle =>
+      'warning notification';
 
   @override
   String get appearanceNotificationPreviewWarningMessage =>
-      'Please note the impact of this action';
+      'Please note the impact of this operation';
 
   @override
-  String get appearanceNotificationPreviewErrorTitle => 'Error';
+  String get appearanceNotificationPreviewErrorTitle => 'Error notification';
 
   @override
   String get appearanceNotificationPreviewErrorMessage =>
-      'Operation failed, please retry';
+      'Operation failed, please try again';
 
   @override
-  String get appearanceNotificationPreviewInfoTitle => 'Info';
+  String get appearanceNotificationPreviewInfoTitle =>
+      'Information notification';
 
   @override
   String get appearanceNotificationPreviewInfoMessage =>
-      'This is an informational message';
+      'This is a prompt message';
 
   @override
   String get appearanceNotificationTestTitle => 'Test notification';
 
   @override
-  String get appearanceNotificationTestMessage =>
-      'This is a test notification message';
+  String get appearanceNotificationTestMessage => 'This is a test notification';
 
   @override
   String get appearancePerformanceModePerformance =>
-      'Performance (no blur, recommended)';
+      'Performance first (frost-free glass, recommended)';
 
   @override
-  String get appearancePerformanceModeBalanced => 'Balanced (light blur)';
+  String get appearancePerformanceModeBalanced =>
+      'Balanced (lightly frosted glass)';
 
   @override
-  String get appearancePerformanceModeQuality => 'Quality (full blur)';
+  String get appearancePerformanceModeQuality =>
+      'High quality (complete frosted glass effect)';
 
   @override
-  String get appearancePerformanceModeUnknown => 'Unknown';
+  String get appearancePerformanceModeUnknown => 'unknown';
 
   @override
-  String get appearanceSegmentsModeTitle => 'Segment progress display';
+  String get appearanceSegmentsModeTitle => 'Segmented progress display mode';
 
   @override
-  String get appearanceSegmentsModeNoneOption => 'Compact';
+  String get appearanceSegmentsModeNoneOption => 'merged';
 
   @override
-  String get appearanceSegmentsModeMergedOption => 'Merged bar';
+  String get appearanceSegmentsModeMergedOption => 'merge bar';
 
   @override
-  String get appearanceSegmentsModeListOption => 'Segment list';
+  String get appearanceSegmentsModeListOption => 'Segmented list';
 
   @override
   String get appearanceSegmentsModeNoneDescription =>
-      'Compact: hide segment details';
+      'Simple mode: do not display segmentation information';
 
   @override
   String get appearanceSegmentsModeMergedDescription =>
-      'Merged: show all segments in one bar';
+      'Merge mode: All segments are merged and displayed in a progress bar';
 
   @override
   String get appearanceSegmentsModeListDescription =>
-      'List: each segment in its own row';
+      'List mode: Each segment is displayed on a separate line';
 
   @override
   String get appearanceSegmentsDefaultExpandedTitle =>
-      'Expand segments by default';
+      'Expand segment information by default';
 
   @override
   String get appearanceSegmentsDefaultExpandedSubtitle =>
-      'Show segment details expanded by default';
+      'Expand to show segment details by default';
 
   @override
-  String get appearanceSegmentsMaxVisibleTitle => 'Default visible segments';
+  String get appearanceSegmentsMaxVisibleTitle =>
+      'The number of segments is displayed by default';
 
   @override
   String get appearanceSegmentsMaxVisibleSubtitle =>
-      'Number of segments shown when expanded (1-32)';
+      'Show number of segments when expanded (1-32)';
 
   @override
   String get appearanceDownloadListSection => 'Download list display';
 
   @override
-  String get appearanceSpeedChartTitle => 'Speed chart background';
+  String get appearanceSpeedChartTitle => 'speed curve background';
 
   @override
   String get appearanceSpeedChartSubtitle =>
-      'Show real-time speed curve on download cards';
+      'Display real-time speed curve on download card';
 
   @override
-  String get appearanceChartFrostTitle => 'Chart frosted glass';
+  String get appearanceChartFrostTitle => 'curved frosted glass';
 
   @override
   String get appearanceChartFrostSubtitle =>
-      'Apply frosted glass effect over the chart';
+      'Overlay a frosted glass effect above the curve';
 
   @override
-  String get appearanceChartPositionTitle => 'Chart position';
+  String get appearanceChartPositionTitle => 'Curve position';
 
   @override
   String get appearanceChartPositionSubtitle =>
-      'Adjust chart height within the card';
+      'Adjust the height of the curve in the card';
 
   @override
   String get appearanceChartPositionLow => 'Low';
 
   @override
-  String get appearanceChartPositionMid => 'Mid';
+  String get appearanceChartPositionMid => 'middle';
 
   @override
-  String get appearanceChartPositionHigh => 'High';
+  String get appearanceChartPositionHigh => 'high';
 
   @override
-  String get appearanceChartColorTitle => 'Chart color';
+  String get appearanceChartColorTitle => 'Curve color';
 
   @override
-  String get appearanceChartColorSubtitle => 'Customize speed chart line color';
+  String get appearanceChartColorSubtitle =>
+      'Customize the color of the speed curve';
 
   @override
-  String get appearanceChartColorBlue => 'Blue';
+  String get appearanceChartColorBlue => 'blue';
 
   @override
-  String get appearanceChartColorCyan => 'Cyan';
+  String get appearanceChartColorCyan => 'blue';
 
   @override
   String get appearanceChartColorPurple => 'Purple';
 
   @override
-  String get appearanceChartColorGreen => 'Green';
+  String get appearanceChartColorGreen => 'green';
 
   @override
-  String get appearanceChartColorPink => 'Pink';
+  String get appearanceChartColorPink => 'pink';
 
   @override
-  String get appearanceChartColorOrange => 'Orange';
+  String get appearanceChartColorOrange => 'orange color';
 
   @override
-  String get developerSectionDebugTools => 'Debug tools';
+  String get developerSectionDebugTools => 'Debugging tools';
 
   @override
-  String get developerSectionTestTools => 'Test tools';
+  String get developerSectionTestTools => 'testing tools';
 
   @override
-  String get developerModeEnabledSubtitle => 'Debug tools are enabled';
+  String get developerModeEnabledSubtitle => 'Debugging enabled';
 
   @override
-  String get developerModeDisabledSubtitle => 'Enable to access debug tools';
+  String get developerModeDisabledSubtitle =>
+      'Enables access to debugging tools';
 
   @override
   String get developerToolLogTitle => 'Log viewer';
 
   @override
-  String get developerToolLogSubtitle => 'View runtime logs';
+  String get developerToolLogSubtitle => 'View running log';
 
   @override
-  String get developerToolLogShownTitle => 'Log viewer shown';
+  String get developerToolLogShownTitle => 'Log viewer is shown';
 
   @override
-  String get developerToolLogShownMessage => 'Log page added to navigation';
+  String get developerToolLogShownMessage =>
+      'The log page has been displayed in the navigation bar';
 
   @override
-  String get developerToolLogHiddenTitle => 'Log viewer hidden';
+  String get developerToolLogHiddenTitle => 'Log page has been hidden';
 
   @override
   String get developerToolLogHiddenMessage =>
-      'Log page removed from navigation';
+      'Log page removed from navigation bar';
 
   @override
-  String get developerToolFullLogTitle => 'FULL LOG toggle';
+  String get developerToolFullLogTitle => 'FULL LOG switch';
 
   @override
   String get developerToolFullLogSubtitle =>
-      'Show the FULL LOG view toggle on the log page';
+      'Display FULL LOG view switch on log page';
 
   @override
-  String get developerToolFullLogShownTitle => 'FULL LOG toggle shown';
+  String get developerToolFullLogShownTitle => 'FULL LOG toggle is shown';
 
   @override
   String get developerToolFullLogShownMessage =>
-      'The FULL LOG view toggle is now visible on the log page';
+      'FULL LOG view switch has been displayed on the log page';
 
   @override
   String get developerToolFullLogHiddenTitle => 'FULL LOG toggle hidden';
 
   @override
   String get developerToolFullLogHiddenMessage =>
-      'The FULL LOG view toggle is now hidden on the log page';
+      'FULL LOG view switch has been hidden on the log page';
 
   @override
   String get developerToolStatusTitle => 'System status';
 
   @override
-  String get developerToolStatusSubtitle => 'Kernel & extension';
+  String get developerToolStatusSubtitle => 'Kernel and extension status';
 
   @override
-  String get developerToolStatusShownTitle => 'System status shown';
+  String get developerToolStatusShownTitle => 'System status is shown';
 
   @override
   String get developerToolStatusShownMessage =>
-      'Status page added to navigation';
+      'The status page is displayed in the navigation bar';
 
   @override
-  String get developerToolStatusHiddenTitle => 'System status hidden';
+  String get developerToolStatusHiddenTitle => 'System status is hidden';
 
   @override
   String get developerToolStatusHiddenMessage =>
-      'Status page removed from navigation';
+      'Status page removed from navigation bar';
 
   @override
-  String get developerToolOnlineStatsTitle => 'Online stats';
+  String get developerToolOnlineStatsTitle => 'Online statistics';
 
   @override
-  String get developerToolOnlineStatsSubtitle => 'User data';
+  String get developerToolOnlineStatsSubtitle => 'Online user data';
 
   @override
-  String get developerToolOnlineStatsShownTitle => 'Online stats shown';
+  String get developerToolOnlineStatsShownTitle =>
+      'Online statistics are shown';
 
   @override
   String get developerToolOnlineStatsShownMessage =>
-      'Online stats page added to navigation';
+      'The online statistics page has been displayed in the navigation bar';
 
   @override
-  String get developerToolOnlineStatsHiddenTitle => 'Online stats hidden';
+  String get developerToolOnlineStatsHiddenTitle =>
+      'Online statistics are hidden';
 
   @override
   String get developerToolOnlineStatsHiddenMessage =>
-      'Online stats page removed from navigation';
+      'The online statistics page has been removed from the navigation bar';
 
   @override
-  String get developerToolWebCheckTitle => 'Web check';
+  String get developerToolWebCheckTitle => 'Web detection';
 
   @override
   String get developerToolWebCheckSubtitle => 'Website diagnostics';
 
   @override
-  String get developerToolWebCheckShownTitle => 'Web check shown';
+  String get developerToolWebCheckShownTitle => 'Web detection shown';
 
   @override
   String get developerToolWebCheckShownMessage =>
-      'Web check page added to navigation';
+      'The Web detection page is displayed in the navigation bar';
 
   @override
-  String get developerToolWebCheckHiddenTitle => 'Web check hidden';
+  String get developerToolWebCheckHiddenTitle => 'Web detection is hidden';
 
   @override
   String get developerToolWebCheckHiddenMessage =>
-      'Web check page removed from navigation';
+      'Web detection page removed from navigation bar';
 
   @override
-  String get developerToolPerformanceTitle => 'Performance monitor';
+  String get developerToolPerformanceTitle => 'Performance monitoring';
 
   @override
-  String get developerToolPerformanceSubtitle => 'FPS & rendering';
+  String get developerToolPerformanceSubtitle => 'FPS and Rendering';
 
   @override
-  String get developerToolPerformanceShownTitle => 'Performance monitor shown';
+  String get developerToolPerformanceShownTitle =>
+      'Performance monitoring is shown';
 
   @override
   String get developerToolPerformanceShownMessage =>
-      'Performance monitor page added to navigation';
+      'The performance monitoring page has been displayed in the navigation bar';
 
   @override
   String get developerToolPerformanceHiddenTitle =>
-      'Performance monitor hidden';
+      'Performance monitoring is hidden';
 
   @override
   String get developerToolPerformanceHiddenMessage =>
-      'Performance monitor page removed from navigation';
+      'The performance monitoring page has been removed from the navigation bar';
 
   @override
-  String get developerToolConnectionDebugTitle => 'Connection debug';
+  String get developerToolConnectionDebugTitle => 'Connection debugging';
 
   @override
   String get developerToolConnectionDebugSubtitle =>
       'Network connectivity diagnostics';
 
   @override
-  String get developerToolConnectionDebugShownTitle => 'Connection debug shown';
+  String get developerToolConnectionDebugShownTitle =>
+      'Connection debugging is shown';
 
   @override
   String get developerToolConnectionDebugShownMessage =>
-      'Connection debug page added to navigation';
+      'The connection debugging page has been displayed in the navigation bar';
 
   @override
   String get developerToolConnectionDebugHiddenTitle =>
-      'Connection debug hidden';
+      'Connection debugging is hidden';
 
   @override
   String get developerToolConnectionDebugHiddenMessage =>
-      'Connection debug page removed from navigation';
+      'The connection debug page has been removed from the navigation bar';
 
   @override
-  String get connectionDebugTitle => 'Connection Debug';
+  String get connectionDebugTitle => 'Connection debugging';
 
   @override
-  String get connectionDebugTestTitle => 'Test Download Connection';
+  String get connectionDebugTestTitle => 'Test download connection';
 
   @override
   String get connectionDebugTestSubtitle =>
-      'Enter a download URL to test connectivity, proxy status, and transfer capability';
+      'Enter the download link to test the connectivity, proxy status, and transmission capabilities from the local machine to the server.';
 
   @override
   String get connectionDebugTesting => 'Testing...';
 
   @override
-  String get connectionDebugStartTest => 'Start Test';
+  String get connectionDebugStartTest => 'Start testing';
 
   @override
   String connectionDebugResults(int count) {
-    return 'Test Results ($count)';
+    return 'Test results ($count)';
   }
 
   @override
-  String get connectionDebugSuccess => 'Connected';
+  String get connectionDebugSuccess => 'Connection successful';
 
   @override
-  String get connectionDebugFailed => 'Connection Failed';
+  String get connectionDebugFailed => 'Connection failed';
 
   @override
-  String get connectionDebugLocalHost => 'Local';
+  String get connectionDebugLocalHost => 'local machine';
 
   @override
-  String get connectionDebugProxy => 'Proxy';
+  String get connectionDebugProxy => 'acting';
 
   @override
-  String get connectionDebugUnknown => 'Unknown';
+  String get connectionDebugUnknown => 'unknown';
 
   @override
-  String get connectionDebugReceived => 'Received';
+  String get connectionDebugReceived => 'take over';
 
   @override
-  String get connectionDebugFileSize => 'File Size';
+  String get connectionDebugFileSize => 'file size';
 
   @override
-  String get connectionDebugRangeSupported => 'Supported';
+  String get connectionDebugRangeSupported => 'support';
 
   @override
-  String get connectionDebugRangeNotSupported => 'Not Supported';
+  String get connectionDebugRangeNotSupported => 'Not supported';
 
   @override
-  String get connectionDebugStrategyTitle => 'Host Strategy Cache';
+  String get connectionDebugStrategyTitle => 'Site policy cache';
 
   @override
   String get connectionDebugStrategySubtitle =>
-      'Observe protocol downgrade and concurrency caps learned per host from previous download failures';
+      'Observe the protocol degradation and concurrency limit learned by each host due to historical download failures';
 
   @override
-  String get connectionDebugStrategyRefresh => 'Refresh';
+  String get connectionDebugStrategyRefresh => 'refresh';
 
   @override
-  String get connectionDebugStrategyClear => 'Clear Cache';
+  String get connectionDebugStrategyClear => 'Clear cache';
 
   @override
   String get connectionDebugStrategyEmpty =>
-      'No host strategy cache yet. Once a host triggers protocol fallback or concurrency throttling, it will appear here.';
+      'There is currently no site policy cache. Once a host triggers protocol rollback or concurrent convergence, it will appear here.';
 
   @override
   String connectionDebugStrategyCount(Object count) {
-    return '$count host strategy entries';
+    return 'Total $count site policies';
   }
 
   @override
-  String get connectionDebugStrategyPolicy => 'Policy';
+  String get connectionDebugStrategyPolicy => 'protocol';
 
   @override
-  String get connectionDebugStrategyConcurrency => 'Concurrency';
+  String get connectionDebugStrategyConcurrency => 'concurrent';
 
   @override
-  String get connectionDebugStrategyTtl => 'TTL';
+  String get connectionDebugStrategyTtl => 'time left';
 
   @override
-  String get connectionDebugStrategyExpired => 'expired';
+  String get connectionDebugStrategyExpired => 'Expired';
 
   @override
   String get developerTestNotificationTitle => 'Notification test';
 
   @override
-  String get developerTestNotificationTitlePlaceholder => 'Title';
+  String get developerTestNotificationTitlePlaceholder => 'title';
 
   @override
   String get developerTestNotificationMessagePlaceholder =>
-      'Message (optional)';
+      'Content (optional)';
 
   @override
-  String get developerTestNotificationTypeSuccess => 'Success';
+  String get developerTestNotificationTypeSuccess => 'success';
 
   @override
-  String get developerTestNotificationTypeWarning => 'Warning';
+  String get developerTestNotificationTypeWarning => 'warn';
 
   @override
-  String get developerTestNotificationTypeError => 'Error';
+  String get developerTestNotificationTypeError => 'mistake';
 
   @override
-  String get developerTestNotificationTypeInfo => 'Info';
+  String get developerTestNotificationTypeInfo => 'information';
 
   @override
   String get developerTestNotificationTitleRequired => 'Please enter a title';
 
   @override
-  String get developerTestPopupTitle => 'Popup test';
+  String get developerTestPopupTitle => 'Pop-up window test';
 
   @override
-  String get developerTestPopupButton => 'Test add-download dialog';
+  String get developerTestPopupButton => 'Test the new download box';
 
   @override
-  String get developerTestPopupTestingLabel => 'Testing...';
+  String get developerTestPopupTestingLabel => 'Under test';
 
   @override
   String get developerTestPopupHint =>
-      'This test brings the main window to the front and opens the add-download dialog';
+      'The current version will bring up the main window and display the new download dialog box';
 
   @override
   String developerTestPopupResultSuccess(Object time) {
-    return 'Success ? ${time}ms';
+    return 'Success · $time![';
   }
 
   @override
-  String get developerTestPopupResultFailed => 'Failed';
+  String get developerTestPopupResultFailed => 'fail';
 
   @override
   String get developerOpenL10nFolderTitle => 'Language pack folder';
 
   @override
   String get developerOpenL10nFolderSubtitle =>
-      'Open l10n folder in file manager';
+      'Open the l10n folder in a file manager';
 
   @override
   String get developerOpenL10nFolderSuccessTitle => 'Folder opened';
@@ -1943,57 +2045,58 @@ class AppLocalizationsEn extends AppLocalizations {
       'Language pack folder opened in file manager';
 
   @override
-  String get developerOpenL10nFolderFailedTitle => 'Failed to open';
+  String get developerOpenL10nFolderFailedTitle => 'Open failed';
 
   @override
   String developerOpenL10nFolderFailedMessage(Object error) {
-    return 'Could not open folder: $error';
+    return 'Unable to open folder: $error';
   }
 
   @override
   String get updateCurrentVersionTitle => 'Current version';
 
   @override
-  String get updateChangelogTitle => 'Changelog';
+  String get updateChangelogTitle => 'Change log';
 
   @override
   String get updateChangelogViewFullButton => 'View full changelog';
 
   @override
   String updateChangelogDialogTitle(Object version) {
-    return 'v$version Changelog';
+    return 'v$version update log';
   }
 
   @override
   String get updateCheckTitle => 'Check for updates';
 
   @override
-  String get updateStartButton => 'Start update';
+  String get updateStartButton => 'Start updating';
 
   @override
-  String get updateCheckAgainButton => 'Check again';
+  String get updateCheckAgainButton => 'recheck';
 
   @override
   String get updateCheckingStatus => 'Checking for updates...';
 
   @override
-  String get updateCheckFailedTitle => 'Update check failed';
+  String get updateCheckFailedTitle => 'Check for updates failed';
 
   @override
-  String get updateLatestTitle => 'You\'re up to date';
+  String get updateLatestTitle => 'Already the latest version';
 
   @override
-  String get updateLatestSubtitle => 'You are using the latest version';
+  String get updateLatestSubtitle => 'Currently the latest version';
 
   @override
-  String get updateInitialHint => 'Click \"Check again\" to look for updates';
+  String get updateInitialHint =>
+      'Click the \"Recheck\" button to check for the latest version';
 
   @override
-  String get updateUnreleasedTitle => 'Unreleased version';
+  String get updateUnreleasedTitle => 'unreleased version';
 
   @override
   String updateUnreleasedSubtitle(Object version) {
-    return 'Current version v$version | Version not found, possibly a special or dev build';
+    return 'Current version v$version | The current version number does not exist, maybe it is a special version or development version';
   }
 
   @override
@@ -2001,67 +2104,68 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get updateConfirmMessage =>
-      'A new version is ready. The app will close to install it.';
+      'The new version is ready. To ensure that the installation process can proceed normally, this application will be closed!';
 
   @override
   String updateConfirmDetails(Object newVersion, Object currentVersion,
       Object change, Object currentChannel, Object targetChannel) {
-    return 'New version: $newVersion\nCurrent version: $currentVersion\nChange: $change\nChannel: $currentChannel ? $targetChannel\nReady to update?';
+    return 'New version: $newVersion\\nCurrent version: $currentVersion\\nChange: $change\\nChannel: $currentChannel -> $targetChannel\\nReady to update?';
   }
 
   @override
   String get updateConfirmCancelButton => 'Cancel';
 
   @override
-  String get updateConfirmProceedButton => 'Update now';
+  String get updateConfirmProceedButton => 'Confirm update';
 
   @override
-  String get updateUnknownVersion => 'Unknown';
+  String get updateUnknownVersion => 'unknown';
 
   @override
-  String get updateUnknownChannel => 'Unknown';
+  String get updateUnknownChannel => 'unknown';
 
   @override
-  String get updateLauncherFailedTitle => 'Failed to launch updater';
+  String get updateLauncherFailedTitle => 'Failed to start updater';
 
   @override
   String get updateLauncherFailedMessage =>
-      'Unable to start Update.exe\nTroubleshooting:\n ?Check if Update.exe was removed or moved\n ?Ensure .NET 8 is installed\n ?Ensure the installer is intact\nIf still failing, download and install manually.';
+      'Unable to start Update.exe\\nTroubleshooting steps:\\n • Check whether Update.exe has been deleted or moved\\n • Confirm that .NET 8 is installed\\n • Confirm that the installation package is complete\\nIf it still fails, please download and install it manually.';
 
   @override
-  String get updateLauncherFailedCloseButton => 'Close';
+  String get updateLauncherFailedCloseButton => 'closure';
 
   @override
   String get updateLauncherFailedManualDownloadButton => 'Manual download';
 
   @override
-  String get updateAvailableTitle => 'Update available';
+  String get updateAvailableTitle => 'Discover updates';
 
   @override
-  String get updateAvailableChangelogTitle => 'What\'s new';
+  String get updateAvailableChangelogTitle => 'Update content';
 
   @override
   String get updateSettingsTitle => 'Update settings';
 
   @override
   String get updateDotNetMissingSubtitle =>
-      'Not installed - recommended for the updater';
+      'Not installed - recommended to use the automatic updater';
 
   @override
-  String get updateDotNetDownloadButton => 'Download';
+  String get updateDotNetDownloadButton => 'download';
 
   @override
-  String get updateDotNetInstalledSubtitle => 'Installed - updater available';
+  String get updateDotNetInstalledSubtitle => 'Installed - Updater available';
 
   @override
-  String get updateDotNetRecheckButton => 'Recheck';
+  String get updateDotNetRecheckButton => 'Retest';
 
   @override
-  String get updateDotNetRecommendTitle => 'Recommended: .NET 8';
+  String get updateDotNetRecommendTitle =>
+      'It is recommended to install .NET 8';
 
   @override
   String get updateDotNetRecommendSubtitle =>
-      'Install .NET 8 Desktop Runtime to enable auto updates';
+      'Automatically update using the updater after installing .NET 8 Desktop Runtime';
 
   @override
   String get updateDotNetRecommendButton => 'Download .NET 8';
@@ -2070,37 +2174,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get updateChannelTitle => 'Current channel';
 
   @override
-  String get updateChannelAlpha => 'Alpha (preview)';
+  String get updateChannelAlpha => 'Alpha (Preview)';
 
   @override
-  String get updateChannelBeta => 'Beta (public)';
+  String get updateChannelBeta => 'Beta (public beta version)';
 
   @override
-  String get updateChannelRelease => 'Release (stable)';
+  String get updateChannelRelease => 'Release (stable version)';
 
   @override
-  String get updateIntervalTitle => 'Auto check updates';
+  String get updateIntervalTitle => 'Automatically check for updates';
 
   @override
   String get updateIntervalSubtitle => 'Set how often to check for updates';
 
   @override
-  String get updateIntervalStartup => 'On startup only';
+  String get updateIntervalStartup => 'Only on startup';
 
   @override
-  String get updateIntervalHourly => 'Hourly';
+  String get updateIntervalHourly => 'per hour';
 
   @override
-  String get updateIntervalDaily => 'Daily';
+  String get updateIntervalDaily => 'every day';
 
   @override
-  String get updateIntervalWeekly => 'Weekly';
+  String get updateIntervalWeekly => 'weekly';
 
   @override
   String get updateIntervalNever => 'Never';
 
   @override
-  String get updateAllowBetaTitle => 'Receive Beta updates';
+  String get updateAllowBetaTitle => 'Receive beta updates';
 
   @override
   String get updateAllowBetaSubtitle => 'Allow receiving stable beta releases';
@@ -2110,15 +2214,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get updateAllowAlphaSubtitle =>
-      'Allow receiving the latest test builds (may be unstable)';
+      'Allow receiving the latest test build (may be unstable)';
 
   @override
   String updateLastCheckLabel(Object time) {
-    return 'Last checked: $time';
+    return 'Last check: $time';
   }
 
   @override
-  String get updateTimeJustNow => 'Just now';
+  String get updateTimeJustNow => 'just';
 
   @override
   String updateTimeMinutesAgo(Object minutes) {
@@ -2131,44 +2235,44 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get updateDialogCloseButton => 'Close';
+  String get updateDialogCloseButton => 'closure';
 
   @override
-  String get statusOnline => 'Online';
+  String get statusOnline => 'online';
 
   @override
   String get statusOffline => 'Offline';
 
   @override
-  String get settingsDangerZoneTitle => 'Danger Zone';
+  String get settingsDangerZoneTitle => 'Danger area';
 
   @override
   String get popupDownloadTitle => 'New download';
 
   @override
-  String get popupDownloadLinkLabel => 'Download URL';
+  String get popupDownloadLinkLabel => 'Download link';
 
   @override
-  String get popupDownloadLinkPlaceholder => 'HTTP/HTTPS URL';
+  String get popupDownloadLinkPlaceholder => 'HTTP/HTTPS link';
 
   @override
-  String get popupDownloadFileNameLabel => 'File name';
+  String get popupDownloadFileNameLabel => 'file name';
 
   @override
   String get popupDownloadFileNamePlaceholder => 'Save as filename';
 
   @override
-  String get popupDownloadSavePathLabel => 'Save to';
+  String get popupDownloadSavePathLabel => 'save to';
 
   @override
-  String get popupDownloadSavePathPlaceholder => 'Download folder';
+  String get popupDownloadSavePathPlaceholder => 'Download catalog';
 
   @override
-  String get popupDownloadAutoStart => 'Start download immediately';
+  String get popupDownloadAutoStart => 'Start downloading now';
 
   @override
   String get popupDownloadFeatureHint =>
-      'Supports multi-threading, resume, and speed limits';
+      'Supports multi-threading, breakpoint resume and speed limit';
 
   @override
   String get popupDownloadCancel => 'Cancel';
@@ -2177,14 +2281,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get popupDownloadAdding => 'Adding...';
 
   @override
-  String get popupDownloadStart => 'Start download';
+  String get popupDownloadStart => 'Start downloading';
 
   @override
-  String get popupDownloadErrorMissingInfo => 'Please fill in all fields';
+  String get popupDownloadErrorMissingInfo =>
+      'Please fill in complete information';
 
   @override
   String get popupDownloadErrorInvalidUrl =>
-      'Please enter a valid HTTP/HTTPS URL';
+      'Please enter a valid HTTP/HTTPS link';
 
   @override
   String popupDownloadErrorAddFailed(Object error) {
@@ -2192,23 +2297,127 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get popupDownloadErrorTitle => 'Error';
+  String get popupDownloadErrorTitle => 'mistake';
 
   @override
-  String get popupDownloadErrorConfirm => 'OK';
+  String get popupDownloadErrorConfirm => 'Sure';
 
   @override
   String get popupDownloadDefaultFileName => 'download';
+
+  @override
+  String get popupDownloadProgressTitle => 'Downloading';
+
+  @override
+  String get popupDownloadCompletedTitle => 'Download complete';
+
+  @override
+  String get popupDownloadProgressHint =>
+      'Live speed, remaining time and segment state stay visible here';
+
+  @override
+  String get popupDownloadCompletedHint =>
+      'The file is saved and ready to open from the file or its folder';
+
+  @override
+  String get popupDownloadStatusPending => 'Pending';
+
+  @override
+  String get popupDownloadStatusDownloading => 'Downloading';
+
+  @override
+  String get popupDownloadStatusPaused => 'Paused';
+
+  @override
+  String get popupDownloadStatusMerging => 'Verifying';
+
+  @override
+  String get popupDownloadStatusCompleted => 'Done';
+
+  @override
+  String get popupDownloadStatusFailed => 'Failed';
+
+  @override
+  String get popupDownloadStatusUnknown => 'Waiting';
+
+  @override
+  String get popupDownloadMetricProgress => 'Progress';
+
+  @override
+  String get popupDownloadMetricDownloaded => 'Downloaded';
+
+  @override
+  String get popupDownloadMetricTotalSize => 'Size';
+
+  @override
+  String get popupDownloadMetricSpeed => 'Speed';
+
+  @override
+  String get popupDownloadMetricEta => 'ETA';
+
+  @override
+  String get popupDownloadMetricSegments => 'Segments';
+
+  @override
+  String get popupDownloadMetricStatus => 'Status';
+
+  @override
+  String get popupDownloadMetricSaveTo => 'Saved to';
+
+  @override
+  String get popupDownloadMetricHost => 'Host';
+
+  @override
+  String get popupDownloadProgressLiveLabel => 'Live transfer';
+
+  @override
+  String get popupDownloadProgressSegmentTitle => 'Segment progress';
+
+  @override
+  String get popupDownloadProgressWaiting =>
+      'Preparing the connection and resolving file details';
+
+  @override
+  String get popupDownloadProgressCompletedMessage =>
+      'The download is complete and ready in the target folder';
+
+  @override
+  String get popupDownloadActionBackground => 'Run in background';
+
+  @override
+  String get popupDownloadActionPause => 'Pause';
+
+  @override
+  String get popupDownloadActionResume => 'Resume';
+
+  @override
+  String get popupDownloadActionOpenFile => 'Open file';
+
+  @override
+  String get popupDownloadActionOpenFolder => 'Open folder';
+
+  @override
+  String get popupDownloadActionClose => 'Close';
+
+  @override
+  String popupDownloadErrorOpenFileFailed(Object error) {
+    return 'Failed to open file: $error';
+  }
+
+  @override
+  String popupDownloadErrorOpenFolderFailed(Object error) {
+    return 'Failed to open folder: $error';
+  }
 
   @override
   String get addDownloadTitle => 'New download';
 
   @override
   String get addDownloadSubtitle =>
-      'Supports multi-threaded downloads and resume';
+      'Support multi-threaded downloads and breakpoint resume downloads';
 
   @override
-  String get addDownloadUrlLabel => 'Download URL';
+  String get addDownloadUrlLabel => 'Download link';
 
   @override
   String get addDownloadRequiredBadge => 'Required';
@@ -2217,44 +2426,44 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addDownloadUrlPlaceholder => 'https://example.com/file.zip';
 
   @override
-  String get addDownloadParsedFileNameTitle => 'Filename detected';
+  String get addDownloadParsedFileNameTitle => 'Parsed file name';
 
   @override
   String get addDownloadAdvancedToggle => 'Advanced options';
 
   @override
-  String get addDownloadAdvancedCollapsedHint => 'Custom filename';
+  String get addDownloadAdvancedCollapsedHint => 'Custom file name';
 
   @override
-  String get addDownloadAdvancedExpandedHint => 'Collapse';
+  String get addDownloadAdvancedExpandedHint => 'close';
 
   @override
-  String get addDownloadFileNameLabel => 'Custom filename';
+  String get addDownloadFileNameLabel => 'Custom file name';
 
   @override
   String get addDownloadOptionalBadge => 'Optional';
 
   @override
   String get addDownloadFileNamePlaceholder =>
-      'Leave blank to use detected name';
+      'Leave blank to use the resolved name';
 
   @override
   String get addDownloadFeatureTitle => 'Smart download features';
 
   @override
-  String get addDownloadFeature1Title => 'Multi-threaded segments';
+  String get addDownloadFeature1Title => 'Multi-threaded segmentation';
 
   @override
   String get addDownloadFeature1Desc => 'Maximize download speed';
 
   @override
-  String get addDownloadFeature2Title => 'Auto resume';
+  String get addDownloadFeature2Title => 'Automatically resume download';
 
   @override
-  String get addDownloadFeature2Desc => 'Recover after network interruption';
+  String get addDownloadFeature2Desc => 'Recovering after a network outage';
 
   @override
-  String get addDownloadFeature3Title => 'Dynamic segmentation';
+  String get addDownloadFeature3Title => 'dynamic segmentation';
 
   @override
   String get addDownloadFeature3Desc => 'Adaptive download strategy';
@@ -2266,14 +2475,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addDownloadAdding => 'Adding...';
 
   @override
-  String get addDownloadStart => 'Start download';
+  String get addDownloadStart => 'Start downloading';
 
   @override
-  String get addDownloadErrorMissingUrl => 'Please enter a download URL';
+  String get addDownloadErrorMissingUrl => 'Please enter download link';
 
   @override
   String get addDownloadErrorInvalidUrl =>
-      'Please enter a valid HTTP/HTTPS URL';
+      'Please enter a valid HTTP/HTTPS link';
 
   @override
   String addDownloadErrorAddFailed(Object error) {
@@ -2281,13 +2490,13 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get addDownloadErrorTitle => 'Error';
+  String get addDownloadErrorTitle => 'mistake';
 
   @override
-  String get addDownloadErrorConfirm => 'OK';
+  String get addDownloadErrorConfirm => 'Sure';
 
   @override
-  String get addDownloadSuccessTitle => 'Task added';
+  String get addDownloadSuccessTitle => 'Task has been added';
 
   @override
   String addDownloadSuccessMessage(Object fileName) {
@@ -2295,49 +2504,49 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get folderPickerErrorPathNotFound => 'Path not found';
+  String get folderPickerErrorPathNotFound => 'path does not exist';
 
   @override
   String get folderPickerErrorAccessDenied =>
-      'Unable to access this path (permission denied)';
+      'The path cannot be accessed (insufficient permissions)';
 
   @override
   String folderPickerErrorAccessFailed(Object error) {
-    return 'Unable to access this path: $error';
+    return 'The path cannot be accessed: $error';
   }
 
   @override
   String get folderPickerCreateTitle => 'Create folder';
 
   @override
-  String get folderPickerCreatePrompt => 'Create the folder in:';
+  String get folderPickerCreatePrompt => 'Create folders in:';
 
   @override
-  String get folderPickerCreatePlaceholder => 'Folder name';
+  String get folderPickerCreatePlaceholder => 'folder name';
 
   @override
   String get folderPickerCancelButton => 'Cancel';
 
   @override
-  String get folderPickerCreateButton => 'Create';
+  String get folderPickerCreateButton => 'create';
 
   @override
-  String get folderPickerConfirmButton => 'OK';
+  String get folderPickerConfirmButton => 'Sure';
 
   @override
   String get folderPickerCreateExistsTitle => 'Creation canceled';
 
   @override
   String folderPickerCreateExistsMessage(Object name) {
-    return 'Folder \"$name\" already exists.\nSelected that folder.';
+    return 'The folder \"$name\" already exists. \nThe folder is selected.';
   }
 
   @override
-  String get folderPickerCreateSuccessTitle => 'Created';
+  String get folderPickerCreateSuccessTitle => 'Created successfully';
 
   @override
   String folderPickerCreateSuccessMessage(Object name) {
-    return 'Folder \"$name\" was created and selected';
+    return 'The \"$name\" folder has been created and selected';
   }
 
   @override
@@ -2349,40 +2558,42 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get folderPickerQuickPathAddTitle => 'Add quick path';
+  String get folderPickerQuickPathAddTitle => 'Add shortcut path';
 
   @override
   String get folderPickerQuickPathAddPrompt =>
-      'Add current path to quick paths:';
+      'Add the current path to the shortcut path:';
 
   @override
   String get folderPickerQuickPathAddNameLabel => 'Custom name (optional):';
 
   @override
-  String get folderPickerQuickPathAddNamePlaceholder => 'e.g. My Project';
+  String get folderPickerQuickPathAddNamePlaceholder =>
+      'For example: my project';
 
   @override
-  String get folderPickerQuickPathAddButton => 'Add';
+  String get folderPickerQuickPathAddButton => 'Add to';
 
   @override
-  String get folderPickerQuickPathAddSuccessTitle => 'Added';
+  String get folderPickerQuickPathAddSuccessTitle => 'Added successfully';
 
   @override
   String get folderPickerQuickPathAddFailedTitle => 'Add failed';
 
   @override
-  String get folderPickerQuickPathAddSuccessMessage => 'Quick path added';
+  String get folderPickerQuickPathAddSuccessMessage =>
+      'Shortcut path has been added';
 
   @override
   String get folderPickerQuickPathAddFailedMessage =>
       'Path already exists or is invalid';
 
   @override
-  String get folderPickerQuickPathRemoveTitle => 'Remove quick path';
+  String get folderPickerQuickPathRemoveTitle => 'Remove shortcut';
 
   @override
   String folderPickerQuickPathRemoveMessage(Object path) {
-    return 'Remove this quick path?\n\n$path';
+    return 'Are you sure you want to remove this shortcut? \n\n$path';
   }
 
   @override
@@ -2392,50 +2603,50 @@ class AppLocalizationsEn extends AppLocalizations {
   String get folderPickerTitle => 'Select folder';
 
   @override
-  String get folderPickerNavUpTooltip => 'Parent folder';
+  String get folderPickerNavUpTooltip => 'superior folder';
 
   @override
-  String get folderPickerPathPlaceholder => 'Enter a path or pick below';
+  String get folderPickerPathPlaceholder => 'Enter path or select below';
 
   @override
-  String get folderPickerRefreshTooltip => 'Refresh';
+  String get folderPickerRefreshTooltip => 'refresh';
 
   @override
-  String get folderPickerNewFolderTooltip => 'New folder';
+  String get folderPickerNewFolderTooltip => 'Create new folder';
 
   @override
   String get folderPickerAddQuickPathTooltip =>
-      'Add current path to quick paths';
+      'Add current path to shortcut path';
 
   @override
   String get folderPickerEmptyMessage => 'This folder is empty';
 
   @override
-  String get folderPickerSelectButton => 'Select';
+  String get folderPickerSelectButton => 'choose';
 
   @override
-  String get updateLatestVersionLabel => 'Latest version';
+  String get updateLatestVersionLabel => 'latest version';
 
   @override
-  String get updateDialogLaterButton => 'Later';
+  String get updateDialogLaterButton => 'later';
 
   @override
   String get updateDialogDownloadNowButton => 'Download now';
 
   @override
-  String get updateDialogCurrentInfoTitle => 'Current version info';
+  String get updateDialogCurrentInfoTitle => 'Current version information';
 
   @override
   String get downloadStatusDownloading => 'Downloading';
 
   @override
-  String get downloadStatusPaused => 'Paused';
+  String get downloadStatusPaused => 'Suspended';
 
   @override
-  String get downloadStatusPending => 'Pending';
+  String get downloadStatusPending => 'Waiting';
 
   @override
-  String get downloadStatusFailed => 'Failed';
+  String get downloadStatusFailed => 'fail';
 
   @override
   String get downloadStatusMerging => 'Merging';
@@ -2444,103 +2655,105 @@ class AppLocalizationsEn extends AppLocalizations {
   String get downloadStatusCompleted => 'Completed';
 
   @override
-  String get downloadFilterTitle => 'Filter downloads';
+  String get downloadFilterTitle => 'filter';
 
   @override
-  String get downloadFilterSubtitle => 'Select status to display:';
+  String get downloadFilterSubtitle => 'Filter download tasks by status';
 
   @override
-  String get downloadFilterAll => 'All';
+  String get downloadFilterAll => 'all';
 
   @override
-  String get downloadDialogCloseButton => 'Close';
+  String get downloadDialogCloseButton => 'closure';
 
   @override
-  String get downloadSortTitle => 'Sort order';
+  String get downloadSortTitle => 'sort';
 
   @override
-  String get downloadSortSubtitle => 'Choose task order:';
+  String get downloadSortSubtitle => 'Choose how to sort download tasks';
 
   @override
-  String get downloadSortNewest => 'Newest first';
+  String get downloadSortNewest => 'up to date';
 
   @override
-  String get downloadSortOldest => 'Oldest first';
+  String get downloadSortOldest => 'oldest';
 
   @override
-  String get downloadSortNewestDesc => 'Newest tasks appear at the top';
+  String get downloadSortNewestDesc =>
+      'Sort by creation time from newest to oldest';
 
   @override
-  String get downloadSortOldestDesc => 'Oldest tasks appear at the top';
+  String get downloadSortOldestDesc =>
+      'Sort by creation time from oldest to newest';
 
   @override
-  String get downloadSearchPlaceholder => 'Search filename or URL...';
+  String get downloadSearchPlaceholder => 'Search download tasks...';
 
   @override
-  String get downloadNoResultsTitle => 'No matching downloads';
+  String get downloadNoResultsTitle => 'No matching tasks found';
 
   @override
-  String get downloadNoResultsSubtitle =>
-      'Try adjusting your search or filters';
+  String get downloadNoResultsSubtitle => 'Try modifying your search criteria';
 
   @override
-  String get downloadStatsActiveLabel => 'Active';
+  String get downloadStatsActiveLabel => 'Activity';
 
   @override
-  String get downloadStatsSpeedLabel => 'Total speed';
+  String get downloadStatsSpeedLabel => 'speed';
 
   @override
-  String get downloadStatsSegmentsLabel => 'Active segments';
+  String get downloadStatsSegmentsLabel => 'segmentation';
 
   @override
-  String get downloadEmptyTitle => 'No downloads yet';
+  String get downloadEmptyTitle => 'No download tasks yet';
 
   @override
-  String get downloadEmptySubtitle => 'Click \"New\" in the top right to start';
+  String get downloadEmptySubtitle =>
+      'Click the \"New\" button to add a download task';
 
   @override
-  String get downloadCopySuccessTitle => 'Copied';
+  String get downloadCopySuccessTitle => 'Copied successfully';
 
   @override
-  String get loadingTasks => 'Loading tasks...';
+  String get loadingTasks => 'Loading task list...';
 
   @override
   String get loadingTasksHint => 'Connecting to download engine';
 
   @override
-  String get downloadCopySuccessMessage => 'Link copied to clipboard';
+  String get downloadCopySuccessMessage => 'Download link copied';
 
   @override
   String get downloadCopyFailedTitle => 'Copy failed';
 
   @override
   String downloadCopyFailedMessage(Object error) {
-    return 'Unable to copy link: $error';
+    return 'Replication failed: $error';
   }
 
   @override
-  String get downloadCopyTooltip => 'Click to copy link';
+  String get downloadCopyTooltip => 'Copy link';
 
   @override
-  String get downloadActionStart => 'Start';
+  String get downloadActionStart => 'start';
 
   @override
-  String get downloadActionPause => 'Pause';
+  String get downloadActionPause => 'pause';
 
   @override
-  String get downloadActionRetrySegments => 'Retry failed segments';
+  String get downloadActionRetrySegments => 'Retry failed segment';
 
   @override
-  String get downloadActionRetryAll => 'Redownload';
+  String get downloadActionRetryAll => 'Retry all';
 
   @override
-  String get downloadActionDelete => 'Delete';
+  String get downloadActionDelete => 'delete';
 
   @override
-  String get downloadMergingStatus => 'Verifying and merging data';
+  String get downloadMergingStatus => 'Download completed and merging';
 
   @override
-  String get downloadCalculatingSize => 'Calculating file size...';
+  String get downloadCalculatingSize => 'Calculating size...';
 
   @override
   String get downloadCalculating => 'Calculating';
@@ -2553,35 +2766,35 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String downloadSegmentsTitleWithCount(Object count) {
-    return 'Segments ($count)';
+    return 'Segmentation ($count)';
   }
 
   @override
-  String get downloadSegmentsTitle => 'Segments';
+  String get downloadSegmentsTitle => 'segmentation';
 
   @override
-  String get downloadSegmentsStatusCompleted => 'Done';
+  String get downloadSegmentsStatusCompleted => 'Finish';
 
   @override
   String get downloadSegmentsStatusDownloading => 'Downloading';
 
   @override
-  String get downloadSegmentsStatusFailed => 'Failed';
+  String get downloadSegmentsStatusFailed => 'fail';
 
   @override
   String downloadSegmentsSummary(
       Object total, Object completed, Object downloading) {
-    return '$total segments ? $completed done ? $downloading downloading';
+    return 'Total $total segments · Completed $completed · Downloading $downloading';
   }
 
   @override
   String downloadSegmentsSummaryWithFailed(
       Object total, Object completed, Object downloading, Object failed) {
-    return '$total segments - $completed done - $downloading downloading - $failed failed';
+    return 'Total $total segments · Completed $completed · Downloading $downloading · Failed $failed';
   }
 
   @override
-  String get downloadRetryButton => 'Retry';
+  String get downloadRetryButton => 'Try again';
 
   @override
   String downloadSegmentLabel(Object index) {
@@ -2590,15 +2803,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String downloadSegmentRetryCount(Object count) {
-    return 'Retry $count';
+    return 'Retry $count times';
   }
 
   @override
-  String get downloadSegmentsCollapse => 'Collapse';
+  String get downloadSegmentsCollapse => 'close';
 
   @override
   String downloadSegmentsShowAll(Object count) {
-    return 'Show all $count';
+    return 'View all $count';
   }
 
   @override
@@ -2611,100 +2824,101 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String downloadFailedSegmentsHint(Object count) {
-    return '$count segments failed. Try re-downloading.';
+    return '$count segments failed, please try again';
   }
 
   @override
-  String get downloadConfirmDeleteTitle => 'Confirm delete';
+  String get downloadConfirmDeleteTitle => 'Confirm deletion';
 
   @override
   String downloadConfirmDeleteMessage(Object fileName) {
-    return 'Delete task \"$fileName\"?';
+    return 'Are you sure you want to delete task \"$fileName\"?';
   }
 
   @override
-  String get downloadDeleteButton => 'Delete';
+  String get downloadDeleteButton => 'delete';
 
   @override
-  String get completedCategoryAll => 'All';
+  String get completedCategoryAll => 'All downloads';
 
   @override
-  String get completedCategoryVideo => 'Video';
+  String get completedCategoryVideo => 'video';
 
   @override
   String get completedCategoryAudio => 'Audio';
 
   @override
-  String get completedCategoryArchive => 'Archive';
+  String get completedCategoryArchive => 'Compressed package';
 
   @override
-  String get completedCategoryDocument => 'Document';
+  String get completedCategoryDocument => 'document';
 
   @override
-  String get completedCategoryProgram => 'Program';
+  String get completedCategoryProgram => 'program';
 
   @override
-  String get completedCategoryOther => 'Other';
+  String get completedCategoryOther => 'Miscellaneous';
 
   @override
-  String get completedSearchPlaceholder => 'Search completed files...';
+  String get completedSearchPlaceholder => 'Search for completed files...';
 
   @override
-  String get completedNoResultsTitle => 'No matching files';
+  String get completedNoResultsTitle => 'No matching file found';
 
   @override
-  String get completedNoResultsSubtitle => 'Try adjusting your search';
+  String get completedNoResultsSubtitle => 'Try modifying your search criteria';
 
   @override
   String get completedHeaderTitle => 'Completed';
 
   @override
-  String get completedOpenFolderButton => 'Open folder';
+  String get completedOpenFolderButton => 'open folder';
 
   @override
   String get completedEmptyTitle => 'No completed tasks yet';
 
   @override
-  String get completedEmptySubtitle => 'Finished downloads will show up here';
+  String get completedEmptySubtitle =>
+      'Completed download tasks will appear here';
 
   @override
-  String get completedStatsTitle => 'Download stats';
+  String get completedStatsTitle => 'Download statistics';
 
   @override
-  String get completedStatsPeakSpeed => 'Peak speed';
+  String get completedStatsPeakSpeed => 'peak speed';
 
   @override
-  String get completedStatsAverageSpeed => 'Average speed';
+  String get completedStatsAverageSpeed => 'average speed';
 
   @override
-  String get completedStatsDuration => 'Duration';
+  String get completedStatsDuration => 'time';
 
   @override
-  String get completedStatsSegments => 'Segments';
+  String get completedStatsSegments => 'Number of segments';
 
   @override
-  String get completedStatsThreads => 'Threads';
+  String get completedStatsThreads => 'Number of threads';
 
   @override
   String get completedStatsCore => 'Download core';
 
   @override
-  String get completedActionRun => 'Run';
+  String get completedActionRun => 'run';
 
   @override
   String get completedActionLocation => 'Location';
 
   @override
-  String get completedTimeJustNow => 'Just now';
+  String get completedTimeJustNow => 'just';
 
   @override
   String completedTimeMinutesAgo(Object minutes) {
-    return '$minutes min ago';
+    return '$minutes minutes ago';
   }
 
   @override
   String completedTimeHoursAgo(Object hours) {
-    return '$hours hr ago';
+    return '$hours hours ago';
   }
 
   @override
@@ -2714,11 +2928,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String completedTimeMonthDay(Object month, Object day) {
-    return '$month/$day';
+    return '${month}month${day}day';
   }
 
   @override
-  String get completedFilePathMissingMessage => 'File path not found';
+  String get completedFilePathMissingMessage => 'File path does not exist';
 
   @override
   String completedRunFileFailedMessage(Object error) {
@@ -2731,24 +2945,24 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get completedHintTitle => 'Notice';
+  String get completedHintTitle => 'hint';
 
   @override
   String get completedConfirmDeleteTitle => 'Confirm deletion';
 
   @override
   String completedDeleteTaskMessage(Object fileName) {
-    return 'Delete \"$fileName\"?';
+    return 'Are you sure you want to delete \"$fileName\"?';
   }
 
   @override
-  String get completedRemoveSuccessTitle => 'Removed';
+  String get completedRemoveSuccessTitle => 'Delete successfully';
 
   @override
   String get completedRemoveSuccessMessage => 'Task removed from list';
 
   @override
-  String get completedDeleteSuccessTitle => 'Deleted';
+  String get completedDeleteSuccessTitle => 'Delete successfully';
 
   @override
   String completedDeleteFileSuccessMessage(Object fileName) {
@@ -2756,7 +2970,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get completedFileNotFoundTitle => 'File not found';
+  String get completedFileNotFoundTitle => 'File does not exist';
 
   @override
   String get completedFileNotFoundMessage =>
@@ -2767,7 +2981,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String completedDeleteFailedMessage(Object error) {
-    return 'Failed to delete file: $error';
+    return 'Unable to delete file: $error';
   }
 
   @override
@@ -2777,44 +2991,44 @@ class AppLocalizationsEn extends AppLocalizations {
   String get completedRemoveButton => 'Remove';
 
   @override
-  String get completedDeleteButton => 'Delete';
+  String get completedDeleteButton => 'delete';
 
   @override
-  String get completedCreateButton => 'Create';
+  String get completedCreateButton => 'create';
 
   @override
-  String get completedCreateCategoryTitle => 'Create custom category';
+  String get completedCreateCategoryTitle => 'Create custom categories';
 
   @override
   String get completedCreateCategoryNameLabel => 'Category name';
 
   @override
-  String get completedCreateCategoryNamePlaceholder => 'e.g. Images';
+  String get completedCreateCategoryNamePlaceholder => 'For example: picture';
 
   @override
-  String get completedCreateCategoryExtensionsLabel => 'File extensions';
+  String get completedCreateCategoryExtensionsLabel => 'file extension';
 
   @override
   String get completedCreateCategoryExtensionsPlaceholder =>
-      'e.g. .jpg,.png,.gif (comma-separated)';
+      'For example: .jpg, .png, .gif (separate with commas)';
 
   @override
   String get completedCreateCategoryHint =>
-      'Tip: extensions must include dot; separate with commas';
+      'Tip: The extension needs to contain a period, and multiple extensions should be separated by commas';
 
   @override
   String get completedCreateCategoryInputErrorTitle => 'Input error';
 
   @override
   String get completedCreateCategoryInputErrorMessage =>
-      'Please fill in all fields';
+      'Please fill in complete information';
 
   @override
   String get completedCreateCategoryInvalidExtMessage =>
-      'Please enter valid extensions';
+      'Please enter a valid extension';
 
   @override
-  String get completedCreateCategorySuccessTitle => 'Created';
+  String get completedCreateCategorySuccessTitle => 'Created successfully';
 
   @override
   String completedCreateCategorySuccessMessage(Object name) {
@@ -2823,34 +3037,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String completedDeleteCategoryMessage(Object name) {
-    return 'Delete custom category \"$name\"?';
+    return 'Are you sure you want to delete the custom classification \"$name\"?';
   }
 
   @override
-  String get completedDeleteCategorySuccessTitle => 'Deleted';
+  String get completedDeleteCategorySuccessTitle => 'Delete successfully';
 
   @override
   String completedDeleteCategorySuccessMessage(Object name) {
-    return 'Category deleted: $name';
+    return 'Deleted category: $name';
   }
 
   @override
-  String get statusPageTitle => 'System Status';
+  String get statusPageTitle => 'System status';
 
   @override
-  String get statusPageRefresh => 'Refresh';
+  String get statusPageRefresh => 'refresh';
 
   @override
   String get statusPageTestApi => 'Test API';
 
   @override
-  String get statusPageClearLogs => 'Clear logs';
+  String get statusPageClearLogs => 'Clear log';
 
   @override
-  String get statusSectionKernel => 'Kernel status';
+  String get statusSectionKernel => 'Download core status';
 
   @override
-  String get statusItemKernelRuntime => 'Kernel runtime';
+  String get statusItemKernelRuntime => 'kernel runtime';
 
   @override
   String get statusValueRunning => 'Running';
@@ -2865,46 +3079,46 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statusItemHttpService => 'HTTP service';
 
   @override
-  String get statusValueHealthy => 'Healthy';
+  String get statusValueHealthy => 'normal';
 
   @override
-  String get statusValueBuiltIn => 'Built-in';
+  String get statusValueBuiltIn => 'built-in';
 
   @override
-  String get statusValueUnhealthy => 'Unhealthy';
+  String get statusValueUnhealthy => 'abnormal';
 
   @override
   String get statusItemServiceAddress => 'Service address';
 
   @override
-  String get statusItemKernelVersion => 'Kernel version';
+  String get statusItemKernelVersion => 'core version';
 
   @override
-  String get statusSectionNetwork => 'Network status';
+  String get statusSectionNetwork => 'network status';
 
   @override
-  String get statusItemLocalNetwork => 'Local network';
+  String get statusItemLocalNetwork => 'local network';
 
   @override
   String get statusValueConnected => 'Connected';
 
   @override
-  String get statusValueDisconnected => 'Disconnected';
+  String get statusValueDisconnected => 'Not connected';
 
   @override
-  String get statusItemInternet => 'Internet';
+  String get statusItemInternet => 'internet';
 
   @override
-  String get statusValueReachable => 'Reachable';
+  String get statusValueReachable => 'accessible';
 
   @override
-  String get statusValueUnreachable => 'Unreachable';
+  String get statusValueUnreachable => 'Not accessible';
 
   @override
-  String get statusItemLocalIp => 'Local IP';
+  String get statusItemLocalIp => 'local IP';
 
   @override
-  String get statusItemNetworkLatency => 'Network latency';
+  String get statusItemNetworkLatency => 'network delay';
 
   @override
   String statusNetworkLatencyMs(Object ms) {
@@ -2918,133 +3132,133 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statusSectionApiTests => 'API test results';
 
   @override
-  String get statusValueFailed => 'Failed';
+  String get statusValueFailed => 'fail';
 
   @override
-  String get statusSectionSystemInfo => 'System info';
+  String get statusSectionSystemInfo => 'System information';
 
   @override
-  String get statusItemOs => 'Operating system';
+  String get statusItemOs => 'operating system';
 
   @override
-  String get statusValueUnknown => 'Unknown';
+  String get statusValueUnknown => 'unknown';
 
   @override
-  String get statusItemOsVersion => 'OS version';
+  String get statusItemOsVersion => 'System version';
 
   @override
-  String get statusItemCpuCores => 'CPU cores';
+  String get statusItemCpuCores => 'Number of CPU cores';
 
   @override
   String statusSystemCpuCores(Object count) {
-    return '$count cores';
+    return '$count core';
   }
 
   @override
   String get statusItemDartVersion => 'Dart version';
 
   @override
-  String get statusSectionDownloadStats => 'Download stats';
+  String get statusSectionDownloadStats => 'Download statistics';
 
   @override
   String get statusItemTotalDownloads => 'Total downloads';
 
   @override
-  String get statusItemActiveTasks => 'Active tasks';
+  String get statusItemActiveTasks => 'active tasks';
 
   @override
   String get statusItemCompletedTasks => 'Completed';
 
   @override
-  String get statusItemFailedTasks => 'Failed tasks';
+  String get statusItemFailedTasks => 'failed task';
 
   @override
-  String get statusItemTotalDownloaded => 'Total downloaded';
+  String get statusItemTotalDownloaded => 'total downloads';
 
   @override
-  String get statusSectionLogStats => 'Log stats';
+  String get statusSectionLogStats => 'Log statistics';
 
   @override
-  String get statusItemLogCount => 'Log count';
+  String get statusItemLogCount => 'Number of log entries';
 
   @override
-  String get statusItemErrorCount => 'Error count';
+  String get statusItemErrorCount => 'Number of errors';
 
   @override
-  String get statusItemWarningCount => 'Warning count';
+  String get statusItemWarningCount => 'number of warnings';
 
   @override
-  String get statusSectionExtension => 'Browser extension';
+  String get statusSectionExtension => 'browser extension';
 
   @override
-  String get statusItemTip => 'Tip';
+  String get statusItemTip => 'hint';
 
   @override
   String get statusExtensionTip =>
-      'Thanks for using. In-app download plugin and store link are supported.';
+      'Thanks for using it. It now supports downloading plug-ins within the software and jumping to web pages.';
 
   @override
   String get statusExtensionDownloadButton => 'Download extension';
 
   @override
-  String get statusExtensionOpenStoreButton => 'Open store';
+  String get statusExtensionOpenStoreButton => 'Open store page';
 
   @override
-  String get statusSectionAutoStart => 'Auto start';
+  String get statusSectionAutoStart => 'Start automatically at boot';
 
   @override
   String get statusItemPlatformSupport => 'Platform support';
 
   @override
-  String get statusAutoStartWindowsOnly => 'Windows only';
+  String get statusAutoStartWindowsOnly => 'Only supports Windows platform';
 
   @override
-  String get statusItemAutoStartStatus => 'Auto-start status';
+  String get statusItemAutoStartStatus => 'self-starting state';
 
   @override
   String get statusValueEnabled => 'Enabled';
 
   @override
-  String get statusValueDisabled => 'Disabled';
+  String get statusValueDisabled => 'Not enabled';
 
   @override
-  String get statusItemRegistryPath => 'Registry path';
+  String get statusItemRegistryPath => 'Registration path';
 
   @override
-  String get statusValueCorrect => 'Correct';
+  String get statusValueCorrect => 'correct';
 
   @override
-  String get statusValueNeedsUpdate => 'Needs update';
+  String get statusValueNeedsUpdate => 'Need to update';
 
   @override
-  String get statusItemCurrentRegistry => 'Current registry';
+  String get statusItemCurrentRegistry => 'Current registration';
 
   @override
-  String get statusItemCurrentPath => 'Current path';
+  String get statusItemCurrentPath => 'current path';
 
   @override
   String get statusAutoStartOldRegistryTitle =>
-      'Legacy auto-start entry detected';
+      'Older version of self-starting registration detected';
 
   @override
   String get statusAutoStartOldRegistryMessage =>
-      'Registry path doesn\'t match current executable (app updated or moved). Click below to fix automatically.';
+      'The registered path does not match the current executable, possibly because the app has been updated or moved. Click the button below to fix it automatically.';
 
   @override
-  String get statusAutoStartFixButton => 'Fix auto-start';
+  String get statusAutoStartFixButton => 'Automatic repair registration';
 
   @override
-  String get statusSectionPopupTest => 'Popup window test';
+  String get statusSectionPopupTest => 'Pop-up window testing';
 
   @override
-  String get statusItemDescription => 'Description';
+  String get statusItemDescription => 'illustrate';
 
   @override
   String get statusPopupTestDescription =>
-      'Test whether browser-triggered downloads can open the standalone popup window';
+      'Test whether an independent popup window can be opened when the browser triggers a download.';
 
   @override
-  String get statusItemTestResult => 'Test result';
+  String get statusItemTestResult => 'Test results';
 
   @override
   String statusPopupTestResultSuccess(Object time) {
@@ -3053,24 +3267,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String statusPopupTestResultFailed(Object error) {
-    return 'Failed: $error';
+    return 'Failure: $error';
   }
 
   @override
   String get statusPopupTesting => 'Creating...';
 
   @override
-  String get statusPopupTestButton => 'Test add-download dialog';
+  String get statusPopupTestButton => 'Test the new download box';
 
   @override
-  String get statusPopupDialogTestButton => 'Legacy dialog test';
+  String get statusPopupDialogTestButton => 'Old Dialog test';
 
   @override
-  String get statusPopupTestInfoTitle => 'Test notes';
+  String get statusPopupTestInfoTitle => 'Test instructions';
 
   @override
   String get statusPopupTestInfoBody =>
-      '• Browser-triggered downloads open a standalone Flutter popup window\\n• The main window stays in the background and is not brought to the front\\n• Results and timing are recorded in logs';
+      '• When the browser triggers a download, a separate Flutter popup window will open\\n• The main window will remain in the background and will not be pulled to the foreground\\n• The test results and time consumption will be recorded in the log';
 
   @override
   String get statusExtensionDownloadAddedTitle => 'Download added';
@@ -3084,7 +3298,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String statusExtensionDownloadFailedMessage(Object error) {
-    return 'Failed to add download task: $error';
+    return 'Unable to add download task: $error';
   }
 
   @override
@@ -3099,67 +3313,68 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get statusAutoStartFixSuccessTitle => 'Fix succeeded';
+  String get statusAutoStartFixSuccessTitle => 'Repair successful';
 
   @override
   String get statusAutoStartFixSuccessMessage =>
-      'Auto-start registry updated to current version';
+      'Self-startup registration has been updated to the current version';
 
   @override
-  String get statusAutoStartFixFailedTitle => 'Fix failed';
+  String get statusAutoStartFixFailedTitle => 'Repair failed';
 
   @override
   String get statusAutoStartFixFailedMessage =>
-      'Unable to update auto-start registry. Check permissions.';
+      'Unable to update auto-start registration, please check permissions';
 
   @override
   String statusAutoStartFixErrorMessage(Object error) {
-    return 'Error occurred: $error';
+    return 'An error occurred: $error';
   }
 
   @override
-  String get statusPopupTestCreating => 'Opening add-download dialog...';
+  String get statusPopupTestCreating => 'Opening new download dialog...';
 
   @override
   String get statusPopupTestStartLog =>
-      'Starting standalone popup window test...';
+      'Start testing standalone popup windows...';
 
   @override
   String statusPopupTestSuccessLog(Object time) {
-    return 'Standalone popup window opened in ${time}ms';
+    return 'The independent popup window has been opened, taking: ${time}ms';
   }
 
   @override
   String get statusPopupTestSuccessMessage =>
-      'Add-download dialog opened successfully';
+      'The new download dialog box has been opened successfully';
 
   @override
-  String get statusPopupTestSuccessTitle => 'Test succeeded';
+  String get statusPopupTestSuccessTitle => 'Test successful';
 
   @override
   String statusPopupTestSuccessToast(Object time) {
-    return 'Add-download dialog opened in ${time}ms';
+    return 'The new download dialog box has been opened, taking ${time}ms';
   }
 
   @override
   String statusPopupTestFailedLog(Object error) {
-    return 'Standalone popup window failed: $error';
+    return 'Failed to open independent popup window: $error';
   }
 
   @override
-  String get statusPopupTestFailedTitle => 'Test failed';
+  String get statusPopupTestFailedTitle => 'test failed';
 
   @override
   String statusPopupTestFailedToast(Object error) {
-    return 'Add-download dialog failed: $error';
+    return 'Failed to open new download dialog box: $error';
   }
 
   @override
-  String get statusPopupDialogTestStartLog => 'Starting Dialog popup test...';
+  String get statusPopupDialogTestStartLog =>
+      'Start testing the Dialog popup...';
 
   @override
   String statusPopupDialogTestCloseLog(Object time) {
-    return 'Dialog popup closed in ${time}ms';
+    return 'Dialog pop-up window is closed, total time taken: ${time}ms';
   }
 
   @override
@@ -3168,101 +3383,101 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get statusApiTestHealthCheck => 'Health Check';
+  String get statusApiTestHealthCheck => 'health check';
 
   @override
-  String get statusApiTestGetTasks => 'Get Tasks';
+  String get statusApiTestGetTasks => 'Get tasks';
 
   @override
-  String get statusApiTestGetStatistics => 'Get Statistics';
+  String get statusApiTestGetStatistics => 'Get statistics';
 
   @override
-  String get statusApiTestGetConfig => 'Get Config';
+  String get statusApiTestGetConfig => 'Get configuration';
 
   @override
-  String get onlineStatsPageTitle => 'Who\'s online with you';
+  String get onlineStatsPageTitle => 'People currently traveling with you';
 
   @override
-  String get onlineStatsCountUnit => 'people';
+  String get onlineStatsCountUnit => 'Bit';
 
   @override
   String get onlineStatsAloneMessage =>
-      'You\'re the only one using Hanabi right now';
+      'You are the only one using Hanabi for now';
 
   @override
   String onlineStatsOthersMessage(Object count) {
-    return 'Besides you, $count users are using Hanabi';
+    return 'Besides you, $count other users are using Hanabi';
   }
 
   @override
   String onlineStatsTotalMessage(Object count) {
-    return '(Including you, $count total)';
+    return '(A total of $count including you)';
   }
 
   @override
-  String get onlineStatsMyStatusTitle => 'My status';
+  String get onlineStatsMyStatusTitle => 'My current status';
 
   @override
   String get onlineStatsDeviceIdLabel => 'Device ID';
 
   @override
-  String get onlineStatsNotInitialized => 'Not initialized';
+  String get onlineStatsNotInitialized => 'not initialized';
 
   @override
-  String get onlineStatsAppVersionLabel => 'App version';
+  String get onlineStatsAppVersionLabel => 'Application version';
 
   @override
-  String get onlineStatsHeartbeatLabel => 'Heartbeat interval';
+  String get onlineStatsHeartbeatLabel => 'heartbeat interval';
 
   @override
-  String get onlineStatsHeartbeatValue => 'Auto-send every 5 minutes';
+  String get onlineStatsHeartbeatValue => 'Automatically sent every 5 minutes';
 
   @override
-  String get onlineStatsServerLabel => 'Stats server';
+  String get onlineStatsServerLabel => 'statistics server';
 
   @override
   String get onlineStatsSending => 'Sending...';
 
   @override
-  String get onlineStatsSendSignalButton => 'Send my signal to server';
+  String get onlineStatsSendSignalButton => 'Send my signal to the server';
 
   @override
-  String get onlineStatsPrivacyPolicy => 'Privacy policy';
+  String get onlineStatsPrivacyPolicy => 'Privacy Policy';
 
   @override
-  String get onlineStatsTermsOfService => 'Terms of service';
+  String get onlineStatsTermsOfService => 'Terms of Service';
 
   @override
-  String get onlineStatsOfficialSite => 'Official website';
+  String get onlineStatsOfficialSite => 'Official website address';
 
   @override
-  String get onlineStatsSendSuccessTitle => 'Sent';
+  String get onlineStatsSendSuccessTitle => 'Sent successfully';
 
   @override
   String get onlineStatsSendSuccessMessage =>
-      'Your signal was sent to the server';
+      'Your signal was successfully sent to the server';
 
   @override
   String get onlineStatsCooldownTitle => 'Server marked online';
 
   @override
   String onlineStatsCooldownMessage(Object minutes) {
-    return 'Your status was recorded. Try again in $minutes minutes.';
+    return 'Your online status has been recorded by the server, please try again in $minutes minutes';
   }
 
   @override
-  String get onlineStatsSendFailedTitle => 'Send failed';
+  String get onlineStatsSendFailedTitle => 'Sending failed';
 
   @override
   String get onlineStatsSendFailedMessage =>
-      'Unable to reach stats server. Check your network connection.';
+      'Unable to connect to statistics server, please check network connection';
 
   @override
   String get onlineStatsOpenLinkFailedTitle => 'Unable to open link';
 
   @override
   String onlineStatsOpenLinkFailedMessage(Object url) {
-    return 'Please open in your browser manually:\\n$url';
+    return 'Please manually access in the browser:\\n$url';
   }
 
   @override
@@ -3270,17 +3485,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String onlineStatsOpenFailedMessage(Object error, Object url) {
-    return 'Error: $error\\n\\nPlease open in your browser manually:\\n$url';
+    return 'Error: $error\\n\\nPlease manually access in the browser:\\n$url';
   }
 
   @override
-  String get onlineStatsDialogOk => 'OK';
+  String get onlineStatsDialogOk => 'Sure';
 
   @override
-  String get logPageTitle => 'Logs';
+  String get logPageTitle => 'log';
 
   @override
-  String get logFilterLevelLabel => 'Level';
+  String get logFilterLevelLabel => 'level';
 
   @override
   String logFilterTagCount(Object count) {
@@ -3288,78 +3503,78 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get logFilterSourceLabel => 'Source';
+  String get logFilterSourceLabel => 'source';
 
   @override
   String get logFilterTimeSelectedLabel => 'Time ✓';
 
   @override
-  String get logFilterTimeLabel => 'Time';
+  String get logFilterTimeLabel => 'time';
 
   @override
-  String get logRegexRulesButton => 'Regex rules';
+  String get logRegexRulesButton => 'regular rules';
 
   @override
-  String get logAutoScrollOn => 'Auto scroll: On';
+  String get logAutoScrollOn => 'Autoscroll: On';
 
   @override
-  String get logAutoScrollOff => 'Auto scroll: Off';
+  String get logAutoScrollOff => 'Autoscroll: Off';
 
   @override
-  String get logStatsShow => 'Stats: Show';
+  String get logStatsShow => 'Statistics: Show';
 
   @override
-  String get logStatsHide => 'Stats: Hide';
+  String get logStatsHide => 'Statistics: hidden';
 
   @override
-  String get logFailureStatsShow => 'Failure stats: Show';
+  String get logFailureStatsShow => 'Failure Statistics: Show';
 
   @override
-  String get logFailureStatsHide => 'Failure stats: Hide';
+  String get logFailureStatsHide => 'Failure statistics: hidden';
 
   @override
-  String get logExportLogsButton => 'Export logs';
+  String get logExportLogsButton => 'Export log';
 
   @override
-  String get logExportDiagnosticsButton => 'Export diagnostics';
+  String get logExportDiagnosticsButton => 'Export diagnostic package';
 
   @override
-  String get logArchiveButton => 'Archive logs';
+  String get logArchiveButton => 'archive log';
 
   @override
-  String get logClearButton => 'Clear logs';
+  String get logClearButton => 'Clear log';
 
   @override
-  String get logCurrentTabLabel => 'Current';
+  String get logCurrentTabLabel => 'Ordinary log';
 
   @override
   String get logFullTabLabel => 'FULL LOG';
 
   @override
-  String get logSearchPlaceholderRegex => 'Enter regex...';
+  String get logSearchPlaceholderRegex => 'Enter regular expression...';
 
   @override
   String get logSearchPlaceholder => 'Search logs...';
 
   @override
-  String get logEmptyTitle => 'No logs';
+  String get logEmptyTitle => 'No logs yet';
 
   @override
-  String get logEmptySubtitle => 'Logs will appear here';
+  String get logEmptySubtitle => 'The log will appear here';
 
   @override
-  String get logStatTotal => 'Total';
+  String get logStatTotal => 'total';
 
   @override
   String logGroupedCount(Object count) {
-    return '$count groups';
+    return '$count group';
   }
 
   @override
   String get logClearFiltersButton => 'Clear';
 
   @override
-  String get logFailureStatsTitle => 'Download failure stats';
+  String get logFailureStatsTitle => 'Download failure statistics';
 
   @override
   String logFailureStatsTotal(Object count) {
@@ -3367,32 +3582,32 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get logFailureStatsEmpty => 'No download failure records';
+  String get logFailureStatsEmpty => 'No download failure record yet';
 
   @override
-  String get logFailureReasonUnknown => 'Unknown error';
+  String get logFailureReasonUnknown => 'unknown error';
 
   @override
   String logFailureReasonAuth(Object code) {
-    return 'Authorization failed ($code)';
+    return 'Authentication failed ($code)';
   }
 
   @override
   String logFailureReasonNotFound(Object code) {
-    return 'Resource not found ($code)';
+    return 'Resource does not exist ($code)';
   }
 
   @override
-  String get logFailureReasonRange => 'Range not supported';
+  String get logFailureReasonRange => 'Range is not supported';
 
   @override
   String logFailureReasonRangeWithCode(Object code) {
-    return 'Range not supported ($code)';
+    return 'Range is not supported ($code)';
   }
 
   @override
   String logFailureReasonTooManyRequests(Object code) {
-    return 'Too many requests ($code)';
+    return 'Request too fast ($code)';
   }
 
   @override
@@ -3406,25 +3621,25 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get logFailureReasonTimeout => 'Connection timed out';
+  String get logFailureReasonTimeout => 'Connection timeout';
 
   @override
   String get logFailureReasonConnection => 'Connection interrupted';
 
   @override
-  String get logFailureReasonDns => 'DNS lookup failed';
+  String get logFailureReasonDns => 'DNS resolution failed';
 
   @override
-  String get logFailureReasonSsl => 'SSL/Certificate error';
+  String get logFailureReasonSsl => 'SSL/Certificate Error';
 
   @override
-  String get logFailureReasonChecksum => 'File checksum failed';
+  String get logFailureReasonChecksum => 'File verification failed';
 
   @override
-  String get logFailureReasonDisk => 'Disk/Permission error';
+  String get logFailureReasonDisk => 'Disk/permissions error';
 
   @override
-  String get logFailureReasonOther => 'Other error';
+  String get logFailureReasonOther => 'Other errors';
 
   @override
   String logTimeRangeRecentMinutes(Object minutes) {
@@ -3437,31 +3652,31 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get logTimeRangeLabel => 'Time range';
+  String get logTimeRangeLabel => 'time range';
 
   @override
-  String get logStatCountUnit => 'items';
+  String get logStatCountUnit => 'strip';
 
   @override
   String logRepeatedCount(Object count) {
-    return 'Repeated $count times';
+    return 'Repeat $count times';
   }
 
   @override
   String logRepeatedMore(Object count) {
-    return '... $count more';
+    return '... and $count more';
   }
 
   @override
-  String get logContextCopy => 'Copy logs';
+  String get logContextCopy => 'Copy log';
 
   @override
   String logContextRepeated(Object count) {
-    return '(Repeated $count times)';
+    return '(Repeat $count times)';
   }
 
   @override
-  String get logContextRemoveBookmark => 'Remove bookmark';
+  String get logContextRemoveBookmark => 'Unbookmark';
 
   @override
   String get logContextAddBookmark => 'Add bookmark';
@@ -3477,19 +3692,19 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get logContextCopySingle => 'Copy this entry';
+  String get logContextCopySingle => 'Copy this article';
 
   @override
   String get logFilterLevelTitle => 'Filter log level';
 
   @override
-  String get logFilterAllLabel => 'All';
+  String get logFilterAllLabel => 'all';
 
   @override
-  String get logDialogClose => 'Close';
+  String get logDialogClose => 'closure';
 
   @override
-  String get logSourceFilterTitle => 'Filter log source';
+  String get logSourceFilterTitle => 'Filter log sources';
 
   @override
   String logSourceTotalCount(Object count) {
@@ -3501,7 +3716,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String logSourceKernelSubtitle(Object count) {
-    return 'Kernel · $count tags';
+    return 'Download core · $count tags';
   }
 
   @override
@@ -3509,7 +3724,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String logSourceAppSubtitle(Object count) {
-    return 'App · $count tags';
+    return 'Applications · $count tags';
   }
 
   @override
@@ -3517,11 +3732,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String logSourceSystemSubtitle(Object count) {
-    return 'System / Framework · $count tags';
+    return 'System/Framework · $count tags';
   }
 
   @override
-  String get logDialogOk => 'OK';
+  String get logDialogOk => 'Sure';
 
   @override
   String get logDialogCancel => 'Cancel';
@@ -3530,7 +3745,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logTimeRangeTitle => 'Time range filter';
 
   @override
-  String get logTimeRangeQuickSelectLabel => 'Quick select:';
+  String get logTimeRangeQuickSelectLabel => 'Quick selection:';
 
   @override
   String get logTimeRangePreset1Hour => 'Last 1 hour';
@@ -3539,10 +3754,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logTimeRangePreset30Min => 'Last 30 minutes';
 
   @override
-  String get logTimeRangePreset10Min => 'Last 10 minutes';
+  String get logTimeRangePreset10Min => 'last 10 minutes';
 
   @override
-  String get logTimeRangePreset5Min => 'Last 5 minutes';
+  String get logTimeRangePreset5Min => 'last 5 minutes';
 
   @override
   String get logTimeRangeStartLabel => 'Start time:';
@@ -3551,7 +3766,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logTimeRangeEndLabel => 'End time:';
 
   @override
-  String get logTimeRangeNotSet => 'Not set';
+  String get logTimeRangeNotSet => 'not set';
 
   @override
   String get logTimeRangeNow => 'Now';
@@ -3560,10 +3775,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logDialogClear => 'Clear';
 
   @override
-  String get logDialogApply => 'Apply';
+  String get logDialogApply => 'application';
 
   @override
-  String get logRulesDialogTitle => 'Highlight rules';
+  String get logRulesDialogTitle => 'Highlight rule management';
 
   @override
   String get logRulesBuiltinTitle => 'Built-in rules';
@@ -3572,67 +3787,68 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logRulesCustomTitle => 'Custom rules';
 
   @override
-  String get logRulesAddButton => 'Add';
+  String get logRulesAddButton => 'Add to';
 
   @override
-  String get logRulesCustomEmpty => 'No custom rules';
+  String get logRulesCustomEmpty => 'No custom rules yet';
 
   @override
-  String get logRulesLegendTitle => 'Color legend';
+  String get logRulesLegendTitle => 'color legend';
 
   @override
   String get logRulesLegendUrl => 'URL';
 
   @override
-  String get logRulesLegendPath => 'Path';
+  String get logRulesLegendPath => 'path';
 
   @override
   String get logRulesLegendIp => 'IP';
 
   @override
-  String get logRulesLegendNumber => 'Number';
+  String get logRulesLegendNumber => 'numerical value';
 
   @override
-  String get logRulesLegendError => 'Error';
+  String get logRulesLegendError => 'mistake';
 
   @override
-  String get logRulesLegendSuccess => 'Success';
+  String get logRulesLegendSuccess => 'success';
 
   @override
-  String get logRulesLegendWarning => 'Warning';
+  String get logRulesLegendWarning => 'warn';
 
   @override
   String get logRulesLegendHttp => 'HTTP';
 
   @override
-  String get logRulesLegendStep => 'Step';
+  String get logRulesLegendStep => 'step';
 
   @override
   String get logRulesLegendPid => 'PID';
 
   @override
-  String get logRulesLegendKeyValue => 'Key/Value';
+  String get logRulesLegendKeyValue => 'key value';
 
   @override
-  String get logAddRuleTitle => 'Add custom rule';
+  String get logAddRuleTitle => 'Add custom rules';
 
   @override
   String get logAddRuleNameLabel => 'Rule name';
 
   @override
-  String get logAddRuleNamePlaceholder => 'e.g. Task ID';
+  String get logAddRuleNamePlaceholder => 'For example: task ID';
 
   @override
-  String get logAddRulePatternLabel => 'Regex pattern';
+  String get logAddRulePatternLabel => 'regular expression';
 
   @override
-  String get logAddRulePatternPlaceholder => 'e.g. \\b[a-f0-9]+\\b (16 chars)';
+  String get logAddRulePatternPlaceholder =>
+      'For example: \\b[a-f0-9]+\\b (16 bits)';
 
   @override
   String get logAddRuleColorLabel => 'Highlight color';
 
   @override
-  String get logAddRuleInvalidTitle => 'Invalid regex';
+  String get logAddRuleInvalidTitle => 'Invalid regular expression';
 
   @override
   String logAddRuleInvalidMessage(Object error) {
@@ -3640,31 +3856,31 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get logArchiveTitle => 'Archive logs';
+  String get logArchiveTitle => 'archive log';
 
   @override
-  String get logArchivePrompt => 'Choose archive option:';
+  String get logArchivePrompt => 'Select archiving options:';
 
   @override
   String get logArchiveExportAll => 'Export all logs';
 
   @override
-  String get logArchiveExportFiltered => 'Export current filter';
+  String get logArchiveExportFiltered => 'Export current filter results';
 
   @override
   String get logArchiveExportFull => 'Export FULL LOG';
 
   @override
   String logArchiveExportBookmarked(Object count) {
-    return 'Export bookmarked logs ($count)';
+    return 'Export bookmark logs ($count)';
   }
 
   @override
-  String get logClearConfirmTitle => 'Confirm clear';
+  String get logClearConfirmTitle => 'Confirm clearing';
 
   @override
   String get logClearConfirmMessage =>
-      'Clear all logs? This action cannot be undone.';
+      'Are you sure you want to clear all logs? This action cannot be undone.';
 
   @override
   String get logClearConfirmButton => 'Clear';
@@ -3674,7 +3890,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String logExportSavedMessage(Object path) {
-    return 'Logs saved to:\\n$path';
+    return 'The log has been saved to:\\n$path';
   }
 
   @override
@@ -3682,22 +3898,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String logExportFailedMessage(Object error) {
-    return 'Failed to save logs: $error';
+    return 'Unable to save log: $error';
   }
 
   @override
   String logDiagnosticsSavedMessage(Object path) {
-    return 'Diagnostics saved to:\\n$path';
+    return 'Diagnostic package saved to:\\n$path';
   }
 
   @override
   String logDiagnosticsExportFailedMessage(Object error) {
-    return 'Failed to export diagnostics: $error';
+    return 'Unable to export diagnostic package: $error';
   }
 
   @override
   String logExportFileHeader(Object time) {
-    return '# Log Export - $time';
+    return '# Log export - $time';
   }
 
   @override
@@ -3719,53 +3935,53 @@ class AppLocalizationsEn extends AppLocalizations {
   String get logRuleUrl => 'URL';
 
   @override
-  String get logRuleFilePath => 'File path';
+  String get logRuleFilePath => 'file path';
 
   @override
   String get logRuleIpAddress => 'IP address';
 
   @override
-  String get logRuleNumber => 'Number';
+  String get logRuleNumber => 'numerical value';
 
   @override
   String get logRuleIdHash => 'ID/Hash';
 
   @override
-  String get logRuleError => 'Error';
+  String get logRuleError => 'mistake';
 
   @override
-  String get logRuleSuccess => 'Success';
+  String get logRuleSuccess => 'success';
 
   @override
-  String get logRuleWarning => 'Warning';
+  String get logRuleWarning => 'warn';
 
   @override
   String get logRuleHttpMethod => 'HTTP method';
 
   @override
-  String get logRuleHttpStatus => 'HTTP status';
+  String get logRuleHttpStatus => 'HTTP status code';
 
   @override
-  String get logRuleTime => 'Time';
+  String get logRuleTime => 'time';
 
   @override
-  String get logRuleStep => 'Step';
+  String get logRuleStep => 'step';
 
   @override
   String get logRulePid => 'PID';
 
   @override
-  String get logRuleKeyValue => 'Key/Value';
+  String get logRuleKeyValue => 'key value pair';
 
   @override
-  String get performanceMonitorTitle => 'Performance Monitor';
+  String get performanceMonitorTitle => 'Performance monitoring';
 
   @override
   String get performanceMonitorStatusRunning => 'Monitoring...';
 
   @override
   String get performanceMonitorStatusIdle =>
-      'Click start to collect performance data';
+      'Click Start Monitoring to collect performance data';
 
   @override
   String get performanceMonitorButtonStop => 'Stop monitoring';
@@ -3774,7 +3990,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get performanceMonitorButtonStart => 'Start monitoring';
 
   @override
-  String get performanceMonitorRealtimeTitle => 'Realtime';
+  String get performanceMonitorRealtimeTitle => 'real time data';
 
   @override
   String get performanceMonitorJankBadge => 'JANK';
@@ -3792,73 +4008,75 @@ class AppLocalizationsEn extends AppLocalizations {
   String get performanceMonitorMetricTotal => 'Total';
 
   @override
-  String get performanceMonitorStatsTitle => 'Summary';
+  String get performanceMonitorStatsTitle => 'Statistical summary';
 
   @override
-  String get performanceMonitorStatTotalFrames => 'Total frames';
+  String get performanceMonitorStatTotalFrames => 'total frames';
 
   @override
-  String get performanceMonitorStatJankFrames => 'Jank frames';
+  String get performanceMonitorStatJankFrames => 'lag frame rate';
 
   @override
-  String get performanceMonitorStatJankRate => 'Jank rate';
+  String get performanceMonitorStatJankRate => 'lag rate';
 
   @override
-  String get performanceMonitorStatAvgBuildTime => 'Avg Build time';
+  String get performanceMonitorStatAvgBuildTime => 'Average build time';
 
   @override
-  String get performanceMonitorStatAvgRasterTime => 'Avg Raster time';
+  String get performanceMonitorStatAvgRasterTime => 'Average Raster Time';
 
   @override
-  String get performanceMonitorStatAvgTotalTime => 'Avg Total time';
+  String get performanceMonitorStatAvgTotalTime => 'Average Total time';
 
   @override
-  String get performanceMonitorStatMaxBuildTime => 'Max Build time';
+  String get performanceMonitorStatMaxBuildTime => 'Maximum build time';
 
   @override
-  String get performanceMonitorStatMaxRasterTime => 'Max Raster time';
+  String get performanceMonitorStatMaxRasterTime => 'Maximum Raster Time';
 
   @override
-  String get performanceMonitorStatMaxTotalTime => 'Max Total time';
+  String get performanceMonitorStatMaxTotalTime => 'Maximum Total time';
 
   @override
-  String get performanceMonitorRebuildTitle => 'Widget rebuilds';
+  String get performanceMonitorRebuildTitle =>
+      'Widget reconstruction statistics';
 
   @override
-  String get performanceMonitorRebuildTotal => 'Total rebuilds';
+  String get performanceMonitorRebuildTotal => 'Total number of rebuilds';
 
   @override
-  String get performanceMonitorRebuildTracked => 'Tracked widgets';
+  String get performanceMonitorRebuildTracked => 'Number of Widgets tracked';
 
   @override
-  String get performanceMonitorRebuildTopTitle => 'Top rebuild widgets';
+  String get performanceMonitorRebuildTopTitle =>
+      'Widgets with the most rebuilds';
 
   @override
   String get performanceMonitorRebuildEmpty =>
-      'No rebuild data yet\\nCall trackRebuild() in code to track';
+      'There is no reconstruction data yet\\nCall trackRebuild() in the code to track';
 
   @override
   String performanceMonitorFrameChartTitle(Object count) {
-    return 'Frame time chart (last $count frames)';
+    return 'Frame time graph (most recent $count frames)';
   }
 
   @override
   String get performanceMonitorFrameChartEmpty =>
-      'No data yet. Start monitoring.';
+      'No data yet, please start monitoring';
 
   @override
-  String get performanceMonitorLegendNormal => 'Normal frame';
+  String get performanceMonitorLegendNormal => 'normal frame';
 
   @override
   String performanceMonitorLegendJankMs(Object ms) {
-    return 'Jank frame (> $ms ms)';
+    return 'Stuttering frame (> $ms ms)';
   }
 
   @override
   String get performanceMonitorLegendFpsThreshold => '60fps threshold';
 
   @override
-  String get performanceMonitorSettingsTitle => 'Render settings';
+  String get performanceMonitorSettingsTitle => 'Current rendering settings';
 
   @override
   String get performanceMonitorSettingsModeLabel => 'Performance mode';
@@ -3867,38 +4085,39 @@ class AppLocalizationsEn extends AppLocalizations {
   String get performanceMonitorSettingsBlurLabel => 'Blur effect';
 
   @override
-  String get performanceMonitorSettingsBlurStrengthLabel => 'Blur strength';
+  String get performanceMonitorSettingsBlurStrengthLabel => 'Blur intensity';
 
   @override
-  String get performanceMonitorSettingsWindowEffectLabel => 'Window effects';
+  String get performanceMonitorSettingsWindowEffectLabel => 'window effects';
 
   @override
-  String get performanceMonitorSettingsAcrylicOpacityLabel => 'Acrylic opacity';
+  String get performanceMonitorSettingsAcrylicOpacityLabel =>
+      'Acrylic transparency';
 
   @override
-  String get performanceMonitorValueEnabled => 'Enabled';
+  String get performanceMonitorValueEnabled => 'enable';
 
   @override
-  String get performanceMonitorValueDisabled => 'Disabled';
+  String get performanceMonitorValueDisabled => 'Disable';
 
   @override
   String performanceMonitorWindowEffectEnabled(Object mode) {
-    return 'Enabled ($mode)';
+    return 'Enable ($mode)';
   }
 
   @override
   String get performanceMonitorWindowEffectHintEnabled =>
-      'Window effects are enabled and may impact performance. If jank is high, disable them in Settings → Appearance → Window effects.';
+      'Window effects are enabled and may affect performance. If the freezing rate is high, it is recommended to turn it off in \"Settings → Interface → Window Effects\"';
 
   @override
   String get performanceMonitorWindowEffectHintDisabled =>
-      'Window effects are disabled for best performance. You can enable them in Settings → Appearance → Window effects.';
+      'Window effects are disabled for optimal performance. If you need visual effects, you can turn them on in \"Settings → Interface → Window Effects\"';
 
   @override
   String get performanceMonitorActionExport => 'Export log';
 
   @override
-  String get performanceMonitorActionCopy => 'Copy to clipboard';
+  String get performanceMonitorActionCopy => 'copy to clipboard';
 
   @override
   String get performanceMonitorActionClear => 'Clear data';
@@ -3908,14 +4127,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get performanceMonitorToastClearedMessage =>
-      'History has been cleared';
+      'Historical data has been cleared';
 
   @override
   String get performanceMonitorToastExportSuccessTitle => 'Export successful';
 
   @override
   String performanceMonitorToastExportSuccessMessage(Object path) {
-    return 'Log saved to: $path';
+    return 'The log has been saved to: $path';
   }
 
   @override
@@ -3934,41 +4153,41 @@ class AppLocalizationsEn extends AppLocalizations {
       'Performance log copied to clipboard';
 
   @override
-  String get performanceMonitorModeQuality => 'Quality';
+  String get performanceMonitorModeQuality => 'high quality';
 
   @override
-  String get performanceMonitorModeBalanced => 'Balanced';
+  String get performanceMonitorModeBalanced => 'balance';
 
   @override
-  String get performanceMonitorModePerformance => 'Performance';
+  String get performanceMonitorModePerformance => 'Performance first';
 
   @override
-  String get tagActionLabel => 'Tag';
+  String get tagActionLabel => 'Label';
 
   @override
-  String get tagEditTitle => 'Edit tags';
+  String get tagEditTitle => 'Edit tag';
 
   @override
   String get tagEditSubtitle => 'Separate tags with commas';
 
   @override
-  String get tagEditPlaceholder => 'tag1, tag2';
+  String get tagEditPlaceholder => 'tag 1, tag 2';
 
   @override
   String get tagFilterTitle => 'Tag filter';
 
   @override
-  String get tagFilterEmpty => 'No tags available';
+  String get tagFilterEmpty => 'No tags available yet';
 
   @override
-  String get tagFilterSubtitle => 'Select a tag to filter:';
+  String get tagFilterSubtitle => 'Select a tag to filter by:';
 
   @override
   String get tagFilterClearButton => 'Clear tag filter';
 
   @override
   String completedBatchActionsLabel(Object count) {
-    return 'Batch actions ($count)';
+    return 'Batch operations ($count items)';
   }
 
   @override
@@ -3978,16 +4197,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get completedBatchMoveButton => 'Batch move';
 
   @override
-  String get completedBatchMoveSuccessTitle => 'Batch move complete';
+  String get completedBatchMoveSuccessTitle => 'Batch move completed';
 
   @override
   String completedBatchMoveSuccessMessage(Object count) {
-    return 'Moved $count files';
+    return '$count files moved';
   }
 
   @override
   String completedBatchMovePartialMessage(Object success, Object failed) {
-    return 'Success $success, failed $failed';
+    return '$success succeeded, $failed failed';
   }
 
   @override
@@ -3995,158 +4214,263 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get completedBatchRenameHint =>
-      'Apply prefix/suffix to file names in the current list';
+      'Applies prefix/suffix to filenames in current list';
 
   @override
-  String get completedBatchRenamePrefixLabel => 'Prefix';
+  String get completedBatchRenamePrefixLabel => 'prefix';
 
   @override
   String get completedBatchRenamePrefixPlaceholder => 'prefix_';
 
   @override
-  String get completedBatchRenameSuffixLabel => 'Suffix';
+  String get completedBatchRenameSuffixLabel => 'suffix';
 
   @override
   String get completedBatchRenameSuffixPlaceholder => '_suffix';
 
   @override
   String get completedBatchRenameEmptyWarningMessage =>
-      'Please enter a prefix or suffix';
+      'Please fill in at least prefix or suffix';
 
   @override
-  String get completedBatchRenameSuccessTitle => 'Batch rename complete';
+  String get completedBatchRenameSuccessTitle => 'Batch rename completed';
 
   @override
   String completedBatchRenameSuccessMessage(Object count) {
-    return 'Renamed $count files';
+    return '$count files renamed';
   }
 
   @override
   String completedBatchRenamePartialMessage(Object success, Object failed) {
-    return 'Success $success, failed $failed';
+    return '$success succeeded, $failed failed';
   }
 
   @override
-  String get settingsClipboardListenerTitle => 'Clipboard listener';
+  String get settingsClipboardListenerTitle => 'Clipboard monitoring';
 
   @override
   String get settingsClipboardListenerSubtitle =>
-      'Detect URLs from clipboard and show the add-download dialog';
+      'Detect links in clipboard and pop up new download';
 
   @override
   String get settingsClipboardListenerEnabledTitle =>
-      'Clipboard listener enabled';
+      'Clipboard monitoring is enabled';
 
   @override
   String get settingsClipboardListenerEnabledMessage =>
-      'URLs copied to clipboard will trigger a download prompt';
+      'After copying the link, a new download window will pop up.';
 
   @override
   String get settingsClipboardListenerDisabledTitle =>
-      'Clipboard listener disabled';
+      'Clipboard listening is turned off';
 
   @override
   String get settingsClipboardListenerDisabledMessage =>
-      'Clipboard URLs will no longer trigger a prompt';
+      'Copying the link will no longer prompt the pop-up window';
 
   @override
-  String get clipboardListenerMuteSessionButton => 'Mute This Session';
+  String get clipboardListenerMuteSessionButton => 'Mute this time';
 
   @override
-  String get clipboardListenerSessionMutedTitle => 'Muted for this session';
+  String get clipboardListenerSessionMutedTitle =>
+      'This conversation has been muted';
 
   @override
   String get clipboardListenerSessionMutedMessage =>
-      'Automatic clipboard prompts are paused until the app restarts';
+      'Automatically fetching links will be paused until the next time you restart the app';
 
   @override
-  String get downloadDuplicateTitle => 'Duplicate download detected';
+  String get downloadDuplicateTitle => 'Duplicate downloads found';
 
   @override
   String downloadDuplicateMessage(Object fileName, Object status) {
-    return 'A task with the same URL already exists: $fileName ($status). What would you like to do?';
+    return 'A task with the same link already exists: $fileName ($status). How to deal with it?';
   }
 
   @override
   String get downloadDuplicateUseExistingButton => 'Use existing';
 
   @override
-  String get downloadDuplicateAddNewButton => 'Add new';
+  String get downloadDuplicateAddNewButton => 'Still new';
 
   @override
   String get downloadDuplicateCancelButton => 'Cancel';
 
   @override
-  String get downloadBadgeHostHint => 'Host hint';
+  String get downloadBadgeHostHint => 'site cache';
 
   @override
-  String get downloadBadgePolicyFallback => 'Fallback';
+  String get downloadBadgePolicyFallback => 'Downgraded';
 
   @override
   String downloadBadgeConcurrencyCap(Object count) {
-    return 'Cap x$count';
+    return 'Limited concurrency x$count';
   }
 
   @override
   String get downloadFailureHintAuth =>
-      'Check login or add Referer/Cookie; the link may have expired.';
+      'Login or Referer/Cookie replenishment may be required, and the link may have expired.';
 
   @override
   String get downloadFailureHintNotFound =>
-      'The file may be removed or the link is invalid.';
+      'The resource does not exist or has expired. Try updating the link.';
 
   @override
   String get downloadFailureHintRange =>
-      'Server may not support resume; try single-thread or restart.';
+      'The server does not support resumable downloading. It is recommended to use a single thread or re-download.';
 
   @override
   String get downloadFailureHintRateLimit =>
-      'Too many requests. Try again later.';
+      'The request is too frequent, please try again later.';
 
   @override
-  String get downloadFailureHintServer => 'Server error. Try again later.';
+  String get downloadFailureHintServer =>
+      'Server error, please try again later.';
 
   @override
   String get downloadFailureHintHttp =>
-      'HTTP error. Check the URL or permissions.';
+      'HTTP error, please check the link or permissions.';
 
   @override
   String get downloadFailureHintTimeout =>
-      'Connection timed out. Check network or retry.';
+      'The connection timed out, check the network and try again.';
 
   @override
   String get downloadFailureHintConnection =>
-      'Connection dropped. Check network or proxy.';
+      'Connection lost, check network or proxy settings.';
 
   @override
   String get downloadFailureHintDns =>
-      'DNS lookup failed. Check network or DNS settings.';
+      'Domain name resolution failed, check network or DNS.';
 
   @override
   String get downloadFailureHintSsl =>
-      'SSL error. Try another source or adjust certificate settings.';
+      'SSL certificate error, try changing the source.';
 
   @override
   String get downloadFailureHintChecksum =>
-      'File may be corrupted. Try re-downloading.';
+      'The file may be damaged, it is recommended to download it again.';
 
   @override
   String get downloadFailureHintDisk =>
-      'Disk full or permission issue. Check the save location.';
+      'Insufficient disk space or insufficient permissions, please check the save directory.';
 
   @override
-  String get settingsConflictStrategyTitle => 'Name conflict strategy';
+  String get settingsConflictStrategyTitle =>
+      'Duplicate name conflict strategy';
 
   @override
   String get settingsConflictStrategySubtitle =>
-      'How to handle existing files with the same name';
+      'What to do when the file already exists';
 
   @override
-  String get settingsConflictStrategyIncrement => 'Add (1), (2)...';
+  String get settingsConflictStrategyIncrement => 'Automatic addition (1)(2)';
 
   @override
   String get settingsConflictStrategyTimestamp => 'Append timestamp';
 
   @override
-  String get settingsConflictStrategyOverwrite => 'Overwrite existing';
+  String get settingsConflictStrategyOverwrite => 'Overwrite original file';
+
+  @override
+  String get noticePageTitle => 'notify';
+
+  @override
+  String get noticePinned => 'pin to top';
+
+  @override
+  String get noticeEmpty => 'No notification yet';
+
+  @override
+  String get noticeRefresh => 'refresh';
+
+  @override
+  String get noticeRetry => 'Try again';
+
+  @override
+  String get noticeLoadError => 'Failed to load notification';
+
+  @override
+  String noticeLastSynced(Object timeAgo) {
+    return 'Synced $timeAgo';
+  }
+
+  @override
+  String get noticeJustNow => 'just';
+
+  @override
+  String noticeMinutesAgo(Object count) {
+    return '$count minutes ago';
+  }
+
+  @override
+  String noticeHoursAgo(Object count) {
+    return '$count hours ago';
+  }
+
+  @override
+  String noticeDaysAgo(Object count) {
+    return '$count days ago';
+  }
+
+  @override
+  String get noticeOpenLink => 'open link';
+
+  @override
+  String get settingsLogManagementSection => 'Log management';
+
+  @override
+  String get settingsLogClearTitle => 'Clear log';
+
+  @override
+  String get settingsLogClearSubtitle => 'Delete all logging and log files';
+
+  @override
+  String get settingsLogClearButton => 'Clear';
+
+  @override
+  String get settingsLogClearConfirmTitle => 'Confirm to clear logs';
+
+  @override
+  String get settingsLogClearConfirmMessage =>
+      'Are you sure you want to delete all log records and log files? This action cannot be undone.';
+
+  @override
+  String get settingsLogClearConfirmButton => 'Confirm clearing';
+
+  @override
+  String get settingsLogClearSuccessTitle => 'The log has been cleared';
+
+  @override
+  String get settingsLogClearSuccessMessage =>
+      'All log records and files deleted';
+
+  @override
+  String get settingsLogOpenDirTitle => 'Open log directory';
+
+  @override
+  String get settingsLogOpenDirSubtitle => 'View log files in File Explorer';
+
+  @override
+  String get settingsLogOpenDirButton => 'Open';
+
+  @override
+  String get settingsLogOpenDirNotFound => 'Log directory does not exist';
+
+  @override
+  String get settingsLogOpenDirError => 'Unable to open log directory';
+
+  @override
+  String get settingsLogRetentionTitle => 'Automatic cleaning';
+
+  @override
+  String settingsLogRetentionSubtitle(Object days) {
+    return 'Automatically delete logs older than $days days';
+  }
+
+  @override
+  String get settingsLogRetentionDays => 'sky';
+
+  @override
+  String get settingsLogRetentionSaved => 'Log cleaning settings saved';
 }

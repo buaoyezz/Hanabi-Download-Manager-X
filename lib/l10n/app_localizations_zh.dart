@@ -309,6 +309,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get homeNavSettings => '设置';
 
   @override
+  String get homeNavNotice => '通知';
+
+  @override
   String get homeNavAbout => '关于';
 
   @override
@@ -513,6 +516,49 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String settingsSaveFailedMessage(Object error) {
     return '无法保存设置: $error';
+  }
+
+  @override
+  String get settingsBrowserExtensionPortTitle => '浏览器桥接端口';
+
+  @override
+  String settingsBrowserExtensionPortSubtitle(Object port) {
+    return '当前本地 API 地址为 http://127.0.0.1:$port | 修改后扩展会自动为您迁移到新端口';
+  }
+
+  @override
+  String get settingsBrowserExtensionPortChangeButton => '更改';
+
+  @override
+  String get settingsBrowserExtensionPortDialogTitle => '更改浏览器桥接端口';
+
+  @override
+  String get settingsBrowserExtensionPortDialogPrompt =>
+      '请输入浏览器扩展桥接使用的本地 API 端口';
+
+  @override
+  String get settingsBrowserExtensionPortPlaceholder => '1024 - 65535';
+
+  @override
+  String get settingsBrowserExtensionPortHintBody =>
+      'Hanabi 会立即把本地桥接切到新端口，并在迁移期间保留旧端口作为兼容入口，浏览器扩展会自动切换过去。';
+
+  @override
+  String get settingsBrowserExtensionPortInvalidTitle => '端口无效';
+
+  @override
+  String settingsBrowserExtensionPortInvalidMessage(Object min, Object max) {
+    return '抱歉您输入的端口号不合法\n请输入 $min 到 $max 之间的端口号';
+  }
+
+  @override
+  String settingsBrowserExtensionPortSavedMessage(Object port) {
+    return '浏览器桥接端口已切换到 $port，扩展会自动更新。';
+  }
+
+  @override
+  String settingsBrowserExtensionPortSaveFailedMessage(Object error) {
+    return '切换浏览器桥接端口失败: $error';
   }
 
   @override
@@ -753,7 +799,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsProxyTypeSubtitle => '选择代理协议';
 
   @override
-  String get settingsProxyTypeSystem => 'system';
+  String get settingsProxyTypeSystem => '系统代理';
 
   @override
   String get settingsProxyTypeHttp => 'HTTP';
@@ -1252,7 +1298,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appearanceWindowEffectSwitchedTitle => '效果已切换';
 
   @override
-  String get appearanceWindowEffectAcrylic => 'acrylic';
+  String get appearanceWindowEffectAcrylic => 'Acrylic';
 
   @override
   String get appearanceWindowEffectBlur => '模糊';
@@ -2088,6 +2134,106 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get popupDownloadDefaultFileName => 'download';
+
+  @override
+  String get popupDownloadProgressTitle => '下载中';
+
+  @override
+  String get popupDownloadCompletedTitle => '下载完成';
+
+  @override
+  String get popupDownloadProgressHint => 'Powered by NSFX Kernel';
+
+  @override
+  String get popupDownloadCompletedHint => '文件已保存到目标目录，可直接打开文件或文件夹';
+
+  @override
+  String get popupDownloadStatusPending => '准备中';
+
+  @override
+  String get popupDownloadStatusDownloading => '下载中';
+
+  @override
+  String get popupDownloadStatusPaused => '已暂停';
+
+  @override
+  String get popupDownloadStatusMerging => '校验中';
+
+  @override
+  String get popupDownloadStatusCompleted => '完成';
+
+  @override
+  String get popupDownloadStatusFailed => '失败';
+
+  @override
+  String get popupDownloadStatusUnknown => '等待中';
+
+  @override
+  String get popupDownloadMetricProgress => '进度';
+
+  @override
+  String get popupDownloadMetricDownloaded => '已下载';
+
+  @override
+  String get popupDownloadMetricTotalSize => '总大小';
+
+  @override
+  String get popupDownloadMetricSpeed => '速度';
+
+  @override
+  String get popupDownloadMetricEta => '剩余时间';
+
+  @override
+  String get popupDownloadMetricSegments => '分段';
+
+  @override
+  String get popupDownloadMetricStatus => '状态';
+
+  @override
+  String get popupDownloadMetricSaveTo => '保存位置';
+
+  @override
+  String get popupDownloadMetricHost => '来源';
+
+  @override
+  String get popupDownloadProgressLiveLabel => '实时传输';
+
+  @override
+  String get popupDownloadProgressSegmentTitle => '分段进度';
+
+  @override
+  String get popupDownloadProgressWaiting => '正在准备连接与文件信息';
+
+  @override
+  String get popupDownloadProgressCompletedMessage => '下载已完成，你可以打开文件夹查看结果';
+
+  @override
+  String get popupDownloadActionBackground => '后台下载';
+
+  @override
+  String get popupDownloadActionPause => '暂停';
+
+  @override
+  String get popupDownloadActionResume => '继续';
+
+  @override
+  String get popupDownloadActionOpenFile => '打开文件';
+
+  @override
+  String get popupDownloadActionOpenFolder => '打开文件夹';
+
+  @override
+  String get popupDownloadActionClose => '关闭';
+
+  @override
+  String popupDownloadErrorOpenFileFailed(Object error) {
+    return '打开文件失败: $error';
+  }
+
+  @override
+  String popupDownloadErrorOpenFolderFailed(Object error) {
+    return '打开文件夹失败: $error';
+  }
 
   @override
   String get addDownloadTitle => '新建下载';
@@ -3990,4 +4136,104 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsConflictStrategyOverwrite => '覆盖原文件';
+
+  @override
+  String get noticePageTitle => '通知';
+
+  @override
+  String get noticePinned => '置顶';
+
+  @override
+  String get noticeEmpty => '暂无通知';
+
+  @override
+  String get noticeRefresh => '刷新';
+
+  @override
+  String get noticeRetry => '重试';
+
+  @override
+  String get noticeLoadError => '加载通知失败';
+
+  @override
+  String noticeLastSynced(Object timeAgo) {
+    return '已同步 $timeAgo';
+  }
+
+  @override
+  String get noticeJustNow => '刚刚';
+
+  @override
+  String noticeMinutesAgo(Object count) {
+    return '$count 分钟前';
+  }
+
+  @override
+  String noticeHoursAgo(Object count) {
+    return '$count 小时前';
+  }
+
+  @override
+  String noticeDaysAgo(Object count) {
+    return '$count 天前';
+  }
+
+  @override
+  String get noticeOpenLink => '打开链接';
+
+  @override
+  String get settingsLogManagementSection => '日志管理';
+
+  @override
+  String get settingsLogClearTitle => '清空日志';
+
+  @override
+  String get settingsLogClearSubtitle => '删除所有日志记录和日志文件';
+
+  @override
+  String get settingsLogClearButton => '清空';
+
+  @override
+  String get settingsLogClearConfirmTitle => '确认清空日志';
+
+  @override
+  String get settingsLogClearConfirmMessage => '确定要删除所有日志记录和日志文件吗？此操作不可撤销。';
+
+  @override
+  String get settingsLogClearConfirmButton => '确认清空';
+
+  @override
+  String get settingsLogClearSuccessTitle => '日志已清空';
+
+  @override
+  String get settingsLogClearSuccessMessage => '所有日志记录和文件已删除';
+
+  @override
+  String get settingsLogOpenDirTitle => '打开日志目录';
+
+  @override
+  String get settingsLogOpenDirSubtitle => '在文件资源管理器中查看日志文件';
+
+  @override
+  String get settingsLogOpenDirButton => '打开';
+
+  @override
+  String get settingsLogOpenDirNotFound => '日志目录不存在';
+
+  @override
+  String get settingsLogOpenDirError => '无法打开日志目录';
+
+  @override
+  String get settingsLogRetentionTitle => '自动清理';
+
+  @override
+  String settingsLogRetentionSubtitle(Object days) {
+    return '自动删除 $days 天前的日志';
+  }
+
+  @override
+  String get settingsLogRetentionDays => '天';
+
+  @override
+  String get settingsLogRetentionSaved => '日志清理设置已保存';
 }

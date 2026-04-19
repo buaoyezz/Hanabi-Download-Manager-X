@@ -456,6 +456,9 @@ class PluginAppLocalizations extends AppLocalizations {
       _string('homeNavSettings', _fallback.homeNavSettings);
 
   @override
+  String get homeNavNotice => _string('homeNavNotice', _fallback.homeNavNotice);
+
+  @override
   String get homeNavAbout => _string('homeNavAbout', _fallback.homeNavAbout);
 
   @override
@@ -739,6 +742,66 @@ class PluginAppLocalizations extends AppLocalizations {
       'settingsSaveFailedMessage',
       {'error': error},
       _fallback.settingsSaveFailedMessage(error));
+
+  @override
+  String get settingsBrowserExtensionPortTitle => _string(
+      'settingsBrowserExtensionPortTitle',
+      _fallback.settingsBrowserExtensionPortTitle);
+
+  @override
+  String settingsBrowserExtensionPortSubtitle(Object port) => _format(
+      'settingsBrowserExtensionPortSubtitle',
+      {'port': port},
+      _fallback.settingsBrowserExtensionPortSubtitle(port));
+
+  @override
+  String get settingsBrowserExtensionPortChangeButton => _string(
+      'settingsBrowserExtensionPortChangeButton',
+      _fallback.settingsBrowserExtensionPortChangeButton);
+
+  @override
+  String get settingsBrowserExtensionPortDialogTitle => _string(
+      'settingsBrowserExtensionPortDialogTitle',
+      _fallback.settingsBrowserExtensionPortDialogTitle);
+
+  @override
+  String get settingsBrowserExtensionPortDialogPrompt => _string(
+      'settingsBrowserExtensionPortDialogPrompt',
+      _fallback.settingsBrowserExtensionPortDialogPrompt);
+
+  @override
+  String get settingsBrowserExtensionPortPlaceholder => _string(
+      'settingsBrowserExtensionPortPlaceholder',
+      _fallback.settingsBrowserExtensionPortPlaceholder);
+
+  @override
+  String get settingsBrowserExtensionPortHintBody => _string(
+      'settingsBrowserExtensionPortHintBody',
+      _fallback.settingsBrowserExtensionPortHintBody);
+
+  @override
+  String get settingsBrowserExtensionPortInvalidTitle => _string(
+      'settingsBrowserExtensionPortInvalidTitle',
+      _fallback.settingsBrowserExtensionPortInvalidTitle);
+
+  @override
+  String settingsBrowserExtensionPortInvalidMessage(Object min, Object max) =>
+      _format(
+          'settingsBrowserExtensionPortInvalidMessage',
+          {'min': min, 'max': max},
+          _fallback.settingsBrowserExtensionPortInvalidMessage(min, max));
+
+  @override
+  String settingsBrowserExtensionPortSavedMessage(Object port) => _format(
+      'settingsBrowserExtensionPortSavedMessage',
+      {'port': port},
+      _fallback.settingsBrowserExtensionPortSavedMessage(port));
+
+  @override
+  String settingsBrowserExtensionPortSaveFailedMessage(Object error) => _format(
+      'settingsBrowserExtensionPortSaveFailedMessage',
+      {'error': error},
+      _fallback.settingsBrowserExtensionPortSaveFailedMessage(error));
 
   @override
   String get settingsDownloadPathSection => _string(
@@ -2989,6 +3052,140 @@ class PluginAppLocalizations extends AppLocalizations {
   @override
   String get popupDownloadDefaultFileName => _string(
       'popupDownloadDefaultFileName', _fallback.popupDownloadDefaultFileName);
+
+  @override
+  String get popupDownloadProgressTitle => _string(
+      'popupDownloadProgressTitle', _fallback.popupDownloadProgressTitle);
+
+  @override
+  String get popupDownloadCompletedTitle => _string(
+      'popupDownloadCompletedTitle', _fallback.popupDownloadCompletedTitle);
+
+  @override
+  String get popupDownloadProgressHint => _string(
+      'popupDownloadProgressHint', _fallback.popupDownloadProgressHint);
+
+  @override
+  String get popupDownloadCompletedHint => _string(
+      'popupDownloadCompletedHint', _fallback.popupDownloadCompletedHint);
+
+  @override
+  String get popupDownloadStatusPending => _string(
+      'popupDownloadStatusPending', _fallback.popupDownloadStatusPending);
+
+  @override
+  String get popupDownloadStatusDownloading => _string(
+      'popupDownloadStatusDownloading', _fallback.popupDownloadStatusDownloading);
+
+  @override
+  String get popupDownloadStatusPaused => _string(
+      'popupDownloadStatusPaused', _fallback.popupDownloadStatusPaused);
+
+  @override
+  String get popupDownloadStatusMerging => _string(
+      'popupDownloadStatusMerging', _fallback.popupDownloadStatusMerging);
+
+  @override
+  String get popupDownloadStatusCompleted => _string(
+      'popupDownloadStatusCompleted', _fallback.popupDownloadStatusCompleted);
+
+  @override
+  String get popupDownloadStatusFailed => _string(
+      'popupDownloadStatusFailed', _fallback.popupDownloadStatusFailed);
+
+  @override
+  String get popupDownloadStatusUnknown => _string(
+      'popupDownloadStatusUnknown', _fallback.popupDownloadStatusUnknown);
+
+  @override
+  String get popupDownloadMetricProgress => _string(
+      'popupDownloadMetricProgress', _fallback.popupDownloadMetricProgress);
+
+  @override
+  String get popupDownloadMetricDownloaded => _string(
+      'popupDownloadMetricDownloaded', _fallback.popupDownloadMetricDownloaded);
+
+  @override
+  String get popupDownloadMetricTotalSize => _string(
+      'popupDownloadMetricTotalSize', _fallback.popupDownloadMetricTotalSize);
+
+  @override
+  String get popupDownloadMetricSpeed =>
+      _string('popupDownloadMetricSpeed', _fallback.popupDownloadMetricSpeed);
+
+  @override
+  String get popupDownloadMetricEta =>
+      _string('popupDownloadMetricEta', _fallback.popupDownloadMetricEta);
+
+  @override
+  String get popupDownloadMetricSegments => _string(
+      'popupDownloadMetricSegments', _fallback.popupDownloadMetricSegments);
+
+  @override
+  String get popupDownloadMetricStatus => _string(
+      'popupDownloadMetricStatus', _fallback.popupDownloadMetricStatus);
+
+  @override
+  String get popupDownloadMetricSaveTo => _string(
+      'popupDownloadMetricSaveTo', _fallback.popupDownloadMetricSaveTo);
+
+  @override
+  String get popupDownloadMetricHost =>
+      _string('popupDownloadMetricHost', _fallback.popupDownloadMetricHost);
+
+  @override
+  String get popupDownloadProgressLiveLabel => _string(
+      'popupDownloadProgressLiveLabel', _fallback.popupDownloadProgressLiveLabel);
+
+  @override
+  String get popupDownloadProgressSegmentTitle => _string(
+      'popupDownloadProgressSegmentTitle',
+      _fallback.popupDownloadProgressSegmentTitle);
+
+  @override
+  String get popupDownloadProgressWaiting => _string(
+      'popupDownloadProgressWaiting', _fallback.popupDownloadProgressWaiting);
+
+  @override
+  String get popupDownloadProgressCompletedMessage => _string(
+      'popupDownloadProgressCompletedMessage',
+      _fallback.popupDownloadProgressCompletedMessage);
+
+  @override
+  String get popupDownloadActionBackground => _string(
+      'popupDownloadActionBackground', _fallback.popupDownloadActionBackground);
+
+  @override
+  String get popupDownloadActionPause => _string(
+      'popupDownloadActionPause', _fallback.popupDownloadActionPause);
+
+  @override
+  String get popupDownloadActionResume => _string(
+      'popupDownloadActionResume', _fallback.popupDownloadActionResume);
+
+  @override
+  String get popupDownloadActionOpenFolder => _string(
+      'popupDownloadActionOpenFolder', _fallback.popupDownloadActionOpenFolder);
+
+  @override
+  String get popupDownloadActionOpenFile => _string(
+      'popupDownloadActionOpenFile', _fallback.popupDownloadActionOpenFile);
+
+  @override
+  String get popupDownloadActionClose => _string(
+      'popupDownloadActionClose', _fallback.popupDownloadActionClose);
+
+  @override
+  String popupDownloadErrorOpenFileFailed(Object error) => _format(
+      'popupDownloadErrorOpenFileFailed',
+      {'error': error},
+      _fallback.popupDownloadErrorOpenFileFailed(error));
+
+  @override
+  String popupDownloadErrorOpenFolderFailed(Object error) => _format(
+      'popupDownloadErrorOpenFolderFailed',
+      {'error': error},
+      _fallback.popupDownloadErrorOpenFolderFailed(error));
 
   @override
   String get addDownloadTitle =>
@@ -5518,4 +5715,122 @@ class PluginAppLocalizations extends AppLocalizations {
   String get settingsConflictStrategyOverwrite => _string(
       'settingsConflictStrategyOverwrite',
       _fallback.settingsConflictStrategyOverwrite);
+
+  @override
+  String get noticePageTitle =>
+      _string('noticePageTitle', _fallback.noticePageTitle);
+
+  @override
+  String get noticePinned => _string('noticePinned', _fallback.noticePinned);
+
+  @override
+  String get noticeEmpty => _string('noticeEmpty', _fallback.noticeEmpty);
+
+  @override
+  String get noticeRefresh => _string('noticeRefresh', _fallback.noticeRefresh);
+
+  @override
+  String get noticeRetry => _string('noticeRetry', _fallback.noticeRetry);
+
+  @override
+  String get noticeLoadError =>
+      _string('noticeLoadError', _fallback.noticeLoadError);
+
+  @override
+  String noticeLastSynced(Object timeAgo) =>
+      _string('noticeLastSynced', _fallback.noticeLastSynced(timeAgo));
+
+  @override
+  String get noticeJustNow => _string('noticeJustNow', _fallback.noticeJustNow);
+
+  @override
+  String noticeMinutesAgo(Object count) =>
+      _string('noticeMinutesAgo', _fallback.noticeMinutesAgo(count));
+
+  @override
+  String noticeHoursAgo(Object count) =>
+      _string('noticeHoursAgo', _fallback.noticeHoursAgo(count));
+
+  @override
+  String noticeDaysAgo(Object count) =>
+      _string('noticeDaysAgo', _fallback.noticeDaysAgo(count));
+
+  @override
+  String get noticeOpenLink =>
+      _string('noticeOpenLink', _fallback.noticeOpenLink);
+
+  @override
+  String get settingsLogManagementSection => _string(
+      'settingsLogManagementSection', _fallback.settingsLogManagementSection);
+
+  @override
+  String get settingsLogClearTitle =>
+      _string('settingsLogClearTitle', _fallback.settingsLogClearTitle);
+
+  @override
+  String get settingsLogClearSubtitle =>
+      _string('settingsLogClearSubtitle', _fallback.settingsLogClearSubtitle);
+
+  @override
+  String get settingsLogClearButton =>
+      _string('settingsLogClearButton', _fallback.settingsLogClearButton);
+
+  @override
+  String get settingsLogClearConfirmTitle => _string(
+      'settingsLogClearConfirmTitle', _fallback.settingsLogClearConfirmTitle);
+
+  @override
+  String get settingsLogClearConfirmMessage => _string(
+      'settingsLogClearConfirmMessage',
+      _fallback.settingsLogClearConfirmMessage);
+
+  @override
+  String get settingsLogClearConfirmButton => _string(
+      'settingsLogClearConfirmButton', _fallback.settingsLogClearConfirmButton);
+
+  @override
+  String get settingsLogClearSuccessTitle => _string(
+      'settingsLogClearSuccessTitle', _fallback.settingsLogClearSuccessTitle);
+
+  @override
+  String get settingsLogClearSuccessMessage => _string(
+      'settingsLogClearSuccessMessage',
+      _fallback.settingsLogClearSuccessMessage);
+
+  @override
+  String get settingsLogOpenDirTitle =>
+      _string('settingsLogOpenDirTitle', _fallback.settingsLogOpenDirTitle);
+
+  @override
+  String get settingsLogOpenDirSubtitle => _string(
+      'settingsLogOpenDirSubtitle', _fallback.settingsLogOpenDirSubtitle);
+
+  @override
+  String get settingsLogOpenDirButton =>
+      _string('settingsLogOpenDirButton', _fallback.settingsLogOpenDirButton);
+
+  @override
+  String get settingsLogOpenDirNotFound => _string(
+      'settingsLogOpenDirNotFound', _fallback.settingsLogOpenDirNotFound);
+
+  @override
+  String get settingsLogOpenDirError =>
+      _string('settingsLogOpenDirError', _fallback.settingsLogOpenDirError);
+
+  @override
+  String get settingsLogRetentionTitle =>
+      _string('settingsLogRetentionTitle', _fallback.settingsLogRetentionTitle);
+
+  @override
+  String settingsLogRetentionSubtitle(Object days) => _string(
+      'settingsLogRetentionSubtitle',
+      _fallback.settingsLogRetentionSubtitle(days));
+
+  @override
+  String get settingsLogRetentionDays =>
+      _string('settingsLogRetentionDays', _fallback.settingsLogRetentionDays);
+
+  @override
+  String get settingsLogRetentionSaved =>
+      _string('settingsLogRetentionSaved', _fallback.settingsLogRetentionSaved);
 }

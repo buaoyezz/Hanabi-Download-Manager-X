@@ -632,6 +632,12 @@ abstract class AppLocalizations {
   /// **'设置'**
   String get homeNavSettings;
 
+  /// No description provided for @homeNavNotice.
+  ///
+  /// In zh, this message translates to:
+  /// **'通知'**
+  String get homeNavNotice;
+
   /// No description provided for @homeNavAbout.
   ///
   /// In zh, this message translates to:
@@ -1033,6 +1039,72 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'无法保存设置: {error}'**
   String settingsSaveFailedMessage(Object error);
+
+  /// No description provided for @settingsBrowserExtensionPortTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'浏览器桥接端口'**
+  String get settingsBrowserExtensionPortTitle;
+
+  /// No description provided for @settingsBrowserExtensionPortSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前本地 API 地址为 http://127.0.0.1:{port} | 修改后扩展会自动为您迁移到新端口'**
+  String settingsBrowserExtensionPortSubtitle(Object port);
+
+  /// No description provided for @settingsBrowserExtensionPortChangeButton.
+  ///
+  /// In zh, this message translates to:
+  /// **'更改'**
+  String get settingsBrowserExtensionPortChangeButton;
+
+  /// No description provided for @settingsBrowserExtensionPortDialogTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'更改浏览器桥接端口'**
+  String get settingsBrowserExtensionPortDialogTitle;
+
+  /// No description provided for @settingsBrowserExtensionPortDialogPrompt.
+  ///
+  /// In zh, this message translates to:
+  /// **'请输入浏览器扩展桥接使用的本地 API 端口'**
+  String get settingsBrowserExtensionPortDialogPrompt;
+
+  /// No description provided for @settingsBrowserExtensionPortPlaceholder.
+  ///
+  /// In zh, this message translates to:
+  /// **'1024 - 65535'**
+  String get settingsBrowserExtensionPortPlaceholder;
+
+  /// No description provided for @settingsBrowserExtensionPortHintBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'Hanabi 会立即把本地桥接切到新端口，并在迁移期间保留旧端口作为兼容入口，浏览器扩展会自动切换过去。'**
+  String get settingsBrowserExtensionPortHintBody;
+
+  /// No description provided for @settingsBrowserExtensionPortInvalidTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'端口无效'**
+  String get settingsBrowserExtensionPortInvalidTitle;
+
+  /// No description provided for @settingsBrowserExtensionPortInvalidMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'抱歉您输入的端口号不合法\n请输入 {min} 到 {max} 之间的端口号'**
+  String settingsBrowserExtensionPortInvalidMessage(Object min, Object max);
+
+  /// No description provided for @settingsBrowserExtensionPortSavedMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'浏览器桥接端口已切换到 {port}，扩展会自动更新。'**
+  String settingsBrowserExtensionPortSavedMessage(Object port);
+
+  /// No description provided for @settingsBrowserExtensionPortSaveFailedMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'切换浏览器桥接端口失败: {error}'**
+  String settingsBrowserExtensionPortSaveFailedMessage(Object error);
 
   /// No description provided for @settingsDownloadPathSection.
   ///
@@ -1481,7 +1553,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsProxyTypeSystem.
   ///
   /// In zh, this message translates to:
-  /// **'system'**
+  /// **'系统代理'**
   String get settingsProxyTypeSystem;
 
   /// No description provided for @settingsProxyTypeHttp.
@@ -2423,7 +2495,7 @@ abstract class AppLocalizations {
   /// No description provided for @appearanceWindowEffectAcrylic.
   ///
   /// In zh, this message translates to:
-  /// **'acrylic'**
+  /// **'Acrylic'**
   String get appearanceWindowEffectAcrylic;
 
   /// No description provided for @appearanceWindowEffectBlur.
@@ -4022,6 +4094,198 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'download'**
   String get popupDownloadDefaultFileName;
+
+  /// No description provided for @popupDownloadProgressTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'下载中'**
+  String get popupDownloadProgressTitle;
+
+  /// No description provided for @popupDownloadCompletedTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'下载完成'**
+  String get popupDownloadCompletedTitle;
+
+  /// No description provided for @popupDownloadProgressHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'Powered by NSFX Kernel'**
+  String get popupDownloadProgressHint;
+
+  /// No description provided for @popupDownloadCompletedHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'文件已保存到目标目录，可直接打开文件或文件夹'**
+  String get popupDownloadCompletedHint;
+
+  /// No description provided for @popupDownloadStatusPending.
+  ///
+  /// In zh, this message translates to:
+  /// **'准备中'**
+  String get popupDownloadStatusPending;
+
+  /// No description provided for @popupDownloadStatusDownloading.
+  ///
+  /// In zh, this message translates to:
+  /// **'下载中'**
+  String get popupDownloadStatusDownloading;
+
+  /// No description provided for @popupDownloadStatusPaused.
+  ///
+  /// In zh, this message translates to:
+  /// **'已暂停'**
+  String get popupDownloadStatusPaused;
+
+  /// No description provided for @popupDownloadStatusMerging.
+  ///
+  /// In zh, this message translates to:
+  /// **'校验中'**
+  String get popupDownloadStatusMerging;
+
+  /// No description provided for @popupDownloadStatusCompleted.
+  ///
+  /// In zh, this message translates to:
+  /// **'完成'**
+  String get popupDownloadStatusCompleted;
+
+  /// No description provided for @popupDownloadStatusFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'失败'**
+  String get popupDownloadStatusFailed;
+
+  /// No description provided for @popupDownloadStatusUnknown.
+  ///
+  /// In zh, this message translates to:
+  /// **'等待中'**
+  String get popupDownloadStatusUnknown;
+
+  /// No description provided for @popupDownloadMetricProgress.
+  ///
+  /// In zh, this message translates to:
+  /// **'进度'**
+  String get popupDownloadMetricProgress;
+
+  /// No description provided for @popupDownloadMetricDownloaded.
+  ///
+  /// In zh, this message translates to:
+  /// **'已下载'**
+  String get popupDownloadMetricDownloaded;
+
+  /// No description provided for @popupDownloadMetricTotalSize.
+  ///
+  /// In zh, this message translates to:
+  /// **'总大小'**
+  String get popupDownloadMetricTotalSize;
+
+  /// No description provided for @popupDownloadMetricSpeed.
+  ///
+  /// In zh, this message translates to:
+  /// **'速度'**
+  String get popupDownloadMetricSpeed;
+
+  /// No description provided for @popupDownloadMetricEta.
+  ///
+  /// In zh, this message translates to:
+  /// **'剩余时间'**
+  String get popupDownloadMetricEta;
+
+  /// No description provided for @popupDownloadMetricSegments.
+  ///
+  /// In zh, this message translates to:
+  /// **'分段'**
+  String get popupDownloadMetricSegments;
+
+  /// No description provided for @popupDownloadMetricStatus.
+  ///
+  /// In zh, this message translates to:
+  /// **'状态'**
+  String get popupDownloadMetricStatus;
+
+  /// No description provided for @popupDownloadMetricSaveTo.
+  ///
+  /// In zh, this message translates to:
+  /// **'保存位置'**
+  String get popupDownloadMetricSaveTo;
+
+  /// No description provided for @popupDownloadMetricHost.
+  ///
+  /// In zh, this message translates to:
+  /// **'来源'**
+  String get popupDownloadMetricHost;
+
+  /// No description provided for @popupDownloadProgressLiveLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'实时传输'**
+  String get popupDownloadProgressLiveLabel;
+
+  /// No description provided for @popupDownloadProgressSegmentTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'分段进度'**
+  String get popupDownloadProgressSegmentTitle;
+
+  /// No description provided for @popupDownloadProgressWaiting.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在准备连接与文件信息'**
+  String get popupDownloadProgressWaiting;
+
+  /// No description provided for @popupDownloadProgressCompletedMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'下载已完成，你可以打开文件夹查看结果'**
+  String get popupDownloadProgressCompletedMessage;
+
+  /// No description provided for @popupDownloadActionBackground.
+  ///
+  /// In zh, this message translates to:
+  /// **'后台下载'**
+  String get popupDownloadActionBackground;
+
+  /// No description provided for @popupDownloadActionPause.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂停'**
+  String get popupDownloadActionPause;
+
+  /// No description provided for @popupDownloadActionResume.
+  ///
+  /// In zh, this message translates to:
+  /// **'继续'**
+  String get popupDownloadActionResume;
+
+  /// No description provided for @popupDownloadActionOpenFile.
+  ///
+  /// In zh, this message translates to:
+  /// **'打开文件'**
+  String get popupDownloadActionOpenFile;
+
+  /// No description provided for @popupDownloadActionOpenFolder.
+  ///
+  /// In zh, this message translates to:
+  /// **'打开文件夹'**
+  String get popupDownloadActionOpenFolder;
+
+  /// No description provided for @popupDownloadActionClose.
+  ///
+  /// In zh, this message translates to:
+  /// **'关闭'**
+  String get popupDownloadActionClose;
+
+  /// No description provided for @popupDownloadErrorOpenFileFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'打开文件失败: {error}'**
+  String popupDownloadErrorOpenFileFailed(Object error);
+
+  /// No description provided for @popupDownloadErrorOpenFolderFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'打开文件夹失败: {error}'**
+  String popupDownloadErrorOpenFolderFailed(Object error);
 
   /// No description provided for @addDownloadTitle.
   ///
@@ -7456,6 +7720,186 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'覆盖原文件'**
   String get settingsConflictStrategyOverwrite;
+
+  /// No description provided for @noticePageTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'通知'**
+  String get noticePageTitle;
+
+  /// No description provided for @noticePinned.
+  ///
+  /// In zh, this message translates to:
+  /// **'置顶'**
+  String get noticePinned;
+
+  /// No description provided for @noticeEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无通知'**
+  String get noticeEmpty;
+
+  /// No description provided for @noticeRefresh.
+  ///
+  /// In zh, this message translates to:
+  /// **'刷新'**
+  String get noticeRefresh;
+
+  /// No description provided for @noticeRetry.
+  ///
+  /// In zh, this message translates to:
+  /// **'重试'**
+  String get noticeRetry;
+
+  /// No description provided for @noticeLoadError.
+  ///
+  /// In zh, this message translates to:
+  /// **'加载通知失败'**
+  String get noticeLoadError;
+
+  /// No description provided for @noticeLastSynced.
+  ///
+  /// In zh, this message translates to:
+  /// **'已同步 {timeAgo}'**
+  String noticeLastSynced(Object timeAgo);
+
+  /// No description provided for @noticeJustNow.
+  ///
+  /// In zh, this message translates to:
+  /// **'刚刚'**
+  String get noticeJustNow;
+
+  /// No description provided for @noticeMinutesAgo.
+  ///
+  /// In zh, this message translates to:
+  /// **'{count} 分钟前'**
+  String noticeMinutesAgo(Object count);
+
+  /// No description provided for @noticeHoursAgo.
+  ///
+  /// In zh, this message translates to:
+  /// **'{count} 小时前'**
+  String noticeHoursAgo(Object count);
+
+  /// No description provided for @noticeDaysAgo.
+  ///
+  /// In zh, this message translates to:
+  /// **'{count} 天前'**
+  String noticeDaysAgo(Object count);
+
+  /// No description provided for @noticeOpenLink.
+  ///
+  /// In zh, this message translates to:
+  /// **'打开链接'**
+  String get noticeOpenLink;
+
+  /// No description provided for @settingsLogManagementSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'日志管理'**
+  String get settingsLogManagementSection;
+
+  /// No description provided for @settingsLogClearTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'清空日志'**
+  String get settingsLogClearTitle;
+
+  /// No description provided for @settingsLogClearSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除所有日志记录和日志文件'**
+  String get settingsLogClearSubtitle;
+
+  /// No description provided for @settingsLogClearButton.
+  ///
+  /// In zh, this message translates to:
+  /// **'清空'**
+  String get settingsLogClearButton;
+
+  /// No description provided for @settingsLogClearConfirmTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'确认清空日志'**
+  String get settingsLogClearConfirmTitle;
+
+  /// No description provided for @settingsLogClearConfirmMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'确定要删除所有日志记录和日志文件吗？此操作不可撤销。'**
+  String get settingsLogClearConfirmMessage;
+
+  /// No description provided for @settingsLogClearConfirmButton.
+  ///
+  /// In zh, this message translates to:
+  /// **'确认清空'**
+  String get settingsLogClearConfirmButton;
+
+  /// No description provided for @settingsLogClearSuccessTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'日志已清空'**
+  String get settingsLogClearSuccessTitle;
+
+  /// No description provided for @settingsLogClearSuccessMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'所有日志记录和文件已删除'**
+  String get settingsLogClearSuccessMessage;
+
+  /// No description provided for @settingsLogOpenDirTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'打开日志目录'**
+  String get settingsLogOpenDirTitle;
+
+  /// No description provided for @settingsLogOpenDirSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'在文件资源管理器中查看日志文件'**
+  String get settingsLogOpenDirSubtitle;
+
+  /// No description provided for @settingsLogOpenDirButton.
+  ///
+  /// In zh, this message translates to:
+  /// **'打开'**
+  String get settingsLogOpenDirButton;
+
+  /// No description provided for @settingsLogOpenDirNotFound.
+  ///
+  /// In zh, this message translates to:
+  /// **'日志目录不存在'**
+  String get settingsLogOpenDirNotFound;
+
+  /// No description provided for @settingsLogOpenDirError.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法打开日志目录'**
+  String get settingsLogOpenDirError;
+
+  /// No description provided for @settingsLogRetentionTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'自动清理'**
+  String get settingsLogRetentionTitle;
+
+  /// No description provided for @settingsLogRetentionSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'自动删除 {days} 天前的日志'**
+  String settingsLogRetentionSubtitle(Object days);
+
+  /// No description provided for @settingsLogRetentionDays.
+  ///
+  /// In zh, this message translates to:
+  /// **'天'**
+  String get settingsLogRetentionDays;
+
+  /// No description provided for @settingsLogRetentionSaved.
+  ///
+  /// In zh, this message translates to:
+  /// **'日志清理设置已保存'**
+  String get settingsLogRetentionSaved;
 }
 
 class _AppLocalizationsDelegate
