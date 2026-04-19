@@ -425,5 +425,10 @@ abstract class KernelInterface {
     String? password,
   });
 
+  Future<bool> updateBrowserBridgePort(
+    int port, {
+    Iterable<int> compatibilityPorts = const [],
+  });
+
   void dispose();
 }

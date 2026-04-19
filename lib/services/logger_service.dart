@@ -1,6 +1,3 @@
-import 'dart:async';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
 import 'app_logger_service.dart';
 
 class LoggerService {
@@ -8,116 +5,35 @@ class LoggerService {
   factory LoggerService() => _instance;
   LoggerService._internal();
 
-  File? _logFile;
-  final _appLogger = AppLoggerService();
+  final AppLoggerService _appLogger = AppLoggerService();
 
-  // 批量写入缓冲
-  final StringBuffer _buffer = StringBuffer();
-  Timer? _flushTimer;
-  bool _flushing = false;
-  bool _initialized = false;
-  bool _hasWrittenEntry = false;
+  Future<void> initialize() => _appLogger.initialize();
 
-  Future<void> _ensureLogFile() async {
-    if (_logFile != null) return;
+  Future<void> flush() => _appLogger.flushFullLog();
 
-    final directory = await getApplicationDocumentsDirectory();
-    final logDir = Directory('${directory.path}/HanabiDownloadManagerX/logs');
-    if (!await logDir.exists()) {
-      await logDir.create(recursive: true);
-    }
-
-    final timestamp = DateTime.now().toIso8601String().split('T')[0];
-    _logFile = File('${logDir.path}/log_$timestamp.log');
-  }
-
-  Future<void> initialize() async {
-    if (_initialized) return;
-    await _ensureLogFile();
-    if (!await _logFile!.exists()) {
-      await _logFile!.create(recursive: true);
-    }
-    _initialized = true;
-  }
-
-  void _writeLog(String level, String message, LogLevel appLogLevel,
-      {String source = 'Kernel'}) {
-    final timestamp = DateTime.now().toIso8601String();
-    final logEntry = '[$timestamp] [$level] [$source] $message\n';
-
-    // 同步到 AppLoggerService 用于 UI 显示（立即生效）
-    _appLogger.log(appLogLevel, source, message, toConsole: false);
-
-    // 追加到缓冲区，延迟批量写入磁盘
-    _buffer.write(logEntry);
-    final shouldFlushImmediately =
-        !_hasWrittenEntry ||
-        appLogLevel == LogLevel.warning ||
-        appLogLevel == LogLevel.error;
-    _hasWrittenEntry = true;
-    _scheduleFlush(immediate: shouldFlushImmediately);
-  }
-
-  /// 调度延迟刷盘，500ms 内的日志合并为一次写入
-  void _scheduleFlush({bool immediate = false}) {
-    if (immediate) {
-      _flushTimer?.cancel();
-      _flushTimer = null;
-      unawaited(_flush());
-      return;
-    }
-
-    if (_flushTimer != null) return;
-    _flushTimer = Timer(const Duration(milliseconds: 150), () {
-      _flushTimer = null;
-      _flush();
-    });
-  }
-
-  /// 将缓冲区内容一次性写入磁盘
-  Future<void> _flush() async {
-    if (_flushing || _buffer.isEmpty) return;
-    _flushing = true;
-
-    // 取出当前缓冲内容并清空
-    final content = _buffer.toString();
-    _buffer.clear();
-
-    try {
-      await _ensureLogFile();
-      if (!await _logFile!.exists()) {
-        await _logFile!.create(recursive: true);
-      }
-      await _logFile!.writeAsString(
-        content,
-        mode: FileMode.append,
-        flush: true,
-      );
-    } catch (e) {
-      // 避免递归调用，直接输出
-      // ignore: avoid_print
-      print('日志写入失败: $e');
-    } finally {
-      _flushing = false;
-      // 如果刷盘期间又有新日志进来，继续调度
-      if (_buffer.isNotEmpty) {
-        _scheduleFlush();
-      }
-    }
-  }
-
-  Future<void> flush() async {
-    _flushTimer?.cancel();
-    _flushTimer = null;
-    await _flush();
+  void _writeLog(
+    LogLevel level,
+    String message, {
+    String source = 'Kernel',
+  }) {
+    _appLogger.log(
+      level,
+      source,
+      message,
+      toConsole: false,
+      immediateFlush: level == LogLevel.warning || level == LogLevel.error,
+    );
   }
 
   void info(String message, {String source = 'Kernel'}) =>
-      _writeLog('INFO', message, LogLevel.info, source: source);
+      _writeLog(LogLevel.info, message, source: source);
+
   void warning(String message, {String source = 'Kernel'}) =>
-      _writeLog('WARNING', message, LogLevel.warning, source: source);
+      _writeLog(LogLevel.warning, message, source: source);
+
   void error(String message, {String source = 'Kernel'}) =>
-      _writeLog('ERROR', message, LogLevel.error, source: source);
+      _writeLog(LogLevel.error, message, source: source);
+
   void debug(String message, {String source = 'Kernel'}) =>
-      _writeLog('DEBUG', message, LogLevel.debug, source: source);
+      _writeLog(LogLevel.debug, message, source: source);
 }

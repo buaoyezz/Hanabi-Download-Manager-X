@@ -3,12 +3,7 @@ import 'dart:async';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
-import '../main.dart'
-    show
-        isWindowMaximized,
-        maximizeWindowProperly,
-        restoreWindowProperly,
-        systemTrayService;
+import '../main.dart' show systemTrayService;
 import '../utils/fluent_icons.dart' as CustomIcons;
 import '../services/integrated_download_service.dart';
 import '../services/developer_mode_service.dart';
@@ -18,6 +13,7 @@ import '../services/window_effect_service.dart';
 import '../services/client_config_service.dart';
 import '../services/update_service.dart';
 import '../services/performance_monitor_service.dart';
+import '../services/main_window_command_service.dart';
 import '../models/download_task.dart';
 import '../theme/app_theme.dart';
 import '../widgets/animated_notifications.dart';
@@ -28,6 +24,7 @@ import 'widgets/add_download_dialog.dart';
 import 'widgets/completed_list.dart';
 import 'widgets/settings_page.dart';
 import 'widgets/about_page.dart';
+import 'widgets/notice_page.dart';
 import 'widgets/debug/log_page.dart';
 import 'widgets/debug/status_page.dart';
 import 'widgets/debug/connection_debug_page.dart';
@@ -55,8 +52,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
-    with TickerProviderStateMixin, WidgetsBindingObserver {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   static const String _pageDownloading = 'downloading';
   static const String _pageCompleted = 'completed';
   static const String _pageLog = 'log';
@@ -64,6 +60,7 @@ class _HomeScreenState extends State<HomeScreen>
   static const String _pagePerformance = 'performance';
   static const String _pageConnectionDebug = 'connection_debug';
   static const String _pageSettings = 'settings';
+  static const String _pageNotice = 'notice';
   static const String _pageAbout = 'about';
 
   static const Set<String> _debugPageIds = {
@@ -72,6 +69,7 @@ class _HomeScreenState extends State<HomeScreen>
     _pagePerformance,
     _pageConnectionDebug,
     _pageSettings,
+    _pageNotice,
     _pageAbout,
   };
 
@@ -81,12 +79,12 @@ class _HomeScreenState extends State<HomeScreen>
     _pagePerformance,
     _pageConnectionDebug,
     _pageSettings,
+    _pageNotice,
     _pageAbout,
   };
 
   int _currentIndex = 0;
   bool _isSidebarExpanded = true;
-  bool _isMaximized = false;
   late AnimationController _sidebarController;
   late Animation<double> _widthAnimation;
 
@@ -98,6 +96,7 @@ class _HomeScreenState extends State<HomeScreen>
   double _lastSavedWidth = 0;
   double _lastSavedHeight = 0;
   bool _forcedUpdateDialogShown = false;
+  int _lastHandledMainWindowCommandToken = 0;
 
   List<NavigationItem> _getNavItems(BuildContext context) {
     final t = AppLocalizations.of(context)!;
@@ -170,6 +169,12 @@ class _HomeScreenState extends State<HomeScreen>
 
     bottomItems.addAll([
       NavigationItem(
+        id: _pageNotice,
+        icon: CustomIcons.FluentIcons.alert_20,
+        title: t.homeNavNotice,
+        body: const NoticePage(key: ValueKey('notice_page')),
+      ),
+      NavigationItem(
         id: _pageSettings,
         icon: CustomIcons.FluentIcons.settings,
         title: t.homeNavSettings,
@@ -191,12 +196,7 @@ class _HomeScreenState extends State<HomeScreen>
     super.initState();
     AppLoggerService().info('App', 'HomeScreen initialized');
     systemTrayService.onExitRequested = _confirmExitRequest;
-
-    // 初始化窗口最大化状态（一次性 FFI 调用）
-    _isMaximized = isWindowMaximized();
-
-    // 监听窗口尺寸变化（OS 级最大化/还原）
-    WidgetsBinding.instance.addObserver(this);
+    mainWindowCommandService.addListener(_handleMainWindowCommand);
 
     // 侧边栏动画控制器 - 快速响应的展开/收缩
     _sidebarController = AnimationController(
@@ -218,6 +218,7 @@ class _HomeScreenState extends State<HomeScreen>
       _loadSidebarState();
       _startWindowSizeMonitoring();
       _checkForUpdates();
+      _handleMainWindowCommand();
     });
   }
 
@@ -321,19 +322,49 @@ class _HomeScreenState extends State<HomeScreen>
     if (identical(systemTrayService.onExitRequested, _confirmExitRequest)) {
       systemTrayService.onExitRequested = null;
     }
-    WidgetsBinding.instance.removeObserver(this);
+    mainWindowCommandService.removeListener(_handleMainWindowCommand);
     _sidebarController.dispose();
     _windowSizeCheckTimer?.cancel();
     super.dispose();
   }
 
-  @override
-  void didChangeMetrics() {
-    // 窗口尺寸变化时同步最大化状态（捕获 OS 级操作：双击标题栏、拖到屏幕边缘等）
-    final nowMaximized = isWindowMaximized();
-    if (nowMaximized != _isMaximized) {
-      setState(() => _isMaximized = nowMaximized);
+  void _handleMainWindowCommand() {
+    final command = mainWindowCommandService.pendingCommand;
+    final token = mainWindowCommandService.commandToken;
+    if (command == null || token == _lastHandledMainWindowCommandToken) {
+      return;
     }
+
+    _lastHandledMainWindowCommandToken = token;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      switch (command.type) {
+        case MainWindowCommandType.showDownloadingPage:
+          _openDownloadingPage();
+          break;
+        case MainWindowCommandType.openAddDownloadDialog:
+          _openDownloadingPage();
+          _showAddDownloadDialog(context);
+          break;
+      }
+      mainWindowCommandService.consume(token);
+    });
+  }
+
+  void _openDownloadingPage() {
+    final navItems = _getNavItems(context);
+    final downloadingIndex =
+        navItems.indexWhere((item) => item.id == _pageDownloading);
+    if (downloadingIndex == -1) {
+      return;
+    }
+    setState(() {
+      _currentIndex = downloadingIndex;
+      _currentPageId = _pageDownloading;
+    });
   }
 
   /// 启动窗口大小监听
@@ -372,8 +403,6 @@ class _HomeScreenState extends State<HomeScreen>
 
       final currentWidth = appWindow.size.width;
       final currentHeight = appWindow.size.height;
-
-      if (_isMaximized) return; // 最大化时不保存窗口大小
 
       // 验证窗口大小是否合理（防止保存异常值）
       // 最小尺寸 600x400，最大尺寸 4096x2160
@@ -1209,8 +1238,6 @@ class _HomeScreenState extends State<HomeScreen>
           children: [
             _buildCustomMinimizeButton(
                 buttonColors, buttonWidth, buttonHeight, iconSize),
-            _buildCustomMaximizeButton(
-                buttonColors, buttonWidth, buttonHeight, iconSize),
             _buildCustomCloseButton(
                 closeButtonColors, buttonWidth, buttonHeight, iconSize),
           ],
@@ -1232,33 +1259,6 @@ class _HomeScreenState extends State<HomeScreen>
       height: height,
       iconSize: iconSize,
       onPressed: () => appWindow.minimize(),
-    );
-  }
-
-  Widget _buildCustomMaximizeButton(
-    WindowButtonColors colors,
-    double width,
-    double height,
-    double iconSize,
-  ) {
-    return _buildWindowButton(
-      colors: colors,
-      icon: _isMaximized
-          ? CustomIcons.FluentIcons.minimize_20
-          : CustomIcons.FluentIcons.maximize_20,
-      width: width,
-      height: height,
-      iconSize: iconSize,
-      onPressed: () async {
-        if (_isMaximized) {
-          await restoreWindowProperly();
-        } else {
-          await maximizeWindowProperly();
-        }
-        setState(() {
-          _isMaximized = !_isMaximized;
-        });
-      },
     );
   }
 
@@ -1369,7 +1369,6 @@ class _NavItem extends StatefulWidget {
 
 class _NavItemState extends State<_NavItem>
     with SingleTickerProviderStateMixin {
-  // 优化：合并为单个动画控制器，减少资源占用
   late AnimationController _controller;
   bool _isHovered = false;
   bool _isPressed = false;
@@ -1444,7 +1443,6 @@ class _NavItemState extends State<_NavItem>
               final hoverValue = _isHovered ? 1.0 : 0.0;
               final pressValue = _isPressed ? 1.0 : 0.0;
 
-              // 轻微的缩放效果
               final scale = 1.0 - (pressValue * 0.02);
 
               return Transform.scale(
@@ -1461,7 +1459,10 @@ class _NavItemState extends State<_NavItem>
     );
   }
 
-  Widget _buildCompactContent(double hoverValue, double selectValue) {
+  Widget _buildCompactContent(
+    double hoverValue,
+    double selectValue,
+  ) {
     final bgAlpha = (selectValue * 0.8 + hoverValue * 0.4 * (1 - selectValue))
         .clamp(0.0, 0.8);
 
@@ -1471,8 +1472,6 @@ class _NavItemState extends State<_NavItem>
       selectValue,
     )!;
 
-    // 优化：移除 AnimatedContainer 和 AnimatedPositioned，改用普通 Container
-    // 外层 AnimatedBuilder 已经在驱动动画了，嵌套隐式动画会导致双重合成层
     return Center(
       child: Container(
         width: 40,
@@ -1484,7 +1483,6 @@ class _NavItemState extends State<_NavItem>
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // 选中指示条
             if (selectValue > 0.01)
               Positioned(
                 left: 4,
@@ -1499,7 +1497,6 @@ class _NavItemState extends State<_NavItem>
                   ),
                 ),
               ),
-            // 图标
             Icon(
               widget.icon,
               size: 16,
@@ -1511,7 +1508,10 @@ class _NavItemState extends State<_NavItem>
     );
   }
 
-  Widget _buildExpandedContent(double hoverValue, double selectValue) {
+  Widget _buildExpandedContent(
+    double hoverValue,
+    double selectValue,
+  ) {
     final bgAlpha = (selectValue * 0.8 + hoverValue * 0.4 * (1 - selectValue))
         .clamp(0.0, 0.8);
 
@@ -1527,7 +1527,6 @@ class _NavItemState extends State<_NavItem>
       (selectValue + hoverValue * (1 - selectValue)).clamp(0.0, 1.0),
     )!;
 
-    // 优化：移除 AnimatedContainer，外层 AnimatedBuilder 已经在驱动动画
     return Container(
       height: 36,
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1537,7 +1536,6 @@ class _NavItemState extends State<_NavItem>
       ),
       child: Row(
         children: [
-          // 选中指示条
           if (selectValue > 0.01)
             Container(
               width: 3,

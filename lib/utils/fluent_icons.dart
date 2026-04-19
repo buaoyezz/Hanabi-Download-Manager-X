@@ -232,6 +232,7 @@ class FluentIcons {
   static IconData get arrow_maximize_vertical_24 =>
       getIcon('arrow_maximize_vertical_24');
   static IconData get chrome_restore => arrow_maximize_vertical_24;
+  static IconData get window_20 => getIcon('window_20');
 
   static IconData get chrome_minimize => subtract_24;
   static IconData get chrome_close => dismiss_24;

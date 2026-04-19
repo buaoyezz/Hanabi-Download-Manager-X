@@ -9,9 +9,6 @@ import 'l10n/app_localizations.dart';
 import 'l10n/app_localizations_delegate.dart';
 import 'l10n/fallback_localizations_delegate.dart';
 import 'dart:io';
-import 'dart:ffi' hide Size;
-import 'package:ffi/ffi.dart';
-import 'package:win32/win32.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:screen_retriever/screen_retriever.dart';
@@ -36,156 +33,31 @@ import 'services/update_service.dart';
 import 'services/window_effect_service.dart';
 import 'services/user_profile_service.dart';
 import 'services/notification_settings_service.dart';
+import 'services/notice_service.dart';
 import 'services/download_failure_stats_service.dart';
 import 'services/localization_service.dart';
 import 'services/popup_bridge_service.dart';
+import 'services/main_window_command_service.dart';
 import 'services/single_instance_service.dart';
 import 'screens/home_screen.dart';
 import 'popup/popup_window_bootstrap.dart';
+import 'tray_menu/tray_menu_bootstrap.dart'
+    show
+        TrayMenuLaunchData,
+        TrayMenuThemeConfig,
+        parseTrayLocaleTag,
+        runTrayMenuApp;
 import 'theme/app_theme.dart';
 import 'widgets/animated_notifications.dart';
 import 'utils/fluent_icons.dart';
 import 'utils/constants.dart';
+import 'models/download_task.dart';
 
 final systemTrayService = SystemTrayService();
 final navigatorKey = GlobalKey<NavigatorState>();
 
-/// 缓存窗口句柄，避免每次都做 FFI 查找
-int _cachedHwnd = 0;
 bool get _disableWindowsSemanticsWorkaround =>
     !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
-
-/// 获取当前应用的窗口句柄（带缓存）
-int _getAppWindowHandle() {
-  if (_cachedHwnd != 0) return _cachedHwnd;
-
-  debugPrint('[Window] Attempting to get window handle...');
-
-  // 方法1: 尝试通过窗口标题查找
-  final title = 'Hanabi Download ManagerX'.toNativeUtf16();
-  var hwnd = FindWindow(nullptr, title);
-  calloc.free(title);
-
-  if (hwnd != 0) {
-    debugPrint('[Window] Found window by title: $hwnd');
-    _cachedHwnd = hwnd;
-    return hwnd;
-  }
-  debugPrint('[Window] FindWindow by title failed');
-
-  // 方法2: 使用前台窗口
-  hwnd = GetForegroundWindow();
-  if (hwnd != 0) {
-    debugPrint('[Window] Found foreground window: $hwnd');
-    _cachedHwnd = hwnd;
-    return hwnd;
-  }
-  debugPrint('[Window] GetForegroundWindow failed');
-
-  // 方法3: 使用活动窗口
-  hwnd = GetActiveWindow();
-  debugPrint('[Window] GetActiveWindow returned: $hwnd');
-  if (hwnd != 0) _cachedHwnd = hwnd;
-  return hwnd;
-}
-
-/// 使用 Windows API 正确最大化窗口（不覆盖任务栏）
-Future<void> maximizeWindowProperly() async {
-  debugPrint('[Window] maximizeWindowProperly called');
-  if (Platform.isWindows) {
-    try {
-      // 使用 Future.microtask 避免在渲染帧期间调用
-      await Future.microtask(() {
-        final hwnd = _getAppWindowHandle();
-        if (hwnd != 0) {
-          // 检查并修复窗口样式
-          final style = GetWindowLongPtr(hwnd, GWL_STYLE);
-          debugPrint('[Window] Current window style: $style');
-
-          // 确保窗口有 WS_MAXIMIZEBOX 和 WS_CAPTION 样式
-          const wsMaximizeBox = 0x00010000;
-          const wsCaption = 0x00C00000;
-
-          if ((style & wsMaximizeBox) == 0 || (style & wsCaption) == 0) {
-            debugPrint('[Window] Adding WS_MAXIMIZEBOX and WS_CAPTION styles');
-            final newStyle = style | wsMaximizeBox | wsCaption;
-            SetWindowLongPtr(hwnd, GWL_STYLE, newStyle);
-          }
-
-          debugPrint(
-              '[Window] Calling ShowWindow with SW_MAXIMIZE ($SW_MAXIMIZE) on handle $hwnd');
-          final result = ShowWindow(hwnd, SW_MAXIMIZE);
-          debugPrint('[Window] ShowWindow returned: $result');
-
-          // 验证窗口状态
-          final placement = calloc<WINDOWPLACEMENT>();
-          placement.ref.length = sizeOf<WINDOWPLACEMENT>();
-          if (GetWindowPlacement(hwnd, placement) != 0) {
-            debugPrint(
-                '[Window] Window showCmd after maximize: ${placement.ref.showCmd}');
-            calloc.free(placement);
-          }
-        } else {
-          debugPrint(
-              '[Window] Failed to get window handle, using bitsdojo_window');
-          appWindow.maximize();
-        }
-      });
-    } catch (e) {
-      debugPrint('[Window] Error maximizing window: $e');
-      // 如果 Windows API 失败，回退到 bitsdojo_window
-      appWindow.maximize();
-    }
-  } else {
-    appWindow.maximize();
-  }
-}
-
-/// 恢复窗口到正常大小
-Future<void> restoreWindowProperly() async {
-  if (Platform.isWindows) {
-    try {
-      await Future.microtask(() {
-        final hwnd = _getAppWindowHandle();
-        if (hwnd != 0) {
-          ShowWindow(hwnd, SW_RESTORE);
-          debugPrint('Window restored with handle: $hwnd');
-        } else {
-          appWindow.restore();
-        }
-      });
-    } catch (e) {
-      debugPrint('Error restoring window: $e');
-      appWindow.restore();
-    }
-  } else {
-    appWindow.restore();
-  }
-}
-
-/// 检查窗口是否最大化
-bool isWindowMaximized() {
-  if (Platform.isWindows) {
-    try {
-      final hwnd = _getAppWindowHandle();
-      if (hwnd != 0) {
-        final placement = calloc<WINDOWPLACEMENT>();
-        placement.ref.length = sizeOf<WINDOWPLACEMENT>();
-
-        if (GetWindowPlacement(hwnd, placement) != 0) {
-          final isMaximized = placement.ref.showCmd == SW_MAXIMIZE;
-          calloc.free(placement);
-          return isMaximized;
-        }
-        calloc.free(placement);
-      }
-    } catch (e) {
-      debugPrint('Error checking window state: $e');
-    }
-  }
-  // 回退到 bitsdojo_window
-  return appWindow.isMaximized;
-}
 
 Future<void> _loadCustomFonts(FontService fontService) async {
   try {
@@ -209,7 +81,115 @@ Future<void> _loadCustomFonts(FontService fontService) async {
 
 @pragma('vm:entry-point')
 Future<void> popupMain(List<String> args) async {
-  await runPopupWindowApp(args);
+  final appLogger = AppLoggerService();
+  appLogger.setConsoleOutputEnabled(false);
+  LogCapture.install(appLogger);
+
+  await LogCapture.runZoned(appLogger, () async {
+    WidgetsFlutterBinding.ensureInitialized();
+    await appLogger.initialize();
+    await LoggerService().initialize();
+    await NativeRenderLogService().start();
+
+    PopupWindowThemeConfig? popupThemeConfig;
+    try {
+      final clientConfig = ClientConfigService();
+      final fontService = FontService();
+      final localizationService = LocalizationService();
+      await clientConfig.initialize();
+      await fontService.loadFont();
+      await localizationService.initialize(clientConfig);
+      fontService.updateLanguagePackDefaults(localizationService.languagePacks);
+      await _loadCustomFonts(fontService);
+
+      final launchData = PopupWindowLaunchData.fromArgs(args);
+      final popupLocale = parsePopupLocaleTag(launchData.localeTag) ??
+          WidgetsBinding.instance.platformDispatcher.locale;
+      final fontStack = fontService.resolveFontStack(popupLocale);
+      popupThemeConfig = PopupWindowThemeConfig(
+        fontFamily: fontStack.primaryFamily,
+        fontFamilyFallback: fontStack.fallbackFamilies,
+        textScaleFactor: clientConfig.getWindowScaleFactor(),
+      );
+    } catch (e) {
+      appLogger.warning('Popup', 'Failed to load popup font settings: $e');
+    }
+
+    FlutterError.onError = (FlutterErrorDetails details) {
+      appLogger.error('PopupFlutter', '${details.exception}\n${details.stack}');
+      unawaited(appLogger.flushFullLog());
+      unawaited(LoggerService().flush());
+      FlutterError.presentError(details);
+    };
+
+    PlatformDispatcher.instance.onError = (error, stack) {
+      appLogger.error('PopupPlatform', '$error\n$stack');
+      unawaited(appLogger.flushFullLog());
+      unawaited(LoggerService().flush());
+      return true;
+    };
+
+    appLogger.info('Popup', 'Standalone popup starting...');
+    await runPopupWindowApp(args, themeConfig: popupThemeConfig);
+  });
+}
+
+@pragma('vm:entry-point')
+Future<void> trayMenuMain(List<String> args) async {
+  final appLogger = AppLoggerService();
+  appLogger.setConsoleOutputEnabled(false);
+  LogCapture.install(appLogger);
+
+  await LogCapture.runZoned(appLogger, () async {
+    WidgetsFlutterBinding.ensureInitialized();
+    await appLogger.initialize();
+    await LoggerService().initialize();
+    await NativeRenderLogService().start();
+
+    TrayMenuThemeConfig? trayThemeConfig;
+    try {
+      final clientConfig = ClientConfigService();
+      final fontService = FontService();
+      final localizationService = LocalizationService();
+      await clientConfig.initialize();
+      await fontService.loadFont();
+      await localizationService.initialize(clientConfig);
+      fontService.updateLanguagePackDefaults(localizationService.languagePacks);
+      await _loadCustomFonts(fontService);
+
+      final launchData = TrayMenuLaunchData.fromArgs(args);
+      final trayLocale = parseTrayLocaleTag(launchData.localeTag) ??
+          WidgetsBinding.instance.platformDispatcher.locale;
+      final fontStack = fontService.resolveFontStack(trayLocale);
+      trayThemeConfig = TrayMenuThemeConfig(
+        fontFamily: fontStack.primaryFamily,
+        fontFamilyFallback: fontStack.fallbackFamilies,
+        textScaleFactor: clientConfig.getWindowScaleFactor(),
+      );
+    } catch (e) {
+      appLogger.warning('TrayMenu', 'Failed to load tray font settings: $e');
+    }
+
+    FlutterError.onError = (FlutterErrorDetails details) {
+      appLogger.error(
+        'TrayMenuFlutter',
+        '${details.exception}\n${details.stack}',
+      );
+      unawaited(appLogger.flushFullLog());
+      unawaited(LoggerService().flush());
+      FlutterError.presentError(details);
+    };
+
+    PlatformDispatcher.instance.onError = (error, stack) {
+      appLogger.error('TrayMenuPlatform', '$error\n$stack');
+      unawaited(appLogger.flushFullLog());
+      unawaited(LoggerService().flush());
+      return true;
+    };
+
+    appLogger.info('TrayMenu', 'Standalone tray menu starting...');
+    await runTrayMenuApp(args, themeConfig: trayThemeConfig);
+  });
 }
 
 void main(List<String> args) async {
@@ -267,6 +247,7 @@ void main(List<String> args) async {
     final windowEffectService = WindowEffectService();
     final userProfileService = UserProfileService();
     final notificationSettings = NotificationSettingsService();
+    final noticeService = NoticeService(logger: appLogger);
     final localizationService = LocalizationService();
 
     appLogger.info('App', 'Application starting...');
@@ -322,6 +303,7 @@ void main(List<String> args) async {
           ChangeNotifierProvider.value(value: updateService),
           ChangeNotifierProvider.value(value: windowEffectService),
           ChangeNotifierProvider.value(value: userProfileService),
+          ChangeNotifierProvider.value(value: noticeService),
           ChangeNotifierProvider.value(value: localizationService),
           Provider<bool>.value(value: isAutoStart), // 传递启动模式
         ],
@@ -416,25 +398,15 @@ void main(List<String> args) async {
       if (isAutoStart) {
         win.hide();
       } else {
-        if (clientConfig.getWindowMaximized()) {
-          debugPrint("Window maximized");
-          await maximizeWindowProperly();
-        } else {
-          await restoreWindowProperly();
-        }
-
-        // 注意：bitsdojo_window 不支持 onWindowClose 事件
-        // 我们需要在 CloseWindowButton 中自定义处理逻辑
+        win.restore();
         win.show();
       }
 
       // 显示后再次确认窗口大小（bitsdojo_window 的 bug workaround）
       await Future.delayed(const Duration(milliseconds: 100));
-      if (!clientConfig.getWindowMaximized()) {
-        win.size = initialSize;
-        debugPrint(
-            'Window size confirmed: ${initialSize.width} x ${initialSize.height}');
-      }
+      win.size = initialSize;
+      debugPrint(
+          'Window size confirmed: ${initialSize.width} x ${initialSize.height}');
     });
   });
 }
@@ -447,6 +419,9 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  static const MethodChannel _windowChannel =
+      MethodChannel('com.hanabi.download/window');
+
   DownloadListenerService? _downloadListener;
   ClipboardListenerService? _clipboardListener;
   PopupBridgeService? _popupBridgeService;
@@ -458,6 +433,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _windowChannel.setMethodCallHandler(_handleWindowChannelCall);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _runStartupSequence();
     });
@@ -478,6 +454,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     final canContinue = await _resolveExistingInstanceConflictIfNeeded();
     if (!canContinue || !mounted) return;
 
+    _configureTrayMenuTaskProvider();
     setState(() {
       _showClientUi = true;
     });
@@ -491,6 +468,79 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   void _handleClientConfigChanged() {
     unawaited(_syncPopupBridgeState());
+  }
+
+  void _configureTrayMenuTaskProvider() {
+    systemTrayService.activeTaskPayloadProvider = () {
+      final downloadService = context.read<IntegratedDownloadService>();
+      final activeTasks = downloadService.tasks
+          .where((task) =>
+              task.status == DownloadStatus.downloading ||
+              task.status == DownloadStatus.pending ||
+              task.status == DownloadStatus.merging)
+          .toList(growable: false)
+        ..sort((a, b) {
+          final statusOrder = _trayTaskStatusOrder(a.status)
+              .compareTo(_trayTaskStatusOrder(b.status));
+          if (statusOrder != 0) {
+            return statusOrder;
+          }
+          return b.createdAt.compareTo(a.createdAt);
+        });
+
+      return activeTasks
+          .map(
+            (task) => <String, dynamic>{
+              'id': task.id,
+              'file_name': task.fileName,
+              'status': task.status.name,
+              'progress': task.progress,
+            },
+          )
+          .toList(growable: false);
+    };
+  }
+
+  int _trayTaskStatusOrder(DownloadStatus status) {
+    return switch (status) {
+      DownloadStatus.downloading => 0,
+      DownloadStatus.merging => 1,
+      DownloadStatus.pending => 2,
+      DownloadStatus.paused => 3,
+      DownloadStatus.failed => 4,
+      DownloadStatus.completed => 5,
+    };
+  }
+
+  Future<Object?> _handleWindowChannelCall(MethodCall call) async {
+    if (call.method != 'handleMainWindowAction') {
+      return null;
+    }
+
+    final arguments = call.arguments;
+    final payload = arguments is Map
+        ? arguments.map((key, value) => MapEntry(key.toString(), value))
+        : const <String, dynamic>{};
+    final action = payload['action']?.toString().trim();
+    if (action == null || action.isEmpty) {
+      return false;
+    }
+
+    systemTrayService.showMainWindow();
+    switch (action) {
+      case 'show_downloading_page':
+        mainWindowCommandService.dispatch(
+          MainWindowCommandType.showDownloadingPage,
+        );
+        return true;
+      case 'open_add_download_dialog':
+        mainWindowCommandService.dispatch(
+          MainWindowCommandType.openAddDownloadDialog,
+        );
+        return true;
+      default:
+        return false;
+    }
   }
 
   BuildContext? _currentDialogHostContext() =>
@@ -739,17 +789,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   Future<void> _cleanup() async {
     // Cache dependencies before async gaps.
     final kernelManager = context.read<KernelManager>();
+    systemTrayService.activeTaskPayloadProvider = null;
 
     // 保存窗口状态
     try {
       final win = appWindow;
       final config = context.read<ClientConfigService>();
 
-      // 保存最大化状态
-      await config.setWindowMaximized(win.isMaximized);
-
-      // 只有在启用记忆大小且窗口未最大化时才保存当前窗口大小
-      if (config.getWindowRememberSize() && !win.isMaximized) {
+      if (config.getWindowRememberSize()) {
         final currentWidth = win.size.width;
         final currentHeight = win.size.height;
 
@@ -790,7 +837,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _windowChannel.setMethodCallHandler(null);
     _clientConfig?.removeListener(_handleClientConfigChanged);
+    systemTrayService.activeTaskPayloadProvider = null;
     // 同步清理，不等待异步操作
     _downloadListener?.stopListening();
     _clipboardListener?.stop();
@@ -930,57 +979,27 @@ class _StartupShellScreen extends StatelessWidget {
   }
 }
 
-class _WindowCornerFrame extends StatefulWidget {
+class _WindowCornerFrame extends StatelessWidget {
   final Widget child;
 
   const _WindowCornerFrame({required this.child});
 
   @override
-  State<_WindowCornerFrame> createState() => _WindowCornerFrameState();
-}
-
-class _WindowCornerFrameState extends State<_WindowCornerFrame>
-    with WidgetsBindingObserver {
-  bool _isMaximized = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _isMaximized = Platform.isWindows ? isWindowMaximized() : false;
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeMetrics() {
-    if (!Platform.isWindows) return;
-    final next = isWindowMaximized();
-    if (next != _isMaximized && mounted) {
-      setState(() => _isMaximized = next);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     if (!Platform.isWindows) {
-      return widget.child;
+      return child;
     }
 
     final windowEffect = context.watch<WindowEffectService>();
     if (!windowEffect.usesCustomWindowClip) {
-      return widget.child;
+      return child;
     }
 
-    final radius = windowEffect.roundedCornersEnabled && !_isMaximized
+    final radius = windowEffect.roundedCornersEnabled
         ? windowEffect.windowCornerRadius
         : 0.0;
     if (radius <= 0) {
-      return widget.child;
+      return child;
     }
 
     final borderRadius = BorderRadius.circular(radius);
@@ -990,7 +1009,7 @@ class _WindowCornerFrameState extends State<_WindowCornerFrame>
       child: Stack(
         fit: StackFit.expand,
         children: [
-          widget.child,
+          child,
           IgnorePointer(
             child: DecoratedBox(
               decoration: BoxDecoration(

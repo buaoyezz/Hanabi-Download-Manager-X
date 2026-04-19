@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 enum LogLevel {
   debug,
@@ -57,6 +58,16 @@ class LogEntry {
 class AppLoggerService extends ChangeNotifier {
   static final AppLoggerService _instance = AppLoggerService._internal();
   static const bool _isFlutterTest = bool.fromEnvironment('FLUTTER_TEST');
+  Duration _logRetention = const Duration(days: 14);
+  static const int _maxSessionLogFiles = 40;
+
+  /// 可配置的日志保留时间
+  Duration get logRetention => _logRetention;
+  set logRetention(Duration value) {
+    if (value != _logRetention) {
+      _logRetention = value;
+    }
+  }
   factory AppLoggerService() => _instance;
   AppLoggerService._internal();
 
@@ -81,6 +92,7 @@ class AppLoggerService extends ChangeNotifier {
   Future<File>? _fullLogFileFuture;
   bool _initialized = false;
   bool _hasPersistedEntry = false;
+  String? _sessionFileStamp;
 
   /// 日志版本号，每次新增/清空时递增
   int get version => _version;
@@ -128,6 +140,8 @@ class AppLoggerService extends ChangeNotifier {
       return;
     }
 
+    await _cleanupOldLogs();
+    await _loadLogRetention();
     final file = await _ensureFullLogFile();
     if (!await file.exists()) {
       await file.create(recursive: true);
@@ -135,10 +149,9 @@ class AppLoggerService extends ChangeNotifier {
     _initialized = true;
   }
 
-  Future<File> _createFullLogFile() async {
+  Future<Directory> getLogDirectory() async {
     if (_isFlutterTest) {
-      final date = DateTime.now().toIso8601String().split('T')[0];
-      return File('${Directory.systemTemp.path}/hanabi_runtime_full_$date.log');
+      return Directory(Directory.systemTemp.path);
     }
 
     final directory = await getApplicationDocumentsDirectory();
@@ -146,9 +159,27 @@ class AppLoggerService extends ChangeNotifier {
     if (!await logDir.exists()) {
       await logDir.create(recursive: true);
     }
+    return logDir;
+  }
 
-    final date = DateTime.now().toIso8601String().split('T')[0];
-    return File('${logDir.path}/runtime_full_$date.log');
+  String _buildSessionFileStamp() {
+    final now = DateTime.now();
+    String two(int value) => value.toString().padLeft(2, '0');
+    String three(int value) => value.toString().padLeft(3, '0');
+    return '${now.year}-${two(now.month)}-${two(now.day)}_'
+        '${two(now.hour)}-${two(now.minute)}-${two(now.second)}_'
+        '${three(now.millisecond)}_$pid';
+  }
+
+  Future<File> _createFullLogFile() async {
+    if (_isFlutterTest) {
+      final stamp = _sessionFileStamp ??= _buildSessionFileStamp();
+      return File('${Directory.systemTemp.path}/hanabi_runtime_$stamp.log');
+    }
+
+    final logDir = await getLogDirectory();
+    final stamp = _sessionFileStamp ??= _buildSessionFileStamp();
+    return File('${logDir.path}/runtime_$stamp.log');
   }
 
   Future<File> _ensureFullLogFile() async {
@@ -230,6 +261,68 @@ class AppLoggerService extends ChangeNotifier {
     await _flushFullLog();
   }
 
+  Future<void> _cleanupOldLogs() async {
+    if (_isFlutterTest) {
+      return;
+    }
+
+    final logDir = await getLogDirectory();
+    final now = DateTime.now();
+    final files = <File>[];
+
+    await for (final entity in logDir.list()) {
+      if (entity is! File) {
+        continue;
+      }
+
+      final name = entity.uri.pathSegments.isNotEmpty
+          ? entity.uri.pathSegments.last
+          : entity.path;
+      final isManagedLog =
+          name.startsWith('runtime_') || name.startsWith('log_');
+      if (!isManagedLog) {
+        continue;
+      }
+
+      try {
+        final stat = await entity.stat();
+        if (now.difference(stat.modified) > _logRetention) {
+          await entity.delete();
+          continue;
+        }
+      } catch (_) {
+        continue;
+      }
+
+      files.add(entity);
+    }
+
+    if (files.length <= _maxSessionLogFiles) {
+      return;
+    }
+
+    files.sort((a, b) => b.path.compareTo(a.path));
+    for (final file in files.skip(_maxSessionLogFiles)) {
+      try {
+        await file.delete();
+      } catch (_) {
+        // Ignore cleanup failures.
+      }
+    }
+  }
+
+  Future<void> _loadLogRetention() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final days = prefs.getInt('log_retention_days');
+      if (days != null && days > 0) {
+        _logRetention = Duration(days: days);
+      }
+    } catch (_) {
+      // Ignore preference load failures.
+    }
+  }
+
   Future<void> _resetFullLogStorage() async {
     _fullLogBuffer.clear();
     _fullLogFlushTimer?.cancel();
@@ -242,6 +335,42 @@ class AppLoggerService extends ChangeNotifier {
 
     final file = await _ensureFullLogFile();
     await file.writeAsString('');
+  }
+
+  /// 删除日志目录中的所有日志文件
+  Future<void> deleteAllLogFiles() async {
+    await flushFullLog();
+
+    _fullLogFile = null;
+    _fullLogFileFuture = null;
+    _sessionFileStamp = null;
+    _hasPersistedEntry = false;
+
+    if (_isFlutterTest) {
+      return;
+    }
+
+    try {
+      final logDir = await getLogDirectory();
+      await for (final entity in logDir.list()) {
+        if (entity is File) {
+          final name = entity.uri.pathSegments.isNotEmpty
+              ? entity.uri.pathSegments.last
+              : entity.path;
+          final isManagedLog =
+              name.startsWith('runtime_') || name.startsWith('log_');
+          if (isManagedLog) {
+            try {
+              await entity.delete();
+            } catch (_) {
+              // Ignore deletion failures.
+            }
+          }
+        }
+      }
+    } catch (_) {
+      // Ignore directory access failures.
+    }
   }
 
   Future<File> getFullLogFile() async {

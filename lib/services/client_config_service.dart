@@ -25,6 +25,10 @@ class ClientConfigService extends ChangeNotifier {
   factory ClientConfigService() => _instance;
   ClientConfigService._internal();
 
+  static const int defaultBrowserExtensionPort = 9710;
+  static const int minBrowserExtensionPort = 1024;
+  static const int maxBrowserExtensionPort = 65535;
+
   final _logger = AppLoggerService();
 
   // 目录路径
@@ -147,6 +151,8 @@ class ClientConfigService extends ChangeNotifier {
         'show_tray_running_status': false, // 默认不显示“正在后台运行”提示
         'enable_popup_window': true, // 默认启用浏览器下载弹窗
         'enable_clipboard_listener': true, // 默认启用剪贴板监听
+        'browser_extension_port': defaultBrowserExtensionPort,
+        'browser_extension_previous_port': defaultBrowserExtensionPort,
       },
     };
   }
@@ -161,7 +167,6 @@ class ClientConfigService extends ChangeNotifier {
         'effect_alpha': 160,
         'width': 889.0, // 上次保存的窗口宽度
         'height': 586.0, // 上次保存的窗口高度
-        'is_maximized': false,
         'remember_size': false, // 默认不记忆窗口大小，使用默认值
         'default_width': 889.0, // 默认窗口宽度
         'default_height': 586.0, // 默认窗口高度
@@ -380,17 +385,6 @@ class ClientConfigService extends ChangeNotifier {
 
   Future<void> setWindowHeight(double height) async {
     await _setToConfig(_uiConfig, _uiConfigPath, 'window.height', height);
-  }
-
-  bool getWindowMaximized() {
-    return _getFromConfig<bool>(_uiConfig, 'window.is_maximized',
-            defaultValue: false) ??
-        false;
-  }
-
-  Future<void> setWindowMaximized(bool maximized) async {
-    await _setToConfig(
-        _uiConfig, _uiConfigPath, 'window.is_maximized', maximized);
   }
 
   bool getWindowRememberSize() {
@@ -641,6 +635,73 @@ class ClientConfigService extends ChangeNotifier {
   Future<void> setEnableClipboardListener(bool value) async {
     await _setToConfig(_appConfig, _appConfigPath,
         'behavior.enable_clipboard_listener', value);
+  }
+
+  static bool isValidBrowserExtensionPortValue(int value) {
+    return value >= minBrowserExtensionPort && value <= maxBrowserExtensionPort;
+  }
+
+  static int normalizeBrowserExtensionPortValue(dynamic value) {
+    final port = value is int ? value : int.tryParse(value?.toString() ?? '');
+    if (port == null || !isValidBrowserExtensionPortValue(port)) {
+      return defaultBrowserExtensionPort;
+    }
+    return port;
+  }
+
+  int getBrowserExtensionPort() {
+    return normalizeBrowserExtensionPortValue(
+      _getFromConfig<dynamic>(
+        _appConfig,
+        'behavior.browser_extension_port',
+        defaultValue: defaultBrowserExtensionPort,
+      ),
+    );
+  }
+
+  int getPreviousBrowserExtensionPort() {
+    return normalizeBrowserExtensionPortValue(
+      _getFromConfig<dynamic>(
+        _appConfig,
+        'behavior.browser_extension_previous_port',
+        defaultValue: defaultBrowserExtensionPort,
+      ),
+    );
+  }
+
+  String getBrowserExtensionHost() {
+    return '127.0.0.1:${getBrowserExtensionPort()}';
+  }
+
+  String getBrowserExtensionBaseUrl() {
+    return 'http://${getBrowserExtensionHost()}';
+  }
+
+  List<int> getBrowserExtensionCompatibilityPorts() {
+    final ports = <int>{
+      defaultBrowserExtensionPort,
+      getPreviousBrowserExtensionPort(),
+    };
+    ports.remove(getBrowserExtensionPort());
+    return ports.toList()..sort();
+  }
+
+  Future<void> setBrowserExtensionPort(int value) async {
+    final normalized = normalizeBrowserExtensionPortValue(value);
+    final current = getBrowserExtensionPort();
+    final previous =
+        normalized == current ? getPreviousBrowserExtensionPort() : current;
+
+    _appConfig['behavior'] = Map<String, dynamic>.from(
+      (_appConfig['behavior'] as Map?)?.cast<String, dynamic>() ??
+          const <String, dynamic>{},
+    )
+      ..['browser_extension_port'] = normalized
+      ..['browser_extension_previous_port'] = previous;
+    _appConfig['last_updated'] = DateTime.now().toIso8601String();
+
+    await _saveConfigFile(_appConfigPath, _appConfig);
+    notifyListeners();
   }
 
   String getSelectedUaPackId() {

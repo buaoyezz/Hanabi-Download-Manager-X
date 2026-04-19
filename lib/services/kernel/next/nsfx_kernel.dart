@@ -11,6 +11,7 @@ import 'downloader/http_client.dart';
 import 'storage/task_storage.dart';
 import 'server/http_server.dart';
 import '../../app_logger_service.dart';
+import '../../client_config_service.dart';
 
 class NsfxKernel implements KernelInterface {
   bool _isRunning = false;
@@ -102,8 +103,7 @@ class NsfxKernel implements KernelInterface {
       });
 
       // 启动 HTTP 服务器（用于浏览器扩展通信）
-      _httpServer = NsfxHttpServer(this);
-      final httpStarted = await _httpServer!.start();
+      final httpStarted = await _startHttpServer();
       if (!httpStarted) {
         _logger.warning('NSFX',
             'HTTP server failed to start, browser extension may not work');
@@ -592,6 +592,62 @@ class NsfxKernel implements KernelInterface {
   }
 
   @override
+  Future<bool> updateBrowserBridgePort(
+    int port, {
+    Iterable<int> compatibilityPorts = const [],
+  }) async {
+    final clientConfig = ClientConfigService();
+    final normalizedPort =
+        ClientConfigService.normalizeBrowserExtensionPortValue(port);
+    final fallbackPort = clientConfig.getBrowserExtensionPort();
+    final fallbackCompatibilityPorts =
+        clientConfig.getBrowserExtensionCompatibilityPorts();
+
+    final nextServer = NsfxHttpServer(
+      this,
+      port: normalizedPort,
+      compatibilityPorts: _buildCompatibilityPorts(
+        primaryPort: normalizedPort,
+        extraPorts: compatibilityPorts,
+      ),
+    );
+
+    await _httpServer?.stop();
+    _httpServer = nextServer;
+    final started = await nextServer.start();
+    if (started) {
+      _logger.info(
+        'NSFX',
+        'Browser bridge rebound to 127.0.0.1:$normalizedPort',
+      );
+      return true;
+    }
+
+    _logger.error(
+      'NSFX',
+      'Failed to rebind browser bridge to port $normalizedPort',
+    );
+    final fallbackServer = NsfxHttpServer(
+      this,
+      port: fallbackPort,
+      compatibilityPorts: _buildCompatibilityPorts(
+        primaryPort: fallbackPort,
+        extraPorts: fallbackCompatibilityPorts,
+      ),
+    );
+    _httpServer = fallbackServer;
+    final rollbackStarted = await fallbackServer.start();
+    if (!rollbackStarted) {
+      _httpServer = null;
+      _logger.error(
+        'NSFX',
+        'Failed to restore browser bridge on fallback port $fallbackPort',
+      );
+    }
+    return false;
+  }
+
+  @override
   void dispose() {
     stop();
     _progressController.close();
@@ -730,5 +786,36 @@ class NsfxKernel implements KernelInterface {
     final random = Random.secure();
     final bytes = List<int>.generate(8, (_) => random.nextInt(256));
     return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+  }
+
+  Future<bool> _startHttpServer() async {
+    final clientConfig = ClientConfigService();
+    final bridgePort = clientConfig.getBrowserExtensionPort();
+    _httpServer = NsfxHttpServer(
+      this,
+      port: bridgePort,
+      compatibilityPorts: _buildCompatibilityPorts(
+        primaryPort: bridgePort,
+        extraPorts: clientConfig.getBrowserExtensionCompatibilityPorts(),
+      ),
+    );
+    return _httpServer!.start();
+  }
+
+  Iterable<int> _buildCompatibilityPorts({
+    required int primaryPort,
+    Iterable<int> extraPorts = const [],
+  }) {
+    final ports = <int>{
+      ClientConfigService.defaultBrowserExtensionPort,
+      ...extraPorts,
+    };
+
+    ports.remove(primaryPort);
+    ports.removeWhere(
+      (candidate) =>
+          !ClientConfigService.isValidBrowserExtensionPortValue(candidate),
+    );
+    return ports;
   }
 }

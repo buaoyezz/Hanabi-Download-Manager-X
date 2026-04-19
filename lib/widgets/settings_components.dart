@@ -3,7 +3,7 @@ import '../theme/app_theme.dart';
 import '../utils/fluent_icons.dart' as CustomIcons;
 import '../l10n/app_localizations.dart';
 
-/// 设置页面区块卡片 - Fluent Design 风格
+/// 设置页面区块卡片
 class SettingsSection extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -55,7 +55,7 @@ class SettingsSection extends StatelessWidget {
   }
 }
 
-/// 设置项组件 - Fluent Design 风格
+/// 设置项组件
 class SettingsItem extends StatefulWidget {
   final String title;
   final String? subtitle;

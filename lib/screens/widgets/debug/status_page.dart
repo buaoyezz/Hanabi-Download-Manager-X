@@ -10,6 +10,7 @@ import '../../../services/network_status_service.dart';
 import '../../../services/app_logger_service.dart';
 import '../../../services/auto_start_service.dart';
 import '../../../services/integrated_download_service.dart';
+import '../../../services/client_config_service.dart';
 import '../../../services/popup_window_service.dart';
 import '../../../models/download_task.dart';
 import '../../../l10n/app_localizations.dart';
@@ -50,6 +51,14 @@ class _StatusPageState extends State<StatusPage> {
   Map<String, dynamic>? _popupWindowTestResult;
 
   AppLocalizations get t => AppLocalizations.of(context)!;
+  bool get _isChinese =>
+      Localizations.localeOf(context).languageCode.toLowerCase().startsWith(
+            'zh',
+          );
+
+  String _browserBridgeBaseUrl() {
+    return context.read<ClientConfigService>().getBrowserExtensionBaseUrl();
+  }
 
   @override
   void initState() {
@@ -185,36 +194,53 @@ class _StatusPageState extends State<StatusPage> {
     }
   }
 
+  String _popupPreviewLabel(PopupWindowPreviewStage stage) {
+    return switch (stage) {
+      PopupWindowPreviewStage.compose => t.popupDownloadTitle,
+      PopupWindowPreviewStage.progress => t.popupDownloadProgressTitle,
+      PopupWindowPreviewStage.completed => t.popupDownloadCompletedTitle,
+    };
+  }
+
+  String _popupPreviewOpeningLabel(PopupWindowPreviewStage stage) {
+    final stageLabel = _popupPreviewLabel(stage);
+    return _isChinese
+        ? '正在创建$stageLabel预览弹窗'
+        : 'Creating $stageLabel popup preview';
+  }
+
   /// 测试弹窗窗口功能
-  Future<void> _testPopupWindow() async {
+  Future<void> _testPopupWindow(PopupWindowPreviewStage stage) async {
     if (_testingPopupWindow) return;
 
     final appLogger = context.read<AppLoggerService>();
     final t = AppLocalizations.of(context)!;
+    final stageLabel = _popupPreviewLabel(stage);
 
     setState(() {
       _testingPopupWindow = true;
-      _popupWindowTestResult = {'status': t.statusPopupTestCreating};
+      _popupWindowTestResult = {
+        'stage': stageLabel,
+        'status': _popupPreviewOpeningLabel(stage),
+      };
     });
 
     final stopwatch = Stopwatch()..start();
-    appLogger.info('PopupTest', t.statusPopupTestStartLog);
+    appLogger.info(
+        'PopupTest', '${t.statusPopupTestStartLog} stage=$stageLabel');
 
     try {
-      await PopupWindowService.showPopupDownloadWindow(
-        url: 'https://example.com/test-file.zip',
-        suggestedFilename: 'test-file.zip',
-        isFromBrowser: false,
-      );
+      await PopupWindowService.showPopupPreviewWindow(stage: stage);
 
       stopwatch.stop();
       appLogger.info('PopupTest',
-          t.statusPopupTestSuccessLog(stopwatch.elapsedMilliseconds));
+          '${t.statusPopupTestSuccessLog(stopwatch.elapsedMilliseconds)} stage=$stageLabel');
 
       if (!mounted) return;
       setState(() {
         _popupWindowTestResult = {
           'success': true,
+          'stage': stageLabel,
           'time': stopwatch.elapsedMilliseconds,
           'message': t.statusPopupTestSuccessMessage,
         };
@@ -222,16 +248,19 @@ class _StatusPageState extends State<StatusPage> {
 
       NotificationManager.of(context)?.showSuccess(
         t.statusPopupTestSuccessTitle,
-        message: t.statusPopupTestSuccessToast(stopwatch.elapsedMilliseconds),
+        message:
+            '$stageLabel · ${t.statusPopupTestSuccessToast(stopwatch.elapsedMilliseconds)}',
       );
     } catch (e) {
       stopwatch.stop();
-      appLogger.error('PopupTest', t.statusPopupTestFailedLog(e));
+      appLogger.error(
+          'PopupTest', '${t.statusPopupTestFailedLog(e)} stage=$stageLabel');
 
       if (!mounted) return;
       setState(() {
         _popupWindowTestResult = {
           'success': false,
+          'stage': stageLabel,
           'time': stopwatch.elapsedMilliseconds,
           'error': e.toString(),
         };
@@ -239,7 +268,7 @@ class _StatusPageState extends State<StatusPage> {
 
       NotificationManager.of(context)?.showError(
         t.statusPopupTestFailedTitle,
-        message: t.statusPopupTestFailedToast(e),
+        message: '$stageLabel · ${t.statusPopupTestFailedToast(e)}',
       );
     } finally {
       if (mounted) {
@@ -293,7 +322,7 @@ class _StatusPageState extends State<StatusPage> {
       try {
         final response = await http
             .get(
-              Uri.parse('http://127.0.0.1:9710/download/statistics'),
+              Uri.parse('${_browserBridgeBaseUrl()}/download/statistics'),
             )
             .timeout(const Duration(seconds: 2));
 
@@ -331,7 +360,7 @@ class _StatusPageState extends State<StatusPage> {
     try {
       final response = await http
           .get(
-            Uri.parse('http://127.0.0.1:9710/health'),
+            Uri.parse('${_browserBridgeBaseUrl()}/health'),
           )
           .timeout(const Duration(seconds: 3));
 
@@ -373,12 +402,13 @@ class _StatusPageState extends State<StatusPage> {
     });
 
     final tests = <MapEntry<String, String>>[
-      MapEntry(t.statusApiTestHealthCheck, 'http://127.0.0.1:9710/health'),
-      MapEntry(t.statusApiTestGetTasks, 'http://127.0.0.1:9710/download/tasks'),
+      MapEntry(t.statusApiTestHealthCheck, '${_browserBridgeBaseUrl()}/health'),
+      MapEntry(
+          t.statusApiTestGetTasks, '${_browserBridgeBaseUrl()}/download/tasks'),
       MapEntry(t.statusApiTestGetStatistics,
-          'http://127.0.0.1:9710/download/statistics'),
+          '${_browserBridgeBaseUrl()}/download/statistics'),
       MapEntry(t.statusApiTestGetConfig,
-          'http://127.0.0.1:9710/settings/download-config'),
+          '${_browserBridgeBaseUrl()}/settings/download-config'),
     ];
 
     for (final entry in tests) {
@@ -444,11 +474,20 @@ class _StatusPageState extends State<StatusPage> {
                   color: AppTheme.accentPrimary.withValues(alpha: 0.3),
                 ),
               ),
-              child: const Icon(FluentIcons.health,
-                  size: 18, color: AppTheme.accentLight),
+              child: const Icon(
+                FluentIcons.health,
+                size: 18,
+                color: AppTheme.accentLight,
+              ),
             ),
             const SizedBox(width: 14),
-            Text(t.statusPageTitle),
+            Flexible(
+              child: Text(
+                t.statusPageTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         commandBar: CommandBar(
@@ -516,7 +555,7 @@ class _StatusPageState extends State<StatusPage> {
                 _buildStatusItem(
                   context,
                   label: t.statusItemServiceAddress,
-                  value: 'http://127.0.0.1:9710',
+                  value: _browserBridgeBaseUrl(),
                   isInfo: true,
                 ),
                 if (_kernelVersion != null)
@@ -958,36 +997,62 @@ class _StatusPageState extends State<StatusPage> {
             context,
             label: t.statusItemTestResult,
             value: _popupWindowTestResult!['success'] == true
-                ? t.statusPopupTestResultSuccess(
-                    _popupWindowTestResult!['time'])
-                : t.statusPopupTestResultFailed(
-                    _popupWindowTestResult!['error'] ?? t.statusValueUnknown),
+                ? '${_popupWindowTestResult!['stage']} · ${t.statusPopupTestResultSuccess(_popupWindowTestResult!['time'])}'
+                : _popupWindowTestResult!['status']?.toString() ??
+                    '${_popupWindowTestResult!['stage'] ?? t.statusValueUnknown} · ${t.statusPopupTestResultFailed(_popupWindowTestResult!['error'] ?? t.statusValueUnknown)}',
             isOnline: _popupWindowTestResult!['success'] == true,
+            isInfo: _popupWindowTestResult!['success'] == null,
           ),
         ],
         const SizedBox(height: 12),
-        Row(
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
           children: [
-            Expanded(
-              child: FilledButton(
-                onPressed: _testingPopupWindow ? null : _testPopupWindow,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (_testingPopupWindow)
-                      const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: ProgressRing(strokeWidth: 2),
-                      )
-                    else
-                      const Icon(FluentIcons.open_pane, size: 16),
-                    const SizedBox(width: 8),
-                    Text(_testingPopupWindow
-                        ? t.statusPopupTesting
-                        : t.statusPopupTestButton),
-                  ],
-                ),
+            FilledButton(
+              onPressed: _testingPopupWindow
+                  ? null
+                  : () => _testPopupWindow(PopupWindowPreviewStage.compose),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_testingPopupWindow)
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: ProgressRing(strokeWidth: 2),
+                    )
+                  else
+                    const Icon(FluentIcons.open_pane, size: 16),
+                  const SizedBox(width: 8),
+                  Text(_popupPreviewLabel(PopupWindowPreviewStage.compose)),
+                ],
+              ),
+            ),
+            Button(
+              onPressed: _testingPopupWindow
+                  ? null
+                  : () => _testPopupWindow(PopupWindowPreviewStage.progress),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(FluentIcons.open_pane, size: 16),
+                  const SizedBox(width: 8),
+                  Text(_popupPreviewLabel(PopupWindowPreviewStage.progress)),
+                ],
+              ),
+            ),
+            Button(
+              onPressed: _testingPopupWindow
+                  ? null
+                  : () => _testPopupWindow(PopupWindowPreviewStage.completed),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(FluentIcons.open_pane, size: 16),
+                  const SizedBox(width: 8),
+                  Text(_popupPreviewLabel(PopupWindowPreviewStage.completed)),
+                ],
               ),
             ),
           ],

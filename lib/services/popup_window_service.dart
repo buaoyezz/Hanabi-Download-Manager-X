@@ -10,6 +10,12 @@ import 'kernel/kernel_manager.dart';
 import 'logger_service.dart';
 import '../main.dart';
 
+enum PopupWindowPreviewStage {
+  compose,
+  progress,
+  completed,
+}
+
 // 弹窗管理服务 - 用于显示下载弹窗
 class PopupWindowService {
   static const platform = MethodChannel('com.hanabi.download/window');
@@ -57,6 +63,26 @@ class PopupWindowService {
     );
   }
 
+  static Future<void> showPopupPreviewWindow({
+    required PopupWindowPreviewStage stage,
+  }) async {
+    final previewFileName = switch (stage) {
+      PopupWindowPreviewStage.compose => 'hanabi-popup-preview.zip',
+      PopupWindowPreviewStage.progress => 'hanabi-popup-preview-video.mp4',
+      PopupWindowPreviewStage.completed => 'hanabi-popup-preview.txt',
+    };
+
+    final opened = await _openNativePopupWindow(
+      url: 'https://example.com/hanabi-popup-preview/$previewFileName',
+      suggestedFilename: previewFileName,
+      previewStage: stage,
+    );
+
+    if (!opened) {
+      throw StateError('Standalone popup preview window is unavailable');
+    }
+  }
+
   static Future<bool> _openNativePopupWindow({
     required String url,
     String? suggestedFilename,
@@ -64,6 +90,7 @@ class PopupWindowService {
     String? userAgent,
     String? cookies,
     Map<String, dynamic>? headers,
+    PopupWindowPreviewStage? previewStage,
   }) async {
     if (!Platform.isWindows) return false;
 
@@ -71,8 +98,9 @@ class PopupWindowService {
       final downloadDir = await KernelManager().getDownloadDir();
       final localeTag =
           WidgetsBinding.instance.platformDispatcher.locale.toLanguageTag();
-      final windowTitle =
-          'Hanabi Download Pop ${DateTime.now().microsecondsSinceEpoch}';
+      final windowTitle = previewStage == null
+          ? 'Hanabi Download Pop ${DateTime.now().microsecondsSinceEpoch}'
+          : 'Hanabi Popup Preview ${previewStage.name} ${DateTime.now().microsecondsSinceEpoch}';
 
       final payload = <String, dynamic>{
         'url': url,
@@ -88,6 +116,8 @@ class PopupWindowService {
           'user_agent': userAgent!.trim(),
         if (cookies?.trim().isNotEmpty ?? false) 'cookies': cookies!.trim(),
         if (headers != null && headers.isNotEmpty) 'headers': headers,
+        if (previewStage != null)
+          'debug_preview': <String, dynamic>{'stage': previewStage.name},
       };
 
       final result = await platform.invokeMethod<bool>(

@@ -27,14 +27,14 @@ class AppConstants {
 
   // Kernel Information
   static const String kernelName = 'NextSpeedForceXKernel';
-  static const String newKernelVersion = '2.4.0';
-  static const String newKernelBuildNumber = 'b260404-nsfx-r';
+  static const String newKernelVersion = '2.5.0';
+  static const String newKernelBuildNumber = 'b260417-nsfx-r';
   static const String newKernelFullName = 'NSFX (Next Speed Force X)';
 
-  // API Endpoints
-  static const String apiUrlMain = 'https://x.zzbuaoye.top/api/v1.json';
-  static const String apiUrlBack =
-      'https://buaoyezz.github.io/hdmx_api_list/api_v1.json';
+  // // API Endpoints
+  // static const String apiUrlMain = 'https://x.zzbuaoye.top/api/v1.json';
+  // static const String apiUrlBack =
+  //     'https://buaoyezz.github.io/hdmx_api_list/';
 
   // Contact & Links
   static const String officialUrl = 'https://x.zzbuaoye.top';

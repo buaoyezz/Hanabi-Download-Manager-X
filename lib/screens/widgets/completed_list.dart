@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/integrated_download_service.dart';
@@ -1226,6 +1227,7 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
   Widget _buildTaskInfo() {
     final tags =
         context.watch<ClientConfigService>().getTaskTags(widget.task.id);
+    final url = widget.task.url.trim();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1271,6 +1273,10 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
             ],
           ],
         ),
+        if (url.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _buildCompactUrlRow(url),
+        ],
         if (tags.isNotEmpty) ...[
           const SizedBox(height: 6),
           Wrap(
@@ -1299,6 +1305,43 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
           ),
         ],
       ],
+    );
+  }
+
+  Widget _buildCompactUrlRow(String url) {
+    final displayUrl = url.length > 60 ? '${url.substring(0, 60)}...' : url;
+    
+    return GestureDetector(
+      onTap: _copyUrlToClipboard,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppTheme.bgLayer1.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              CustomIcons.FluentIcons.link,
+              size: 10,
+              color: AppTheme.textTertiary,
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                displayUrl,
+                style: FluentTheme.of(context).typography.caption?.copyWith(
+                      color: AppTheme.textTertiary,
+                      fontSize: 10,
+                    ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1341,6 +1384,23 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
         ),
       ],
     );
+  }
+
+  Future<void> _copyUrlToClipboard() async {
+    try {
+      await Clipboard.setData(ClipboardData(text: widget.task.url));
+      if (!mounted) return;
+      NotificationManager.of(context)?.showSuccess(
+        t.downloadCopySuccessTitle,
+        message: t.downloadCopySuccessMessage,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      NotificationManager.of(context)?.showError(
+        t.downloadCopyFailedTitle,
+        message: t.downloadCopyFailedMessage(e.toString()),
+      );
+    }
   }
 
   Future<void> _editTags() async {

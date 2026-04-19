@@ -1187,29 +1187,6 @@ class _LogPageState extends State<LogPage> {
         await placeholder.writeAsString('No log files found.');
       }
 
-      // 导出运行时日志（内存日志）
-      final appLogger = context.read<AppLoggerService>();
-      final runtimeLogFile = File(p.join(logsDir.path, 'runtime_logs.log'));
-      if (appLogger.logs.isEmpty) {
-        await runtimeLogFile.writeAsString('No runtime logs found.');
-      } else {
-        final buffer = StringBuffer();
-        for (final log in appLogger.logs) {
-          buffer.writeln(log.format());
-        }
-        await runtimeLogFile.writeAsString(buffer.toString());
-      }
-
-      final runtimeFullLogFile =
-          File(p.join(logsDir.path, 'runtime_full_logs.log'));
-      final persistedFullLog = await appLogger.getFullLogFile();
-      final persistedContent = await persistedFullLog.readAsString();
-      if (persistedContent.trim().isEmpty) {
-        await runtimeFullLogFile.writeAsString('No full runtime logs found.');
-      } else {
-        await runtimeFullLogFile.writeAsString(persistedContent);
-      }
-
       final renderLogFile = await NativeRenderLogService().getRawLogFile();
       if (await renderLogFile.exists()) {
         await renderLogFile.copy(p.join(logsDir.path, 'window_render.log'));
@@ -1345,11 +1322,20 @@ class _LogPageState extends State<LogPage> {
                   color: AppTheme.accentPrimary.withValues(alpha: 0.3),
                 ),
               ),
-              child: Icon(FluentIcons.text_document,
-                  size: 18, color: AppTheme.accentLight),
+              child: Icon(
+                FluentIcons.text_document,
+                size: 18,
+                color: AppTheme.accentLight,
+              ),
             ),
             const SizedBox(width: 14),
-            Text(t.logPageTitle),
+            Flexible(
+              child: Text(
+                t.logPageTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         commandBar: CommandBar(
@@ -2037,12 +2023,13 @@ class _LogPageState extends State<LogPage> {
                               AppTheme.accentLight,
                               () => setState(() => _filterSource = null),
                             ),
-                          if (_filterTags.isNotEmpty)
-                            _buildFilterTag(
-                              _filterTags.join(', '),
+                          ...(_filterTags.toList()..sort()).map(
+                            (tag) => _buildFilterTag(
+                              tag,
                               AppTheme.accentLight,
-                              () => setState(() => _filterTags = {}),
+                              () => setState(() => _filterTags.remove(tag)),
                             ),
+                          ),
                           if (_startTime != null || _endTime != null)
                             _buildFilterTag(
                               _formatTimeRange(),
@@ -2369,6 +2356,7 @@ class _LogPageState extends State<LogPage> {
 
   Widget _buildFilterTag(String label, Color color, VoidCallback onRemove) {
     return Container(
+      constraints: const BoxConstraints(maxWidth: 260),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
@@ -2378,12 +2366,16 @@ class _LogPageState extends State<LogPage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: color,
-              fontWeight: FontWeight.w500,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                color: color,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           const SizedBox(width: 4),

@@ -3,8 +3,8 @@ import 'fluent_icons.dart';
 
 /// FluentIcons 使用示例
 /// 
-/// 这个文件展示了如何使用新的动态图标系统
-
+/// 本文件展示了如何使用我们的FluentIcons，替换fluentui_icons包的示例调用代码
+/// 本类提供了多种使用方法，都在下面了 
 class FluentIconsExample {
   
   /// 方法 1: 使用预定义的别名（向后兼容）

@@ -295,7 +295,13 @@ class _AboutPageState extends State<AboutPage>
             ),
           ),
           const SizedBox(width: 14),
-          Text(t.aboutPageTitle),
+          Flexible(
+            child: Text(
+              t.aboutPageTitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );

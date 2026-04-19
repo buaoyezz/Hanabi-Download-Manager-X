@@ -4,16 +4,21 @@ import 'dart:io';
 import '../nsfx_kernel.dart';
 import '../../kernel_interface.dart';
 import '../../../app_logger_service.dart';
+import '../../../client_config_service.dart';
 
 class NsfxHttpServer {
-  HttpServer? _server;
+  HttpServer? _primaryServer;
+  final List<HttpServer> _compatibilityServers = [];
   final NsfxKernel _kernel;
   final int port;
+  final Set<int> compatibilityPorts;
   bool _isRunning = false;
   final _logger = AppLoggerService();
 
   // 待主窗口确认的浏览器下载请求队列
   final List<Map<String, dynamic>> _pendingPopups = [];
+  final Map<String, DateTime> _recentPopupSignatures = {};
+  static const Duration _popupDedupWindow = Duration(seconds: 4);
 
   // 在线用户统计
   final Map<String, DateTime> _activeSessions = {};
@@ -33,17 +38,27 @@ class NsfxHttpServer {
 
   bool get isRunning => _isRunning;
 
-  NsfxHttpServer(this._kernel, {this.port = 9710});
+  NsfxHttpServer(
+    this._kernel, {
+    this.port = 9710,
+    Iterable<int> compatibilityPorts = const [],
+  }) : compatibilityPorts = compatibilityPorts
+            .where((candidate) =>
+                candidate != port &&
+                ClientConfigService.isValidBrowserExtensionPortValue(candidate))
+            .toSet();
 
   Future<bool> start() async {
     if (_isRunning) return true;
 
     try {
-      _server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
+      _primaryServer =
+          await HttpServer.bind(InternetAddress.loopbackIPv4, port);
+      _primaryServer!.listen(_handleRequest);
       _isRunning = true;
       _logger.info('NSFX-HTTP', 'HTTP server started on port $port');
 
-      _server!.listen(_handleRequest);
+      await _bindCompatibilityServers();
 
       // 启动会话清理定时器
       _startCleanupTimer();
@@ -62,6 +77,8 @@ class NsfxHttpServer {
     _cleanupTimer?.cancel();
     _historyTimer?.cancel();
     _activeSessions.clear();
+    _pendingPopups.clear();
+    _recentPopupSignatures.clear();
     _deviceFingerprints.clear();
     _sessionToFingerprint.clear();
     _onlineHistory.clear();
@@ -70,10 +87,36 @@ class NsfxHttpServer {
     _lastLoggedFingerprintMappingCount = null;
     // 不清空 _allDevices，保留历史记录
 
-    await _server?.close(force: true);
-    _server = null;
+    for (final server in _compatibilityServers) {
+      await server.close(force: true);
+    }
+    _compatibilityServers.clear();
+    await _primaryServer?.close(force: true);
+    _primaryServer = null;
     _isRunning = false;
     _logger.info('NSFX-HTTP', 'HTTP server stopped');
+  }
+
+  Future<void> _bindCompatibilityServers() async {
+    for (final compatibilityPort in compatibilityPorts) {
+      try {
+        final server = await HttpServer.bind(
+          InternetAddress.loopbackIPv4,
+          compatibilityPort,
+        );
+        server.listen(_handleRequest);
+        _compatibilityServers.add(server);
+        _logger.info(
+          'NSFX-HTTP',
+          'HTTP compatibility bridge started on port $compatibilityPort',
+        );
+      } catch (error) {
+        _logger.warning(
+          'NSFX-HTTP',
+          'Failed to start compatibility bridge on port $compatibilityPort: $error',
+        );
+      }
+    }
   }
 
   void _handleRequest(HttpRequest request) async {
@@ -158,12 +201,34 @@ class NsfxHttpServer {
   }
 
   Future<void> _handleHealth(HttpRequest request) async {
+    final languagePreference = ClientConfigService().getLanguagePreference();
+    final localeTag = _resolveExtensionLocaleTag(languagePreference);
+
     _sendJson(request, {
       'status': 'ok',
       'version': '2.0.0',
       'kernel': _kernel.name,
       'running': _kernel.isRunning,
+      'language_preference': languagePreference,
+      'locale': localeTag,
     });
+  }
+
+  String _resolveExtensionLocaleTag(String preference) {
+    final normalized = preference.trim().toLowerCase().replaceAll('-', '_');
+    if (normalized.startsWith('zh')) {
+      return 'zh';
+    }
+    if (normalized.startsWith('en')) {
+      return 'en';
+    }
+
+    final systemLocale = Platform.localeName.toLowerCase().replaceAll('-', '_');
+    if (systemLocale.startsWith('zh')) {
+      return 'zh';
+    }
+
+    return 'en';
   }
 
   Future<void> _handleAddDownload(HttpRequest request) async {
@@ -179,8 +244,7 @@ class NsfxHttpServer {
 
     _logger.info('NSFX-HTTP', 'Add download request: $filename');
 
-    // 添加到待确认队列，由主程序拉起下载对话框处理
-    _pendingPopups.add({
+    final popupRequest = <String, dynamic>{
       'url': url,
       'filename': filename,
       'referer': body['referer'],
@@ -188,9 +252,35 @@ class NsfxHttpServer {
       'cookies': body['cookies'],
       'headers': body['headers'],
       'timestamp': DateTime.now().toIso8601String(),
-    });
+    };
+    final popupSignature = _popupSignatureFor(popupRequest);
+    _cleanupExpiredPopupSignatures();
 
-    _logger.info('NSFX-HTTP', 'Download queued for main-window confirmation: $filename');
+    final hasQueuedDuplicate = _pendingPopups.any(
+      (candidate) => _popupSignatureFor(candidate) == popupSignature,
+    );
+    final recentDuplicateUntil = _recentPopupSignatures[popupSignature];
+    if (hasQueuedDuplicate ||
+        (recentDuplicateUntil != null &&
+            recentDuplicateUntil.isAfter(DateTime.now()))) {
+      _logger.warning(
+        'NSFX-HTTP',
+        'Suppress duplicate popup queue request: $filename',
+      );
+      _sendJson(request, {
+        'success': true,
+        'message': 'Duplicate popup request suppressed',
+      });
+      return;
+    }
+
+    // 添加到待确认队列，由主程序拉起下载对话框处理
+    _pendingPopups.add(popupRequest);
+    _recentPopupSignatures[popupSignature] =
+        DateTime.now().add(_popupDedupWindow);
+
+    _logger.info(
+        'NSFX-HTTP', 'Download queued for main-window confirmation: $filename');
     _sendJson(request, {
       'success': true,
       'message': 'Queued for main-window confirmation',
@@ -198,6 +288,7 @@ class NsfxHttpServer {
   }
 
   Future<void> _handlePendingPopup(HttpRequest request) async {
+    _cleanupExpiredPopupSignatures();
     if (_pendingPopups.isEmpty) {
       _sendJson(request, {'success': true, 'data': null});
       return;
@@ -205,8 +296,40 @@ class NsfxHttpServer {
 
     // 取出第一个待处理的下载
     final popup = _pendingPopups.removeAt(0);
-    _logger.info('NSFX-HTTP', 'Dispatching queued browser download: ${popup['filename']}');
+    _logger.info('NSFX-HTTP',
+        'Dispatching queued browser download: ${popup['filename']}');
     _sendJson(request, {'success': true, 'data': popup});
+  }
+
+  void _cleanupExpiredPopupSignatures() {
+    final now = DateTime.now();
+    _recentPopupSignatures.removeWhere(
+      (_, expiresAt) => !expiresAt.isAfter(now),
+    );
+  }
+
+  String _popupSignatureFor(Map<String, dynamic> popupRequest) {
+    final url = _normalizePopupSignatureField(popupRequest['url']);
+    final filename = _normalizePopupSignatureField(popupRequest['filename']);
+    final referer = _normalizePopupSignatureField(popupRequest['referer']);
+    return '$url|$filename|$referer';
+  }
+
+  String _normalizePopupSignatureField(Object? value) {
+    final text = value?.toString().trim() ?? '';
+    if (text.isEmpty) {
+      return '';
+    }
+
+    try {
+      final parsed = Uri.parse(text);
+      if (!parsed.hasScheme || !parsed.hasAuthority) {
+        return text;
+      }
+      return parsed.removeFragment().toString();
+    } catch (_) {
+      return text;
+    }
   }
 
   Future<void> _handleGetTasks(HttpRequest request) async {
@@ -682,7 +805,18 @@ class NsfxHttpServer {
 
   void _sendJson(HttpRequest request, Map<String, dynamic> data) {
     request.response.statusCode = 200;
-    request.response.write(jsonEncode(data));
+    final enriched = <String, dynamic>{...data};
+    final connectedPort = request.connectionInfo?.localPort ?? port;
+
+    enriched.putIfAbsent('api_port', () => port);
+    enriched.putIfAbsent('connected_port', () => connectedPort);
+    enriched.putIfAbsent(
+      'requires_port_switch',
+      () => connectedPort != port,
+    );
+    enriched.putIfAbsent('service_host', () => '127.0.0.1:$port');
+
+    request.response.write(jsonEncode(enriched));
     request.response.close();
   }
 

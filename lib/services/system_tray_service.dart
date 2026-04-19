@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:convert';
 import 'package:system_tray/system_tray.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:path/path.dart' as path;
 import 'logger_service.dart';
 import 'client_config_service.dart';
@@ -13,11 +16,14 @@ class SystemTrayService {
   final SystemTray _systemTray = SystemTray();
   bool _isInitialized = false;
   bool _isExiting = false;
+  bool _trayMenuPrewarmed = false;
+  Timer? _trayMenuPrewarmTimer;
   Future<bool> Function()? onExitRequested;
+  List<Map<String, dynamic>> Function()? activeTaskPayloadProvider;
   final _logger = LoggerService();
 
   Future<void> initialize({
-    bool showWindow = true, // 是否在初始化后显示窗口
+    bool showWindow = true,
   }) async {
     if (_isInitialized) return;
 
@@ -32,34 +38,23 @@ class SystemTrayService {
         toolTip: "Hanabi Download ManagerX",
       );
 
-      // 注册托盘事件处理器
       _systemTray.registerSystemTrayEventHandler((eventName) {
         _logger.debug('Tray event: $eventName');
         if (eventName == kSystemTrayEventClick) {
           showMainWindow();
         } else if (eventName == kSystemTrayEventRightClick) {
-          _systemTray.popUpContextMenu();
+          _showCustomTrayMenu();
         }
       });
 
-      // 初始化系统菜单
       final Menu menu = Menu();
-      await menu.buildFrom([
-        MenuItemLabel(
-          label: '显示主界面',
-          onClicked: (menuItem) => showMainWindow(),
-        ),
-        MenuItemLabel(
-          label: '退出',
-          onClicked: (menuItem) => requestExit(),
-        ),
-      ]);
+      await menu.buildFrom([]);
       await _systemTray.setContextMenu(menu);
+      _scheduleTrayMenuPrewarm();
 
       _isInitialized = true;
-      _logger.info('System tray initialized with native menu');
+      _logger.info('System tray initialized with custom Fluent menu');
 
-      // 根据参数决定是否显示窗口
       if (showWindow) {
         showMainWindow();
       } else {
@@ -68,6 +63,106 @@ class SystemTrayService {
     } catch (e) {
       _logger.error('System tray init failed: $e');
     }
+  }
+
+  void _scheduleTrayMenuPrewarm() {
+    _trayMenuPrewarmTimer?.cancel();
+    _trayMenuPrewarmTimer = Timer(const Duration(milliseconds: 450), () {
+      if (_isExiting || _trayMenuPrewarmed) {
+        return;
+      }
+      unawaited(_prepareCustomTrayMenu());
+    });
+  }
+
+  Future<void> _showCustomTrayMenu() async {
+    try {
+      final cursorPos = await _getCursorPos();
+
+      await _windowChannel.invokeMethod<bool>(
+        'showTrayMenu',
+        {
+          'payload': jsonEncode(_buildTrayMenuPayload(cursorPos)),
+          'title': 'Hanabi Tray Menu',
+        },
+      );
+    } catch (e) {
+      _logger.warning('Failed to show custom tray menu: $e');
+    }
+  }
+
+  Future<void> _prepareCustomTrayMenu() async {
+    if (_trayMenuPrewarmed || _isExiting) {
+      return;
+    }
+    try {
+      final prepared = await _windowChannel.invokeMethod<bool>(
+        'prepareTrayMenu',
+        {
+          'payload': jsonEncode(
+            _buildTrayMenuPayload(const {'x': 0.0, 'y': 0.0}),
+          ),
+          'title': 'Hanabi Tray Menu',
+        },
+      );
+      _trayMenuPrewarmed = prepared ?? true;
+    } catch (e) {
+      _trayMenuPrewarmed = false;
+      _logger.warning('Failed to prewarm custom tray menu: $e');
+    }
+  }
+
+  Map<String, dynamic> _buildTrayMenuPayload(Map<String, double> cursorPos) {
+    final localeTag =
+        WidgetsBinding.instance.platformDispatcher.locale.toLanguageTag();
+    List<Map<String, dynamic>> activeTasks = const <Map<String, dynamic>>[];
+    try {
+      activeTasks = activeTaskPayloadProvider?.call() ?? activeTasks;
+    } catch (e) {
+      _logger.warning('Failed to build tray active task payload: $e');
+    }
+
+    return <String, dynamic>{
+      'locale': localeTag,
+      'mouse_x': cursorPos['x'] ?? 0.0,
+      'mouse_y': cursorPos['y'] ?? 0.0,
+      'active_tasks': activeTasks,
+    };
+  }
+
+  Future<Map<String, double>> _getCursorPos() async {
+    try {
+      final result = await _windowChannel.invokeMethod<Map>('getCursorPos');
+      if (result != null) {
+        return {
+          'x': (result['x'] ?? 0).toDouble(),
+          'y': (result['y'] ?? 0).toDouble(),
+        };
+      }
+    } catch (e) {
+      _logger.warning('Failed to get cursor pos via method channel: $e');
+    }
+
+    try {
+      if (Platform.isWindows) {
+        final result = await Process.run('powershell', [
+          '-Command',
+          r'Add-Type -AssemblyName System.Windows.Forms; $pos = [System.Windows.Forms.Cursor]::Position; Write-Output "$($pos.X),$($pos.Y)"'
+        ]);
+        final output = (result.stdout as String).trim();
+        final parts = output.split(',');
+        if (parts.length == 2) {
+          return {
+            'x': double.parse(parts[0]),
+            'y': double.parse(parts[1]),
+          };
+        }
+      }
+    } catch (e) {
+      _logger.warning('Failed to get cursor pos via powershell: $e');
+    }
+
+    return {'x': 0.0, 'y': 0.0};
   }
 
   void updateToolTip(bool isVisible) {
@@ -104,16 +199,9 @@ class SystemTrayService {
   }
 
   void showMainWindow() {
-    final config = ClientConfigService();
-    final shouldMaximize = appWindow.isMaximized || config.getWindowMaximized();
-
-    _logger.info('Show main window, shouldMaximize=$shouldMaximize');
+    _logger.info('Show main window');
     appWindow.show();
-    if (shouldMaximize) {
-      appWindow.maximize();
-    } else {
-      appWindow.restore();
-    }
+    appWindow.restore();
     updateToolTip(true);
   }
 
@@ -165,6 +253,7 @@ class SystemTrayService {
       return;
     }
     _isExiting = true;
+    _trayMenuPrewarmTimer?.cancel();
 
     _logger.info('Exit app from tray - beginning shutdown sequence...');
 

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-/// 带动画效果的卡片组件 - 优化版本
-/// 使用 RepaintBoundary 减少重绘，简化动画逻辑
+/// 带动画效果的卡片组件
 class AnimatedCard extends StatefulWidget {
   final Widget child;
   final EdgeInsetsGeometry? margin;
@@ -160,8 +159,7 @@ class _AnimatedCardState extends State<AnimatedCard>
   }
 }
 
-/// 带进度动画的进度条组件 - 优化版本
-/// 使用自定义绘制提升性能，添加光泽效果
+/// 带进度动画的进度条组件
 class AnimatedProgressBar extends StatefulWidget {
   final double progress;
   final double height;
@@ -300,7 +298,7 @@ class _AnimatedProgressBarState extends State<AnimatedProgressBar>
   }
 }
 
-/// 数字计数动画组件 - 优化版本
+/// 数字计数动画组件
 class AnimatedCounter extends StatefulWidget {
   final double value;
   final String Function(double) formatter;

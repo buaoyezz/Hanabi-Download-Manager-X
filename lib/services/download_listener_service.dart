@@ -13,9 +13,11 @@ class DownloadListenerService {
   final BuildContext context;
   final _logger = LoggerService();
   Timer? _pollTimer;
-  final String _baseUrl = 'http://127.0.0.1:9710';
   bool _isChecking = false;
   bool _isShowingPopup = false; // 防止独立 popup 创建期间重复触发
+  String? _lastPopupSignature;
+  DateTime? _lastPopupOpenedAt;
+  static const Duration _popupDedupWindow = Duration(seconds: 4);
 
   DownloadListenerService(this.context);
 
@@ -33,6 +35,8 @@ class DownloadListenerService {
     _pollTimer = null;
     _isChecking = false;
     _isShowingPopup = false;
+    _lastPopupSignature = null;
+    _lastPopupOpenedAt = null;
     _logger.info('Download listener stopped');
   }
 
@@ -43,9 +47,11 @@ class DownloadListenerService {
     _isChecking = true;
 
     try {
+      final config = Provider.of<ClientConfigService>(context, listen: false);
+      final baseUrl = config.getBrowserExtensionBaseUrl();
       final response = await http
           .get(
-            Uri.parse('$_baseUrl/download/pending-popup'),
+            Uri.parse('$baseUrl/download/pending-popup'),
           )
           .timeout(const Duration(seconds: 2));
 
@@ -105,7 +111,20 @@ class DownloadListenerService {
   Future<void> _showPopupForDownload(Map<String, dynamic> downloadData) async {
     if (_isShowingPopup) return;
 
+    final popupSignature = _popupSignatureFor(downloadData);
+    final now = DateTime.now();
+    if (_lastPopupSignature == popupSignature &&
+        _lastPopupOpenedAt != null &&
+        now.difference(_lastPopupOpenedAt!) < _popupDedupWindow) {
+      _logger.warning(
+        'Suppress duplicate standalone popup for ${downloadData['filename']}',
+      );
+      return;
+    }
+
     _isShowingPopup = true;
+    _lastPopupSignature = popupSignature;
+    _lastPopupOpenedAt = now;
     try {
       await PopupWindowService.showPopupDownloadWindow(
         url: downloadData['url'] ?? '',
@@ -123,6 +142,30 @@ class DownloadListenerService {
       Future.delayed(const Duration(milliseconds: 500), () {
         _isShowingPopup = false;
       });
+    }
+  }
+
+  String _popupSignatureFor(Map<String, dynamic> downloadData) {
+    final url = _normalizePopupSignatureField(downloadData['url']);
+    final filename = _normalizePopupSignatureField(downloadData['filename']);
+    final referer = _normalizePopupSignatureField(downloadData['referer']);
+    return '$url|$filename|$referer';
+  }
+
+  String _normalizePopupSignatureField(Object? value) {
+    final text = value?.toString().trim() ?? '';
+    if (text.isEmpty) {
+      return '';
+    }
+
+    try {
+      final parsed = Uri.parse(text);
+      if (!parsed.hasScheme || !parsed.hasAuthority) {
+        return text;
+      }
+      return parsed.removeFragment().toString();
+    } catch (_) {
+      return text;
     }
   }
 }

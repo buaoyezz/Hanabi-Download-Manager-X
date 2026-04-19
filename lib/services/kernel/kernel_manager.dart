@@ -178,6 +178,17 @@ class KernelManager extends ChangeNotifier {
         false;
   }
 
+  Future<bool> updateBrowserBridgePort(
+    int port, {
+    Iterable<int> compatibilityPorts = const [],
+  }) async {
+    return await _kernel?.updateBrowserBridgePort(
+          port,
+          compatibilityPorts: compatibilityPorts,
+        ) ??
+        true;
+  }
+
   @override
   void dispose() {
     stop();

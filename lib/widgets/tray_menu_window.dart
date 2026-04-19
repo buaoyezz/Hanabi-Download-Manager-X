@@ -7,7 +7,6 @@ import '../services/kernel/kernel_manager.dart';
 import 'package:provider/provider.dart';
 import '../utils/fluent_icons.dart' as CustomIcons;
 
-/// Fluent Design 2 风格的托盘菜单窗口
 class TrayMenuWindow extends StatefulWidget {
   final VoidCallback onShowWindow;
   final VoidCallback onExit;

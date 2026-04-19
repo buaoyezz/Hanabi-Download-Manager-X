@@ -1,7 +1,5 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-
-/// 动画工具类 - 提供统一的动画配置和便捷方法
 class AnimationUtils {
   AnimationUtils._();
   

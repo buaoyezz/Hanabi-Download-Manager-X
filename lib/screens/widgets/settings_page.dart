@@ -14,6 +14,7 @@ import '../../services/client_config_service.dart';
 import '../../services/clipboard_listener_service.dart';
 import '../../services/font_service.dart';
 import '../../services/performance_monitor_service.dart';
+import '../../services/app_logger_service.dart';
 import '../../widgets/folder_picker_dialog.dart';
 import '../../widgets/settings_components.dart';
 import '../../widgets/temp_files_dialog.dart';
@@ -186,6 +187,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _showTrayRunningStatus = false;
   bool _enablePopupWindow = true;
   bool _enableClipboardListener = true;
+  int _browserExtensionPort = ClientConfigService.defaultBrowserExtensionPort;
 
   // Status monitoring
   bool _kernelOnline = false;
@@ -256,6 +258,7 @@ class _SettingsPageState extends State<SettingsPage> {
       final showTrayRunningStatus = config.getShowTrayRunningStatus();
       final enablePopupWindow = config.getEnablePopupWindow();
       final enableClipboardListener = config.getEnableClipboardListener();
+      final browserExtensionPort = config.getBrowserExtensionPort();
 
       if (mounted) {
         setState(() {
@@ -263,6 +266,7 @@ class _SettingsPageState extends State<SettingsPage> {
           _showTrayRunningStatus = showTrayRunningStatus;
           _enablePopupWindow = enablePopupWindow;
           _enableClipboardListener = enableClipboardListener;
+          _browserExtensionPort = browserExtensionPort;
         });
       }
     } catch (e) {
@@ -442,6 +446,129 @@ class _SettingsPageState extends State<SettingsPage> {
         NotificationManager.of(context)?.showError(
           t.settingsSaveFailedTitle,
           message: t.settingsSaveFailedMessage(e.toString()),
+        );
+      }
+    }
+  }
+
+  Future<void> _showBrowserExtensionPortDialog() async {
+    final controller =
+        TextEditingController(text: _browserExtensionPort.toString());
+    final result = await showDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) => ContentDialog(
+        title: Text(t.settingsBrowserExtensionPortDialogTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(t.settingsBrowserExtensionPortDialogPrompt),
+            const SizedBox(height: 12),
+            TextBox(
+              controller: controller,
+              placeholder: t.settingsBrowserExtensionPortPlaceholder,
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.accentPrimary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                border: Border.all(
+                  color: AppTheme.accentPrimary.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Text(
+                t.settingsBrowserExtensionPortHintBody,
+                style: FluentTheme.of(context).typography.caption?.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          Button(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(t.settingsCancelButton),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text),
+            child: Text(t.settingsConfirmButton),
+          ),
+        ],
+      ),
+    );
+
+    if (result == null || !mounted) {
+      return;
+    }
+
+    final parsed = int.tryParse(result.trim());
+    if (parsed == null ||
+        !ClientConfigService.isValidBrowserExtensionPortValue(parsed)) {
+      NotificationManager.of(context)?.showError(
+        t.settingsBrowserExtensionPortInvalidTitle,
+        message: t.settingsBrowserExtensionPortInvalidMessage(
+          ClientConfigService.minBrowserExtensionPort,
+          ClientConfigService.maxBrowserExtensionPort,
+        ),
+      );
+      return;
+    }
+
+    await _saveBrowserExtensionPort(parsed);
+  }
+
+  Future<void> _saveBrowserExtensionPort(int value) async {
+    final normalized = ClientConfigService.normalizeBrowserExtensionPortValue(
+      value,
+    );
+    final config = Provider.of<ClientConfigService>(context, listen: false);
+    final kernelManager = Provider.of<KernelManager>(context, listen: false);
+    final currentPort = config.getBrowserExtensionPort();
+
+    if (normalized == currentPort) {
+      if (mounted) {
+        setState(() {
+          _browserExtensionPort = normalized;
+        });
+      }
+      return;
+    }
+
+    try {
+      final rebound = await kernelManager.updateBrowserBridgePort(
+        normalized,
+        compatibilityPorts: [
+          currentPort,
+          ...config.getBrowserExtensionCompatibilityPorts(),
+        ],
+      );
+
+      if (!rebound) {
+        throw Exception('bridge_rebind_failed');
+      }
+
+      await config.setBrowserExtensionPort(normalized);
+
+      if (mounted) {
+        setState(() {
+          _browserExtensionPort = normalized;
+        });
+      }
+
+      NotificationManager.of(context)?.showSuccess(
+        t.settingsSaveSuccessTitle,
+        message: t.settingsBrowserExtensionPortSavedMessage(normalized),
+      );
+    } catch (e) {
+      if (mounted) {
+        NotificationManager.of(context)?.showError(
+          t.settingsSaveFailedTitle,
+          message:
+              t.settingsBrowserExtensionPortSaveFailedMessage(e.toString()),
         );
       }
     }
@@ -2562,10 +2689,136 @@ class _SettingsPageState extends State<SettingsPage> {
     return [
       _buildKernelSection(context),
       const SizedBox(height: 24),
+      _buildLogManagementSection(context),
+      const SizedBox(height: 24),
       _buildDeveloperModeToggle(context),
       const SizedBox(height: 24),
       _buildDangerZone(context),
     ];
+  }
+
+  Widget _buildLogManagementSection(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    final logger = AppLoggerService();
+    final retentionDays = logger.logRetention.inDays;
+
+    return _buildSection(
+      context,
+      title: t.settingsLogManagementSection,
+      icon: custom_icons.FluentIcons.text_document,
+      children: [
+        _buildSettingItem(
+          context,
+          title: t.settingsLogClearTitle,
+          subtitle: t.settingsLogClearSubtitle,
+          trailing: Button(
+            onPressed: () => _confirmClearLogs(context),
+            child: Text(t.settingsLogClearButton),
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildSettingItem(
+          context,
+          title: t.settingsLogOpenDirTitle,
+          subtitle: t.settingsLogOpenDirSubtitle,
+          trailing: Button(
+            onPressed: () => _openLogDirectory(context),
+            child: Text(t.settingsLogOpenDirButton),
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildSettingItem(
+          context,
+          title: t.settingsLogRetentionTitle,
+          subtitle: t.settingsLogRetentionSubtitle(retentionDays),
+          trailing: ComboBox<int>(
+            value: retentionDays,
+            items: [3, 7, 14, 30, 60]
+                .map((d) => ComboBoxItem<int>(
+                      value: d,
+                      child: Text('$d ${t.settingsLogRetentionDays}'),
+                    ))
+                .toList(),
+            onChanged: (value) {
+              if (value != null) {
+                logger.logRetention = Duration(days: value);
+                _saveLogRetention(value);
+                setState(() {});
+                NotificationManager.of(context)?.showSuccess(
+                  t.settingsLogRetentionSaved,
+                );
+              }
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _confirmClearLogs(BuildContext context) async {
+    final t = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => ContentDialog(
+        title: Text(t.settingsLogClearConfirmTitle),
+        content: Text(t.settingsLogClearConfirmMessage),
+        actions: [
+          Button(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(t.settingsCancelButton),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(t.settingsLogClearConfirmButton),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final logger = AppLoggerService();
+    logger.clear();
+    await logger.deleteAllLogFiles();
+
+    if (mounted) {
+      NotificationManager.of(context)?.showSuccess(
+        t.settingsLogClearSuccessTitle,
+        message: t.settingsLogClearSuccessMessage,
+      );
+    }
+  }
+
+  Future<void> _openLogDirectory(BuildContext context) async {
+    final t = AppLocalizations.of(context)!;
+    try {
+      final logger = AppLoggerService();
+      final dir = await logger.getLogDirectory();
+      if (await dir.exists()) {
+        Process.start(
+          'explorer',
+          [dir.path.replaceAll('/', '\\')],
+          mode: ProcessStartMode.detached,
+        );
+      } else {
+        if (mounted) {
+          NotificationManager.of(context)?.showError(
+            t.settingsLogOpenDirNotFound,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        NotificationManager.of(context)?.showError(
+          t.settingsLogOpenDirError,
+          message: e.toString(),
+        );
+      }
+    }
+  }
+
+  Future<void> _saveLogRetention(int days) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('log_retention_days', days);
   }
 
   Widget _buildDeveloperModeToggle(BuildContext context) {
@@ -2667,6 +2920,18 @@ class _SettingsPageState extends State<SettingsPage> {
                     fontWeight: FontWeight.w600,
                   ),
             ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildSettingItem(
+          context,
+          title: t.settingsBrowserExtensionPortTitle,
+          subtitle: t.settingsBrowserExtensionPortSubtitle(
+            _browserExtensionPort,
+          ),
+          trailing: Button(
+            onPressed: _showBrowserExtensionPortDialog,
+            child: Text(t.settingsBrowserExtensionPortChangeButton),
           ),
         ),
         const SizedBox(height: 12),

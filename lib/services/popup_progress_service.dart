@@ -123,7 +123,7 @@ class PopupProgressService {
   void _handleRequest(HttpRequest request) async {
     _logger.debug('PopupProgressService request: ${request.uri.path}');
 
-    // CORS headers for Tauri WebView
+    // CORS headers for standalone popup clients
     request.response.headers.add('Access-Control-Allow-Origin', '*');
     request.response.headers
         .add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -441,9 +441,15 @@ class PopupProgressService {
   DownloadProgressData _convertTask(DownloadTask task) {
     final totalSize = task.fileSize ?? 0;
     final downloadedSize = task.downloadedSize ?? 0;
-    final speed = (task.speed ?? 0).toInt();
+    final rawSpeed = task.speed ?? 0;
+    final safeSpeed = rawSpeed.isFinite && !rawSpeed.isNaN ? rawSpeed : 0.0;
+    final speed = safeSpeed > 0 ? safeSpeed.round() : 0;
+    final rawProgress = task.progress.isFinite && !task.progress.isNaN
+        ? task.progress
+        : 0.0;
+    final progressPercent = (rawProgress * 100).clamp(0, 100).toDouble();
 
-    final remainingBytes = totalSize - downloadedSize;
+    final remainingBytes = (totalSize - downloadedSize).clamp(0, totalSize);
     final remainingSeconds = speed > 0 ? (remainingBytes / speed).round() : 0;
 
     // 转换分段信息
@@ -462,7 +468,7 @@ class PopupProgressService {
       taskId: task.id,
       filename: task.fileName,
       status: task.status.name,
-      progress: task.progress,
+      progress: progressPercent,
       downloadedSize: downloadedSize,
       totalSize: totalSize,
       speed: speed,
