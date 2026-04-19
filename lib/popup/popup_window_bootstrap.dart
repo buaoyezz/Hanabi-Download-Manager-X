@@ -2412,32 +2412,11 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
       }
       if (Platform.isWindows) {
         final safePath = file.path.replaceAll('/', '\\');
-        final result = await Process.run(
-          'cmd',
-          <String>[
-            '/c',
-            'start',
-            '',
-            'rundll32.exe',
-            'shell32.dll,OpenAs_RunDLL',
-            safePath,
-          ],
+        await Process.start(
+          'rundll32.exe',
+          ['shell32.dll,OpenAs_RunDLL', safePath],
+          mode: ProcessStartMode.detached,
         );
-        if (result.exitCode != 0) {
-          throw ProcessException(
-            'cmd',
-            <String>[
-              '/c',
-              'start',
-              '',
-              'rundll32.exe',
-              'shell32.dll,OpenAs_RunDLL',
-              safePath,
-            ],
-            '${result.stderr}'.trim(),
-            result.exitCode,
-          );
-        }
       } else {
         await Process.start(
           file.path,
