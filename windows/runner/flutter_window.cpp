@@ -1253,24 +1253,47 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
   // Win10: Use SetWindowCompositionAttribute for Acrylic/Blur
   
   if (buildNumber >= 22621) {
-    // Windows 11 22H2+: Use modern backdrop API for everything
-    INT backdropType = 1;  // DWMSBT_MAINWINDOW (default)
-    
-    if (effect_mode_ == 0) {
-      backdropType = 1;  // DWMSBT_MAINWINDOW - no effect, solid
-    } else if (effect_mode_ == 1 || effect_mode_ == 2) {
-      // Blur or Acrylic - use Acrylic backdrop on Win11
-      backdropType = 3;  // DWMSBT_TRANSIENTWINDOW (Acrylic)
-    } else if (effect_mode_ == 3) {
-      backdropType = 2;  // DWMSBT_MAINWINDOW (Mica)
-    } else if (effect_mode_ == 4) {
-      backdropType = 4;  // DWMSBT_TABBEDWINDOW (Mica Alt)
+    // Windows 11 22H2+: use DWM backdrop for Acrylic/Mica.
+    // DWMWA_SYSTEMBACKDROP_TYPE has no plain Blur option, so keep Blur on
+    // SetWindowCompositionAttribute; mapping Blur to Acrylic makes Blur appear
+    // ineffective/indistinguishable from Acrylic.
+    if (effect_mode_ == 1 && pSetWindowCompositionAttribute) {
+      INT backdropType = 0;  // DWMSBT_AUTO / disable DWM backdrop first.
+      DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, &backdropType,
+                            sizeof(backdropType));
+
+      ACCENT_POLICY policy{};
+      policy.AccentState = ACCENT_ENABLE_BLURBEHIND;
+      policy.AccentFlags = 2;
+      policy.GradientColor = 0;
+      policy.AnimationId = 0;
+
+      WINDOWCOMPOSITIONATTRIBUTEDATA data{};
+      data.Attribute = 19;
+      data.Data = &policy;
+      data.SizeOfData = sizeof(policy);
+      BOOL ok = pSetWindowCompositionAttribute(hwnd, &data);
+      sprintf_s(logBuf, "Win11 22H2+: BLURBEHIND via SWCA ok=%d", ok);
+      LogA(logBuf);
+    } else {
+      INT backdropType = 0;  // Disabled / solid fallback.
+
+      if (effect_mode_ == 2) {
+        backdropType = 3;  // DWMSBT_TRANSIENTWINDOW (Acrylic)
+      } else if (effect_mode_ == 3) {
+        backdropType = 2;  // DWMSBT_MAINWINDOW (Mica)
+      } else if (effect_mode_ == 4) {
+        backdropType = 4;  // DWMSBT_TABBEDWINDOW (Mica Alt)
+      }
+
+      HRESULT hrBackdrop = DwmSetWindowAttribute(
+          hwnd, DWMWA_SYSTEMBACKDROP_TYPE, &backdropType, sizeof(backdropType));
+      sprintf_s(logBuf,
+                "Win11 22H2+: SYSTEMBACKDROP_TYPE=%d hr=0x%08lX",
+                backdropType, hrBackdrop);
+      LogA(logBuf);
     }
-    
-    HRESULT hrBackdrop = DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, &backdropType, sizeof(backdropType));
-    sprintf_s(logBuf, "Win11 22H2+: SYSTEMBACKDROP_TYPE=%d hr=0x%08lX", backdropType, hrBackdrop);
-    LogA(logBuf);
-    
+
   } else if (buildNumber >= 22000) {
     // Windows 11 21H2: Mixed approach
     if (effect_mode_ == 3 || effect_mode_ == 4) {
@@ -1365,10 +1388,7 @@ void FlutterWindow::ApplyRoundedCorners(HWND hwnd,
   wp.length = sizeof(WINDOWPLACEMENT);
   GetWindowPlacement(hwnd, &wp);
   const bool isMaximized = wp.showCmd == SW_MAXIMIZE;
-  const bool useCustomRegionOnWin11 =
-      buildNumber >= 22000 && (effect_mode_ == 1 || effect_mode_ == 2);
-
-  if (buildNumber >= 22000 && !useCustomRegionOnWin11) {
+  if (buildNumber >= 22000) {
     SetWindowRgn(hwnd, NULL, TRUE);
     DWORD corner = rounded_corners_enabled_ && !isMaximized ? 2 : 1;
     DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner,

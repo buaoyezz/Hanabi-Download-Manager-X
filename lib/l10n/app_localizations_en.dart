@@ -2289,7 +2289,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get popupDownloadErrorInvalidUrl =>
-      'Please enter a valid HTTP/HTTPS link';
+      'Please enter a valid download link';
 
   @override
   String popupDownloadErrorAddFailed(Object error) {
@@ -2481,8 +2481,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addDownloadErrorMissingUrl => 'Please enter download link';
 
   @override
-  String get addDownloadErrorInvalidUrl =>
-      'Please enter a valid HTTP/HTTPS link';
+  String get addDownloadErrorInvalidUrl => 'Please enter a valid download link';
+
+  @override
+  String get downloadIntentTypeUnknown => 'unknown link';
+
+  @override
+  String get downloadIntentTypeHttp => 'HTTP/HTTPS link';
+
+  @override
+  String get downloadIntentTypeMagnet => 'Magnet link';
+
+  @override
+  String downloadIntentUnsupportedType(Object type) {
+    return 'It has been identified as $type, but the current version does not support direct download.';
+  }
 
   @override
   String addDownloadErrorAddFailed(Object error) {

@@ -1,0 +1,10 @@
+{
+  "id": "hanabi.example.demo",
+  "repo": "https://github.com/example/hanabi-plugin-demo",
+  "branch": "main",
+  "pluginPath": ".",
+  "channel": "stable",
+  "reviewStatus": "draft",
+  "submitter": "github:example",
+  "notes": "Optional review notes"
+}

@@ -938,7 +938,7 @@
   "popupDownloadAdding": "添加中...",
   "popupDownloadStart": "开始下载",
   "popupDownloadErrorMissingInfo": "请填写完整信息",
-  "popupDownloadErrorInvalidUrl": "请输入有效的 HTTP/HTTPS 链接",
+  "popupDownloadErrorInvalidUrl": "请输入有效的下载链接",
   "popupDownloadErrorAddFailed": "添加任务失败: {error}",
   "popupDownloadErrorTitle": "错误",
   "popupDownloadErrorConfirm": "确定",
@@ -1008,7 +1008,16 @@
   "addDownloadAdding": "添加中...",
   "addDownloadStart": "开始下载",
   "addDownloadErrorMissingUrl": "请输入下载链接",
-  "addDownloadErrorInvalidUrl": "请输入有效的 HTTP/HTTPS 链接",
+  "addDownloadErrorInvalidUrl": "请输入有效的下载链接",
+  "downloadIntentTypeUnknown": "未知链接",
+  "downloadIntentTypeHttp": "HTTP/HTTPS 链接",
+  "downloadIntentTypeMagnet": "磁力链接",
+  "downloadIntentUnsupportedType": "已识别为 {type}，但当前版本暂不支持直接下载",
+  "@downloadIntentUnsupportedType": {
+    "placeholders": {
+      "type": {}
+    }
+  },
   "addDownloadErrorAddFailed": "添加任务失败: {error}",
   "addDownloadErrorTitle": "错误",
   "addDownloadErrorConfirm": "确定",

@@ -1,0 +1,10 @@
+{
+  "id": "hanabi.example.echo",
+  "repo": "https://github.com/buaoyezz/Hanabi-Download-Manager-X",
+  "branch": "main",
+  "pluginPath": "plugins/examples/echo_test",
+  "channel": "stable",
+  "reviewStatus": "published",
+  "submitter": "github:buaoyezz",
+  "notes": "Official smoke-test plugin for verifying the GitHub-backed plugin store."
+}

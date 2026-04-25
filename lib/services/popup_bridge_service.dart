@@ -62,7 +62,8 @@ class PopupBridgeService {
       if (taskId == null) {
         _logger.error(
           'PopupBridge',
-          'Failed to create popup download task: ${request.filename}',
+          'Failed to create popup download task: '
+              '${_downloadService.lastAddTaskError ?? request.filename}',
         );
         return;
       }

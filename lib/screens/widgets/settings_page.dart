@@ -1,6 +1,7 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/gestures.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart'; // Import appWindow
@@ -191,7 +192,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   // Status monitoring
   bool _kernelOnline = false;
-  bool _browserConnected = false;
+  List<_BrowserExtensionStatus> _browserExtensionStatuses = const [];
   Timer? _statusTimer;
 
   String _currentKernelName = 'NSFX (Next Speed Force X)';
@@ -610,21 +611,190 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!mounted) return;
 
     final kernelManager = KernelManager();
-    final newKernelOnline = kernelManager.isRunning;
-
-    final newBrowserConnected = newKernelOnline;
     final newKernelName = kernelManager.kernelName;
+    var newKernelOnline = false;
+    var newBrowserExtensionStatuses = const <_BrowserExtensionStatus>[];
+
+    if (kernelManager.isRunning) {
+      final status = await _fetchBrowserBridgeStatus();
+      newKernelOnline = status.kernelOnline;
+      newBrowserExtensionStatuses = status.browserExtensions;
+    }
 
     if (mounted &&
         (newKernelOnline != _kernelOnline ||
-            newBrowserConnected != _browserConnected ||
+            !_browserExtensionStatusesEqual(
+              newBrowserExtensionStatuses,
+              _browserExtensionStatuses,
+            ) ||
             newKernelName != _currentKernelName)) {
       setState(() {
         _kernelOnline = newKernelOnline;
-        _browserConnected = newBrowserConnected;
+        _browserExtensionStatuses = newBrowserExtensionStatuses;
         _currentKernelName = newKernelName;
       });
     }
+  }
+
+  bool _browserExtensionStatusesEqual(
+    List<_BrowserExtensionStatus> a,
+    List<_BrowserExtensionStatus> b,
+  ) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].id != b[i].id || a[i].title != b[i].title) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  Future<_BrowserBridgeStatus> _fetchBrowserBridgeStatus() async {
+    final port = context.read<ClientConfigService>().getBrowserExtensionPort();
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 2);
+
+    try {
+      final healthRequest = await client
+          .getUrl(Uri.parse('http://127.0.0.1:$port/health'))
+          .timeout(const Duration(seconds: 2));
+      final healthResponse = await healthRequest.close().timeout(
+            const Duration(seconds: 2),
+          );
+      final healthBody = await healthResponse.transform(utf8.decoder).join();
+      final healthJson = jsonDecode(healthBody);
+      final kernelOnline = healthResponse.statusCode == 200 &&
+          healthJson is Map &&
+          healthJson['status'] == 'ok' &&
+          healthJson['running'] == true;
+
+      if (!kernelOnline) {
+        return const _BrowserBridgeStatus(kernelOnline: false);
+      }
+
+      final statsPort = _resolveBrowserBridgeStatsPort(
+        healthJson,
+        fallbackPort: port,
+      );
+      final browserExtensions = <String, _BrowserExtensionStatus>{};
+      try {
+        final statsRequest = await client
+            .getUrl(Uri.parse('http://127.0.0.1:$statsPort/stats/online'))
+            .timeout(const Duration(seconds: 2));
+        final statsResponse = await statsRequest.close().timeout(
+              const Duration(seconds: 2),
+            );
+        final statsBody = await statsResponse.transform(utf8.decoder).join();
+        final statsJson = jsonDecode(statsBody);
+
+        if (statsResponse.statusCode == 200 && statsJson is Map) {
+          final data = statsJson['data'];
+          final devices = data is Map ? data['devices'] : null;
+          if (devices is List) {
+            for (final device in devices) {
+              if (device is! Map) continue;
+              final browserStatus = _browserExtensionStatusFromDevice(device);
+              if (browserStatus != null) {
+                browserExtensions[browserStatus.id] = browserStatus;
+              }
+            }
+          }
+        }
+      } catch (_) {
+        // Keep the kernel status from /health even if the optional extension
+        // activity endpoint is temporarily unavailable.
+      }
+      final sortedBrowserExtensions = browserExtensions.values.toList()
+        ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+
+      return _BrowserBridgeStatus(
+        kernelOnline: true,
+        browserExtensions: List.unmodifiable(sortedBrowserExtensions),
+      );
+    } catch (_) {
+      return const _BrowserBridgeStatus(kernelOnline: false);
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  int _resolveBrowserBridgeStatsPort(
+    Object? healthJson, {
+    required int fallbackPort,
+  }) {
+    if (healthJson is! Map) return fallbackPort;
+
+    final apiPort = int.tryParse('${healthJson['api_port'] ?? ''}');
+    if (apiPort != null &&
+        ClientConfigService.isValidBrowserExtensionPortValue(apiPort)) {
+      return apiPort;
+    }
+
+    return fallbackPort;
+  }
+
+  _BrowserExtensionStatus? _browserExtensionStatusFromDevice(
+    Map<dynamic, dynamic> device,
+  ) {
+    final rawDeviceInfo = device['device_info'];
+    final deviceInfo = rawDeviceInfo is Map ? rawDeviceInfo : const {};
+    final deviceType = deviceInfo['deviceType']?.toString().toLowerCase();
+    final summary = device['device_summary']?.toString() ?? '';
+
+    if (deviceType != null &&
+        deviceType.isNotEmpty &&
+        deviceType != 'browser_extension') {
+      return null;
+    }
+
+    final browserKind = deviceInfo['browserKind']?.toString() ?? '';
+    final browser = deviceInfo['browser']?.toString() ?? '';
+    final userAgent = deviceInfo['userAgent']?.toString() ?? '';
+    final probe = '$browserKind $browser $userAgent $summary'.toLowerCase();
+
+    if (probe.contains('firefox')) {
+      return const _BrowserExtensionStatus(
+        id: 'firefox',
+        title: 'Firefox Extension',
+        sortOrder: 30,
+      );
+    }
+    if (probe.contains(' edg/') ||
+        probe.contains(' edga/') ||
+        probe.contains(' edgios/') ||
+        probe.contains('edge')) {
+      return const _BrowserExtensionStatus(
+        id: 'edge',
+        title: 'Edge Extension',
+        sortOrder: 20,
+      );
+    }
+    if (probe.contains('chrome')) {
+      return const _BrowserExtensionStatus(
+        id: 'chrome',
+        title: 'Chrome Extension',
+        sortOrder: 10,
+      );
+    }
+    if (probe.contains('chromium')) {
+      return const _BrowserExtensionStatus(
+        id: 'chromium',
+        title: 'Chromium Extension',
+        sortOrder: 15,
+      );
+    }
+
+    final fallbackName = browser.trim().isNotEmpty
+        ? browser.trim()
+        : summary.trim().isNotEmpty
+            ? summary.trim().split(' on ').first
+            : '';
+    if (fallbackName.isEmpty) return null;
+
+    return _BrowserExtensionStatus(
+      id: fallbackName.toLowerCase(),
+      title: '$fallbackName Extension',
+      sortOrder: 100,
+    );
   }
 
   Future<void> _loadDownloadPath() async {
@@ -2970,6 +3140,19 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildStatusSection(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     final kernelDisplayName = t.settingsStatusKernelNsfx;
+    final statusIndicators = [
+      _StatusIndicatorData(
+        title: kernelDisplayName,
+        isOnline: _kernelOnline,
+        icon: custom_icons.FluentIcons.server,
+      ),
+      for (final status in _browserExtensionStatuses)
+        _StatusIndicatorData(
+          title: status.title,
+          isOnline: true,
+          icon: custom_icons.FluentIcons.globe,
+        ),
+    ];
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -2997,26 +3180,32 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatusIndicator(
-                  context,
-                  title: kernelDisplayName,
-                  isOnline: _kernelOnline,
-                  icon: custom_icons.FluentIcons.server,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildStatusIndicator(
-                  context,
-                  title: t.settingsStatusBrowserExtension,
-                  isOnline: _browserConnected,
-                  icon: custom_icons.FluentIcons.edge_logo,
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const spacing = 16.0;
+              final columnCount =
+                  constraints.maxWidth < 620 ? 1 : statusIndicators.length;
+              final itemWidth =
+                  (constraints.maxWidth - spacing * (columnCount - 1)) /
+                      columnCount;
+
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
+                children: [
+                  for (final item in statusIndicators)
+                    SizedBox(
+                      width: itemWidth,
+                      child: _buildStatusIndicator(
+                        context,
+                        title: item.title,
+                        isOnline: item.isOnline,
+                        icon: item.icon,
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -3175,4 +3364,38 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
   }
+}
+
+class _BrowserBridgeStatus {
+  const _BrowserBridgeStatus({
+    required this.kernelOnline,
+    this.browserExtensions = const [],
+  });
+
+  final bool kernelOnline;
+  final List<_BrowserExtensionStatus> browserExtensions;
+}
+
+class _BrowserExtensionStatus {
+  const _BrowserExtensionStatus({
+    required this.id,
+    required this.title,
+    required this.sortOrder,
+  });
+
+  final String id;
+  final String title;
+  final int sortOrder;
+}
+
+class _StatusIndicatorData {
+  const _StatusIndicatorData({
+    required this.title,
+    required this.isOnline,
+    required this.icon,
+  });
+
+  final String title;
+  final bool isOnline;
+  final IconData icon;
 }

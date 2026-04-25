@@ -1,0 +1,14 @@
+{
+  "id": "hanabi.example.echo",
+  "name": "Echo Test Plugin",
+  "version": "0.1.0",
+  "author": "Hanabi",
+  "description": "Minimal plugin used to verify the GitHub-backed plugin store install flow.",
+  "entry": "main.py",
+  "capabilities": [
+    "custom",
+    "intent:custom"
+  ],
+  "permissions": [],
+  "minAppVersion": "1.3.2"
+}

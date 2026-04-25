@@ -1,14 +1,20 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import '../models/download_intent.dart';
 import '../models/download_task.dart';
+import 'download_intent_dispatcher.dart';
 import 'kernel/kernel_manager.dart';
 import 'kernel/kernel_interface.dart' as kernel;
 import 'client_config_service.dart';
 import 'app_logger_service.dart';
 import 'download_failure_stats_service.dart';
+import 'plugin_task_service.dart';
 
 class IntegratedDownloadService extends ChangeNotifier {
   final _kernelManager = KernelManager();
+  late final DownloadIntentDispatcher _intentDispatcher =
+      DownloadIntentDispatcher(kernelManager: _kernelManager);
+  final _pluginTaskService = PluginTaskService();
   final _clientConfig = ClientConfigService();
   final _appLogger = AppLoggerService();
   final List<DownloadTask> _tasks = [];
@@ -25,6 +31,7 @@ class IntegratedDownloadService extends ChangeNotifier {
   // 智能轮询：根据是否有活跃下载调整间隔
   bool _hasActiveDownloads = false;
   bool _hasLoadedOnce = false;
+  String? _lastAddTaskError;
   static const _activePollingInterval = Duration(seconds: 1); // 有下载时1秒
   static const _idlePollingInterval = Duration(seconds: 5); // 空闲时5秒
 
@@ -35,6 +42,14 @@ class IntegratedDownloadService extends ChangeNotifier {
   IntegratedDownloadService() {
     _startPolling();
     _subscribeToKernelStreams();
+    unawaited(_pluginTaskService.initialize().then((_) async {
+      final (hasChanges, _) = await _syncPluginTasks(refresh: false);
+      if (hasChanges) {
+        notifyNow();
+      }
+    }).catchError((error) {
+      _appLogger.warning('PluginTask', 'Plugin task init failed: $error');
+    }));
     // 立即尝试首次加载，不等待轮询间隔
     _immediateFirstLoad();
   }
@@ -43,6 +58,7 @@ class IntegratedDownloadService extends ChangeNotifier {
 
   List<DownloadTask> get tasks => List.unmodifiable(_tasks);
   bool get hasLoadedOnce => _hasLoadedOnce;
+  String? get lastAddTaskError => _lastAddTaskError;
 
   DownloadTask? findDuplicateTask(String url) {
     final normalized = _normalizeUrl(url);
@@ -57,16 +73,20 @@ class IntegratedDownloadService extends ChangeNotifier {
   String _normalizeUrl(String url) {
     final trimmed = url.trim();
     if (trimmed.isEmpty) return trimmed;
-    try {
-      final uri = Uri.parse(trimmed);
-      final normalized = uri.replace(fragment: '').toString();
-      if (normalized.endsWith('/') && uri.path == '/' && (uri.query.isEmpty)) {
+
+    final intent = DownloadIntent.parse(trimmed);
+    if (intent.isRecognized) {
+      final normalized = intent.normalizedValue;
+      if (intent.isHttp &&
+          normalized.endsWith('/') &&
+          intent.uri?.path == '/' &&
+          (intent.uri?.query.isEmpty ?? true)) {
         return normalized.substring(0, normalized.length - 1);
       }
       return normalized;
-    } catch (_) {
-      return trimmed;
     }
+
+    return trimmed;
   }
 
   DownloadTask? _findTaskById(String id) {
@@ -172,7 +192,8 @@ class IntegratedDownloadService extends ChangeNotifier {
     // 更新活跃下载状态
     _hasActiveDownloads = _tasks.any((t) =>
         t.status == DownloadStatus.downloading ||
-        t.status == DownloadStatus.merging);
+        t.status == DownloadStatus.merging ||
+        t.status == DownloadStatus.pending);
   }
 
   void _logDiagnosticDecisionChanges(
@@ -275,10 +296,75 @@ class IntegratedDownloadService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _updateTasks() async {
-    if (!isKernelRunning) return;
+  Future<(bool, bool)> _syncPluginTasks({bool refresh = true}) async {
+    await _pluginTaskService.ensureInitialized();
+    final records = refresh
+        ? await _pluginTaskService.refreshActiveTasks()
+        : _pluginTaskService.records;
+    var hasChanges = false;
+    var hasCriticalChange = false;
 
+    for (final record in records) {
+      final newTask = record.toDownloadTask();
+      final existingIndex = _tasks.indexWhere((task) => task.id == newTask.id);
+      if (existingIndex == -1) {
+        _tasks.add(newTask);
+        hasChanges = true;
+        hasCriticalChange = true;
+        if (newTask.status == DownloadStatus.failed) {
+          DownloadFailureStatsService().recordFailure(newTask);
+        }
+        continue;
+      }
+
+      final oldTask = _tasks[existingIndex];
+      final statusChanged = oldTask.status != newTask.status;
+      final sizeChanged = oldTask.fileSize != newTask.fileSize ||
+          oldTask.downloadedSize != newTask.downloadedSize;
+      final progressChanged =
+          (oldTask.progress - newTask.progress).abs() > 0.001;
+      final speedChanged = oldTask.speed != newTask.speed;
+      final errorChanged = oldTask.error != newTask.error;
+
+      if (statusChanged ||
+          sizeChanged ||
+          progressChanged ||
+          speedChanged ||
+          errorChanged) {
+        _tasks[existingIndex] = newTask;
+        hasChanges = true;
+        hasCriticalChange = hasCriticalChange || statusChanged || sizeChanged;
+        if (statusChanged && newTask.status == DownloadStatus.failed) {
+          DownloadFailureStatsService().recordFailure(newTask);
+        }
+      }
+    }
+
+    return (hasChanges, hasCriticalChange);
+  }
+
+  Future<void> _updateTasks() async {
     try {
+      if (!isKernelRunning) {
+        final (pluginChanges, pluginCriticalChange) = await _syncPluginTasks();
+        if (pluginChanges) {
+          if (pluginCriticalChange) {
+            notifyNow();
+          } else {
+            notifyListeners();
+          }
+        }
+        if (!_hasLoadedOnce) {
+          _hasLoadedOnce = true;
+          notifyNow();
+        }
+        _hasActiveDownloads = _tasks.any((t) =>
+            t.status == DownloadStatus.downloading ||
+            t.status == DownloadStatus.merging ||
+            t.status == DownloadStatus.pending);
+        return;
+      }
+
       final tasks = await _kernelManager.getTasks();
       final kernelTasks = tasks.map(_convertDownloadTaskToMap).toList();
 
@@ -370,6 +456,10 @@ class IntegratedDownloadService extends ChangeNotifier {
         }
       }
 
+      final (pluginChanges, pluginCriticalChange) = await _syncPluginTasks();
+      hasChanges = hasChanges || pluginChanges;
+      hasCriticalChange = hasCriticalChange || pluginCriticalChange;
+
       // 只在有变化时才通知 UI
       if (hasChanges) {
         if (hasCriticalChange) {
@@ -382,7 +472,8 @@ class IntegratedDownloadService extends ChangeNotifier {
       // 更新活跃下载状态，用于智能轮询
       final newHasActiveDownloads = _tasks.any((t) =>
           t.status == DownloadStatus.downloading ||
-          t.status == DownloadStatus.merging);
+          t.status == DownloadStatus.merging ||
+          t.status == DownloadStatus.pending);
       if (newHasActiveDownloads != _hasActiveDownloads) {
         _hasActiveDownloads = newHasActiveDownloads;
         _appLogger.debug('App',
@@ -616,23 +707,27 @@ class IntegratedDownloadService extends ChangeNotifier {
     String? saveDir,
     bool startPaused = false,
   }) async {
+    _lastAddTaskError = null;
     // 检查是否是测试任务
     if (url.startsWith('test_task_')) {
       return _addTestTask(url, fileName);
     }
 
-    if (!isKernelRunning) {
-      _appLogger.error('App', 'Kernel not running');
+    final intent = DownloadIntent.parse(url);
+    if (!intent.isRecognized) {
+      _appLogger.warning(
+          'App', 'Rejected download task with invalid URL: $url');
+      _lastAddTaskError = 'Unsupported or invalid download intent';
       return null;
     }
 
     // 确保已订阅内核 Stream（内核可能刚启动）
-    if (_progressSubscription == null) {
+    if (intent.isHttp && _progressSubscription == null) {
       _subscribeToKernelStreams();
     }
 
-    _appLogger.info(
-        'App', 'Adding download task: $fileName (using NSFX kernel)');
+    _appLogger.info('App',
+        'Adding download task: $fileName (intent=${intent.type.wireName})');
     if (referer != null ||
         userAgent != null ||
         cookies != null ||
@@ -641,29 +736,95 @@ class IntegratedDownloadService extends ChangeNotifier {
       _appLogger.info('App', 'With download request metadata');
     }
 
-    final taskId = await _kernelManager.addDownload(
-      url,
-      fileName,
-      referer: referer,
-      userAgent: userAgent,
-      cookies: cookies,
-      headers: headers,
-      saveDir: saveDir,
-      startPaused: startPaused,
+    final result = await _intentDispatcher.dispatch(
+      DownloadDispatchRequest(
+        intent: intent,
+        fileName: fileName,
+        referer: referer,
+        userAgent: userAgent,
+        cookies: cookies,
+        headers: headers,
+        saveDir: saveDir,
+        startPaused: startPaused,
+      ),
     );
 
-    if (taskId != null) {
-      _appLogger.info('App', 'Task added successfully: $taskId - $fileName');
+    if (!result.accepted) {
+      _lastAddTaskError = result.message;
+      _appLogger.error(
+        'App',
+        'Failed to add task via ${result.handlerId}: ${result.message}',
+      );
+      return null;
+    }
+
+    final taskId = result.taskId;
+    if (taskId != null && intent.isHttp) {
+      _appLogger.info('App',
+          'Task added successfully: $taskId - $fileName (${result.handlerId})');
       // 立即切换到快速轮询模式
       _hasActiveDownloads = true;
       // 立即更新任务列表
       await _updateTasks();
       // _updateTasks 内部已经会通知 UI，不需要再次通知
-    } else {
-      _appLogger.error('App', 'Failed to add task: $fileName');
+    } else if (taskId != null) {
+      final pluginId = result.metadata['pluginId']?.toString();
+      final pluginResultRaw = result.metadata['pluginResult'];
+      final pluginResult = pluginResultRaw is Map
+          ? pluginResultRaw.map(
+              (key, value) => MapEntry(key.toString(), value),
+            )
+          : const <String, dynamic>{};
+      if (pluginId != null && pluginId.isNotEmpty) {
+        final record = await _pluginTaskService.registerTask(
+          pluginId: pluginId,
+          taskId: taskId,
+          intent: intent,
+          fileName: fileName,
+          saveDir: saveDir,
+          pluginResult: pluginResult,
+        );
+        final existingIndex = _tasks.indexWhere((task) => task.id == record.id);
+        final pluginTask = record.toDownloadTask();
+        if (existingIndex == -1) {
+          _tasks.add(pluginTask);
+        } else {
+          _tasks[existingIndex] = pluginTask;
+        }
+        _hasActiveDownloads = true;
+        notifyNow();
+      }
+      _appLogger.info('App',
+          'Plugin task accepted: $taskId - $fileName (${result.handlerId})');
     }
 
     return taskId;
+  }
+
+  Future<DownloadDispatchResult> dispatchIntent(
+    DownloadIntent intent,
+    String fileName, {
+    String? referer,
+    String? userAgent,
+    String? cookies,
+    Map<String, dynamic>? headers,
+    String? saveDir,
+    bool startPaused = false,
+  }) async {
+    final result = await _intentDispatcher.dispatch(
+      DownloadDispatchRequest(
+        intent: intent,
+        fileName: fileName,
+        referer: referer,
+        userAgent: userAgent,
+        cookies: cookies,
+        headers: headers,
+        saveDir: saveDir,
+        startPaused: startPaused,
+      ),
+    );
+    _lastAddTaskError = result.accepted ? null : result.message;
+    return result;
   }
 
   // 添加测试任务
@@ -804,6 +965,18 @@ class IntegratedDownloadService extends ChangeNotifier {
   }
 
   Future<void> pauseTask(String id) async {
+    await _pluginTaskService.ensureInitialized();
+    if (_pluginTaskService.hasTask(id)) {
+      final success = await _pluginTaskService.pauseTask(id);
+      if (success) {
+        await _syncPluginTasks(refresh: false);
+        notifyNow();
+      } else {
+        _appLogger.error('App', 'Failed to pause plugin task: $id');
+      }
+      return;
+    }
+
     final task = _findTaskById(id);
     if (task == null) {
       _appLogger.warning('App', 'Pause ignored: task not found (ID: $id)');
@@ -822,6 +995,18 @@ class IntegratedDownloadService extends ChangeNotifier {
   }
 
   Future<void> resumeTask(String id) async {
+    await _pluginTaskService.ensureInitialized();
+    if (_pluginTaskService.hasTask(id)) {
+      final success = await _pluginTaskService.resumeTask(id);
+      if (success) {
+        await _syncPluginTasks(refresh: false);
+        notifyNow();
+      } else {
+        _appLogger.error('App', 'Failed to resume plugin task: $id');
+      }
+      return;
+    }
+
     final task = _findTaskById(id);
     if (task == null) {
       _appLogger.warning('App', 'Resume ignored: task not found (ID: $id)');
@@ -840,6 +1025,16 @@ class IntegratedDownloadService extends ChangeNotifier {
   }
 
   Future<void> removeTask(String id) async {
+    await _pluginTaskService.ensureInitialized();
+    if (_pluginTaskService.hasTask(id)) {
+      await _pluginTaskService.removeTask(id);
+      _tasks.removeWhere((task) => task.id == id);
+      _clientConfig.setTaskTags(id, []);
+      _appLogger.info('App', 'Plugin task removed successfully: $id');
+      notifyNow();
+      return;
+    }
+
     final task = _findTaskById(id);
 
     if (task == null) {
@@ -863,6 +1058,12 @@ class IntegratedDownloadService extends ChangeNotifier {
   }
 
   Future<bool> renameTaskFile(String id, String newFileName) async {
+    await _pluginTaskService.ensureInitialized();
+    if (_pluginTaskService.hasTask(id)) {
+      _appLogger.warning('App', 'Rename ignored for plugin task (ID: $id)');
+      return false;
+    }
+
     final task = _findTaskById(id);
     if (task == null) {
       _appLogger.warning('App', 'Rename ignored: task not found (ID: $id)');
@@ -879,6 +1080,12 @@ class IntegratedDownloadService extends ChangeNotifier {
   }
 
   Future<bool> moveTaskFile(String id, String targetDir) async {
+    await _pluginTaskService.ensureInitialized();
+    if (_pluginTaskService.hasTask(id)) {
+      _appLogger.warning('App', 'Move ignored for plugin task (ID: $id)');
+      return false;
+    }
+
     final task = _findTaskById(id);
     if (task == null) {
       _appLogger.warning('App', 'Move ignored: task not found (ID: $id)');

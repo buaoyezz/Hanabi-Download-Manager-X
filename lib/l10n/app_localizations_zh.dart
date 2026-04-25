@@ -2119,7 +2119,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get popupDownloadErrorMissingInfo => '请填写完整信息';
 
   @override
-  String get popupDownloadErrorInvalidUrl => '请输入有效的 HTTP/HTTPS 链接';
+  String get popupDownloadErrorInvalidUrl => '请输入有效的下载链接';
 
   @override
   String popupDownloadErrorAddFailed(Object error) {
@@ -2305,7 +2305,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get addDownloadErrorMissingUrl => '请输入下载链接';
 
   @override
-  String get addDownloadErrorInvalidUrl => '请输入有效的 HTTP/HTTPS 链接';
+  String get addDownloadErrorInvalidUrl => '请输入有效的下载链接';
+
+  @override
+  String get downloadIntentTypeUnknown => '未知链接';
+
+  @override
+  String get downloadIntentTypeHttp => 'HTTP/HTTPS 链接';
+
+  @override
+  String get downloadIntentTypeMagnet => '磁力链接';
+
+  @override
+  String downloadIntentUnsupportedType(Object type) {
+    return '已识别为 $type，但当前版本暂不支持直接下载';
+  }
 
   @override
   String addDownloadErrorAddFailed(Object error) {

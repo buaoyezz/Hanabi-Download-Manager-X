@@ -242,7 +242,10 @@ class PopupProgressService {
             saveDir: (savePath?.isNotEmpty ?? false) ? savePath : null,
           );
           if (taskId == null) {
-            throw StateError('Failed to add download task');
+            throw StateError(
+              _downloadService.lastAddTaskError ??
+                  'Failed to add download task',
+            );
           }
           setActiveTask(taskId);
 
@@ -444,9 +447,8 @@ class PopupProgressService {
     final rawSpeed = task.speed ?? 0;
     final safeSpeed = rawSpeed.isFinite && !rawSpeed.isNaN ? rawSpeed : 0.0;
     final speed = safeSpeed > 0 ? safeSpeed.round() : 0;
-    final rawProgress = task.progress.isFinite && !task.progress.isNaN
-        ? task.progress
-        : 0.0;
+    final rawProgress =
+        task.progress.isFinite && !task.progress.isNaN ? task.progress : 0.0;
     final progressPercent = (rawProgress * 100).clamp(0, 100).toDouble();
 
     final remainingBytes = (totalSize - downloadedSize).clamp(0, totalSize);

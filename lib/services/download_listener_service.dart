@@ -94,7 +94,7 @@ class DownloadListenerService {
     final headers =
         headersRaw is Map ? headersRaw.cast<String, dynamic>() : null;
 
-    await downloadService.addTask(
+    final taskId = await downloadService.addTask(
       url,
       filename,
       referer: downloadData['referer']?.toString(),
@@ -103,6 +103,13 @@ class DownloadListenerService {
       cookies: downloadData['cookies']?.toString(),
       headers: headers,
     );
+
+    if (taskId == null) {
+      _logger.warning(
+        'Download auto-accept rejected: ${downloadService.lastAddTaskError ?? filename}',
+      );
+      return;
+    }
 
     _logger.info('Download auto-accepted: $filename');
   }

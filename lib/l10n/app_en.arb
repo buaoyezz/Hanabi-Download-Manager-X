@@ -3479,10 +3479,10 @@
     "x-auto-source-zh": "请填写完整信息",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "popupDownloadErrorInvalidUrl": "Please enter a valid HTTP/HTTPS link",
+  "popupDownloadErrorInvalidUrl": "Please enter a valid download link",
   "@popupDownloadErrorInvalidUrl": {
-    "x-auto-source-zh": "请输入有效的 HTTP/HTTPS 链接",
-    "x-auto-synced-at": "2026-04-17T16:57:46.639595"
+    "x-auto-source-zh": "请输入有效的下载链接",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
   },
   "popupDownloadErrorAddFailed": "Failed to add task: {error}",
   "@popupDownloadErrorAddFailed": {
@@ -3508,35 +3508,155 @@
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
   "popupDownloadProgressTitle": "Downloading",
+  "@popupDownloadProgressTitle": {
+    "x-auto-source-zh": "下载中",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadCompletedTitle": "Download complete",
+  "@popupDownloadCompletedTitle": {
+    "x-auto-source-zh": "下载完成",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadProgressHint": "Live speed, remaining time and segment state stay visible here",
+  "@popupDownloadProgressHint": {
+    "x-auto-source-zh": "Powered by NSFX Kernel",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadCompletedHint": "The file is saved and ready to open from the file or its folder",
+  "@popupDownloadCompletedHint": {
+    "x-auto-source-zh": "文件已保存到目标目录，可直接打开文件或文件夹",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadStatusPending": "Pending",
+  "@popupDownloadStatusPending": {
+    "x-auto-source-zh": "准备中",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadStatusDownloading": "Downloading",
+  "@popupDownloadStatusDownloading": {
+    "x-auto-source-zh": "下载中",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadStatusPaused": "Paused",
+  "@popupDownloadStatusPaused": {
+    "x-auto-source-zh": "已暂停",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadStatusMerging": "Verifying",
+  "@popupDownloadStatusMerging": {
+    "x-auto-source-zh": "校验中",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadStatusCompleted": "Done",
+  "@popupDownloadStatusCompleted": {
+    "x-auto-source-zh": "完成",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadStatusFailed": "Failed",
+  "@popupDownloadStatusFailed": {
+    "x-auto-source-zh": "失败",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadStatusUnknown": "Waiting",
+  "@popupDownloadStatusUnknown": {
+    "x-auto-source-zh": "等待中",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadMetricProgress": "Progress",
+  "@popupDownloadMetricProgress": {
+    "x-auto-source-zh": "进度",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadMetricDownloaded": "Downloaded",
+  "@popupDownloadMetricDownloaded": {
+    "x-auto-source-zh": "已下载",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadMetricTotalSize": "Size",
+  "@popupDownloadMetricTotalSize": {
+    "x-auto-source-zh": "总大小",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadMetricSpeed": "Speed",
+  "@popupDownloadMetricSpeed": {
+    "x-auto-source-zh": "速度",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadMetricEta": "ETA",
+  "@popupDownloadMetricEta": {
+    "x-auto-source-zh": "剩余时间",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadMetricSegments": "Segments",
+  "@popupDownloadMetricSegments": {
+    "x-auto-source-zh": "分段",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadMetricStatus": "Status",
+  "@popupDownloadMetricStatus": {
+    "x-auto-source-zh": "状态",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadMetricSaveTo": "Saved to",
+  "@popupDownloadMetricSaveTo": {
+    "x-auto-source-zh": "保存位置",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadMetricHost": "Host",
+  "@popupDownloadMetricHost": {
+    "x-auto-source-zh": "来源",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadProgressLiveLabel": "Live transfer",
+  "@popupDownloadProgressLiveLabel": {
+    "x-auto-source-zh": "实时传输",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadProgressSegmentTitle": "Segment progress",
+  "@popupDownloadProgressSegmentTitle": {
+    "x-auto-source-zh": "分段进度",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadProgressWaiting": "Preparing the connection and resolving file details",
+  "@popupDownloadProgressWaiting": {
+    "x-auto-source-zh": "正在准备连接与文件信息",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadProgressCompletedMessage": "The download is complete and ready in the target folder",
+  "@popupDownloadProgressCompletedMessage": {
+    "x-auto-source-zh": "下载已完成，你可以打开文件夹查看结果",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadActionBackground": "Run in background",
+  "@popupDownloadActionBackground": {
+    "x-auto-source-zh": "后台下载",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadActionPause": "Pause",
+  "@popupDownloadActionPause": {
+    "x-auto-source-zh": "暂停",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadActionResume": "Resume",
+  "@popupDownloadActionResume": {
+    "x-auto-source-zh": "继续",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadActionOpenFile": "Open file",
+  "@popupDownloadActionOpenFile": {
+    "x-auto-source-zh": "打开文件",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadActionOpenFolder": "Open folder",
+  "@popupDownloadActionOpenFolder": {
+    "x-auto-source-zh": "打开文件夹",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadActionClose": "Close",
+  "@popupDownloadActionClose": {
+    "x-auto-source-zh": "关闭",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
   "popupDownloadErrorOpenFileFailed": "Failed to open file: {error}",
   "@popupDownloadErrorOpenFileFailed": {
     "placeholders": {
@@ -3668,10 +3788,33 @@
     "x-auto-source-zh": "请输入下载链接",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "addDownloadErrorInvalidUrl": "Please enter a valid HTTP/HTTPS link",
+  "addDownloadErrorInvalidUrl": "Please enter a valid download link",
   "@addDownloadErrorInvalidUrl": {
-    "x-auto-source-zh": "请输入有效的 HTTP/HTTPS 链接",
-    "x-auto-synced-at": "2026-04-17T16:57:46.639595"
+    "x-auto-source-zh": "请输入有效的下载链接",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
+  "downloadIntentTypeUnknown": "unknown link",
+  "@downloadIntentTypeUnknown": {
+    "x-auto-source-zh": "未知链接",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
+  "downloadIntentTypeHttp": "HTTP/HTTPS link",
+  "@downloadIntentTypeHttp": {
+    "x-auto-source-zh": "HTTP/HTTPS 链接",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
+  "downloadIntentTypeMagnet": "Magnet link",
+  "@downloadIntentTypeMagnet": {
+    "x-auto-source-zh": "磁力链接",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
+  "downloadIntentUnsupportedType": "It has been identified as {type}, but the current version does not support direct download.",
+  "@downloadIntentUnsupportedType": {
+    "placeholders": {
+      "type": {}
+    },
+    "x-auto-source-zh": "已识别为 {type}，但当前版本暂不支持直接下载",
+    "x-auto-synced-at": "2026-04-25T15:16:49.094588"
   },
   "addDownloadErrorAddFailed": "Failed to add task: {error}",
   "@addDownloadErrorAddFailed": {

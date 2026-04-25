@@ -14,6 +14,7 @@ import 'package:win32/win32.dart';
 
 import '../l10n/app_localizations.dart';
 import '../l10n/fallback_localizations_delegate.dart';
+import '../models/download_intent.dart';
 import '../theme/app_theme.dart';
 import '../widgets/file_icon_widget.dart';
 import '../utils/fluent_icons.dart' as CustomIcons;
@@ -2263,18 +2264,7 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
   }
 
   String _extractFilenameFromUrl(String url) {
-    try {
-      final uri = Uri.parse(url);
-      if (uri.pathSegments.isNotEmpty) {
-        final lastSegment = Uri.decodeComponent(uri.pathSegments.last);
-        if (lastSegment.trim().isNotEmpty) {
-          return lastSegment;
-        }
-      }
-    } catch (_) {
-      // Ignore parse errors and use the default placeholder.
-    }
-    return _defaultFileName;
+    return DownloadIntent.parse(url).suggestedFileName() ?? _defaultFileName;
   }
 
   void _onUrlChanged() {
@@ -2291,7 +2281,7 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
       return;
     }
 
-    final nextSuggestedName = _extractFilenameFromUrl(url);
+    final nextSuggestedName = DownloadIntent.parse(url).suggestedFileName();
     final previousSuggestion = _lastSuggestedFileName;
     final currentFileName = _fileNameController.text.trim();
     final shouldApplySuggestion = currentFileName.isEmpty ||
@@ -2305,7 +2295,7 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
     });
 
     if (shouldApplySuggestion) {
-      _setFileNameFromSuggestion(nextSuggestedName);
+      _setFileNameFromSuggestion(nextSuggestedName ?? '');
     }
   }
 
@@ -2843,17 +2833,15 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
       return;
     }
 
-    final uri = Uri.tryParse(url);
-    if (uri == null ||
-        !uri.isAbsolute ||
-        (uri.scheme != 'http' && uri.scheme != 'https')) {
+    final intent = DownloadIntent.parse(url);
+    if (!intent.isRecognized) {
       setState(() => _errorText = t.popupDownloadErrorInvalidUrl);
       _scheduleCurrentLayoutHeightSync();
       return;
     }
 
     if (fileName.isEmpty) {
-      fileName = (_parsedFileName ?? '').trim();
+      fileName = (_parsedFileName ?? intent.suggestedFileName() ?? '').trim();
     }
     if (fileName.isEmpty) {
       fileName = _defaultFileName;
@@ -2873,7 +2861,7 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
-          'url': url,
+          'url': intent.normalizedValue,
           'filename': fileName,
           'save_path': savePath,
           if (widget.launchData.referer?.trim().isNotEmpty ?? false)

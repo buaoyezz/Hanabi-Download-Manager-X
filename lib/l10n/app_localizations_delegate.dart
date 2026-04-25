@@ -3062,8 +3062,8 @@ class PluginAppLocalizations extends AppLocalizations {
       'popupDownloadCompletedTitle', _fallback.popupDownloadCompletedTitle);
 
   @override
-  String get popupDownloadProgressHint => _string(
-      'popupDownloadProgressHint', _fallback.popupDownloadProgressHint);
+  String get popupDownloadProgressHint =>
+      _string('popupDownloadProgressHint', _fallback.popupDownloadProgressHint);
 
   @override
   String get popupDownloadCompletedHint => _string(
@@ -3075,11 +3075,12 @@ class PluginAppLocalizations extends AppLocalizations {
 
   @override
   String get popupDownloadStatusDownloading => _string(
-      'popupDownloadStatusDownloading', _fallback.popupDownloadStatusDownloading);
+      'popupDownloadStatusDownloading',
+      _fallback.popupDownloadStatusDownloading);
 
   @override
-  String get popupDownloadStatusPaused => _string(
-      'popupDownloadStatusPaused', _fallback.popupDownloadStatusPaused);
+  String get popupDownloadStatusPaused =>
+      _string('popupDownloadStatusPaused', _fallback.popupDownloadStatusPaused);
 
   @override
   String get popupDownloadStatusMerging => _string(
@@ -3090,8 +3091,8 @@ class PluginAppLocalizations extends AppLocalizations {
       'popupDownloadStatusCompleted', _fallback.popupDownloadStatusCompleted);
 
   @override
-  String get popupDownloadStatusFailed => _string(
-      'popupDownloadStatusFailed', _fallback.popupDownloadStatusFailed);
+  String get popupDownloadStatusFailed =>
+      _string('popupDownloadStatusFailed', _fallback.popupDownloadStatusFailed);
 
   @override
   String get popupDownloadStatusUnknown => _string(
@@ -3122,12 +3123,12 @@ class PluginAppLocalizations extends AppLocalizations {
       'popupDownloadMetricSegments', _fallback.popupDownloadMetricSegments);
 
   @override
-  String get popupDownloadMetricStatus => _string(
-      'popupDownloadMetricStatus', _fallback.popupDownloadMetricStatus);
+  String get popupDownloadMetricStatus =>
+      _string('popupDownloadMetricStatus', _fallback.popupDownloadMetricStatus);
 
   @override
-  String get popupDownloadMetricSaveTo => _string(
-      'popupDownloadMetricSaveTo', _fallback.popupDownloadMetricSaveTo);
+  String get popupDownloadMetricSaveTo =>
+      _string('popupDownloadMetricSaveTo', _fallback.popupDownloadMetricSaveTo);
 
   @override
   String get popupDownloadMetricHost =>
@@ -3135,7 +3136,8 @@ class PluginAppLocalizations extends AppLocalizations {
 
   @override
   String get popupDownloadProgressLiveLabel => _string(
-      'popupDownloadProgressLiveLabel', _fallback.popupDownloadProgressLiveLabel);
+      'popupDownloadProgressLiveLabel',
+      _fallback.popupDownloadProgressLiveLabel);
 
   @override
   String get popupDownloadProgressSegmentTitle => _string(
@@ -3156,12 +3158,12 @@ class PluginAppLocalizations extends AppLocalizations {
       'popupDownloadActionBackground', _fallback.popupDownloadActionBackground);
 
   @override
-  String get popupDownloadActionPause => _string(
-      'popupDownloadActionPause', _fallback.popupDownloadActionPause);
+  String get popupDownloadActionPause =>
+      _string('popupDownloadActionPause', _fallback.popupDownloadActionPause);
 
   @override
-  String get popupDownloadActionResume => _string(
-      'popupDownloadActionResume', _fallback.popupDownloadActionResume);
+  String get popupDownloadActionResume =>
+      _string('popupDownloadActionResume', _fallback.popupDownloadActionResume);
 
   @override
   String get popupDownloadActionOpenFolder => _string(
@@ -3172,8 +3174,8 @@ class PluginAppLocalizations extends AppLocalizations {
       'popupDownloadActionOpenFile', _fallback.popupDownloadActionOpenFile);
 
   @override
-  String get popupDownloadActionClose => _string(
-      'popupDownloadActionClose', _fallback.popupDownloadActionClose);
+  String get popupDownloadActionClose =>
+      _string('popupDownloadActionClose', _fallback.popupDownloadActionClose);
 
   @override
   String popupDownloadErrorOpenFileFailed(Object error) => _format(
@@ -3286,6 +3288,24 @@ class PluginAppLocalizations extends AppLocalizations {
   @override
   String get addDownloadErrorInvalidUrl => _string(
       'addDownloadErrorInvalidUrl', _fallback.addDownloadErrorInvalidUrl);
+
+  @override
+  String get downloadIntentTypeUnknown =>
+      _string('downloadIntentTypeUnknown', _fallback.downloadIntentTypeUnknown);
+
+  @override
+  String get downloadIntentTypeHttp =>
+      _string('downloadIntentTypeHttp', _fallback.downloadIntentTypeHttp);
+
+  @override
+  String get downloadIntentTypeMagnet =>
+      _string('downloadIntentTypeMagnet', _fallback.downloadIntentTypeMagnet);
+
+  @override
+  String downloadIntentUnsupportedType(Object type) => _format(
+      'downloadIntentUnsupportedType',
+      {'type': type},
+      _fallback.downloadIntentUnsupportedType(type));
 
   @override
   String addDownloadErrorAddFailed(Object error) => _format(

@@ -24,6 +24,7 @@ import 'widgets/download_list.dart';
 import 'widgets/add_download_dialog.dart';
 import 'widgets/completed_list.dart';
 import 'widgets/settings_page.dart';
+import 'widgets/plugin_store_page.dart';
 import 'widgets/about_page.dart';
 import 'widgets/notice_page.dart';
 import 'widgets/debug/log_page.dart';
@@ -56,6 +57,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   static const String _pageDownloading = 'downloading';
   static const String _pageCompleted = 'completed';
+  static const String _pagePlugins = 'plugins';
   static const String _pageLog = 'log';
   static const String _pageStatus = 'status';
   static const String _pagePerformance = 'performance';
@@ -101,6 +103,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   List<NavigationItem> _getNavItems(BuildContext context) {
     final t = AppLocalizations.of(context)!;
+    final isChinese =
+        Localizations.localeOf(context).languageCode.toLowerCase().startsWith(
+              'zh',
+            );
     // 使用 select 只监听影响导航列表的字段
     final showLogPage =
         context.select<DeveloperModeService, bool>((s) => s.showLogPage);
@@ -124,6 +130,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         icon: CustomIcons.FluentIcons.completed_solid,
         title: t.homeNavCompleted,
         body: const CompletedList(),
+      ),
+      NavigationItem(
+        id: _pagePlugins,
+        icon: CustomIcons.FluentIcons.app_icon_default,
+        title: isChinese ? '插件' : 'Plugins',
+        body: const PluginStorePage(key: ValueKey('plugin_store_page')),
       ),
     ];
 
@@ -900,13 +912,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           if (!devMode.showLogPage) {
                             await devMode.setShowLogPage(true);
                           }
-                          // 等待一帧，让 UI 更新
-                          await Future.delayed(
-                              const Duration(milliseconds: 100));
-                          // 切换到日志页面（日志页面通常在索引 2）
+                          // 切换到日志页面
                           if (mounted) {
                             setState(() {
-                              _currentIndex = 2; // 下载中(0), 已完成(1), 日志(2)
                               _currentPageId = _pageLog;
                             });
                           }

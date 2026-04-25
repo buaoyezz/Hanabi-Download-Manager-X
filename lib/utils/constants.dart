@@ -3,7 +3,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 class AppConstants {
   // App Information
   static const String appName = 'Hanabi Download ManagerX';
-  static const String channel = 'release';
+  static const String channel = 'alpha';
   static const String developer = 'ZZBuAoYe';
 
   static const String _versionFallback = '0.0.0';

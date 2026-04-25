@@ -73,33 +73,43 @@ class _DownloadListState extends State<DownloadList> {
     return ColoredBox(
       color: Colors.transparent,
       // 优化：使用 Selector 监听任务列表变化
-      child: Selector<IntegratedDownloadService, List<DownloadTask>>(
-        selector: (_, service) => service.tasks,
+      child: Selector<IntegratedDownloadService,
+          ({bool hasLoaded, List<DownloadTask> tasks})>(
+        selector: (_, service) => (
+          hasLoaded: service.hasLoadedOnce,
+          tasks: service.tasks,
+        ),
         shouldRebuild: (previous, next) {
-          // 任务数量变化
-          if (previous.length != next.length) return true;
+          if (previous.hasLoaded != next.hasLoaded) return true;
+          final previousTasks = previous.tasks;
+          final nextTasks = next.tasks;
 
-          for (int i = 0; i < previous.length; i++) {
+          // 任务数量变化
+          if (previousTasks.length != nextTasks.length) return true;
+
+          for (int i = 0; i < previousTasks.length; i++) {
             // 任务 ID 变化
-            if (previous[i].id != next[i].id) return true;
+            if (previousTasks[i].id != nextTasks[i].id) return true;
             // 状态变化（如从下载中变为完成）
-            if (previous[i].status != next[i].status) return true;
+            if (previousTasks[i].status != nextTasks[i].status) return true;
             // 进度变化（修复：下载中任务的进度更新）
-            if (previous[i].status == DownloadStatus.downloading ||
-                next[i].status == DownloadStatus.downloading) {
+            if (previousTasks[i].status == DownloadStatus.downloading ||
+                nextTasks[i].status == DownloadStatus.downloading) {
               // 进度变化超过 0.1% 才重建，避免过于频繁
-              if ((previous[i].progress - next[i].progress).abs() > 0.001)
+              if ((previousTasks[i].progress - nextTasks[i].progress).abs() >
+                  0.001) {
                 return true;
+              }
               // 速度变化也需要更新
-              if (previous[i].speed != next[i].speed) return true;
+              if (previousTasks[i].speed != nextTasks[i].speed) return true;
             }
           }
           return false;
         },
-        builder: (context, tasks, child) {
+        builder: (context, snapshot, child) {
           final downloadService = context.read<IntegratedDownloadService>();
-          final hasLoaded = context
-              .select<IntegratedDownloadService, bool>((s) => s.hasLoadedOnce);
+          final tasks = snapshot.tasks;
+          final hasLoaded = snapshot.hasLoaded;
           final tagMap = context.watch<ClientConfigService>().getTaskTagsMap();
 
           var activeTasks =

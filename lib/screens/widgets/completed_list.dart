@@ -202,20 +202,28 @@ class _CompletedListState extends State<CompletedList> {
     return ColoredBox(
       color: Colors.transparent,
       // 优化：使用 Selector 只监听已完成任务，避免下载中任务进度更新触发重建
-      child: Selector<IntegratedDownloadService, List<DownloadTask>>(
-        selector: (_, service) => service.tasks
-            .where((t) => t.status == DownloadStatus.completed)
-            .toList(),
+      child: Selector<IntegratedDownloadService,
+          ({List<DownloadTask> completedTasks, bool hasLoaded})>(
+        selector: (_, service) => (
+          completedTasks: service.tasks
+              .where((t) => t.status == DownloadStatus.completed)
+              .toList(),
+          hasLoaded: service.hasLoadedOnce,
+        ),
         shouldRebuild: (previous, next) {
-          if (previous.length != next.length) return true;
-          for (int i = 0; i < previous.length; i++) {
-            if (previous[i].id != next[i].id) return true;
+          if (previous.hasLoaded != next.hasLoaded) return true;
+          final previousTasks = previous.completedTasks;
+          final nextTasks = next.completedTasks;
+
+          if (previousTasks.length != nextTasks.length) return true;
+          for (int i = 0; i < previousTasks.length; i++) {
+            if (previousTasks[i].id != nextTasks[i].id) return true;
           }
           return false;
         },
-        builder: (context, completedTasks, child) {
-          final hasLoaded = context
-              .select<IntegratedDownloadService, bool>((s) => s.hasLoadedOnce);
+        builder: (context, snapshot, child) {
+          final completedTasks = snapshot.completedTasks;
+          final hasLoaded = snapshot.hasLoaded;
 
           // 按完成时间排序，最新的在前面
           completedTasks.sort((a, b) {
@@ -1310,7 +1318,7 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
 
   Widget _buildCompactUrlRow(String url) {
     final displayUrl = url.length > 60 ? '${url.substring(0, 60)}...' : url;
-    
+
     return GestureDetector(
       onTap: _copyUrlToClipboard,
       child: Container(

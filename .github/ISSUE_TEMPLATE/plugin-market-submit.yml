@@ -1,0 +1,108 @@
+name: Plugin Market Submission
+description: Submit a Hanabi plugin repository for official market review.
+title: "[Plugin]: "
+labels:
+  - plugin-submission
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Submit the plugin repository URL instead of uploading a zip package.
+
+        The official market CI will review the repository, read `plugin.json`,
+        build the package, and publish the final market artifact after approval.
+
+  - type: input
+    id: plugin_name
+    attributes:
+      label: Plugin Name
+      description: Display name from the plugin repository.
+      placeholder: Example Magnet/Torrent Handler
+    validations:
+      required: true
+
+  - type: input
+    id: plugin_id
+    attributes:
+      label: Plugin ID
+      description: Must match `plugin.json.id`.
+      placeholder: hanabi.example.demo
+    validations:
+      required: true
+
+  - type: input
+    id: repository_url
+    attributes:
+      label: Repository URL
+      description: Public GitHub repository containing the plugin source.
+      placeholder: https://github.com/example/hanabi-plugin-demo
+    validations:
+      required: true
+
+  - type: input
+    id: branch
+    attributes:
+      label: Branch
+      description: Branch to fetch from the source repository.
+      placeholder: main
+    validations:
+      required: true
+
+  - type: input
+    id: plugin_path
+    attributes:
+      label: Plugin Path
+      description: Relative path to the plugin root inside the repository.
+      placeholder: .
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What does this plugin do and who is it for.
+      placeholder: Supports magnet links and torrent files through a BT backend.
+    validations:
+      required: true
+
+  - type: input
+    id: author
+    attributes:
+      label: Author
+      description: Display author name from `plugin.json`.
+      placeholder: Hanabi
+    validations:
+      required: true
+
+  - type: input
+    id: homepage
+    attributes:
+      label: Homepage
+      description: Optional project page or documentation URL.
+      placeholder: https://github.com/example/hanabi-plugin-demo
+    validations:
+      required: false
+
+  - type: textarea
+    id: review_notes
+    attributes:
+      label: Review Notes
+      description: Anything maintainers should know during review.
+      placeholder: Requires a local helper process, external service, or extra setup.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Confirmation
+      options:
+        - label: The repository is public and I have the right to publish this plugin.
+          required: true
+        - label: The plugin root contains a valid `plugin.json`.
+          required: true
+        - label: The `plugin.json.id` matches the Plugin ID entered above.
+          required: true
+        - label: I understand the official market publishes CI-built artifacts, not user-uploaded zip files.
+          required: true

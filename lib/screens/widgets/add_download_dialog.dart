@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
+import '../../models/download_intent.dart';
 import '../../services/integrated_download_service.dart';
 import '../../models/download_task.dart';
 import '../../theme/app_theme.dart';
@@ -91,35 +92,18 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
       return;
     }
 
-    try {
-      final uri = Uri.parse(url);
-      final path = uri.path;
-      String? nextSuggestedName;
-      if (path.isNotEmpty) {
-        final segments = path.split('/');
-        final lastSegment =
-            segments.lastWhere((s) => s.isNotEmpty, orElse: () => '');
-        if (lastSegment.isNotEmpty && lastSegment.contains('.')) {
-          // 解码 URL 编码的文件名
-          final decodedName = Uri.decodeComponent(lastSegment);
-          nextSuggestedName = decodedName;
-        }
-      }
+    final nextSuggestedName = DownloadIntent.parse(url).suggestedFileName();
+    final previousSuggestion = _lastSuggestedFileName;
+    final currentFileName = _fileNameController.text.trim();
+    final shouldApplySuggestion = currentFileName.isEmpty ||
+        !_hasUserEditedFileName ||
+        (previousSuggestion != null && currentFileName == previousSuggestion);
 
-      final previousSuggestion = _lastSuggestedFileName;
-      final currentFileName = _fileNameController.text.trim();
-      final shouldApplySuggestion = currentFileName.isEmpty ||
-          !_hasUserEditedFileName ||
-          (previousSuggestion != null && currentFileName == previousSuggestion);
+    setState(() => _parsedFileName = nextSuggestedName);
+    _lastSuggestedFileName = nextSuggestedName;
 
-      setState(() => _parsedFileName = nextSuggestedName);
-      _lastSuggestedFileName = nextSuggestedName;
-
-      if (shouldApplySuggestion) {
-        _setFileNameFromSuggestion(nextSuggestedName ?? '');
-      }
-    } catch (e) {
-      // 忽略解析错误
+    if (shouldApplySuggestion) {
+      _setFileNameFromSuggestion(nextSuggestedName ?? '');
     }
   }
 
@@ -710,10 +694,8 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
     }
 
     final url = _urlController.text.trim();
-    // 允许测试URL或正常的HTTP/HTTPS链接
-    if (!url.startsWith('test_task_') &&
-        !url.startsWith('http://') &&
-        !url.startsWith('https://')) {
+    final intent = DownloadIntent.parse(url);
+    if (!url.startsWith('test_task_') && !intent.isRecognized) {
       await _showErrorDialog(t.addDownloadErrorInvalidUrl);
       return;
     }
@@ -722,6 +704,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
     String fileName = _fileNameController.text.trim();
     if (fileName.isEmpty) {
       fileName = _parsedFileName ??
+          intent.suggestedFileName() ??
           'download_${DateTime.now().millisecondsSinceEpoch}';
     }
 
@@ -751,7 +734,9 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
     try {
       final taskId = await downloadService.addTask(url, fileName);
       if (taskId == null) {
-        throw StateError('Failed to add task');
+        throw StateError(
+          downloadService.lastAddTaskError ?? 'Failed to add task',
+        );
       }
 
       if (mounted) {

@@ -1,0 +1,74 @@
+name: Plugin Market Build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "plugins-list/**"
+      - "plugins/examples/**"
+      - "scripts/package-plugin.ps1"
+      - "scripts/package-plugin-sources.ps1"
+      - "scripts/sync-plugin-sources.ps1"
+      - "tool/generate_plugin_market_index.dart"
+      - ".github/workflows/plugin-market-build.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build-plugin-market:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+
+      - name: Install dependencies
+        run: dart pub get
+
+      - name: Sync plugin sources
+        shell: pwsh
+        run: >
+          ./scripts/sync-plugin-sources.ps1
+          -PluginsListDir ./plugins-list
+          -OutputDir ./.plugin-market/plugins-data
+
+      - name: Package synced plugins
+        shell: pwsh
+        run: >
+          ./scripts/package-plugin-sources.ps1
+          -PluginsDataDir ./.plugin-market/plugins-data
+          -OutputDir ./plugins/packages
+
+      - name: Generate plugin market index
+        run: >
+          dart run tool/generate_plugin_market_index.dart
+          --plugins-list-dir ./plugins-list
+          --plugins-data-dir ./.plugin-market/plugins-data
+          --packages-dir ./plugins/packages
+          --output ./plugins/store_index.json
+          --package-base-url https://raw.githubusercontent.com/${{ github.repository }}/main/plugins/packages
+
+      - name: Commit generated plugin market files
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add plugins/store_index.json plugins/packages
+          if (-not [string]::IsNullOrWhiteSpace((git diff --cached --name-only))) {
+            git commit -m "chore: update plugin market index"
+            git push
+          } else {
+            Write-Host "No plugin market changes to commit."
+          }
+
+      - name: Upload plugin market artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-market-dist
+          path: |
+            plugins/packages
+            plugins/store_index.json

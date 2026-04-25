@@ -1,5 +1,6 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
+import '../models/download_intent.dart';
 import '../services/integrated_download_service.dart';
 import '../services/kernel/next/downloader/download_header_builder.dart';
 import '../models/download_task.dart';
@@ -101,19 +102,7 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
   }
 
   String _extractFilenameFromUrl(String url) {
-    try {
-      final uri = Uri.parse(url);
-      final segments = uri.pathSegments;
-      if (segments.isNotEmpty) {
-        final fileName = Uri.decodeComponent(segments.last);
-        if (fileName.trim().isNotEmpty) {
-          return fileName;
-        }
-      }
-    } catch (_) {
-      // ignore
-    }
-    return _defaultFileName;
+    return DownloadIntent.parse(url).suggestedFileName() ?? _defaultFileName;
   }
 
   void _onUrlChanged() {
@@ -474,16 +463,14 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
       return;
     }
 
-    final uri = Uri.tryParse(url);
-    if (uri == null ||
-        !uri.isAbsolute ||
-        (uri.scheme != 'http' && uri.scheme != 'https')) {
+    final intent = DownloadIntent.parse(url);
+    if (!intent.isRecognized) {
       await _showError(t.popupDownloadErrorInvalidUrl);
       return;
     }
 
     if (filename.isEmpty) {
-      filename = (_parsedFileName ?? '').trim();
+      filename = (_parsedFileName ?? intent.suggestedFileName() ?? '').trim();
     }
     if (filename.isEmpty) {
       filename = _defaultFileName;
@@ -515,7 +502,7 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
 
       // 传递浏览器的身份验证信息
       final taskId = await downloadService.addTask(
-        url,
+        intent.normalizedValue,
         filename,
         referer: widget.referer,
         userAgent: widget.userAgent,
@@ -523,7 +510,9 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
         headers: widget.headers,
       );
       if (taskId == null) {
-        throw StateError('Failed to add task');
+        throw StateError(
+          downloadService.lastAddTaskError ?? 'Failed to add task',
+        );
       }
 
       if (mounted) {

@@ -8,12 +8,19 @@ include(${EPHEMERAL_DIR}/generated_config.cmake)
 
 # TODO: Move the rest of this into files in ephemeral. See
 # https://github.com/flutter/flutter/issues/57146.
-set(WRAPPER_ROOT "${EPHEMERAL_DIR}/cpp_client_wrapper")
-
+# Flutter 3.41+ tool_backend only puts include/ into ephemeral/cpp_client_wrapper.
+# The .cc sources and private headers now live only in the engine artifact cache.
+# Point WRAPPER_ROOT directly at the engine cache so MSVC can find every file
+# without copying them and without tool_backend being able to overwrite them.
 # Set fallback configurations for older versions of the flutter tool.
 if (NOT DEFINED FLUTTER_TARGET_PLATFORM)
   set(FLUTTER_TARGET_PLATFORM "windows-x64")
 endif()
+
+set(WRAPPER_ROOT
+  "${FLUTTER_ROOT}/bin/cache/artifacts/engine/${FLUTTER_TARGET_PLATFORM}/cpp_client_wrapper")
+set(ENGINE_ROOT
+  "${FLUTTER_ROOT}/bin/cache/artifacts/engine/${FLUTTER_TARGET_PLATFORM}")
 
 # === Flutter Library ===
 set(FLUTTER_LIBRARY "${EPHEMERAL_DIR}/flutter_windows.dll")
@@ -35,6 +42,7 @@ list(TRANSFORM FLUTTER_LIBRARY_HEADERS PREPEND "${EPHEMERAL_DIR}/")
 add_library(flutter INTERFACE)
 target_include_directories(flutter INTERFACE
   "${EPHEMERAL_DIR}"
+  "${ENGINE_ROOT}"
 )
 target_link_libraries(flutter INTERFACE "${FLUTTER_LIBRARY}.lib")
 add_dependencies(flutter flutter_assemble)
@@ -67,6 +75,8 @@ set_target_properties(flutter_wrapper_plugin PROPERTIES
   CXX_VISIBILITY_PRESET hidden)
 target_link_libraries(flutter_wrapper_plugin PUBLIC flutter)
 target_include_directories(flutter_wrapper_plugin PUBLIC
+  "${ENGINE_ROOT}"
+  "${WRAPPER_ROOT}"
   "${WRAPPER_ROOT}/include"
 )
 add_dependencies(flutter_wrapper_plugin flutter_assemble)
@@ -79,6 +89,8 @@ add_library(flutter_wrapper_app STATIC
 apply_standard_settings(flutter_wrapper_app)
 target_link_libraries(flutter_wrapper_app PUBLIC flutter)
 target_include_directories(flutter_wrapper_app PUBLIC
+  "${ENGINE_ROOT}"
+  "${WRAPPER_ROOT}"
   "${WRAPPER_ROOT}/include"
 )
 add_dependencies(flutter_wrapper_app flutter_assemble)

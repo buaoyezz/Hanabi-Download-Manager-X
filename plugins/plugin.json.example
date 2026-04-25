@@ -1,0 +1,15 @@
+{
+  "id": "hanabi.example.demo",
+  "name": "Demo Plugin",
+  "version": "0.1.0",
+  "author": "Your Name",
+  "description": "Describe what this plugin does.",
+  "entry": "main.py",
+  "capabilities": [
+    "download:custom"
+  ],
+  "permissions": [
+    "network"
+  ],
+  "minAppVersion": "1.3.2"
+}

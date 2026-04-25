@@ -1,0 +1,28 @@
+{
+  "channel": "stable",
+  "generatedAt": "2026-04-25T13:15:56.744769Z",
+  "plugins": [
+    {
+      "id": "hanabi.example.echo",
+      "name": "Echo Test Plugin",
+      "version": "0.1.0",
+      "description": "Minimal plugin used to verify the GitHub-backed plugin store install flow.",
+      "author": "Hanabi",
+      "downloadUrl": "https://raw.githubusercontent.com/buaoyezz/Hanabi-Download-Manager-X/main/plugins/packages/hanabi.example.echo-0.1.0.hanabi-plugin.zip",
+      "hash": "sha256:c6ce0997ba4ca0a1a130f4bce2a155de9c0a4a94ea13adf84b64024bbcb22174",
+      "minAppVersion": "1.3.2",
+      "channel": "stable",
+      "capabilities": [
+        "custom",
+        "intent:custom"
+      ],
+      "reviewStatus": "published",
+      "source": {
+        "repo": "https://github.com/buaoyezz/Hanabi-Download-Manager-X",
+        "branch": "main",
+        "pluginPath": "plugins/examples/echo_test",
+        "submitter": "github:buaoyezz"
+      }
+    }
+  ]
+}

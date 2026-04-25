@@ -49,6 +49,10 @@ type DesktopHealthResponse = DesktopBridgeResponse & {
   locale?: string;
 };
 
+type HeartbeatResponse = DesktopBridgeResponse & {
+  success?: boolean;
+};
+
 type DownloadPayload = {
   url: string;
   filename: string;
@@ -59,6 +63,12 @@ type DownloadPayload = {
   from_browser: boolean;
   browser: string;
 };
+
+const browserKind = isFirefoxBrowser() ? 'firefox' : 'chromium';
+const browserDisplayName = isFirefoxBrowser() ? 'Firefox' : 'Chromium';
+const sessionId = `${browserKind}-${browser.runtime.id}-${Date.now()}-${Math.random()
+  .toString(36)
+  .slice(2)}`;
 
 const requestHeadersByRequestId = new Map<string, HeaderSnapshot>();
 const headerSnapshotsByUrl = new Map<string, HeaderSnapshot>();
@@ -355,10 +365,37 @@ async function updateConnectionStatus(connected: boolean) {
   await syncConnectionBadge();
 }
 
+function getDeviceInfo() {
+  return {
+    browser: browserDisplayName,
+    browserKind,
+    extensionId: browser.runtime.id,
+    extensionVersion: browser.runtime.getManifest().version,
+    os: globalThis.navigator?.platform ?? 'unknown',
+    userAgent: globalThis.navigator?.userAgent ?? '',
+    deviceType: 'browser_extension',
+  };
+}
+
+async function sendDesktopHeartbeat() {
+  return fetchDesktopJson<HeartbeatResponse>('/stats/heartbeat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      session_id: sessionId,
+      device_fingerprint: `${browserKind}:${browser.runtime.id}`,
+      device_info: getDeviceInfo(),
+    }),
+  });
+}
+
 async function checkConnection() {
   try {
     const { data } = await fetchDesktopJson<DesktopHealthResponse>('/health');
     const connected = data.status === 'ok';
+    if (connected) {
+      await sendDesktopHeartbeat();
+    }
     await updateConnectionStatus(connected);
     if (data.locale) {
       await browser.storage.local.set({
@@ -432,7 +469,7 @@ function buildPayloadFromHeaders(
     cookies: headers.cookie ?? '',
     headers,
     from_browser: true,
-    browser: isFirefoxBrowser() ? 'firefox' : 'chromium',
+    browser: browserKind,
   };
 }
 

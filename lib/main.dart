@@ -39,6 +39,8 @@ import 'services/localization_service.dart';
 import 'services/popup_bridge_service.dart';
 import 'services/main_window_command_service.dart';
 import 'services/single_instance_service.dart';
+import 'services/plugin_lifecycle_service.dart';
+import 'services/plugin_store_service.dart';
 import 'screens/home_screen.dart';
 import 'popup/popup_window_bootstrap.dart';
 import 'tray_menu/tray_menu_bootstrap.dart'
@@ -249,6 +251,8 @@ void main(List<String> args) async {
     final notificationSettings = NotificationSettingsService();
     final noticeService = NoticeService(logger: appLogger);
     final localizationService = LocalizationService();
+    final pluginLifecycleService = PluginLifecycleService();
+    final pluginStoreService = PluginStoreService();
 
     appLogger.info('App', 'Application starting...');
     await clientConfig.initialize();
@@ -281,6 +285,21 @@ void main(List<String> args) async {
 
     appLogger.info('App', 'Services initialized');
 
+    // 插件扫描和插件商店索引加载可能触发大量文件 IO / 网络请求，
+    // 放到主服务初始化之后异步执行，避免阻塞首帧和主窗口显示。
+    unawaited(Future<void>(() async {
+      try {
+        await pluginLifecycleService.initialize();
+        await pluginStoreService.initialize();
+        appLogger.info('Plugin', 'Plugin services initialized asynchronously');
+      } catch (e, stack) {
+        appLogger.warning(
+          'Plugin',
+          'Async plugin service initialization failed: $e\n$stack',
+        );
+      }
+    }));
+
     // 加载速度历史（异步，不阻塞启动）
     SpeedHistoryService().load().catchError((e) {
       debugPrint('Failed to load speed history: $e');
@@ -305,6 +324,8 @@ void main(List<String> args) async {
           ChangeNotifierProvider.value(value: userProfileService),
           ChangeNotifierProvider.value(value: noticeService),
           ChangeNotifierProvider.value(value: localizationService),
+          ChangeNotifierProvider.value(value: pluginLifecycleService),
+          ChangeNotifierProvider.value(value: pluginStoreService),
           Provider<bool>.value(value: isAutoStart), // 传递启动模式
         ],
         child: const MyApp(),

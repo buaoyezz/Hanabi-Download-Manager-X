@@ -3,6 +3,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
+import '../models/download_intent.dart';
 import '../screens/widgets/add_download_dialog.dart';
 import 'client_config_service.dart';
 import 'app_logger_service.dart';
@@ -133,35 +134,27 @@ class ClipboardDownloadUrlHeuristics {
 
   static String signatureFor(String url) {
     final normalized = normalizeExtractedUrl(url).trim();
-    try {
-      final uri = Uri.parse(normalized);
-      if (uri.scheme == 'http' || uri.scheme == 'https') {
-        return uri
-            .replace(
-              scheme: uri.scheme.toLowerCase(),
-              host: uri.host.toLowerCase(),
-              fragment: null,
-            )
-            .toString();
-      }
-    } catch (_) {
-      // Fall back to the raw normalized value.
+    final intent = DownloadIntent.parse(normalized);
+    if (intent.isHttp) {
+      return intent.normalizedValue;
+    }
+    if (intent.isMagnet) {
+      return intent.normalizedValue.toLowerCase();
     }
     return normalized.toLowerCase();
   }
 
   static bool looksLikeDownloadUrl(String url) {
-    final lower = url.toLowerCase();
-    if (lower.startsWith('magnet:?')) return true;
-
-    Uri uri;
-    try {
-      uri = Uri.parse(url);
-    } catch (_) {
+    final intent = DownloadIntent.parse(url);
+    if (intent.isMagnet) {
+      return true;
+    }
+    if (!intent.isHttp) {
       return false;
     }
 
-    if (!(uri.scheme == 'http' || uri.scheme == 'https')) return false;
+    final uri = intent.uri;
+    if (uri == null) return false;
     if (uri.host.isEmpty || !uri.host.contains('.')) return false;
 
     final lastSegment =

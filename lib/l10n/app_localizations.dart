@@ -4068,7 +4068,7 @@ abstract class AppLocalizations {
   /// No description provided for @popupDownloadErrorInvalidUrl.
   ///
   /// In zh, this message translates to:
-  /// **'请输入有效的 HTTP/HTTPS 链接'**
+  /// **'请输入有效的下载链接'**
   String get popupDownloadErrorInvalidUrl;
 
   /// No description provided for @popupDownloadErrorAddFailed.
@@ -4428,8 +4428,32 @@ abstract class AppLocalizations {
   /// No description provided for @addDownloadErrorInvalidUrl.
   ///
   /// In zh, this message translates to:
-  /// **'请输入有效的 HTTP/HTTPS 链接'**
+  /// **'请输入有效的下载链接'**
   String get addDownloadErrorInvalidUrl;
+
+  /// No description provided for @downloadIntentTypeUnknown.
+  ///
+  /// In zh, this message translates to:
+  /// **'未知链接'**
+  String get downloadIntentTypeUnknown;
+
+  /// No description provided for @downloadIntentTypeHttp.
+  ///
+  /// In zh, this message translates to:
+  /// **'HTTP/HTTPS 链接'**
+  String get downloadIntentTypeHttp;
+
+  /// No description provided for @downloadIntentTypeMagnet.
+  ///
+  /// In zh, this message translates to:
+  /// **'磁力链接'**
+  String get downloadIntentTypeMagnet;
+
+  /// No description provided for @downloadIntentUnsupportedType.
+  ///
+  /// In zh, this message translates to:
+  /// **'已识别为 {type}，但当前版本暂不支持直接下载'**
+  String downloadIntentUnsupportedType(Object type);
 
   /// No description provided for @addDownloadErrorAddFailed.
   ///

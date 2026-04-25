@@ -64,6 +64,10 @@ devtools_options.yaml
 # Docs(not ready now)
 .docs/
 docs/
+!docs/PLUGIN_PUBLISH_FLOW_CN.md
+!docs/PLUGIN_STORE_SIGNATURE_CN.md
+!docs/PLUGIN_STORE_TODO_CN.md
+!docs/PLUGIN_MARKET_HYBRID_MODEL_CN.md
 
 # Web and deployment related
 web_stats/
@@ -228,6 +232,8 @@ logs/
 *.rar
 *.7z
 !web_stats/hanabi-stats-deploy.zip
+!plugins/packages/
+!plugins/packages/*.hanabi-plugin.zip
 
 # Large media files (optional - uncomment if needed)
 # *.mp4
@@ -272,6 +278,8 @@ docs/language_pack_template.arb
 
 # Local protocol/integration test helpers and artifacts
 .codex_tmp/
+.tocodex/
+.plugin-market/
 lib/_codex_probe_main.dart
 integration_test/http_policy_range_integration_test.dart
 tools/run_http_integration.ps1

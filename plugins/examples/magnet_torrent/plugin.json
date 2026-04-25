@@ -1,0 +1,17 @@
+{
+  "id": "hanabi.example.magnet_torrent",
+  "name": "Example Magnet/Torrent Handler",
+  "version": "0.1.0",
+  "author": "Hanabi",
+  "description": "Magnet/Torrent plugin backed by aria2 JSON-RPC. Requires aria2c in PATH or an existing aria2 RPC server.",
+  "entry": "main.py",
+  "capabilities": [
+    "download:magnet",
+    "download:torrent_file"
+  ],
+  "permissions": [
+    "network",
+    "file_write"
+  ],
+  "minAppVersion": "1.3.2"
+}
