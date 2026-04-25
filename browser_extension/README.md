@@ -11,6 +11,27 @@ This directory contains the browser extension source for Hanabi Download Manager
 `app/` is the only source directory. `chrome_extension/` and `firefox_extension/`
 are local build outputs, should not be edited by hand, and are not committed.
 
+## Build Environment
+
+Operating systems:
+
+- Windows 10/11, macOS, or Linux
+- Tested locally on Windows 11 with PowerShell
+
+Required tools:
+
+- Node.js `24.14.0` or compatible `24.x`
+- npm `11.13.0` or compatible `11.x`
+
+Install steps:
+
+1. Open a terminal in `browser_extension/app`
+2. Run `npm install`
+
+`npm install` triggers the package `postinstall` hook and runs:
+
+- `wxt prepare`
+
 ## Build
 
 Run builds from `browser_extension/app`:
@@ -27,6 +48,21 @@ That script clears the old bundle directory and regenerates the local target out
 
 - Chrome / Edge -> `browser_extension/chrome_extension`
 - Firefox -> `browser_extension/firefox_extension`
+
+Firefox packaging output:
+
+- `browser_extension/firefox_extension.zip`
+
+Recommended reviewer reproduction steps:
+
+1. `cd browser_extension/app`
+2. `npm install`
+3. `npm run build:firefox`
+
+Full local verification:
+
+1. `cd browser_extension/app`
+2. `npm run verify`
 
 ## Chrome / Edge
 
@@ -59,3 +95,8 @@ Behavior:
 - Source of truth lives in `app/`; do not hand-edit the generated bundle folders.
 - Build outputs are intentionally ignored by git. Run `npm run build:chrome`,
   `npm run build:firefox`, or `npm run build:all` before loading the unpacked extension.
+- Third-party libraries are installed from `browser_extension/app/package-lock.json`
+  during `npm install`; they are not hand-copied into the source tree.
+- Human-edited source files live under `browser_extension/app/entrypoints`,
+  `browser_extension/app/lib`, `browser_extension/app/public`, and
+  `browser_extension/app/scripts`.
