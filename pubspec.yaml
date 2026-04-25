@@ -54,8 +54,10 @@ flutter:
   uses-material-design: true
   
   assets:
+    - assets/logo/logo.svg
     - assets/logo/logo.png
     - assets/logo/logo.ico
+    - assets/logo/color_logo/
     - assets/font/FluentSystemIcons-Regular.json
   
   fonts:

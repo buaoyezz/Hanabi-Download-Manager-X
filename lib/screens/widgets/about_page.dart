@@ -4,6 +4,7 @@ import '../../l10n/app_localizations.dart';
 import '../../utils/constants.dart';
 import '../../theme/app_theme.dart';
 import '../../services/performance_monitor_service.dart';
+import '../../widgets/app_logo.dart';
 import '../../widgets/smooth_scroll_wrapper.dart';
 
 import '../../widgets/animated_notifications.dart';
@@ -88,20 +89,12 @@ class _AboutPageState extends State<AboutPage>
                           height: 100,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppTheme.accentPrimary
-                                    .withValues(alpha: 0.5),
-                                blurRadius: 30,
-                                spreadRadius: 5,
-                              ),
-                            ],
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(20),
-                            child: Image.asset(
-                              'assets/logo/logo.png',
-                              fit: BoxFit.cover,
+                            child: Transform.scale(
+                              scale: 1.0,
+                              child: const AppLogo(),
                             ),
                           ),
                         ),
@@ -525,41 +518,21 @@ class _AboutPageState extends State<AboutPage>
             children: [
               Positioned(
                 child: _AccentGlow(
-                  size: _logoTapCount > 5 ? 170 : 146,
+                  size: _logoTapCount > 5 ? 220 : 190,
                   color: AppTheme.statusSuccess.withValues(
-                    alpha: _logoTapCount > 5 ? 0.18 : 0.12,
+                    alpha: _logoTapCount > 5 ? 0.16 : 0.1,
                   ),
                 ),
               ),
               Container(
-                width: 112,
-                height: 112,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF000000).withValues(alpha: 0.18),
-                      blurRadius: 18,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
+                width: 160,
+                height: 160,
+                decoration: const BoxDecoration(),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: Image.asset(
-                    'assets/logo/logo.png',
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: AppTheme.bgLayer2,
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          FluentIcons.download,
-                          size: 40,
-                          color: AppTheme.accentLight,
-                        ),
-                      );
-                    },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Transform.scale(
+                    scale: 1.0,
+                    child: const AppLogo(),
                   ),
                 ),
               ),

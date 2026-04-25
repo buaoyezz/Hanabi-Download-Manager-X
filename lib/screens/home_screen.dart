@@ -16,6 +16,7 @@ import '../services/performance_monitor_service.dart';
 import '../services/main_window_command_service.dart';
 import '../models/download_task.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_logo.dart';
 import '../widgets/animated_notifications.dart';
 import '../widgets/smooth_scroll_wrapper.dart';
 import '../l10n/app_localizations.dart';
@@ -624,11 +625,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _buildUnifiedTitleBar(BuildContext context, double opacity) {
     final windowWidth = MediaQuery.of(context).size.width;
     final isMicroWidth = windowWidth < 200;
-    final menuWidth = isMicroWidth ? 40.0 : 52.0;
+    final menuWidth = isMicroWidth ? 40.0 : 44.0;
     final menuButtonSize = isMicroWidth ? 24.0 : 28.0;
     final menuIconSize = isMicroWidth ? 12.0 : 14.0;
-    final logoSize = isMicroWidth ? 16.0 : 18.0;
-    final logoSpacing = isMicroWidth ? 6.0 : 8.0;
+    final logoSize = isMicroWidth ? 16.0 : 20.0;
+    final logoSpacing = isMicroWidth ? 4.0 : 6.0;
 
     final titleBarContent = Container(
       height: 48,
@@ -677,32 +678,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   return Row(
                     children: [
                       if (showLogo) ...[
-                        SizedBox(width: logoSpacing),
+                        SizedBox(width: logoSpacing + 2),
                         Container(
                           width: logoSize,
                           height: logoSize,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(4),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppTheme.accentPrimary
-                                    .withValues(alpha: 0.2),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
+                          decoration: const BoxDecoration(),
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: Image.asset(
-                              'assets/logo/logo.png',
-                              width: logoSize,
-                              height: logoSize,
-                              fit: BoxFit.cover,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Transform.scale(
+                              scale: 1.0,
+                              child: AppLogo(
+                                width: logoSize,
+                                height: logoSize,
+                              ),
                             ),
                           ),
                         ),
-                        SizedBox(width: logoSpacing),
+                        SizedBox(width: logoSpacing + 4),
                       ],
                       Expanded(
                         child: Text(
