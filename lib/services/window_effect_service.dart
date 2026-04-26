@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -19,6 +20,7 @@ class WindowEffectService extends ChangeNotifier {
   bool _effectEnabled = true;
   bool _dragSuspend = true; // Win10: disable effect during drag
   bool _roundedCornersEnabled = true;
+  bool _darkMode = true;
   final WindowsWindowEffectBridge _windowBridge =
       const WindowsWindowEffectBridge();
   bool _isInitialized = false;
@@ -49,8 +51,10 @@ class WindowEffectService extends ChangeNotifier {
       effectEnabled &&
       (_effectMode == 'mica_main' || _effectMode == 'mica_transient');
 
-  Future<void> initialize() async {
+  Future<void> initialize(
+      {Brightness initialBrightness = Brightness.dark}) async {
     if (_isInitialized) return;
+    _darkMode = initialBrightness == Brightness.dark;
     await _detectWindowsVersion();
 
     final prefs = await SharedPreferences.getInstance();
@@ -157,6 +161,18 @@ class WindowEffectService extends ChangeNotifier {
     }
   }
 
+  Future<void> setThemeBrightness(Brightness brightness) async {
+    final nextDarkMode = brightness == Brightness.dark;
+    if (_darkMode == nextDarkMode) {
+      return;
+    }
+    _darkMode = nextDarkMode;
+    if (_isInitialized) {
+      await _applyWindowEffect();
+      notifyListeners();
+    }
+  }
+
   Future<void> _applyWindowEffect() async {
     try {
       final effectiveMode = effectEnabled
@@ -168,6 +184,7 @@ class WindowEffectService extends ChangeNotifier {
           alpha: effectEnabled ? _alpha : 255,
           roundedCornersEnabled: _roundedCornersEnabled,
           cornerRadius: windowCornerRadius.round(),
+          darkMode: _darkMode,
         ),
       );
     } catch (e) {

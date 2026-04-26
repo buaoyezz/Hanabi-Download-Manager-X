@@ -29,12 +29,14 @@ class WindowsWindowEffectRequest {
     required this.alpha,
     required this.roundedCornersEnabled,
     required this.cornerRadius,
+    required this.darkMode,
   });
 
   final WindowsWindowEffectMode mode;
   final int alpha;
   final bool roundedCornersEnabled;
   final int cornerRadius;
+  final bool darkMode;
 
   Map<String, Object> toNativeArguments() {
     return <String, Object>{
@@ -42,6 +44,7 @@ class WindowsWindowEffectRequest {
       'alpha': alpha.clamp(0, 255),
       'roundedCornersEnabled': roundedCornersEnabled,
       'cornerRadius': cornerRadius.clamp(0, 32),
+      'darkMode': darkMode,
     };
   }
 }

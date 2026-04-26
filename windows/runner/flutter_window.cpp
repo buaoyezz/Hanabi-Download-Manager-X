@@ -734,6 +734,8 @@ void FlutterWindow::SetupMethodChannel() {
                 arguments->find(flutter::EncodableValue("roundedCornersEnabled"));
             auto itCornerRadius =
                 arguments->find(flutter::EncodableValue("cornerRadius"));
+            auto itDarkMode =
+                arguments->find(flutter::EncodableValue("darkMode"));
             if (itMode != arguments->end()) {
               if (const std::string* s = std::get_if<std::string>(&itMode->second)) {
                 if (*s == "none") effect_mode_ = 0;
@@ -746,6 +748,11 @@ void FlutterWindow::SetupMethodChannel() {
             if (itAlpha != arguments->end()) {
               if (const int32_t* a = std::get_if<int32_t>(&itAlpha->second)) {
                 effect_alpha_ = std::max(0, std::min(255, *a));
+              }
+            }
+            if (itDarkMode != arguments->end()) {
+              if (const bool* dark = std::get_if<bool>(&itDarkMode->second)) {
+                dark_mode_ = *dark;
               }
             }
             if (itRoundedCorners != arguments->end()) {
@@ -1234,6 +1241,7 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
   // Debounce: avoid repeated calls in short time
   static DWORD lastApplyTime = 0;
   static int lastEffectMode = -1;
+  static bool lastDarkMode = true;
   static bool lastRoundedCornersEnabled = true;
   static int lastCornerRadius = 14;
   static RECT lastWindowRect = {0, 0, 0, 0};
@@ -1246,7 +1254,8 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
   int height = windowRect.bottom - windowRect.top;
 
   // Allow immediate update if effect mode changed or window size changed
-  bool modeChanged = (lastEffectMode != effect_mode_);
+  bool modeChanged = (lastEffectMode != effect_mode_) ||
+                     (lastDarkMode != dark_mode_);
   bool cornerSettingChanged =
       (lastRoundedCornersEnabled != rounded_corners_enabled_) ||
       (lastCornerRadius != corner_radius_);
@@ -1258,6 +1267,7 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
   }
   lastApplyTime = currentTime;
   lastEffectMode = effect_mode_;
+  lastDarkMode = dark_mode_;
   lastRoundedCornersEnabled = rounded_corners_enabled_;
   lastCornerRadius = corner_radius_;
   lastWindowRect = windowRect;
@@ -1332,8 +1342,10 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
     }
   }
 
-  // Set dark mode
-  BOOL dark = TRUE;
+  // Keep the native DWM backdrop in sync with the Flutter theme. If this stays
+  // dark while Flutter switches to light, the transparent shell looks stale
+  // until another navigation-triggered repaint happens.
+  BOOL dark = dark_mode_ ? TRUE : FALSE;
   DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
 
   // STEP 1: Always reset all effects first when mode changes
@@ -1438,7 +1450,8 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
         policy.AccentState = ACCENT_ENABLE_ACRYLICBLURBEHIND;
         policy.AccentFlags = 2;
         unsigned int a = static_cast<unsigned int>(effect_alpha_ & 0xFF);
-        policy.GradientColor = (a << 24) | 0x000000;
+        const unsigned int tint = dark_mode_ ? 0x202020 : 0xF3F8FC;
+        policy.GradientColor = (a << 24) | tint;
       }
       WINDOWCOMPOSITIONATTRIBUTEDATA data{};
       data.Attribute = 19;
@@ -1460,7 +1473,8 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
         policy.AccentState = ACCENT_ENABLE_ACRYLICBLURBEHIND;
         policy.AccentFlags = 2;
         unsigned int a = static_cast<unsigned int>(effect_alpha_ & 0xFF);
-        policy.GradientColor = (a << 24) | 0x000000;
+        const unsigned int tint = dark_mode_ ? 0x202020 : 0xF3F8FC;
+        policy.GradientColor = (a << 24) | tint;
       }
       policy.AnimationId = 0;
 
@@ -1573,6 +1587,8 @@ void FlutterWindow::ApplyRoundedCorners(HWND hwnd,
   wp.length = sizeof(WINDOWPLACEMENT);
   GetWindowPlacement(hwnd, &wp);
   const bool isMaximized = wp.showCmd == SW_MAXIMIZE;
+
+  // Windows 11 (build 22000+) native rounded corners
   if (buildNumber >= 22000) {
     SetWindowRgn(hwnd, NULL, TRUE);
     DWORD corner = rounded_corners_enabled_ && !isMaximized ? 2 : 1;
@@ -1581,27 +1597,28 @@ void FlutterWindow::ApplyRoundedCorners(HWND hwnd,
     return;
   }
 
+  // Windows 10 (build < 22000)
   if (!rounded_corners_enabled_ || isMaximized) {
     SetWindowRgn(hwnd, NULL, TRUE);
-    if (buildNumber >= 22000) {
-      DWORD corner = 1;
-      DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner,
-                            sizeof(corner));
-    }
     return;
   }
 
-  const int radius = std::max(4, corner_radius_);
-  const int diameter = radius * 2;
-  HRGN hRgn =
-      CreateRoundRectRgn(0, 0, width + 1, height + 1, diameter, diameter);
-  if (hRgn) {
-    SetWindowRgn(hwnd, hRgn, TRUE);
-  }
-  if (buildNumber >= 22000) {
-    DWORD corner = 1;
-    DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner,
-                          sizeof(corner));
+  // On Windows 10, SetWindowCompositionAttribute draws a square backdrop.
+  // If an effect (Acrylic/Blur) is enabled, we must use SetWindowRgn to clip
+  // the window to a rounded rectangle, otherwise the square backdrop will bleed
+  // out. This comes at the cost of jagged edges and clipped native shadows.
+  // If no effect is enabled (solid/transparent), we don't clip, allowing
+  // Flutter to render smooth anti-aliased corners and drop shadows perfectly.
+  if (effect_mode_ > 0) {
+    const int radius = std::max(4, corner_radius_);
+    const int diameter = radius * 2;
+    HRGN hRgn =
+        CreateRoundRectRgn(0, 0, width + 1, height + 1, diameter, diameter);
+    if (hRgn) {
+      SetWindowRgn(hwnd, hRgn, TRUE);
+    }
+  } else {
+    SetWindowRgn(hwnd, NULL, TRUE);
   }
 }
 

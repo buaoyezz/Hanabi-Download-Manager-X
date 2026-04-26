@@ -78,6 +78,7 @@ class FlutterWindow : public Win32Window {
   };
   int effect_mode_ = 2;
   int effect_alpha_ = 160;
+  bool dark_mode_ = true;
   bool rounded_corners_enabled_ = true;
   int corner_radius_ = 6;
   int tray_menu_region_radius_ = 14;
