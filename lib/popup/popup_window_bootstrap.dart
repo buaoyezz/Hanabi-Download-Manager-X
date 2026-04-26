@@ -30,11 +30,13 @@ bool get _disableWindowsSemanticsWorkaround =>
 
 class PopupWindowThemeConfig {
   const PopupWindowThemeConfig({
+    this.themeMode = AppThemeMode.system,
     required this.fontFamily,
     this.fontFamilyFallback = const [],
     this.textScaleFactor = 1.0,
   });
 
+  final AppThemeMode themeMode;
   final String fontFamily;
   final List<String> fontFamilyFallback;
   final double textScaleFactor;
@@ -310,7 +312,12 @@ class PopupWindowApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final baseTheme = AppTheme.fluentDarkTheme;
+    final baseTheme = AppTheme.themeDataForMode(
+      themeConfig?.themeMode ?? AppThemeMode.system,
+      platformBrightness:
+          WidgetsBinding.instance.platformDispatcher.platformBrightness,
+    );
+    AppTheme.applyBrightness(baseTheme.brightness);
     final typography = baseTheme.typography;
     final fontFamily = themeConfig?.fontFamily.trim() ?? '';
     final fontFallbacks = themeConfig?.fontFamilyFallback ?? const <String>[];

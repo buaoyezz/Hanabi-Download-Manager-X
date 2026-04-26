@@ -109,6 +109,8 @@ Future<void> popupMain(List<String> args) async {
           WidgetsBinding.instance.platformDispatcher.locale;
       final fontStack = fontService.resolveFontStack(popupLocale);
       popupThemeConfig = PopupWindowThemeConfig(
+        themeMode:
+            AppThemeModeStorage.fromStorageValue(clientConfig.getThemeMode()),
         fontFamily: fontStack.primaryFamily,
         fontFamilyFallback: fontStack.fallbackFamilies,
         textScaleFactor: clientConfig.getWindowScaleFactor(),
@@ -164,6 +166,8 @@ Future<void> trayMenuMain(List<String> args) async {
           WidgetsBinding.instance.platformDispatcher.locale;
       final fontStack = fontService.resolveFontStack(trayLocale);
       trayThemeConfig = TrayMenuThemeConfig(
+        themeMode:
+            AppThemeModeStorage.fromStorageValue(clientConfig.getThemeMode()),
         fontFamily: fontStack.primaryFamily,
         fontFamilyFallback: fontStack.fallbackFamilies,
         textScaleFactor: clientConfig.getWindowScaleFactor(),
@@ -260,7 +264,14 @@ void main(List<String> args) async {
     networkStatus.startMonitoring();
     await developerMode.loadSettings();
     await fontService.loadFont();
-    await windowEffectService.initialize();
+    final initialThemeBrightness = AppTheme.resolveBrightness(
+      AppThemeModeStorage.fromStorageValue(clientConfig.getThemeMode()),
+      platformBrightness:
+          WidgetsBinding.instance.platformDispatcher.platformBrightness,
+    );
+    await windowEffectService.initialize(
+      initialBrightness: initialThemeBrightness,
+    );
     await updateService.initialize();
     await notificationSettings.init(); // 初始化通知设置
     await NsfxProxyRuntime.ensureSystemProxyObserverStarted();
@@ -419,8 +430,8 @@ void main(List<String> args) async {
       if (isAutoStart) {
         win.hide();
       } else {
-        win.restore();
         win.show();
+        win.restore();
       }
 
       // 显示后再次确认窗口大小（bitsdojo_window 的 bug workaround）
@@ -720,11 +731,23 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
   }
 
+  @override
+  void didChangePlatformBrightness() {
+    super.didChangePlatformBrightness();
+    if (!mounted) {
+      return;
+    }
+    setState(() {});
+  }
+
   Future<void> _initSystemTray() async {
     final isAutoStart = context.read<bool>();
     await systemTrayService.initialize(
-      showWindow: !isAutoStart, // 只在非自启动时显示窗口
+      showWindow: false, // 启动时由 doWhenWindowReady 负责显示，避免抢占冲突导致卡死
     );
+    if (!isAutoStart) {
+      systemTrayService.updateToolTip(true);
+    }
   }
 
   Future<void> _initKernel() async {
@@ -885,7 +908,19 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     return Consumer3<FontService, ClientConfigService, LocalizationService>(
       builder:
           (context, fontService, clientConfig, localizationService, child) {
-        final baseTheme = AppTheme.fluentDarkTheme;
+        final themeMode =
+            AppThemeModeStorage.fromStorageValue(clientConfig.getThemeMode());
+        final baseTheme = AppTheme.themeDataForMode(
+          themeMode,
+          platformBrightness:
+              WidgetsBinding.instance.platformDispatcher.platformBrightness,
+        );
+        AppTheme.applyBrightness(baseTheme.brightness);
+        unawaited(
+          context
+              .read<WindowEffectService>()
+              .setThemeBrightness(baseTheme.brightness),
+        );
         final typography = baseTheme.typography;
         final scaleFactor = clientConfig.getWindowScaleFactor();
         final fontStack =
@@ -950,6 +985,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             ),
           ),
           builder: (context, child) {
+            AppTheme.applyFluentTheme(fluent.FluentTheme.of(context));
             Widget content = NotificationManager(
               child: child!,
             );
