@@ -107,10 +107,11 @@ class IntegratedDownloadService extends ChangeNotifier {
   Future<void> _immediateFirstLoad() async {
     for (int i = 0; i < 10; i++) {
       if (_hasLoadedOnce) return;
-      if (isKernelRunning) {
-        await _updateTasks();
-        if (_hasLoadedOnce) return;
-      }
+      // Always attempt to update tasks, even if the kernel isn't running yet.
+      // _updateTasks() can set _hasLoadedOnce via the plugin-task sync path,
+      // which prevents the UI from being stuck on "Loading tasks...".
+      await _updateTasks();
+      if (_hasLoadedOnce) return;
       await Future.delayed(const Duration(milliseconds: 500));
     }
   }
