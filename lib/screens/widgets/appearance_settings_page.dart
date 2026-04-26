@@ -1986,19 +1986,21 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                   : t.appearanceWindowEffectsDisabledSubtitle,
               trailing: ToggleSwitch(
                 checked: windowEffect.effectEnabled,
-                onChanged: (value) async {
-                  await windowEffect.setEffectEnabled(value);
-                  if (mounted) {
-                    NotificationManager.of(context)?.showSuccess(
-                      value
-                          ? t.appearanceWindowEffectsEnabledTitle
-                          : t.appearanceWindowEffectsDisabledTitle,
-                      message: value
-                          ? t.appearanceWindowEffectsEnabledMessage
-                          : t.appearanceWindowEffectsDisabledMessage,
-                    );
-                  }
-                },
+                onChanged: windowEffect.windowEffectsAvailable
+                    ? (value) async {
+                        await windowEffect.setEffectEnabled(value);
+                        if (mounted) {
+                          NotificationManager.of(context)?.showSuccess(
+                            value
+                                ? t.appearanceWindowEffectsEnabledTitle
+                                : t.appearanceWindowEffectsDisabledTitle,
+                            message: value
+                                ? t.appearanceWindowEffectsEnabledMessage
+                                : t.appearanceWindowEffectsDisabledMessage,
+                          );
+                        }
+                      }
+                    : null,
               ),
             ),
             const SizedBox(height: 12),
@@ -2051,18 +2053,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             ),
             const SizedBox(height: 12),
             Opacity(
-              opacity: windowEffect.effectEnabled && !windowEffect.isMicaEffect
-                  ? 1.0
-                  : 0.5,
+              opacity: windowEffect.effectEnabled ? 1.0 : 0.5,
               child: IgnorePointer(
-                ignoring:
-                    !windowEffect.effectEnabled || windowEffect.isMicaEffect,
+                ignoring: !windowEffect.effectEnabled,
                 child: _buildSettingItem(
                   context,
                   title: t.appearanceWindowEffectsAcrylicOpacityTitle,
-                  subtitle: windowEffect.isMicaEffect
-                      ? t.appearanceWindowEffectsAcrylicOpacityMicaHint
-                      : t.appearanceWindowEffectsAcrylicOpacityHint,
+                  subtitle: t.appearanceWindowEffectsAcrylicOpacityHint,
                   trailing: SizedBox(
                     width: 250,
                     child: Row(

@@ -528,16 +528,34 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     // 合并 WindowEffectService 的多个 select 为单次读取
     final windowEffect = context.watch<WindowEffectService>();
-    final isTransparent = windowEffect.isTransparentBackground ||
-        windowEffect.effectMode.startsWith('mica');
+    final isTransparent = windowEffect.isTransparentBackground;
+    final isWin11Effect =
+        windowEffect.isWindows11 && windowEffect.effectEnabled;
+    final isMica = windowEffect.isMicaEffect;
+    final isAcrylic = windowEffect.effectMode == 'acrylic';
+    final isBlur = windowEffect.effectMode == 'blur';
+    final effectOpacity = (windowEffect.alpha / 255.0).clamp(0.0, 1.0);
 
     // 根据窗口效果调整背景透明度
-    final sidebarOpacity = isTransparent ? 0.2 : 0.65;
+    final sidebarOpacity = isTransparent
+        ? (isWin11Effect
+            ? (isMica
+                ? 0.08 + effectOpacity * 0.34
+                : isAcrylic
+                    ? 0.12 + effectOpacity * 0.44
+                    : isBlur
+                        ? 0.10 + effectOpacity * 0.30
+                        : 0.34)
+            : isBlur
+                ? 0.12 + effectOpacity * 0.28
+                : 0.2)
+        : 0.65;
 
     // 计算统一的 shell 背景色（标题栏+侧边栏共用）
-    final isMica = windowEffect.isMicaEffect;
     final effectEnabled = windowEffect.effectEnabled;
-    final shellBgAlpha = isMica ? 0.4 : (effectEnabled ? sidebarOpacity : 1.0);
+    final shellBgAlpha = isMica
+        ? (isWin11Effect ? 0.12 + effectOpacity * 0.32 : 0.4)
+        : (effectEnabled ? sidebarOpacity : 1.0);
 
     // 核心修复逻辑：确保 _currentIndex 与 _currentPageId 同步
     // 这解决了列表项动态增减（如在线统计出现/消失）导致的索引错位
@@ -591,7 +609,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (effectEnabled && isTransparent) {
       shellContent = RepaintBoundary(
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+          filter: ImageFilter.blur(
+            sigmaX: isBlur ? 7 : 2,
+            sigmaY: isBlur ? 7 : 2,
+          ),
           child: shellContent,
         ),
       );
@@ -613,9 +634,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final effectEnabled = effectService.effectEnabled;
     final isMica = effectService.isMicaEffect;
     final useBlur = effectEnabled && isTransparent;
+    final isWin11Effect = effectService.isWindows11 && effectEnabled;
+    final isAcrylic = effectService.effectMode == 'acrylic';
+    final isBlur = effectService.effectMode == 'blur';
+    final effectOpacity = (effectService.alpha / 255.0).clamp(0.0, 1.0);
 
     // Mica 效果需要更透明的背景
-    final bgAlpha = isMica ? 0.5 : (useBlur ? 0.75 : 0.95);
+    final bgAlpha = isMica
+        ? (isWin11Effect ? 0.18 + effectOpacity * 0.50 : 0.5)
+        : (useBlur
+            ? (isWin11Effect && isAcrylic
+                ? 0.22 + effectOpacity * 0.56
+                : isBlur
+                    ? (isWin11Effect
+                        ? 0.26 + effectOpacity * 0.46
+                        : 0.32 + effectOpacity * 0.40)
+                    : isWin11Effect
+                        ? 0.68
+                        : 0.75)
+            : 0.95);
 
     final contentContainer = Container(
       decoration: BoxDecoration(

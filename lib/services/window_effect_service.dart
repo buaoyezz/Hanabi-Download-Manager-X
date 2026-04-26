@@ -1,9 +1,14 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../platform/windows/window_effect_bridge.dart';
+
 class WindowEffectService extends ChangeNotifier {
+  // Keep this switch available as a hard fallback, but Win11 effects should be
+  // user-controllable. The native runner now uses a safer Win11 DWM path.
+  static const bool _disableNativeEffectsOnWindows11 = false;
+
   // Win10's manual region clipping looks visibly rounder than Win11's native
   // DWM corner preference, so keep it slightly tighter to match the same feel.
   static const double _windows10CornerRadius = 6.0;
@@ -14,14 +19,16 @@ class WindowEffectService extends ChangeNotifier {
   bool _effectEnabled = true;
   bool _dragSuspend = true; // Win10: disable effect during drag
   bool _roundedCornersEnabled = true;
-  final MethodChannel _windowChannel =
-      const MethodChannel('com.hanabi.download/window');
+  final WindowsWindowEffectBridge _windowBridge =
+      const WindowsWindowEffectBridge();
   bool _isInitialized = false;
   bool _isWindows11 = false;
 
   String get effectMode => _effectMode;
   int get alpha => _alpha;
-  bool get effectEnabled => _effectEnabled;
+  bool get windowEffectsAvailable =>
+      !_isWindows11 || !_disableNativeEffectsOnWindows11;
+  bool get effectEnabled => _effectEnabled && windowEffectsAvailable;
   bool get isWindows11 => _isWindows11;
   bool get dragSuspend => _dragSuspend;
   bool get roundedCornersEnabled => _roundedCornersEnabled;
@@ -29,17 +36,18 @@ class WindowEffectService extends ChangeNotifier {
       _isWindows11 ? _windows11CornerRadius : _windows10CornerRadius;
   bool get usesCustomWindowClip =>
       !_isWindows11 ||
-      (_effectEnabled && (_effectMode == 'acrylic' || _effectMode == 'blur'));
+      (effectEnabled && (_effectMode == 'acrylic' || _effectMode == 'blur'));
 
   bool get isTransparentBackground =>
-      _effectEnabled &&
+      effectEnabled &&
       (_effectMode == 'acrylic' ||
           _effectMode == 'blur' ||
           _effectMode == 'mica_main' ||
           _effectMode == 'mica_transient');
 
   bool get isMicaEffect =>
-      _effectMode == 'mica_main' || _effectMode == 'mica_transient';
+      effectEnabled &&
+      (_effectMode == 'mica_main' || _effectMode == 'mica_transient');
 
   Future<void> initialize() async {
     if (_isInitialized) return;
@@ -56,6 +64,10 @@ class WindowEffectService extends ChangeNotifier {
       _effectEnabled = _isWindows11;
     }
 
+    if (!windowEffectsAvailable) {
+      _effectEnabled = false;
+    }
+
     _dragSuspend = prefs.getBool('window_effect_drag_suspend') ?? true;
     _roundedCornersEnabled = prefs.getBool('window_rounded_corners') ?? true;
 
@@ -67,9 +79,7 @@ class WindowEffectService extends ChangeNotifier {
 
     await _applyWindowEffect();
     try {
-      await _windowChannel.invokeMethod('setDragSuspend', {
-        'enabled': _dragSuspend,
-      });
+      await _windowBridge.setDragSuspend(_dragSuspend);
     } catch (e) {
       debugPrint('setDragSuspend init error: $e');
     }
@@ -98,8 +108,9 @@ class WindowEffectService extends ChangeNotifier {
   }
 
   Future<void> setEffectEnabled(bool enabled) async {
-    if (_effectEnabled != enabled) {
-      _effectEnabled = enabled;
+    final nextEnabled = windowEffectsAvailable ? enabled : false;
+    if (_effectEnabled != nextEnabled) {
+      _effectEnabled = nextEnabled;
       await _applyWindowEffect();
       await _saveSettings();
       notifyListeners();
@@ -128,9 +139,7 @@ class WindowEffectService extends ChangeNotifier {
     if (_dragSuspend != value) {
       _dragSuspend = value;
       try {
-        await _windowChannel.invokeMethod('setDragSuspend', {
-          'enabled': value,
-        });
+        await _windowBridge.setDragSuspend(value);
       } catch (e) {
         debugPrint('setDragSuspend error: $e');
       }
@@ -150,13 +159,17 @@ class WindowEffectService extends ChangeNotifier {
 
   Future<void> _applyWindowEffect() async {
     try {
-      final effectiveMode = _effectEnabled ? _effectMode : 'none';
-      await _windowChannel.invokeMethod('setWindowEffect', {
-        'mode': effectiveMode,
-        'alpha': _effectEnabled ? _alpha : 255,
-        'roundedCornersEnabled': _roundedCornersEnabled,
-        'cornerRadius': windowCornerRadius.round(),
-      });
+      final effectiveMode = effectEnabled
+          ? WindowsWindowEffectMode.fromName(_effectMode)
+          : WindowsWindowEffectMode.none;
+      await _windowBridge.applyEffect(
+        WindowsWindowEffectRequest(
+          mode: effectiveMode,
+          alpha: effectEnabled ? _alpha : 255,
+          roundedCornersEnabled: _roundedCornersEnabled,
+          cornerRadius: windowCornerRadius.round(),
+        ),
+      );
     } catch (e) {
       debugPrint('setWindowEffect error: $e');
     }

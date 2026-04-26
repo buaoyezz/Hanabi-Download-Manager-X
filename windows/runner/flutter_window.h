@@ -6,6 +6,7 @@
 #include <flutter/method_result.h>
 
 #include <memory>
+#include <vector>
 
 #include "win32_window.h"
 
@@ -54,6 +55,7 @@ class FlutterWindow : public Win32Window {
   void RestorePreviousForegroundWindow();
   void ApplyWindowEffect(HWND hwnd);
   void ApplyRoundedCorners(HWND hwnd, DWORD buildNumber, int width, int height);
+  void ApplyTrayMenuWindowRegion(HWND hwnd);
   void SendTrayMenuPayloadToFlutter(const std::string& payload_json);
   std::string PickFolder();
   bool CreatePopupWindow(const std::string& payload_json,
@@ -68,10 +70,18 @@ class FlutterWindow : public Win32Window {
   static constexpr UINT kPopupMinimizeMessage = WM_APP + 3;
   static constexpr UINT kPopupStartDragMessage = WM_APP + 4;
   static constexpr UINT kTrayMenuCloseMessage = WM_APP + 5;
+  struct TrayMenuRegionRect {
+    double x = 0;
+    double y = 0;
+    double width = 0;
+    double height = 0;
+  };
   int effect_mode_ = 2;
   int effect_alpha_ = 160;
   bool rounded_corners_enabled_ = true;
   int corner_radius_ = 6;
+  int tray_menu_region_radius_ = 14;
+  std::vector<TrayMenuRegionRect> tray_menu_region_rects_;
   // Win10 drag: disable effect during drag for smooth movement
   bool drag_suspend_ = true;
   bool is_suspended_ = false;

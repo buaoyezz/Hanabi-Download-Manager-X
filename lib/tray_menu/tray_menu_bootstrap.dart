@@ -598,31 +598,28 @@ class _TrayMenuWindowPageState extends State<TrayMenuWindowPage> {
           color: Colors.transparent,
           child: Align(
             alignment: Alignment.topLeft,
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: NotificationListener<SizeChangedLayoutNotification>(
-                onNotification: (_) {
-                  _scheduleWindowSizeSync();
-                  return false;
-                },
-                child: SizeChangedLayoutNotifier(
-                  child: KeyedSubtree(
-                    key: _contentKey,
-                    child: TrayMenuContent(
-                      key: ValueKey(_contentSessionId),
-                      onShowWindow: _onShowWindow,
-                      onCreateDownload: _openMainWindowToAddDownload,
-                      onOpenDownloadingPage: _openMainWindowToDownloadingPage,
-                      onOpenDownloads: _openDownloadsFolder,
-                      onOpenLogs: _openLogsFolder,
-                      onOpenProject: _openProjectPage,
-                      onOpenOfficial: _openOfficialPage,
-                      onExit: _onExit,
-                      isBusy: _isActionRunning,
-                      activeTasks: _currentLaunchData.activeTasks,
-                      onDesiredContentSizeChanged:
-                          _handleDesiredContentSizeChanged,
-                    ),
+            child: NotificationListener<SizeChangedLayoutNotification>(
+              onNotification: (_) {
+                _scheduleWindowSizeSync();
+                return false;
+              },
+              child: SizeChangedLayoutNotifier(
+                child: KeyedSubtree(
+                  key: _contentKey,
+                  child: TrayMenuContent(
+                    key: ValueKey(_contentSessionId),
+                    onShowWindow: _onShowWindow,
+                    onCreateDownload: _openMainWindowToAddDownload,
+                    onOpenDownloadingPage: _openMainWindowToDownloadingPage,
+                    onOpenDownloads: _openDownloadsFolder,
+                    onOpenLogs: _openLogsFolder,
+                    onOpenProject: _openProjectPage,
+                    onOpenOfficial: _openOfficialPage,
+                    onExit: _onExit,
+                    isBusy: _isActionRunning,
+                    activeTasks: _currentLaunchData.activeTasks,
+                    onDesiredContentSizeChanged:
+                        _handleDesiredContentSizeChanged,
                   ),
                 ),
               ),
@@ -695,9 +692,39 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
   static const int _exitIndex = 9;
 
   final GlobalKey _layoutKey = GlobalKey();
+  final GlobalKey _mainPanelKey = GlobalKey();
+  final GlobalKey _submenuPanelKey = GlobalKey();
   int? _hoveredIndex;
   _TraySubmenuGroup? _activeSubmenu;
   Size? _lastReportedMeasuredSize;
+  String? _lastReportedRegionSignature;
+  Timer? _submenuCloseTimer;
+
+  @override
+  void dispose() {
+    _submenuCloseTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Schedule submenu close with a short delay.
+  /// This allows the user to traverse diagonal paths from a main-menu
+  /// trigger item to the submenu panel without the submenu flickering away.
+  void _scheduleSubmenuClose() {
+    _submenuCloseTimer?.cancel();
+    _submenuCloseTimer = Timer(const Duration(milliseconds: 280), () {
+      if (!mounted) return;
+      if (_activeSubmenu != null) {
+        setState(() => _activeSubmenu = null);
+      }
+    });
+  }
+
+  /// Cancel any pending submenu close (e.g. when the mouse enters a tile
+  /// that should keep or change the active submenu).
+  void _cancelSubmenuClose() {
+    _submenuCloseTimer?.cancel();
+    _submenuCloseTimer = null;
+  }
 
   bool get _isChinese =>
       Localizations.localeOf(context).languageCode.toLowerCase().startsWith(
@@ -769,8 +796,8 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
           }
           setState(() {
             _hoveredIndex = null;
-            _activeSubmenu = null;
           });
+          _scheduleSubmenuClose();
         },
         child: KeyedSubtree(
           key: _layoutKey,
@@ -779,6 +806,7 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildMenuPanel(
+                panelKey: _mainPanelKey,
                 width: mainMenuWidth,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -866,7 +894,7 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Container(
                         height: 1,
-                        color: const Color(0xFF2A2A2A),
+                        color: AppTheme.borderSubtle,
                       ),
                     ),
                     _buildExitBar(
@@ -887,6 +915,7 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
                   children: [
                     SizedBox(height: submenuOffset),
                     _buildMenuPanel(
+                      panelKey: _submenuPanelKey,
                       width: submenuWidth,
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -924,6 +953,8 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
         return;
       }
       final size = renderObject.size;
+      _syncTrayMenuRegion(renderObject);
+
       final previous = _lastReportedMeasuredSize;
       if (previous != null &&
           (previous.width - size.width).abs() <= 0.5 &&
@@ -933,6 +964,69 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
       _lastReportedMeasuredSize = size;
       widget.onDesiredContentSizeChanged(size);
     });
+  }
+
+  void _syncTrayMenuRegion(RenderBox layoutBox) {
+    if (!Platform.isWindows) {
+      return;
+    }
+
+    final rects = <Map<String, double>>[];
+    void addPanelRect(GlobalKey key) {
+      final context = key.currentContext;
+      if (context == null) {
+        return;
+      }
+
+      final renderObject = context.findRenderObject();
+      if (renderObject is! RenderBox || !renderObject.hasSize) {
+        return;
+      }
+
+      final offset = renderObject.localToGlobal(
+        Offset.zero,
+        ancestor: layoutBox,
+      );
+      rects.add(<String, double>{
+        'x': offset.dx,
+        'y': offset.dy,
+        'width': renderObject.size.width,
+        'height': renderObject.size.height,
+      });
+    }
+
+    addPanelRect(_mainPanelKey);
+    addPanelRect(_submenuPanelKey);
+    if (rects.isEmpty) {
+      return;
+    }
+
+    final signature = rects
+        .map(
+          (rect) => [
+            rect['x']!.toStringAsFixed(1),
+            rect['y']!.toStringAsFixed(1),
+            rect['width']!.toStringAsFixed(1),
+            rect['height']!.toStringAsFixed(1),
+          ].join(','),
+        )
+        .join('|');
+    if (_lastReportedRegionSignature == signature) {
+      return;
+    }
+
+    _lastReportedRegionSignature = signature;
+    unawaited(
+      _windowChannel.invokeMethod<void>(
+        'setTrayMenuRegion',
+        <String, Object>{
+          'radius': 14,
+          'rects': rects,
+        },
+      ).catchError((Object e) {
+        debugPrint('Failed to sync tray menu region: $e');
+      }),
+    );
   }
 
   List<_MenuActionSpec>? get _activeSubmenuSpecs {
@@ -1084,37 +1178,42 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
   }
 
   Widget _buildMenuPanel({
+    Key? panelKey,
     required double width,
     required Widget child,
   }) {
-    return Container(
-      width: width,
-      decoration: BoxDecoration(
-        color: const Color(0xFF171717),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: const Color(0xFF2A2A2A),
-          width: 1,
+    return MouseRegion(
+      onEnter: (_) => _cancelSubmenuClose(),
+      child: Container(
+        key: panelKey,
+        width: width,
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceCard,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: AppTheme.borderSubtle,
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.22),
+              blurRadius: 18,
+              spreadRadius: 0,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.22),
-            blurRadius: 18,
-            spreadRadius: 0,
-            offset: const Offset(0, 8),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              6,
+              _panelInnerTop,
+              6,
+              _panelInnerBottom,
+            ),
+            child: child,
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            6,
-            _panelInnerTop,
-            6,
-            _panelInnerBottom,
-          ),
-          child: child,
         ),
       ),
     );
@@ -1140,14 +1239,25 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
     const iconBoxSize = 22.0;
     final iconRadius = isSubmenu ? 7.0 : 8.0;
     const iconSize = 11.0;
-    final hoverColor =
-        isSubmenu ? const Color(0xFF252525) : const Color(0xFF262626);
+    final hoverColor = isSubmenu
+        ? AppTheme.surfaceCardHover
+        : AppTheme.bgLayer2;
 
     return MouseRegion(
       onEnter: (_) {
+        _cancelSubmenuClose();
         final nextSubmenu = closeSubmenuOnEnter
             ? null
             : submenuToActivateOnEnter ?? _activeSubmenu;
+        // When this tile would close the submenu, use a delay so that
+        // diagonal mouse paths to the submenu panel don't flicker.
+        if (closeSubmenuOnEnter && _activeSubmenu != null && nextSubmenu == null) {
+          if (_hoveredIndex != spec.index) {
+            setState(() => _hoveredIndex = spec.index);
+          }
+          _scheduleSubmenuClose();
+          return;
+        }
         final needsUpdate =
             _hoveredIndex != spec.index || _activeSubmenu != nextSubmenu;
         if (!needsUpdate) {
@@ -1228,10 +1338,11 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
         if (!needsUpdate) {
           return;
         }
-        setState(() {
-          _hoveredIndex = _exitIndex;
-          _activeSubmenu = null;
-        });
+        setState(() => _hoveredIndex = _exitIndex);
+        // Delay submenu close to allow diagonal mouse paths
+        if (_activeSubmenu != null) {
+          _scheduleSubmenuClose();
+        }
       },
       onExit: (_) => setState(() => _hoveredIndex = null),
       child: GestureDetector(
@@ -1241,8 +1352,9 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
           duration: const Duration(milliseconds: 120),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
           decoration: BoxDecoration(
-            color:
-                isHovered ? const Color(0xFF2A1E1E) : const Color(0xFF211A1A),
+            color: isHovered
+                ? AppTheme.bgLayer2
+                : AppTheme.bgLayer1,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isHovered

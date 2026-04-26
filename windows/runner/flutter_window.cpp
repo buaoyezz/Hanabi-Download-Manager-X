@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <cstdio>
+#include <cmath>
 #include <cstddef>
 #include <cstdlib>
 #include <thread>
@@ -32,6 +33,14 @@
 
 #ifndef DWMWA_MICA_EFFECT
 #define DWMWA_MICA_EFFECT 1029
+#endif
+
+#ifndef DWMWA_BORDER_COLOR
+#define DWMWA_BORDER_COLOR 34
+#endif
+
+#ifndef DWMWA_COLOR_NONE
+#define DWMWA_COLOR_NONE 0xFFFFFFFE
 #endif
 
 // Windows version detection
@@ -834,6 +843,83 @@ void FlutterWindow::SetupMethodChannel() {
           }
           result->Success();
           return;
+        } else if (call.method_name() == "setTrayMenuRegion") {
+          const HWND hwnd = GetHandle();
+          if (kind_ != WindowKind::kTrayMenu || hwnd == nullptr) {
+            result->Success(flutter::EncodableValue(false));
+            return;
+          }
+
+          const auto* arguments =
+              std::get_if<flutter::EncodableMap>(call.arguments());
+          if (!arguments) {
+            result->Error("INVALID_ARGUMENT", "Missing map");
+            return;
+          }
+
+          auto radius_it = arguments->find(flutter::EncodableValue("radius"));
+          if (radius_it != arguments->end()) {
+            if (const int32_t* radius32 =
+                    std::get_if<int32_t>(&radius_it->second)) {
+              tray_menu_region_radius_ = std::max(0, std::min(32, *radius32));
+            } else if (const int64_t* radius64 =
+                           std::get_if<int64_t>(&radius_it->second)) {
+              tray_menu_region_radius_ =
+                  std::max(0, std::min(32, static_cast<int>(*radius64)));
+            }
+          }
+
+          tray_menu_region_rects_.clear();
+          auto rects_it = arguments->find(flutter::EncodableValue("rects"));
+          if (rects_it != arguments->end()) {
+            if (const auto* rects =
+                    std::get_if<flutter::EncodableList>(&rects_it->second)) {
+              for (const auto& rect_value : *rects) {
+                const auto* rect_map =
+                    std::get_if<flutter::EncodableMap>(&rect_value);
+                if (!rect_map) {
+                  continue;
+                }
+
+                auto read_double = [&](const char* key, double* out) -> bool {
+                  auto it = rect_map->find(flutter::EncodableValue(key));
+                  if (it == rect_map->end()) {
+                    return false;
+                  }
+                  if (const double* value = std::get_if<double>(&it->second)) {
+                    *out = *value;
+                    return true;
+                  }
+                  if (const int32_t* value =
+                          std::get_if<int32_t>(&it->second)) {
+                    *out = static_cast<double>(*value);
+                    return true;
+                  }
+                  if (const int64_t* value =
+                          std::get_if<int64_t>(&it->second)) {
+                    *out = static_cast<double>(*value);
+                    return true;
+                  }
+                  return false;
+                };
+
+                TrayMenuRegionRect rect{};
+                if (!read_double("x", &rect.x) ||
+                    !read_double("y", &rect.y) ||
+                    !read_double("width", &rect.width) ||
+                    !read_double("height", &rect.height) ||
+                    rect.width <= 0 || rect.height <= 0) {
+                  continue;
+                }
+
+                tray_menu_region_rects_.push_back(rect);
+              }
+            }
+          }
+
+          ApplyTrayMenuWindowRegion(hwnd);
+          result->Success(flutter::EncodableValue(true));
+          return;
         } else if (call.method_name() == "showMainWindow") {
           if (g_main_window_handle && ::IsWindow(g_main_window_handle)) {
             ::ShowWindow(g_main_window_handle, SW_RESTORE);
@@ -1188,7 +1274,47 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
     BOOL dark = TRUE;
     DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark,
                           sizeof(dark));
-    ApplyRoundedCorners(hwnd, GetWindowsBuildNumber(), width, height);
+
+    // Tray menu windows must NOT use any DWM backdrop effects.
+    // The menu panels are entirely Flutter-painted; DWM acrylic/mica
+    // would bleed through and cause visual artifacts.
+    COLORREF border_color = DWMWA_COLOR_NONE;
+    DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, &border_color,
+                          sizeof(border_color));
+    const DWORD buildNumber = GetWindowsBuildNumber();
+    if (buildNumber >= 22523) {
+      INT backdropType = 0;
+      DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, &backdropType,
+                            sizeof(backdropType));
+    }
+    if (buildNumber >= 22000) {
+      BOOL mica = FALSE;
+      DwmSetWindowAttribute(hwnd, DWMWA_MICA_EFFECT, &mica, sizeof(mica));
+    }
+
+    if (!pSetWindowCompositionAttribute) {
+      HMODULE user32 = LoadLibraryA("user32.dll");
+      if (user32) {
+        pSetWindowCompositionAttribute =
+            reinterpret_cast<BOOL(WINAPI*)(HWND, WINDOWCOMPOSITIONATTRIBUTEDATA*)>(
+                GetProcAddress(user32, "SetWindowCompositionAttribute"));
+      }
+    }
+    if (pSetWindowCompositionAttribute) {
+      ACCENT_POLICY policy{};
+      policy.AccentState = ACCENT_DISABLED;
+      policy.AccentFlags = 0;
+      policy.GradientColor = 0;
+      policy.AnimationId = 0;
+      WINDOWCOMPOSITIONATTRIBUTEDATA data{};
+      data.Attribute = 19;
+      data.Data = &policy;
+      data.SizeOfData = sizeof(policy);
+      pSetWindowCompositionAttribute(hwnd, &data);
+    }
+
+    // Use region clipping instead of DWM rounded corners
+    ApplyTrayMenuWindowRegion(hwnd);
     return;
   }
 
@@ -1378,11 +1504,70 @@ bool FlutterWindow::CanResize() const {
   return kind_ != WindowKind::kPopup && kind_ != WindowKind::kTrayMenu;
 }
 
+void FlutterWindow::ApplyTrayMenuWindowRegion(HWND hwnd) {
+  if (kind_ != WindowKind::kTrayMenu || !hwnd) {
+    return;
+  }
+
+  if (tray_menu_region_rects_.empty()) {
+    SetWindowRgn(hwnd, NULL, TRUE);
+    return;
+  }
+
+  HRGN combined = CreateRectRgn(0, 0, 0, 0);
+  if (!combined) {
+    return;
+  }
+
+  const int radius = std::max(0, tray_menu_region_radius_);
+  const int diameter = radius * 2;
+  bool has_region = false;
+
+  for (const auto& rect : tray_menu_region_rects_) {
+    const int left = static_cast<int>(std::floor(rect.x));
+    const int top = static_cast<int>(std::floor(rect.y));
+    const int right = static_cast<int>(std::ceil(rect.x + rect.width));
+    const int bottom = static_cast<int>(std::ceil(rect.y + rect.height));
+    if (right <= left || bottom <= top) {
+      continue;
+    }
+
+    HRGN part = radius > 0
+                    ? CreateRoundRectRgn(left, top, right + 1, bottom + 1,
+                                         diameter, diameter)
+                    : CreateRectRgn(left, top, right, bottom);
+    if (!part) {
+      continue;
+    }
+
+    if (!has_region) {
+      CombineRgn(combined, part, NULL, RGN_COPY);
+      has_region = true;
+    } else {
+      CombineRgn(combined, combined, part, RGN_OR);
+    }
+    DeleteObject(part);
+  }
+
+  if (!has_region) {
+    DeleteObject(combined);
+    SetWindowRgn(hwnd, NULL, TRUE);
+    return;
+  }
+
+  SetWindowRgn(hwnd, combined, TRUE);
+}
+
 void FlutterWindow::ApplyRoundedCorners(HWND hwnd,
                                         DWORD buildNumber,
                                         int width,
                                         int height) {
   if (!hwnd || width <= 0 || height <= 0) return;
+
+  if (kind_ == WindowKind::kTrayMenu) {
+    ApplyTrayMenuWindowRegion(hwnd);
+    return;
+  }
 
   WINDOWPLACEMENT wp;
   wp.length = sizeof(WINDOWPLACEMENT);
