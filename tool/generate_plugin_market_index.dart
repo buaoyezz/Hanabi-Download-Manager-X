@@ -69,6 +69,7 @@ void main(List<String> args) async {
         'version': manifest.version,
         'description': manifest.description,
         'author': manifest.author,
+        'category': manifest.category,
         'downloadUrl': downloadUrl,
         'hash': packageHash.isEmpty ? '' : 'sha256:$packageHash',
         if (manifest.minAppVersion != null &&
@@ -203,6 +204,7 @@ class PluginManifestDoc {
     required this.version,
     required this.author,
     required this.description,
+    required this.category,
     required this.capabilities,
     this.minAppVersion,
   });
@@ -212,6 +214,7 @@ class PluginManifestDoc {
   final String version;
   final String author;
   final String description;
+  final String category;
   final List<String> capabilities;
   final String? minAppVersion;
 
@@ -242,6 +245,7 @@ class PluginManifestDoc {
       version: version,
       author: author,
       description: json['description']?.toString().trim() ?? '',
+      category: json['category']?.toString().trim() ?? 'other',
       capabilities: capabilities,
       minAppVersion: json['minAppVersion']?.toString().trim(),
     );

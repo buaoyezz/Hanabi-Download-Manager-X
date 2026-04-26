@@ -59,6 +59,7 @@ class PluginManifest {
     required this.entry,
     required this.capabilities,
     this.description = '',
+    this.category = 'other',
     this.minAppVersion,
     this.permissions = const PluginPermissionSet(),
   });
@@ -70,6 +71,7 @@ class PluginManifest {
   final String entry;
   final List<String> capabilities;
   final String description;
+  final String category;
   final String? minAppVersion;
   final PluginPermissionSet permissions;
 
@@ -90,6 +92,7 @@ class PluginManifest {
       entry: json['entry']?.toString().trim() ?? '',
       capabilities: capabilities,
       description: json['description']?.toString().trim() ?? '',
+      category: json['category']?.toString().trim() ?? 'other',
       minAppVersion: json['minAppVersion']?.toString().trim(),
       permissions: PluginPermissionSet.fromJson(json['permissions']),
     );
@@ -111,6 +114,7 @@ class PluginManifest {
         'entry': entry,
         'capabilities': capabilities,
         if (description.isNotEmpty) 'description': description,
+        if (category.isNotEmpty && category != 'other') 'category': category,
         if (minAppVersion != null && minAppVersion!.isNotEmpty)
           'minAppVersion': minAppVersion,
         'permissions': permissions.toList(),

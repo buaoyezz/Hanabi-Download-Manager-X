@@ -24,6 +24,8 @@ class PluginStorePage extends StatefulWidget {
 class _PluginStorePageState extends State<PluginStorePage> {
   final TextEditingController _searchController = TextEditingController();
   bool _busy = false;
+  String _installedCategory = 'all';
+  String _storeCategory = 'all';
 
   bool get _isChinese =>
       Localizations.localeOf(context).languageCode.toLowerCase().startsWith(
@@ -183,22 +185,107 @@ class _PluginStorePageState extends State<PluginStorePage> {
     );
   }
 
+  String _getCategoryName(String category) {
+    if (category == 'all') return _isChinese ? '全部类型' : 'All';
+    if (!_isChinese) {
+      if (category.isEmpty) return 'Other';
+      return category[0].toUpperCase() + category.substring(1);
+    }
+    
+    switch (category.toLowerCase()) {
+      case 'feature':
+        return '功能类';
+      case 'visual':
+        return '视觉类';
+      case 'protocol':
+        return '协议类';
+      case 'tool':
+        return '工具类';
+      case 'other':
+      default:
+        return '其他';
+    }
+  }
+
+  List<ComboBoxItem<String>> _buildCategoryItems() {
+    return [
+      'all',
+      'feature',
+      'visual',
+      'protocol',
+      'tool',
+      'other',
+    ].map((cat) => ComboBoxItem(
+      value: cat,
+      child: Text(_getCategoryName(cat)),
+    )).toList();
+  }
+
   Widget _buildInstalledSection(PluginLifecycleService service) {
-    final plugins = service.plugins;
+    final plugins = service.plugins.where((p) {
+      if (_installedCategory == 'all') return true;
+      return p.manifest.category.toLowerCase() == _installedCategory;
+    }).toList();
+    
+    final groupedPlugins = <String, List<InstalledPlugin>>{};
+    for (final plugin in plugins) {
+      final category = plugin.manifest.category;
+      groupedPlugins.putIfAbsent(category, () => []).add(plugin);
+    }
+
+    final children = <Widget>[
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const SizedBox.shrink(),
+          SizedBox(
+            width: 150,
+            child: ComboBox<String>(
+              value: _installedCategory,
+              items: _buildCategoryItems(),
+              onChanged: (v) {
+                if (v != null) setState(() => _installedCategory = v);
+              },
+            ),
+          )
+        ],
+      ),
+      const SizedBox(height: 12),
+    ];
+    
+    if (plugins.isEmpty) {
+      children.add(
+        _emptyState(
+          _isChinese ? '还没有安装本地插件' : 'No local plugins installed',
+          _isChinese
+              ? '可以从本地目录或 .hanabi-plugin.zip 包安装。'
+              : 'Install from a local folder or a .hanabi-plugin.zip package.',
+        )
+      );
+    } else {
+      final sortedCategories = groupedPlugins.keys.toList()..sort();
+      for (final category in sortedCategories) {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8, top: 8),
+            child: Text(
+              _getCategoryName(category),
+              style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
+                color: AppTheme.textSecondary,
+              ),
+            ),
+          )
+        );
+        for (final plugin in groupedPlugins[category]!) {
+          children.add(_installedPluginTile(service, plugin));
+        }
+      }
+    }
+
     return SettingsSection(
       title: _installedTitle,
       icon: custom_icons.FluentIcons.app_icon_default,
-      children: [
-        if (plugins.isEmpty)
-          _emptyState(
-            _isChinese ? '还没有安装本地插件' : 'No local plugins installed',
-            _isChinese
-                ? '可以从本地目录或 .hanabi-plugin.zip 包安装。'
-                : 'Install from a local folder or a .hanabi-plugin.zip package.',
-          )
-        else
-          ...plugins.map((plugin) => _installedPluginTile(service, plugin)),
-      ],
+      children: children,
     );
   }
 
@@ -338,6 +425,10 @@ class _PluginStorePageState extends State<PluginStorePage> {
   ) {
     final query = _searchController.text.trim().toLowerCase();
     final entries = storeService.index.entries.where((entry) {
+      if (_storeCategory != 'all' &&
+          entry.category.toLowerCase() != _storeCategory) {
+        return false;
+      }
       if (query.isEmpty) {
         return true;
       }
@@ -346,30 +437,75 @@ class _PluginStorePageState extends State<PluginStorePage> {
           entry.description.toLowerCase().contains(query);
     }).toList(growable: false);
 
+    final groupedEntries = <String, List<PluginStoreEntry>>{};
+    for (final entry in entries) {
+      final category = entry.category;
+      groupedEntries.putIfAbsent(category, () => []).add(entry);
+    }
+
+    final children = <Widget>[
+      _buildStoreSourcePanel(storeService),
+      const SizedBox(height: 10),
+      Row(
+        children: [
+          Expanded(
+            child: TextBox(
+              controller: _searchController,
+              placeholder: _isChinese ? '搜索插件' : 'Search plugins',
+              onChanged: (_) => setState(() {}),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 150,
+            child: ComboBox<String>(
+              value: _storeCategory,
+              items: _buildCategoryItems(),
+              onChanged: (v) {
+                if (v != null) setState(() => _storeCategory = v);
+              },
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+    ];
+
+    if (storeService.lastError != null) {
+      children.add(_errorText(storeService.lastError!));
+    } else if (entries.isEmpty) {
+      children.add(
+        _emptyState(
+          _isChinese ? '商店索引为空' : 'Store index is empty',
+          _isChinese
+              ? '加载一个索引 JSON 后，会在这里显示可安装插件。'
+              : 'Load an index JSON to show installable plugins here.',
+        )
+      );
+    } else {
+      final sortedCategories = groupedEntries.keys.toList()..sort();
+      for (final category in sortedCategories) {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8, top: 8),
+            child: Text(
+              _getCategoryName(category),
+              style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
+                color: AppTheme.textSecondary,
+              ),
+            ),
+          )
+        );
+        for (final entry in groupedEntries[category]!) {
+          children.add(_storeEntryTile(pluginService, entry));
+        }
+      }
+    }
+
     return SettingsSection(
       title: _storeTitle,
       icon: custom_icons.FluentIcons.app_icon_default,
-      children: [
-        _buildStoreSourcePanel(storeService),
-        const SizedBox(height: 10),
-        TextBox(
-          controller: _searchController,
-          placeholder: _isChinese ? '搜索插件' : 'Search plugins',
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 12),
-        if (storeService.lastError != null)
-          _errorText(storeService.lastError!)
-        else if (entries.isEmpty)
-          _emptyState(
-            _isChinese ? '商店索引为空' : 'Store index is empty',
-            _isChinese
-                ? '加载一个索引 JSON 后，会在这里显示可安装插件。'
-                : 'Load an index JSON to show installable plugins here.',
-          )
-        else
-          ...entries.map((entry) => _storeEntryTile(pluginService, entry)),
-      ],
+      children: children,
     );
   }
 

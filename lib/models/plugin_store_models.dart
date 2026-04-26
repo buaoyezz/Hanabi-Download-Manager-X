@@ -47,6 +47,7 @@ class PluginStoreEntry {
     required this.downloadUrl,
     required this.hash,
     this.iconUrl,
+    this.category = 'other',
     this.minAppVersion,
     this.channel = 'stable',
     this.capabilities = const <String>[],
@@ -64,6 +65,7 @@ class PluginStoreEntry {
   final String downloadUrl;
   final String? iconUrl;
   final String hash;
+  final String category;
   final String? minAppVersion;
   final String channel;
   final List<String> capabilities;
@@ -86,6 +88,7 @@ class PluginStoreEntry {
       iconUrl: json['iconUrl']?.toString().trim() ??
           json['icon_url']?.toString().trim(),
       hash: json['hash']?.toString().trim() ?? '',
+      category: json['category']?.toString().trim() ?? 'other',
       minAppVersion: json['minAppVersion']?.toString().trim() ??
           json['min_app_version']?.toString().trim(),
       channel: json['channel']?.toString().trim().isNotEmpty == true
@@ -116,6 +119,7 @@ class PluginStoreEntry {
         'downloadUrl': downloadUrl,
         if (iconUrl != null && iconUrl!.isNotEmpty) 'iconUrl': iconUrl,
         'hash': hash,
+        if (category.isNotEmpty && category != 'other') 'category': category,
         if (minAppVersion != null && minAppVersion!.isNotEmpty)
           'minAppVersion': minAppVersion,
         'channel': channel,
