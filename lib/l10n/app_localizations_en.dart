@@ -118,6 +118,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsTabDeveloper => 'Developer';
 
   @override
+  String get appearanceThemeSection => 'theme';
+
+  @override
+  String get appearanceThemeModeTitle => 'theme mode';
+
+  @override
+  String get appearanceThemeModeSubtitle =>
+      'The main window switches immediately. Tray and popup windows follow the new theme next time they open.';
+
+  @override
+  String get appearanceThemeModeSystem => 'Follow system';
+
+  @override
+  String get appearanceThemeModeLight => 'Light';
+
+  @override
+  String get appearanceThemeModeDark => 'Dark';
+
+  @override
+  String get appearanceThemeSavedTitle => 'Theme updated';
+
+  @override
+  String appearanceThemeSavedMessage(Object mode) {
+    return 'Current theme mode: $mode';
+  }
+
+  @override
   String get appearanceSectionLanguage => 'language';
 
   @override

@@ -290,6 +290,54 @@ abstract class AppLocalizations {
   /// **'开发者'**
   String get settingsTabDeveloper;
 
+  /// No description provided for @appearanceThemeSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'主题'**
+  String get appearanceThemeSection;
+
+  /// No description provided for @appearanceThemeModeTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'主题模式'**
+  String get appearanceThemeModeTitle;
+
+  /// No description provided for @appearanceThemeModeSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'主窗口会立即切换，托盘和弹窗会在下次打开时跟随新主题'**
+  String get appearanceThemeModeSubtitle;
+
+  /// No description provided for @appearanceThemeModeSystem.
+  ///
+  /// In zh, this message translates to:
+  /// **'跟随系统'**
+  String get appearanceThemeModeSystem;
+
+  /// No description provided for @appearanceThemeModeLight.
+  ///
+  /// In zh, this message translates to:
+  /// **'亮色模式'**
+  String get appearanceThemeModeLight;
+
+  /// No description provided for @appearanceThemeModeDark.
+  ///
+  /// In zh, this message translates to:
+  /// **'暗色模式'**
+  String get appearanceThemeModeDark;
+
+  /// No description provided for @appearanceThemeSavedTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'主题已切换'**
+  String get appearanceThemeSavedTitle;
+
+  /// No description provided for @appearanceThemeSavedMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前主题模式：{mode}'**
+  String appearanceThemeSavedMessage(Object mode);
+
   /// No description provided for @appearanceSectionLanguage.
   ///
   /// In zh, this message translates to:

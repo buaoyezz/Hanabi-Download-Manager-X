@@ -63,6 +63,19 @@
   "settingsTabUpdate": "更新",
   "settingsTabAdvanced": "高级",
   "settingsTabDeveloper": "开发者",
+  "appearanceThemeSection": "主题",
+  "appearanceThemeModeTitle": "主题模式",
+  "appearanceThemeModeSubtitle": "主窗口会立即切换，托盘和弹窗会在下次打开时跟随新主题",
+  "appearanceThemeModeSystem": "跟随系统",
+  "appearanceThemeModeLight": "亮色模式",
+  "appearanceThemeModeDark": "暗色模式",
+  "appearanceThemeSavedTitle": "主题已切换",
+  "appearanceThemeSavedMessage": "当前主题模式：{mode}",
+  "@appearanceThemeSavedMessage": {
+    "placeholders": {
+      "mode": {}
+    }
+  },
   "appearanceSectionLanguage": "语言",
   "appearanceLanguageTitle": "界面语言",
   "appearanceLanguageSubtitle": "默认跟随系统：系统将自动为您选择合适的界面语言",

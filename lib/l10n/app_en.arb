@@ -179,6 +179,41 @@
     "x-auto-source-zh": "开发者",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
+  "appearanceThemeSection": "theme",
+  "@appearanceThemeSection": {
+    "x-auto-source-zh": "主题"
+  },
+  "appearanceThemeModeTitle": "theme mode",
+  "@appearanceThemeModeTitle": {
+    "x-auto-source-zh": "主题模式"
+  },
+  "appearanceThemeModeSubtitle": "The main window switches immediately. Tray and popup windows follow the new theme next time they open.",
+  "@appearanceThemeModeSubtitle": {
+    "x-auto-source-zh": "主窗口会立即切换，托盘和弹窗会在下次打开时跟随新主题"
+  },
+  "appearanceThemeModeSystem": "Follow system",
+  "@appearanceThemeModeSystem": {
+    "x-auto-source-zh": "跟随系统"
+  },
+  "appearanceThemeModeLight": "Light",
+  "@appearanceThemeModeLight": {
+    "x-auto-source-zh": "亮色模式"
+  },
+  "appearanceThemeModeDark": "Dark",
+  "@appearanceThemeModeDark": {
+    "x-auto-source-zh": "暗色模式"
+  },
+  "appearanceThemeSavedTitle": "Theme updated",
+  "@appearanceThemeSavedTitle": {
+    "x-auto-source-zh": "主题已切换"
+  },
+  "appearanceThemeSavedMessage": "Current theme mode: {mode}",
+  "@appearanceThemeSavedMessage": {
+    "placeholders": {
+      "mode": {}
+    },
+    "x-auto-source-zh": "当前主题模式：{mode}"
+  },
   "appearanceSectionLanguage": "language",
   "@appearanceSectionLanguage": {
     "x-auto-source-zh": "语言",

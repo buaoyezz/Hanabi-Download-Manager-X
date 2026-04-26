@@ -117,6 +117,32 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsTabDeveloper => '开发者';
 
   @override
+  String get appearanceThemeSection => '主题';
+
+  @override
+  String get appearanceThemeModeTitle => '主题模式';
+
+  @override
+  String get appearanceThemeModeSubtitle => '主窗口会立即切换，托盘和弹窗会在下次打开时跟随新主题';
+
+  @override
+  String get appearanceThemeModeSystem => '跟随系统';
+
+  @override
+  String get appearanceThemeModeLight => '亮色模式';
+
+  @override
+  String get appearanceThemeModeDark => '暗色模式';
+
+  @override
+  String get appearanceThemeSavedTitle => '主题已切换';
+
+  @override
+  String appearanceThemeSavedMessage(Object mode) {
+    return '当前主题模式：$mode';
+  }
+
+  @override
   String get appearanceSectionLanguage => '语言';
 
   @override

@@ -203,6 +203,40 @@ class PluginAppLocalizations extends AppLocalizations {
       _string('settingsTabDeveloper', _fallback.settingsTabDeveloper);
 
   @override
+  String get appearanceThemeSection =>
+      _string('appearanceThemeSection', _fallback.appearanceThemeSection);
+
+  @override
+  String get appearanceThemeModeTitle =>
+      _string('appearanceThemeModeTitle', _fallback.appearanceThemeModeTitle);
+
+  @override
+  String get appearanceThemeModeSubtitle => _string(
+      'appearanceThemeModeSubtitle', _fallback.appearanceThemeModeSubtitle);
+
+  @override
+  String get appearanceThemeModeSystem =>
+      _string('appearanceThemeModeSystem', _fallback.appearanceThemeModeSystem);
+
+  @override
+  String get appearanceThemeModeLight =>
+      _string('appearanceThemeModeLight', _fallback.appearanceThemeModeLight);
+
+  @override
+  String get appearanceThemeModeDark =>
+      _string('appearanceThemeModeDark', _fallback.appearanceThemeModeDark);
+
+  @override
+  String get appearanceThemeSavedTitle =>
+      _string('appearanceThemeSavedTitle', _fallback.appearanceThemeSavedTitle);
+
+  @override
+  String appearanceThemeSavedMessage(Object mode) => _format(
+      'appearanceThemeSavedMessage',
+      {'mode': mode},
+      _fallback.appearanceThemeSavedMessage(mode));
+
+  @override
   String get appearanceSectionLanguage =>
       _string('appearanceSectionLanguage', _fallback.appearanceSectionLanguage);
 
