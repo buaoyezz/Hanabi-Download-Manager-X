@@ -48,6 +48,7 @@ class _NoticePageState extends State<NoticePage> {
   @override
   Widget build(BuildContext context) {
     PerformanceMonitorService().trackRebuild('NoticePage');
+    final isDark = AppTheme.isDarkContext(context);
 
     return ScaffoldPage(
       header: PageHeader(
@@ -61,19 +62,22 @@ class _NoticePageState extends State<NoticePage> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    AppTheme.accentPrimary.withValues(alpha: 0.2),
-                    AppTheme.accentPrimary.withValues(alpha: 0.1),
+                    AppTheme.accentPrimary
+                        .withValues(alpha: isDark ? 0.2 : 0.14),
+                    AppTheme.accentPrimary
+                        .withValues(alpha: isDark ? 0.1 : 0.05),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                 border: Border.all(
-                  color: AppTheme.accentPrimary.withValues(alpha: 0.3),
+                  color: AppTheme.accentPrimary
+                      .withValues(alpha: isDark ? 0.3 : 0.18),
                 ),
               ),
               child: Icon(
                 CustomIcons.FluentIcons.alert_20,
                 size: 18,
-                color: AppTheme.accentLight,
+                color: isDark ? AppTheme.accentLight : AppTheme.accentPrimary,
               ),
             ),
             const SizedBox(width: 14),
@@ -266,6 +270,7 @@ class _NoticeCardState extends State<_NoticeCard> {
   Widget build(BuildContext context) {
     final notice = widget.notice;
     final levelColor = _levelColor(notice.level);
+    final isDark = AppTheme.isDarkContext(context);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -320,13 +325,13 @@ class _NoticeCardState extends State<_NoticeCard> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: AppTheme.accentPrimary
-                                        .withValues(alpha: 0.15),
+                                    color: AppTheme.accentPrimary.withValues(
+                                        alpha: isDark ? 0.15 : 0.09),
                                     borderRadius: BorderRadius.circular(
                                         AppTheme.radiusRound),
                                     border: Border.all(
-                                      color: AppTheme.accentPrimary
-                                          .withValues(alpha: 0.3),
+                                      color: AppTheme.accentPrimary.withValues(
+                                          alpha: isDark ? 0.3 : 0.18),
                                     ),
                                   ),
                                   child: Row(
@@ -334,7 +339,9 @@ class _NoticeCardState extends State<_NoticeCard> {
                                     children: [
                                       Icon(FluentIcons.pin,
                                           size: 10,
-                                          color: AppTheme.accentLight),
+                                          color: isDark
+                                              ? AppTheme.accentLight
+                                              : AppTheme.accentPrimary),
                                       const SizedBox(width: 4),
                                       Text(
                                         AppLocalizations.of(context)!
@@ -342,7 +349,9 @@ class _NoticeCardState extends State<_NoticeCard> {
                                         style: TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w600,
-                                          color: AppTheme.accentLight,
+                                          color: isDark
+                                              ? AppTheme.accentLight
+                                              : AppTheme.accentPrimary,
                                         ),
                                       ),
                                     ],
@@ -353,7 +362,7 @@ class _NoticeCardState extends State<_NoticeCard> {
                               Expanded(
                                 child: Text(
                                   notice.title,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w600,
                                     color: AppTheme.textPrimary,
@@ -419,6 +428,7 @@ class _NoticeCardState extends State<_NoticeCard> {
   }
 
   Widget _buildExpandedContent(Notice notice, Color levelColor) {
+    final isDark = AppTheme.isDarkContext(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(72, 0, 20, 20),
@@ -449,14 +459,14 @@ class _NoticeCardState extends State<_NoticeCard> {
                 color: AppTheme.textPrimary,
               ),
               a: TextStyle(
-                color: AppTheme.accentLight,
+                color: isDark ? AppTheme.accentLight : AppTheme.accentPrimary,
                 decoration: TextDecoration.underline,
               ),
               listBullet: TextStyle(color: AppTheme.textSecondary),
               code: TextStyle(
                 fontSize: 12,
                 backgroundColor: AppTheme.bgLayer2,
-                color: AppTheme.accentLight,
+                color: isDark ? AppTheme.accentLight : AppTheme.accentPrimary,
               ),
             ),
             onTapLink: (text, href, title) {

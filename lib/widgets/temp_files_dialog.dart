@@ -589,7 +589,7 @@ class _TempFilesDialogState extends State<TempFilesDialog> {
       decoration: BoxDecoration(
         color: file.isSelected
             ? AppTheme.accentPrimary.withValues(alpha: 0.1)
-            : AppTheme.surfaceCard.withValues(alpha: 0.5),
+            : AppTheme.cardBackground(darkAlpha: 0.5, lightAlpha: 0.5),
         borderRadius: BorderRadius.circular(AppTheme.radiusSm),
         border: Border.all(
           color: file.isSelected

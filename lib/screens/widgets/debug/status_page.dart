@@ -474,7 +474,7 @@ class _StatusPageState extends State<StatusPage> {
                   color: AppTheme.accentPrimary.withValues(alpha: 0.3),
                 ),
               ),
-              child: const Icon(
+              child: Icon(
                 FluentIcons.health,
                 size: 18,
                 color: AppTheme.accentLight,
@@ -1072,7 +1072,7 @@ class _StatusPageState extends State<StatusPage> {
             children: [
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     FluentIcons.info,
                     size: 14,
                     color: AppTheme.accentLight,

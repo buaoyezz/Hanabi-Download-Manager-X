@@ -1071,6 +1071,18 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     }
   }
 
+  String _getThemeModeName(String mode, AppLocalizations t) {
+    switch (mode) {
+      case 'light':
+        return t.appearanceThemeModeLight;
+      case 'dark':
+        return t.appearanceThemeModeDark;
+      case 'system':
+      default:
+        return t.appearanceThemeModeSystem;
+    }
+  }
+
   String _getNotificationPositionName(String position, AppLocalizations t) {
     switch (position) {
       case 'topRight':
@@ -1464,6 +1476,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         languageLabels.containsKey(normalizedLanguagePreference)
             ? normalizedLanguagePreference
             : 'system';
+    final selectedThemeMode = clientConfig.getThemeMode();
     final langDir = '${clientConfig.baseDir}${Platform.pathSeparator}lang';
     final visibleLocaleTags = fontService.orderedEnabledLocaleTags(
       activeLocale: localizationService.effectiveLocale,
@@ -1597,13 +1610,65 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                   Expanded(
                     child: Text(
                       t.appearanceUiScaleHint,
-                      style:
-                          FluentTheme.of(context).typography.caption?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.7),
-                              ),
+                      style: FluentTheme.of(context)
+                          .typography
+                          .caption
+                          ?.copyWith(
+                            color:
+                                AppTheme.textSecondary.withValues(alpha: 0.92),
+                          ),
                     ),
                   ),
                 ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // 主题设置
+        _buildSection(
+          context,
+          title: t.appearanceThemeSection,
+          icon: CustomIcons.FluentIcons.color,
+          children: [
+            _buildSettingItem(
+              context,
+              title: t.appearanceThemeModeTitle,
+              subtitle: t.appearanceThemeModeSubtitle,
+              trailing: SizedBox(
+                width: 250,
+                child: ComboBox<String>(
+                  value: selectedThemeMode,
+                  items: [
+                    ComboBoxItem(
+                      value: 'system',
+                      child: Text(t.appearanceThemeModeSystem),
+                    ),
+                    ComboBoxItem(
+                      value: 'light',
+                      child: Text(t.appearanceThemeModeLight),
+                    ),
+                    ComboBoxItem(
+                      value: 'dark',
+                      child: Text(t.appearanceThemeModeDark),
+                    ),
+                  ],
+                  onChanged: (value) async {
+                    if (value == null) {
+                      return;
+                    }
+                    await clientConfig.setThemeMode(value);
+                    if (!mounted) {
+                      return;
+                    }
+                    NotificationManager.of(context)?.showSuccess(
+                      t.appearanceThemeSavedTitle,
+                      message: t.appearanceThemeSavedMessage(
+                          _getThemeModeName(value, t)),
+                    );
+                  },
+                ),
               ),
             ),
           ],
@@ -1760,10 +1825,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                   Expanded(
                     child: Text(
                       _fontSectionHint(uiLocale),
-                      style:
-                          FluentTheme.of(context).typography.caption?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.78),
-                              ),
+                      style: FluentTheme.of(context)
+                          .typography
+                          .caption
+                          ?.copyWith(
+                            color:
+                                AppTheme.textSecondary.withValues(alpha: 0.92),
+                          ),
                     ),
                   ),
                 ],
@@ -1901,7 +1969,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                               .typography
                               .bodyStrong
                               ?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.88),
+                                color: AppTheme.textPrimary
+                                    .withValues(alpha: 0.94),
                               ),
                         ),
                         const SizedBox(height: 6),
@@ -1912,7 +1981,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                                 .typography
                                 .caption
                                 ?.copyWith(
-                                  color: Colors.white.withValues(alpha: 0.7),
+                                  color: AppTheme.textSecondary
+                                      .withValues(alpha: 0.92),
                                 ),
                           )
                         else
@@ -1932,9 +2002,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                                           fontName,
                                           style: TextStyle(
                                             fontFamily: fontName,
-                                            color: Colors.white.withValues(
-                                              alpha: 0.82,
-                                            ),
+                                            color: AppTheme.textPrimary
+                                                .withValues(alpha: 0.9),
                                           ),
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -2344,10 +2413,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                   Expanded(
                     child: Text(
                       t.appearanceNotificationPerformanceHint,
-                      style:
-                          FluentTheme.of(context).typography.caption?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.7),
-                              ),
+                      style: FluentTheme.of(context)
+                          .typography
+                          .caption
+                          ?.copyWith(
+                            color:
+                                AppTheme.textSecondary.withValues(alpha: 0.92),
+                          ),
                     ),
                   ),
                 ],
@@ -2800,7 +2872,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                       ? t.appearanceWindowRememberHintOn
                       : t.appearanceWindowRememberHintOff,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.7),
+                        color: AppTheme.textSecondary.withValues(alpha: 0.92),
                       ),
                 ),
               ),
@@ -3067,12 +3139,12 @@ class _FontPickerDialogState extends State<_FontPickerDialog> {
       decoration: BoxDecoration(
         color: isSelected
             ? theme.accentColor.withValues(alpha: 0.12)
-            : Colors.white.withValues(alpha: 0.03),
+            : AppTheme.bgLayer2.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
           color: isSelected
               ? theme.accentColor.withValues(alpha: 0.3)
-              : Colors.white.withValues(alpha: 0.06),
+              : AppTheme.borderSubtle.withValues(alpha: 0.45),
         ),
       ),
       child: Text(
@@ -3163,7 +3235,7 @@ class _FontPickerDialogState extends State<_FontPickerDialog> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(CustomIcons.FluentIcons.searchIcon,
-                            size: 48, color: Colors.grey),
+                            size: 48, color: AppTheme.textTertiary),
                         const SizedBox(height: 12),
                         Text(
                           widget.t.appearanceFontPickerEmpty,

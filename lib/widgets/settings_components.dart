@@ -18,14 +18,22 @@ class SettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = AppTheme.isDarkContext(context);
+    final sectionBackground = AppTheme.cardBackground(
+      darkAlpha: 0.76,
+      lightAlpha: 0.86,
+    );
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceCard.withValues(alpha: 0.72),
+        color: sectionBackground,
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.6)),
-        // 优化：移除 BoxShadow，静态卡片不需要阴影
-        // BoxShadow 会触发 saveLayer，增加 GPU 合成层开销
+        border: Border.all(
+          color: isDark
+              ? AppTheme.borderSubtle.withValues(alpha: 0.6)
+              : AppTheme.borderSubtle.withValues(alpha: 0.28),
+        ),
+        boxShadow: isDark ? null : AppTheme.shadowSm,
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -120,13 +128,22 @@ class _SettingsItemState extends State<SettingsItem> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = AppTheme.isDarkContext(context);
     final radius = BorderRadius.circular(AppTheme.radiusSm);
     final background = _isHovered
-        ? AppTheme.bgLayer2.withValues(alpha: 0.70)
-        : AppTheme.bgLayer2.withValues(alpha: 0.52);
+        ? (isDark
+            ? AppTheme.bgLayer2.withValues(alpha: 0.70)
+            : AppTheme.surfaceCardHover.withValues(alpha: 0.94))
+        : (isDark
+            ? AppTheme.bgLayer2.withValues(alpha: 0.52)
+            : AppTheme.bgLayer2.withValues(alpha: 0.88));
     final borderColor = _isHovered
-        ? AppTheme.borderStrong.withValues(alpha: 0.65)
-        : AppTheme.borderSubtle.withValues(alpha: 0.45);
+        ? (isDark
+            ? AppTheme.borderStrong.withValues(alpha: 0.65)
+            : AppTheme.borderDefault.withValues(alpha: 0.40))
+        : (isDark
+            ? AppTheme.borderSubtle.withValues(alpha: 0.45)
+            : AppTheme.borderSubtle.withValues(alpha: 0.22));
 
     return MouseRegion(
       onEnter: (_) => _setHovered(true),
@@ -138,6 +155,7 @@ class _SettingsItemState extends State<SettingsItem> {
           color: background,
           borderRadius: radius,
           border: Border.all(color: borderColor),
+          boxShadow: !isDark && _isHovered ? AppTheme.shadowSm : null,
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -193,10 +211,15 @@ class StatusIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
+    final isDark = AppTheme.isDarkContext(context);
     final color = isOnline ? AppTheme.statusSuccess : AppTheme.statusError;
 
-    final baseColor = Color.lerp(AppTheme.surfaceCard, color, 0.10) ??
-        color.withValues(alpha: 0.1);
+    final baseColor = Color.lerp(
+          AppTheme.surfaceCard,
+          color,
+          isDark ? 0.10 : 0.06,
+        ) ??
+        color.withValues(alpha: isDark ? 0.10 : 0.06);
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -204,7 +227,7 @@ class StatusIndicator extends StatelessWidget {
         color: baseColor,
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         border: Border.all(
-          color: color.withValues(alpha: 0.30),
+          color: color.withValues(alpha: isDark ? 0.30 : 0.18),
         ),
       ),
       child: Row(
@@ -242,7 +265,7 @@ class StatusIndicator extends StatelessWidget {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: color.withValues(alpha: 0.4),
+                            color: color.withValues(alpha: isDark ? 0.4 : 0.22),
                             blurRadius: 3,
                           ),
                         ],
@@ -278,14 +301,15 @@ class DangerZone extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
+    final isDark = AppTheme.isDarkContext(context);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.statusError.withValues(alpha: 0.06),
+        color: AppTheme.statusError.withValues(alpha: isDark ? 0.06 : 0.04),
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         border: Border.all(
-          color: AppTheme.statusError.withValues(alpha: 0.3),
+          color: AppTheme.statusError.withValues(alpha: isDark ? 0.3 : 0.18),
         ),
       ),
       child: Column(
@@ -337,6 +361,7 @@ class SettingsPageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = AppTheme.isDarkContext(context);
     return PageHeader(
       title: Row(
         children: [
@@ -348,16 +373,21 @@ class SettingsPageHeader extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppTheme.accentPrimary.withValues(alpha: 0.2),
-                  AppTheme.accentPrimary.withValues(alpha: 0.1),
+                  AppTheme.accentPrimary.withValues(alpha: isDark ? 0.2 : 0.14),
+                  AppTheme.accentPrimary.withValues(alpha: isDark ? 0.1 : 0.05),
                 ],
               ),
               borderRadius: BorderRadius.circular(AppTheme.radiusLg),
               border: Border.all(
-                color: AppTheme.accentPrimary.withValues(alpha: 0.3),
+                color: AppTheme.accentPrimary
+                    .withValues(alpha: isDark ? 0.3 : 0.18),
               ),
             ),
-            child: Icon(icon, size: 18, color: AppTheme.accentLight),
+            child: Icon(
+              icon,
+              size: 18,
+              color: isDark ? AppTheme.accentLight : AppTheme.accentPrimary,
+            ),
           ),
           const SizedBox(width: 14),
           Text(title),

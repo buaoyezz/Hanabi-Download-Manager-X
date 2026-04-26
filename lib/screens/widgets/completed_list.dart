@@ -439,7 +439,7 @@ class _CompletedListState extends State<CompletedList> {
       children: [
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(color: AppTheme.borderSubtle),
             ),
@@ -584,7 +584,7 @@ class _CompletedListState extends State<CompletedList> {
               ),
               child: Text(
                 t.completedCreateCategoryHint,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   color: AppTheme.textTertiary,
                 ),
@@ -899,7 +899,7 @@ class _CompletedListState extends State<CompletedList> {
   Widget _buildHeader(BuildContext context, int count) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(color: AppTheme.borderSubtle),
         ),
@@ -1102,8 +1102,10 @@ class _CompletedTaskCardState extends State<_CompletedTaskCard> {
     return AnimatedCard(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
-      backgroundColor: AppTheme.surfaceCard.withValues(alpha: 0.85),
-      hoverColor: AppTheme.surfaceCard.withValues(alpha: 0.95),
+      backgroundColor:
+          AppTheme.cardBackground(darkAlpha: 0.78, lightAlpha: 0.85),
+      hoverColor:
+          AppTheme.cardHoverBackground(darkAlpha: 0.88, lightAlpha: 0.95),
       borderColor: AppTheme.borderSubtle,
       hoverBorderColor: AppTheme.statusSuccess.withValues(alpha: 0.4),
       borderRadius: AppTheme.radiusLg,

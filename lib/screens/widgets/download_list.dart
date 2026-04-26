@@ -1045,8 +1045,10 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
     return AnimatedCard(
       margin: const EdgeInsets.only(bottom: 12),
       padding: EdgeInsets.zero,
-      backgroundColor: AppTheme.surfaceCard.withValues(alpha: 0.85),
-      hoverColor: AppTheme.surfaceCard.withValues(alpha: 0.95),
+      backgroundColor:
+          AppTheme.cardBackground(darkAlpha: 0.78, lightAlpha: 0.85),
+      hoverColor:
+          AppTheme.cardHoverBackground(darkAlpha: 0.88, lightAlpha: 0.95),
       borderColor: isActive
           ? AppTheme.accentPrimary.withValues(alpha: 0.3)
           : AppTheme.borderSubtle,
@@ -1626,6 +1628,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
     final progress = widget.task.progress.clamp(0.0, 1.0);
     final isMatchingHttpProtocol =
         widget.task.startupStatusKey == 'matching_http_protocol';
+    final isDark = AppTheme.isDarkContext(context);
 
     // 合并状态：特殊布局
     if (isMerging) {
@@ -1663,7 +1666,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             '${(progress * 100).toStringAsFixed(1)}%',
             style: FluentTheme.of(context).typography.caption?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.accentLight,
+                  color: isDark ? AppTheme.accentLight : AppTheme.accentPrimary,
                   fontSize: 12,
                 ),
           ),
@@ -1706,7 +1709,9 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: AppTheme.accentPrimary.withValues(alpha: 0.12),
+                color: AppTheme.accentPrimary.withValues(
+                  alpha: isDark ? 0.12 : 0.08,
+                ),
                 borderRadius: BorderRadius.circular(AppTheme.radiusRound),
               ),
               child: Text(
@@ -1717,7 +1722,9 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                     : '${(progress * 100).toStringAsFixed(1)}%',
                 style: FluentTheme.of(context).typography.caption?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: AppTheme.accentLight,
+                      color: isDark
+                          ? AppTheme.accentLight
+                          : AppTheme.accentPrimary,
                       fontSize: 12,
                       letterSpacing: 0.5,
                     ),
@@ -1735,7 +1742,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
             Container(
               height: 8,
               decoration: BoxDecoration(
-                color: AppTheme.bgLayer2.withValues(alpha: 0.6),
+                color: AppTheme.bgLayer2.withValues(alpha: isDark ? 0.6 : 0.92),
                 borderRadius: BorderRadius.circular(AppTheme.radiusRound),
               ),
             ),
@@ -1747,10 +1754,12 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                 child: Container(
                   height: 8,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+                    gradient: LinearGradient(
                       colors: [
                         AppTheme.accentPrimary,
-                        AppTheme.accentLight,
+                        isDark
+                            ? AppTheme.accentLight
+                            : AppTheme.accentPrimary.withValues(alpha: 0.72),
                       ],
                     ),
                     borderRadius: BorderRadius.circular(AppTheme.radiusRound),

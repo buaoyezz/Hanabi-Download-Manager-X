@@ -128,7 +128,7 @@ class _AboutPageState extends State<AboutPage>
                     children: [
                       Text(
                         t.aboutEasterEggTitle,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: AppTheme.accentLight,
@@ -137,7 +137,7 @@ class _AboutPageState extends State<AboutPage>
                       const SizedBox(height: 8),
                       Text(
                         t.aboutEasterEggMessage(t.appTitle),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           color: AppTheme.textSecondary,
                           height: 1.5,
@@ -311,7 +311,7 @@ class _AboutPageState extends State<AboutPage>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppTheme.surfaceCard.withValues(alpha: 0.88),
+            AppTheme.cardBackground(darkAlpha: 0.8, lightAlpha: 0.88),
             AppTheme.bgLayer2.withValues(alpha: 0.96),
           ],
         ),
@@ -611,7 +611,7 @@ class _AboutPageState extends State<AboutPage>
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceCard.withValues(alpha: 0.58),
+        color: AppTheme.cardBackground(darkAlpha: 0.58, lightAlpha: 0.58),
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         border: Border.all(
           color: AppTheme.borderSubtle.withValues(alpha: 0.5),
@@ -627,7 +627,7 @@ class _AboutPageState extends State<AboutPage>
               color: AppTheme.bgLayer2.withValues(alpha: 0.9),
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
-            child: const Icon(
+            child: Icon(
               FluentIcons.info,
               size: 16,
               color: AppTheme.textSecondary,
@@ -679,7 +679,7 @@ class _SectionCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceCard.withValues(alpha: 0.74),
+        color: AppTheme.cardBackground(darkAlpha: 0.74, lightAlpha: 0.74),
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         border: Border.all(
           color: AppTheme.borderSubtle.withValues(alpha: 0.56),

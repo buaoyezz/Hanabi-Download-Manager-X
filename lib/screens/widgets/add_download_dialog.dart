@@ -153,7 +153,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
         ),
         style: ContentDialogThemeData(
           decoration: BoxDecoration(
-            color: AppTheme.surfaceCard.withValues(alpha: 0.95),
+            color: AppTheme.cardBackground(darkAlpha: 0.88, lightAlpha: 0.95),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: AppTheme.borderSubtle.withValues(alpha: 0.5),
@@ -183,7 +183,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
   Widget _buildHeader(BuildContext context) {
     return Container(
       padding: const EdgeInsets.only(bottom: 12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
             color: AppTheme.borderSubtle,
@@ -219,7 +219,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
                 ),
               ],
             ),
-            child: const Icon(
+            child: Icon(
               FluentIcons.download,
               size: 20,
               color: AppTheme.accentLight,
@@ -290,7 +290,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
       children: [
         Row(
           children: [
-            const Icon(
+            Icon(
               FluentIcons.link,
               size: 14,
               color: AppTheme.accentLight,
@@ -491,7 +491,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
       children: [
         Row(
           children: [
-            const Icon(
+            Icon(
               FluentIcons.document,
               size: 14,
               color: AppTheme.textSecondary,

@@ -1524,7 +1524,7 @@ class _LogPageState extends State<LogPage> {
                                   ? AppTheme.bgLayer2
                                   : AppTheme.surfaceCard,
                             ),
-                            foregroundColor: const WidgetStatePropertyAll(
+                            foregroundColor: WidgetStatePropertyAll(
                               AppTheme.textPrimary,
                             ),
                             shape: WidgetStatePropertyAll(
@@ -1555,7 +1555,7 @@ class _LogPageState extends State<LogPage> {
                                     .withValues(alpha: 0.6);
                               },
                             ),
-                            foregroundColor: const WidgetStatePropertyAll(
+                            foregroundColor: WidgetStatePropertyAll(
                               AppTheme.textTertiary,
                             ),
                             shape: WidgetStatePropertyAll(
@@ -1620,7 +1620,7 @@ class _LogPageState extends State<LogPage> {
       child: Container(
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-          color: AppTheme.surfaceCard.withValues(alpha: 0.65),
+          color: AppTheme.cardBackground(darkAlpha: 0.65, lightAlpha: 0.65),
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           border: Border.all(
             color: AppTheme.borderSubtle.withValues(alpha: 0.45),
@@ -1719,7 +1719,7 @@ class _LogPageState extends State<LogPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceCard.withValues(alpha: 0.5),
+        color: AppTheme.cardBackground(darkAlpha: 0.5, lightAlpha: 0.5),
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(
           color: AppTheme.borderSubtle.withValues(alpha: 0.3),
@@ -1782,7 +1782,7 @@ class _LogPageState extends State<LogPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceCard.withValues(alpha: 0.5),
+        color: AppTheme.cardBackground(darkAlpha: 0.5, lightAlpha: 0.5),
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(
           color: AppTheme.borderSubtle.withValues(alpha: 0.3),
@@ -1946,7 +1946,7 @@ class _LogPageState extends State<LogPage> {
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Container(
         decoration: BoxDecoration(
-          color: AppTheme.surfaceCard.withValues(alpha: 0.6),
+          color: AppTheme.cardBackground(darkAlpha: 0.6, lightAlpha: 0.6),
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
           border: Border.all(
             color: hasActiveFilters
@@ -2092,7 +2092,7 @@ class _LogPageState extends State<LogPage> {
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Container(
         decoration: BoxDecoration(
-          color: AppTheme.surfaceCard.withValues(alpha: 0.6),
+          color: AppTheme.cardBackground(darkAlpha: 0.6, lightAlpha: 0.6),
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
           border: Border.all(
             color: AppTheme.borderSubtle.withValues(alpha: 0.5),
@@ -2406,7 +2406,7 @@ class _LogPageState extends State<LogPage> {
         child: Container(
           margin: const EdgeInsets.only(bottom: 4),
           decoration: BoxDecoration(
-            color: AppTheme.surfaceCard.withValues(alpha: 0.5),
+            color: AppTheme.cardBackground(darkAlpha: 0.5, lightAlpha: 0.5),
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             border: Border.all(
               color: isBookmarked
@@ -2518,7 +2518,7 @@ class _LogPageState extends State<LogPage> {
                                   const SizedBox(width: 3),
                                   Text(
                                     '×${item.count}',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: AppTheme.accentLight,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,
@@ -3582,7 +3582,8 @@ class _LogPageState extends State<LogPage> {
                         margin: const EdgeInsets.only(bottom: 6),
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: AppTheme.surfaceCard.withValues(alpha: 0.5),
+                          color: AppTheme.cardBackground(
+                              darkAlpha: 0.5, lightAlpha: 0.5),
                           borderRadius:
                               BorderRadius.circular(AppTheme.radiusMd),
                           border: Border.all(

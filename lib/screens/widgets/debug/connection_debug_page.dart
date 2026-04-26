@@ -345,7 +345,7 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
     final t = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(color: AppTheme.borderSubtle),
         ),
@@ -390,7 +390,7 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceCard.withValues(alpha: 0.6),
+        color: AppTheme.cardBackground(darkAlpha: 0.6, lightAlpha: 0.6),
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(
           color: AppTheme.borderSubtle.withValues(alpha: 0.5),
@@ -495,7 +495,7 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceCard.withValues(alpha: 0.6),
+        color: AppTheme.cardBackground(darkAlpha: 0.6, lightAlpha: 0.6),
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(
           color: AppTheme.borderSubtle.withValues(alpha: 0.5),
@@ -690,7 +690,7 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceCard.withValues(alpha: 0.6),
+        color: AppTheme.cardBackground(darkAlpha: 0.6, lightAlpha: 0.6),
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(
           color: statusColor.withValues(alpha: 0.3),
@@ -918,7 +918,7 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
             padding: const EdgeInsets.only(top: 2),
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppTheme.textTertiary,
                 fontSize: 9,
               ),
@@ -937,7 +937,7 @@ class _ConnectionDebugPageState extends State<ConnectionDebugPage> {
         const SizedBox(width: 4),
         Text(
           '$label: ',
-          style: const TextStyle(color: AppTheme.textTertiary, fontSize: 11),
+          style: TextStyle(color: AppTheme.textTertiary, fontSize: 11),
         ),
         Text(
           value,

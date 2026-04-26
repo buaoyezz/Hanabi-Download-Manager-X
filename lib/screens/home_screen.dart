@@ -515,6 +515,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     // 追踪重建
     PerformanceMonitorService().trackRebuild('HomeScreen');
+    AppTheme.applyFluentTheme(FluentTheme.of(context));
 
     // 窗口最小化时 Windows 会给极小尺寸（约 160x28），跳过布局避免溢出
     final windowSize = MediaQuery.of(context).size;
@@ -553,9 +554,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     // 计算统一的 shell 背景色（标题栏+侧边栏共用）
     final effectEnabled = windowEffect.effectEnabled;
-    final shellBgAlpha = isMica
+    final transparentShellBgAlpha = isMica
         ? (isWin11Effect ? 0.12 + effectOpacity * 0.32 : 0.4)
         : (effectEnabled ? sidebarOpacity : 1.0);
+    final shellBgAlpha = lerpDouble(
+      transparentShellBgAlpha,
+      0.98,
+      AppTheme.lightProgress,
+    )!;
 
     // 核心修复逻辑：确保 _currentIndex 与 _currentPageId 同步
     // 这解决了列表项动态增减（如在线统计出现/消失）导致的索引错位
@@ -579,7 +585,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     Widget shellContent = Container(
       // 统一的 shell 背景色（标题栏 + 侧边栏一体）
-      color: AppTheme.bgSolid.withValues(alpha: shellBgAlpha),
+      color: AppTheme.shellBackground.withValues(alpha: shellBgAlpha),
       child: Column(
         children: [
           // 顶部标题栏（横跨整个窗口）
@@ -640,7 +646,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final effectOpacity = (effectService.alpha / 255.0).clamp(0.0, 1.0);
 
     // Mica 效果需要更透明的背景
-    final bgAlpha = isMica
+    final transparentBgAlpha = isMica
         ? (isWin11Effect ? 0.18 + effectOpacity * 0.50 : 0.5)
         : (useBlur
             ? (isWin11Effect && isAcrylic
@@ -653,6 +659,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ? 0.68
                         : 0.75)
             : 0.95);
+    final bgAlpha = lerpDouble(
+      transparentBgAlpha,
+      0.98,
+      AppTheme.lightProgress,
+    )!;
 
     final contentContainer = Container(
       decoration: BoxDecoration(
@@ -698,7 +709,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     padding: WidgetStateProperty.all(EdgeInsets.zero),
                     backgroundColor: WidgetStateProperty.resolveWith((states) {
                       if (states.isHovered) {
-                        return AppTheme.bgLayer2.withValues(alpha: 0.5);
+                        return AppTheme.shellHoverBackground.withValues(
+                          alpha: 0.5 + AppTheme.lightProgress * 0.35,
+                        );
                       }
                       return Colors.transparent;
                     }),
@@ -856,7 +869,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             constraints: const BoxConstraints(maxWidth: 450),
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              color: AppTheme.surfaceCard.withValues(alpha: 0.6),
+              color: AppTheme.cardBackground(darkAlpha: 0.6, lightAlpha: 0.6),
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
               border: Border.all(
                 color: AppTheme.borderSubtle.withValues(alpha: 0.5),
@@ -871,7 +884,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   const SizedBox(height: 20),
                   Text(
                     AppLocalizations.of(context)!.homeKernelStartingTitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppTheme.textPrimary,
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
@@ -881,7 +894,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   if (status.isNotEmpty)
                     Text(
                       status,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 13,
                       ),
@@ -889,7 +902,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   else
                     Text(
                       AppLocalizations.of(context)!.homeKernelStartingHint,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppTheme.textTertiary,
                         fontSize: 12,
                       ),
@@ -924,7 +937,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             width: 45,
                             child: Text(
                               '$percentage%',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppTheme.textSecondary,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
@@ -1250,8 +1263,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       iconMouseDown: AppTheme.textPrimary,
       iconMouseOver: AppTheme.textPrimary,
       normal: Colors.transparent,
-      mouseOver: AppTheme.bgLayer2.withValues(alpha: 0.8),
-      mouseDown: AppTheme.bgLayer3,
+      mouseOver: AppTheme.shellHoverBackground.withValues(
+        alpha: 0.8 + AppTheme.lightProgress * 0.15,
+      ),
+      mouseDown: Color.lerp(
+        AppTheme.bgLayer3,
+        AppTheme.shellHoverBackground,
+        AppTheme.lightProgress,
+      )!,
     );
 
     final closeButtonColors = WindowButtonColors(
@@ -1500,9 +1519,6 @@ class _NavItemState extends State<_NavItem>
     double hoverValue,
     double selectValue,
   ) {
-    final bgAlpha = (selectValue * 0.8 + hoverValue * 0.4 * (1 - selectValue))
-        .clamp(0.0, 0.8);
-
     final iconColor = Color.lerp(
       Color.lerp(AppTheme.textSecondary, AppTheme.textPrimary, hoverValue),
       AppTheme.accentLight,
@@ -1514,7 +1530,10 @@ class _NavItemState extends State<_NavItem>
         width: 40,
         height: 36,
         decoration: BoxDecoration(
-          color: AppTheme.bgLayer2.withValues(alpha: bgAlpha),
+          color: AppTheme.shellNavItemBackground(
+            hoverValue: hoverValue,
+            selectedValue: selectValue,
+          ),
           borderRadius: BorderRadius.circular(6),
         ),
         child: Stack(
@@ -1549,9 +1568,6 @@ class _NavItemState extends State<_NavItem>
     double hoverValue,
     double selectValue,
   ) {
-    final bgAlpha = (selectValue * 0.8 + hoverValue * 0.4 * (1 - selectValue))
-        .clamp(0.0, 0.8);
-
     final iconColor = Color.lerp(
       Color.lerp(AppTheme.textSecondary, AppTheme.textPrimary, hoverValue),
       AppTheme.accentLight,
@@ -1568,7 +1584,10 @@ class _NavItemState extends State<_NavItem>
       height: 36,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: AppTheme.bgLayer2.withValues(alpha: bgAlpha),
+        color: AppTheme.shellNavItemBackground(
+          hoverValue: hoverValue,
+          selectedValue: selectValue,
+        ),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(

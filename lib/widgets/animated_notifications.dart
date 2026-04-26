@@ -855,8 +855,11 @@ class _FloatingMessageState extends State<FloatingMessage>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                 decoration: BoxDecoration(
-                  color: (widget.backgroundColor ?? AppTheme.surfaceCard)
-                      .withValues(alpha: 0.95),
+                  color: widget.backgroundColor?.withValues(alpha: 0.95) ??
+                      AppTheme.cardBackground(
+                        darkAlpha: 0.88,
+                        lightAlpha: 0.95,
+                      ),
                   borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                   border: Border.all(
                     color: AppTheme.borderSubtle.withValues(alpha: 0.5),

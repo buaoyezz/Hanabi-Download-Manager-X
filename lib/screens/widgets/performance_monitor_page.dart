@@ -161,7 +161,7 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceCard.withValues(alpha: 0.5),
+        color: AppTheme.cardBackground(darkAlpha: 0.5, lightAlpha: 0.5),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: isJank

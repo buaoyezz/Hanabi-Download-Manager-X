@@ -3158,7 +3158,7 @@ class _SettingsPageState extends State<SettingsPage> {
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceCard.withValues(alpha: 0.6),
+        color: AppTheme.cardBackground(darkAlpha: 0.6, lightAlpha: 0.6),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: AppTheme.borderSubtle.withValues(alpha: 0.5),

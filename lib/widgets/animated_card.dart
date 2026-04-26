@@ -60,14 +60,26 @@ class _AnimatedCardState extends State<AnimatedCard>
   }
 
   void _initColors() {
-    _bgColor = widget.backgroundColor ?? AppTheme.surfaceCard.withValues(alpha: 0.85);
-    _hoverColor = widget.hoverColor ?? (widget.backgroundColor == Colors.transparent
-        ? Colors.transparent
-        : AppTheme.surfaceCard.withValues(alpha: 0.95));
+    _bgColor = widget.backgroundColor ??
+        AppTheme.cardBackground(darkAlpha: 0.78, lightAlpha: 0.85);
+    _hoverColor = widget.hoverColor ??
+        (widget.backgroundColor == Colors.transparent
+            ? Colors.transparent
+            : AppTheme.cardHoverBackground(
+                darkAlpha: 0.88,
+                lightAlpha: 0.95,
+              ));
     _borderColor = widget.borderColor ?? AppTheme.borderSubtle;
-    _hoverBorderColor = widget.hoverBorderColor ?? (widget.borderColor == Colors.transparent
-        ? Colors.transparent
-        : AppTheme.accentPrimary.withValues(alpha: 0.4));
+    _hoverBorderColor = widget.hoverBorderColor ??
+        (widget.borderColor == Colors.transparent
+            ? Colors.transparent
+            : AppTheme.accentPrimary.withValues(alpha: 0.4));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _initColors();
   }
 
   @override
@@ -113,18 +125,19 @@ class _AnimatedCardState extends State<AnimatedCard>
             animation: _hoverController,
             builder: (context, child) {
               final hoverValue = _hoverController.value;
-              
+
               // 优化：使用简单的透明度变化代替 Color.lerp
               final currentBgColor = _bgColor.withValues(
-                alpha: _bgColor.a + (_hoverColor.a - _bgColor.a) * hoverValue
-              );
+                  alpha:
+                      _bgColor.a + (_hoverColor.a - _bgColor.a) * hoverValue);
               final currentBorderColor = _borderColor.withValues(
-                alpha: _borderColor.a + (_hoverBorderColor.a - _borderColor.a) * hoverValue
-              );
-              
+                  alpha: _borderColor.a +
+                      (_hoverBorderColor.a - _borderColor.a) * hoverValue);
+
               // 优化：只在非 hover 时显示静态阴影
-              final showShadows = widget.enableGlowAnimation && hoverValue <= 0.01;
-              
+              final showShadows =
+                  widget.enableGlowAnimation && hoverValue <= 0.01;
+
               return Container(
                 margin: widget.margin,
                 decoration: BoxDecoration(
@@ -134,11 +147,13 @@ class _AnimatedCardState extends State<AnimatedCard>
                     width: 1.0,
                   ),
                   boxShadow: showShadows
-                      ? [BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        )]
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          )
+                        ]
                       : const <BoxShadow>[],
                 ),
                 child: Container(
@@ -202,7 +217,7 @@ class _AnimatedProgressBarState extends State<AnimatedProgressBar>
     _updateAnimation();
     _controller.forward();
   }
-  
+
   void _updateAnimation() {
     _progressAnimation = Tween<double>(
       begin: _previousProgress,
@@ -234,14 +249,15 @@ class _AnimatedProgressBarState extends State<AnimatedProgressBar>
   Widget build(BuildContext context) {
     final bgColor = widget.backgroundColor ?? AppTheme.bgLayer1;
     final progressColor = widget.progressColor ?? AppTheme.accentPrimary;
-    final radius = widget.borderRadius ?? BorderRadius.circular(widget.height / 2);
-    
+    final radius =
+        widget.borderRadius ?? BorderRadius.circular(widget.height / 2);
+
     return RepaintBoundary(
       child: AnimatedBuilder(
         animation: _progressAnimation,
         builder: (context, _) {
           final progress = _progressAnimation.value;
-          
+
           return Container(
             height: widget.height,
             decoration: BoxDecoration(
@@ -335,7 +351,7 @@ class _AnimatedCounterState extends State<AnimatedCounter>
     _updateAnimation();
     _controller.forward();
   }
-  
+
   void _updateAnimation() {
     _animation = Tween<double>(
       begin: _previousValue,

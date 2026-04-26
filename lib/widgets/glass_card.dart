@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:fluent_ui/fluent_ui.dart' as fluent;
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/notification_settings_service.dart';
@@ -65,7 +66,7 @@ class _GlassCardState extends State<GlassCard>
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = fluent.FluentTheme.of(context).brightness == Brightness.dark;
     final enableBlur = _performanceSettings.enableBlur;
     final blurSigma = _performanceSettings.blurSigma;
 
@@ -78,7 +79,8 @@ class _GlassCardState extends State<GlassCard>
           child: AnimatedBuilder(
             animation: _hoverController,
             builder: (context, child) {
-              final hoverValue = Curves.easeOutCubic.transform(_hoverController.value);
+              final hoverValue =
+                  Curves.easeOutCubic.transform(_hoverController.value);
 
               return Container(
                 margin: widget.margin,
@@ -110,7 +112,9 @@ class _GlassCardState extends State<GlassCard>
       decoration: BoxDecoration(
         gradient: _getGradient(isDark, hoverValue),
         // 无模糊时使用纯色背景
-        color: enableBlur ? null : (isDark ? AppTheme.surfaceCard : Colors.white),
+        color: enableBlur
+            ? null
+            : (isDark ? AppTheme.cardBackground() : Colors.white),
       ),
       padding: widget.padding,
       child: child,
@@ -131,7 +135,7 @@ class _GlassCardState extends State<GlassCard>
             width: 1,
           ),
         );
-      
+
       case GlassCardVariant.elevated:
         return BoxDecoration(
           borderRadius: BorderRadius.circular(widget.borderRadius),
@@ -145,7 +149,7 @@ class _GlassCardState extends State<GlassCard>
           ),
           boxShadow: hoverValue > 0.01 ? AppTheme.shadowSm : null,
         );
-      
+
       case GlassCardVariant.subtle:
         return BoxDecoration(
           borderRadius: BorderRadius.circular(widget.borderRadius),
@@ -154,12 +158,13 @@ class _GlassCardState extends State<GlassCard>
             width: 1,
           ),
         );
-      
+
       case GlassCardVariant.accent:
         return BoxDecoration(
           borderRadius: BorderRadius.circular(widget.borderRadius),
           border: Border.all(
-            color: AppTheme.accentPrimary.withValues(alpha: 0.25 + (hoverValue * 0.25)),
+            color: AppTheme.accentPrimary
+                .withValues(alpha: 0.25 + (hoverValue * 0.25)),
             width: 1,
           ),
         );
@@ -177,37 +182,53 @@ class _GlassCardState extends State<GlassCard>
           end: Alignment.bottomRight,
           colors: isDark
               ? [
-                  AppTheme.surfaceCard.withValues(alpha: baseAlpha + (hoverValue * (hoverAlpha - baseAlpha))),
-                  AppTheme.surfaceCard.withValues(alpha: (baseAlpha - 0.1) + (hoverValue * (hoverAlpha - baseAlpha))),
+                  AppTheme.cardBackground(
+                    darkAlpha:
+                        baseAlpha + (hoverValue * (hoverAlpha - baseAlpha)),
+                    lightAlpha:
+                        baseAlpha + (hoverValue * (hoverAlpha - baseAlpha)),
+                  ),
+                  AppTheme.cardBackground(
+                    darkAlpha: (baseAlpha - 0.1) +
+                        (hoverValue * (hoverAlpha - baseAlpha)),
+                    lightAlpha: (baseAlpha - 0.1) +
+                        (hoverValue * (hoverAlpha - baseAlpha)),
+                  ),
                 ]
               : [
-                  Colors.white.withValues(alpha: baseAlpha + (hoverValue * (hoverAlpha - baseAlpha))),
-                  Colors.white.withValues(alpha: (baseAlpha - 0.2) + (hoverValue * (hoverAlpha - baseAlpha))),
+                  Colors.white.withValues(
+                      alpha:
+                          baseAlpha + (hoverValue * (hoverAlpha - baseAlpha))),
+                  Colors.white.withValues(
+                      alpha: (baseAlpha - 0.2) +
+                          (hoverValue * (hoverAlpha - baseAlpha))),
                 ],
         );
-      
+
       case GlassCardVariant.subtle:
         return LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: isDark
               ? [
-                  AppTheme.surfaceCard.withValues(alpha: 0.5),
-                  AppTheme.surfaceCard.withValues(alpha: 0.4),
+                  AppTheme.cardBackground(darkAlpha: 0.5, lightAlpha: 0.5),
+                  AppTheme.cardBackground(darkAlpha: 0.4, lightAlpha: 0.4),
                 ]
               : [
                   Colors.white.withValues(alpha: 0.6),
                   Colors.white.withValues(alpha: 0.4),
                 ],
         );
-      
+
       case GlassCardVariant.accent:
         return LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppTheme.accentPrimary.withValues(alpha: 0.08 + (hoverValue * 0.04)),
-            AppTheme.accentPrimary.withValues(alpha: 0.04 + (hoverValue * 0.02)),
+            AppTheme.accentPrimary
+                .withValues(alpha: 0.08 + (hoverValue * 0.04)),
+            AppTheme.accentPrimary
+                .withValues(alpha: 0.04 + (hoverValue * 0.02)),
           ],
         );
     }
@@ -218,10 +239,13 @@ class _GlassCardState extends State<GlassCard>
 enum GlassCardVariant {
   /// 标准样式 - 适用于一般内容卡片
   standard,
+
   /// 提升样式 - 适用于重要内容，有更强的阴影和边框
   elevated,
+
   /// 微妙样式 - 适用于次要内容，更轻的视觉效果
   subtle,
+
   /// 强调样式 - 使用主题色强调
   accent,
 }
@@ -253,7 +277,7 @@ class SurfaceCard extends StatefulWidget {
   State<SurfaceCard> createState() => _SurfaceCardState();
 }
 
-class _SurfaceCardState extends State<SurfaceCard> 
+class _SurfaceCardState extends State<SurfaceCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _hoverController;
 
@@ -282,11 +306,15 @@ class _SurfaceCardState extends State<SurfaceCard>
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = widget.backgroundColor ?? AppTheme.surfaceCard.withValues(alpha: 0.7);
-    final hoverBgColor = widget.backgroundColor ?? AppTheme.surfaceCardHover.withValues(alpha: 0.85);
-    final borderColor = widget.borderColor ?? AppTheme.borderSubtle.withValues(alpha: 0.5);
-    final hoverBorderColor = widget.borderColor ?? AppTheme.borderDefault.withValues(alpha: 0.6);
-    
+    final bgColor =
+        widget.backgroundColor ?? AppTheme.cardBackground(darkAlpha: 0.7);
+    final hoverBgColor = widget.backgroundColor ??
+        AppTheme.cardHoverBackground(darkAlpha: 0.82, lightAlpha: 0.85);
+    final borderColor =
+        widget.borderColor ?? AppTheme.borderSubtle.withValues(alpha: 0.5);
+    final hoverBorderColor =
+        widget.borderColor ?? AppTheme.borderDefault.withValues(alpha: 0.6);
+
     return RepaintBoundary(
       child: MouseRegion(
         onEnter: _onEnter,
@@ -296,8 +324,9 @@ class _SurfaceCardState extends State<SurfaceCard>
           child: AnimatedBuilder(
             animation: _hoverController,
             builder: (context, child) {
-              final hoverValue = Curves.easeOutCubic.transform(_hoverController.value);
-              
+              final hoverValue =
+                  Curves.easeOutCubic.transform(_hoverController.value);
+
               return Container(
                 margin: widget.margin,
                 padding: widget.padding,
@@ -305,7 +334,8 @@ class _SurfaceCardState extends State<SurfaceCard>
                   color: Color.lerp(bgColor, hoverBgColor, hoverValue),
                   borderRadius: BorderRadius.circular(widget.borderRadius),
                   border: Border.all(
-                    color: Color.lerp(borderColor, hoverBorderColor, hoverValue)!,
+                    color:
+                        Color.lerp(borderColor, hoverBorderColor, hoverValue)!,
                     width: 1,
                   ),
                 ),

@@ -12,7 +12,7 @@ class AnimationConfig {
   static const Duration normal = Duration(milliseconds: 250);
   static const Duration slow = Duration(milliseconds: 400);
   static const Duration emphasis = Duration(milliseconds: 500);
-  
+
   // 优化的动画曲线 - 更加丝滑
   static const Curve smoothOut = Curves.easeOutCubic;
   static const Curve smoothIn = Curves.easeInCubic;
@@ -20,7 +20,7 @@ class AnimationConfig {
   static const Curve bounce = Curves.elasticOut;
   static const Curve spring = _SpringCurve();
   static const Curve decelerate = Curves.decelerate;
-  
+
   // 微交互曲线
   static const Curve microInteraction = Curves.easeOutQuart;
 }
@@ -28,14 +28,14 @@ class AnimationConfig {
 /// 自定义弹簧曲线 - 更自然的物理效果
 class _SpringCurve extends Curve {
   const _SpringCurve();
-  
+
   @override
   double transformInternal(double t) {
     // 阻尼弹簧公式
     const damping = 0.7;
     const frequency = 3.5;
-    return 1 - math.pow(math.e, -damping * t * 10) * 
-           math.cos(frequency * math.pi * t);
+    return 1 -
+        math.pow(math.e, -damping * t * 10) * math.cos(frequency * math.pi * t);
   }
 }
 
@@ -46,7 +46,7 @@ class SmoothFadeIn extends StatefulWidget {
   final Duration delay;
   final Curve curve;
   final double startOpacity;
-  
+
   const SmoothFadeIn({
     super.key,
     required this.child,
@@ -55,16 +55,16 @@ class SmoothFadeIn extends StatefulWidget {
     this.curve = Curves.easeOutCubic,
     this.startOpacity = 0.0,
   });
-  
+
   @override
   State<SmoothFadeIn> createState() => _SmoothFadeInState();
 }
 
-class _SmoothFadeInState extends State<SmoothFadeIn> 
+class _SmoothFadeInState extends State<SmoothFadeIn>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
-  
+
   @override
   void initState() {
     super.initState();
@@ -76,7 +76,7 @@ class _SmoothFadeInState extends State<SmoothFadeIn>
       parent: _controller,
       curve: widget.curve,
     );
-    
+
     if (widget.delay == Duration.zero) {
       _controller.forward();
     } else {
@@ -85,13 +85,13 @@ class _SmoothFadeInState extends State<SmoothFadeIn>
       });
     }
   }
-  
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
@@ -114,7 +114,7 @@ class SmoothSlideIn extends StatefulWidget {
   final Curve curve;
   final Offset beginOffset;
   final bool fadeIn;
-  
+
   const SmoothSlideIn({
     super.key,
     required this.child,
@@ -124,7 +124,7 @@ class SmoothSlideIn extends StatefulWidget {
     this.beginOffset = const Offset(0, 0.15),
     this.fadeIn = true,
   });
-  
+
   /// 从右侧滑入
   const SmoothSlideIn.fromRight({
     super.key,
@@ -134,7 +134,7 @@ class SmoothSlideIn extends StatefulWidget {
     this.curve = Curves.easeOutCubic,
     this.fadeIn = true,
   }) : beginOffset = const Offset(0.2, 0);
-  
+
   /// 从左侧滑入
   const SmoothSlideIn.fromLeft({
     super.key,
@@ -144,7 +144,7 @@ class SmoothSlideIn extends StatefulWidget {
     this.curve = Curves.easeOutCubic,
     this.fadeIn = true,
   }) : beginOffset = const Offset(-0.2, 0);
-  
+
   /// 从底部滑入
   const SmoothSlideIn.fromBottom({
     super.key,
@@ -154,17 +154,17 @@ class SmoothSlideIn extends StatefulWidget {
     this.curve = Curves.easeOutCubic,
     this.fadeIn = true,
   }) : beginOffset = const Offset(0, 0.15);
-  
+
   @override
   State<SmoothSlideIn> createState() => _SmoothSlideInState();
 }
 
-class _SmoothSlideInState extends State<SmoothSlideIn> 
+class _SmoothSlideInState extends State<SmoothSlideIn>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fadeAnimation;
-  
+
   @override
   void initState() {
     super.initState();
@@ -172,17 +172,17 @@ class _SmoothSlideInState extends State<SmoothSlideIn>
       duration: widget.duration,
       vsync: this,
     );
-    
+
     final curvedAnimation = CurvedAnimation(
       parent: _controller,
       curve: widget.curve,
     );
-    
+
     _slideAnimation = Tween<Offset>(
       begin: widget.beginOffset,
       end: Offset.zero,
     ).animate(curvedAnimation);
-    
+
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -190,7 +190,7 @@ class _SmoothSlideInState extends State<SmoothSlideIn>
       parent: _controller,
       curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
     ));
-    
+
     if (widget.delay == Duration.zero) {
       _controller.forward();
     } else {
@@ -199,13 +199,13 @@ class _SmoothSlideInState extends State<SmoothSlideIn>
       });
     }
   }
-  
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
@@ -227,7 +227,7 @@ class SmoothScale extends StatefulWidget {
   final Curve curve;
   final double beginScale;
   final bool fadeIn;
-  
+
   const SmoothScale({
     super.key,
     required this.child,
@@ -237,7 +237,7 @@ class SmoothScale extends StatefulWidget {
     this.beginScale = 0.8,
     this.fadeIn = true,
   });
-  
+
   /// 弹性缩放效果
   const SmoothScale.bounce({
     super.key,
@@ -245,18 +245,19 @@ class SmoothScale extends StatefulWidget {
     this.duration = const Duration(milliseconds: 500),
     this.delay = Duration.zero,
     this.fadeIn = true,
-  }) : curve = Curves.elasticOut, beginScale = 0.5;
-  
+  })  : curve = Curves.elasticOut,
+        beginScale = 0.5;
+
   @override
   State<SmoothScale> createState() => _SmoothScaleState();
 }
 
-class _SmoothScaleState extends State<SmoothScale> 
+class _SmoothScaleState extends State<SmoothScale>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
-  
+
   @override
   void initState() {
     super.initState();
@@ -264,7 +265,7 @@ class _SmoothScaleState extends State<SmoothScale>
       duration: widget.duration,
       vsync: this,
     );
-    
+
     _scaleAnimation = Tween<double>(
       begin: widget.beginScale,
       end: 1.0,
@@ -272,7 +273,7 @@ class _SmoothScaleState extends State<SmoothScale>
       parent: _controller,
       curve: widget.curve,
     ));
-    
+
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -280,7 +281,7 @@ class _SmoothScaleState extends State<SmoothScale>
       parent: _controller,
       curve: const Interval(0.0, 0.5, curve: Curves.easeOut),
     ));
-    
+
     if (widget.delay == Duration.zero) {
       _controller.forward();
     } else {
@@ -289,13 +290,13 @@ class _SmoothScaleState extends State<SmoothScale>
       });
     }
   }
-  
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
@@ -312,12 +313,13 @@ class _SmoothScaleState extends State<SmoothScale>
 /// 高性能悬停效果组件
 class SmoothHover extends StatefulWidget {
   final Widget child;
-  final Widget Function(BuildContext context, bool isHovered, double hoverValue) builder;
+  final Widget Function(BuildContext context, bool isHovered, double hoverValue)
+      builder;
   final Duration duration;
   final Curve curve;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
-  
+
   const SmoothHover({
     super.key,
     required this.builder,
@@ -326,16 +328,16 @@ class SmoothHover extends StatefulWidget {
     this.onTap,
     this.onLongPress,
   }) : child = const SizedBox.shrink();
-  
+
   @override
   State<SmoothHover> createState() => _SmoothHoverState();
 }
 
-class _SmoothHoverState extends State<SmoothHover> 
+class _SmoothHoverState extends State<SmoothHover>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   bool _isHovered = false;
-  
+
   @override
   void initState() {
     super.initState();
@@ -344,23 +346,23 @@ class _SmoothHoverState extends State<SmoothHover>
       vsync: this,
     );
   }
-  
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-  
+
   void _onEnter(PointerEvent _) {
     setState(() => _isHovered = true);
     _controller.forward();
   }
-  
+
   void _onExit(PointerEvent _) {
     setState(() => _isHovered = false);
     _controller.reverse();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
@@ -390,7 +392,7 @@ class SmoothPressable extends StatefulWidget {
   final VoidCallback? onLongPress;
   final double pressScale;
   final Duration duration;
-  
+
   const SmoothPressable({
     super.key,
     required this.child,
@@ -399,16 +401,16 @@ class SmoothPressable extends StatefulWidget {
     this.pressScale = 0.97,
     this.duration = const Duration(milliseconds: 100),
   });
-  
+
   @override
   State<SmoothPressable> createState() => _SmoothPressableState();
 }
 
-class _SmoothPressableState extends State<SmoothPressable> 
+class _SmoothPressableState extends State<SmoothPressable>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
-  
+
   @override
   void initState() {
     super.initState();
@@ -424,20 +426,21 @@ class _SmoothPressableState extends State<SmoothPressable>
       curve: Curves.easeOutCubic,
     ));
   }
-  
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-  
+
   void _onTapDown(TapDownDetails _) => _controller.forward();
   void _onTapUp(TapUpDetails _) {
     _controller.reverse();
     widget.onTap?.call();
   }
+
   void _onTapCancel() => _controller.reverse();
-  
+
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
@@ -455,7 +458,6 @@ class _SmoothPressableState extends State<SmoothPressable>
   }
 }
 
-
 /// 高性能列表项动画组件
 class SmoothListItem extends StatefulWidget {
   final Widget child;
@@ -463,7 +465,7 @@ class SmoothListItem extends StatefulWidget {
   final Duration staggerDelay;
   final Duration duration;
   final Curve curve;
-  
+
   const SmoothListItem({
     super.key,
     required this.child,
@@ -472,17 +474,17 @@ class SmoothListItem extends StatefulWidget {
     this.duration = const Duration(milliseconds: 400),
     this.curve = Curves.easeOutCubic,
   });
-  
+
   @override
   State<SmoothListItem> createState() => _SmoothListItemState();
 }
 
-class _SmoothListItemState extends State<SmoothListItem> 
+class _SmoothListItemState extends State<SmoothListItem>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
-  
+
   @override
   void initState() {
     super.initState();
@@ -490,7 +492,7 @@ class _SmoothListItemState extends State<SmoothListItem>
       duration: widget.duration,
       vsync: this,
     );
-    
+
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -498,7 +500,7 @@ class _SmoothListItemState extends State<SmoothListItem>
       parent: _controller,
       curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
     ));
-    
+
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.1),
       end: Offset.zero,
@@ -506,22 +508,22 @@ class _SmoothListItemState extends State<SmoothListItem>
       parent: _controller,
       curve: widget.curve,
     ));
-    
+
     // 限制最大延迟，避免列表过长时动画太慢
     final maxIndex = math.min(widget.index, 8);
     final delay = widget.staggerDelay * maxIndex;
-    
+
     Future.delayed(delay, () {
       if (mounted) _controller.forward();
     });
   }
-  
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
@@ -546,7 +548,7 @@ class SmoothProgressBar extends StatefulWidget {
   final BorderRadius? borderRadius;
   final bool showGlow;
   final Duration duration;
-  
+
   const SmoothProgressBar({
     super.key,
     required this.progress,
@@ -558,17 +560,17 @@ class SmoothProgressBar extends StatefulWidget {
     this.showGlow = true,
     this.duration = const Duration(milliseconds: 500),
   });
-  
+
   @override
   State<SmoothProgressBar> createState() => _SmoothProgressBarState();
 }
 
-class _SmoothProgressBarState extends State<SmoothProgressBar> 
+class _SmoothProgressBarState extends State<SmoothProgressBar>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _progressAnimation;
   double _previousProgress = 0.0;
-  
+
   @override
   void initState() {
     super.initState();
@@ -579,7 +581,7 @@ class _SmoothProgressBarState extends State<SmoothProgressBar>
     _updateAnimation();
     _controller.forward();
   }
-  
+
   void _updateAnimation() {
     _progressAnimation = Tween<double>(
       begin: _previousProgress,
@@ -589,7 +591,7 @@ class _SmoothProgressBarState extends State<SmoothProgressBar>
       curve: Curves.easeOutCubic,
     ));
   }
-  
+
   @override
   void didUpdateWidget(SmoothProgressBar oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -600,19 +602,20 @@ class _SmoothProgressBarState extends State<SmoothProgressBar>
       _controller.forward();
     }
   }
-  
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final bgColor = widget.backgroundColor ?? AppTheme.bgLayer1;
     final progressColor = widget.progressColor ?? AppTheme.accentPrimary;
-    final radius = widget.borderRadius ?? BorderRadius.circular(widget.height / 2);
-    
+    final radius =
+        widget.borderRadius ?? BorderRadius.circular(widget.height / 2);
+
     return RepaintBoundary(
       child: AnimatedBuilder(
         animation: _progressAnimation,
@@ -639,16 +642,17 @@ class _SmoothProgressBarState extends State<SmoothProgressBar>
                             progressColor.withValues(alpha: 0.8),
                           ],
                         ),
-                        boxShadow: widget.showGlow && _progressAnimation.value > 0.01
-                            ? [
-                                BoxShadow(
-                                  color: (widget.glowColor ?? progressColor)
-                                      .withValues(alpha: 0.4),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 0),
-                                ),
-                              ]
-                            : null,
+                        boxShadow:
+                            widget.showGlow && _progressAnimation.value > 0.01
+                                ? [
+                                    BoxShadow(
+                                      color: (widget.glowColor ?? progressColor)
+                                          .withValues(alpha: 0.4),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 0),
+                                    ),
+                                  ]
+                                : null,
                       ),
                     ),
                   ),
@@ -687,7 +691,7 @@ class SmoothCounter extends StatefulWidget {
   final TextStyle? style;
   final Duration duration;
   final Curve curve;
-  
+
   const SmoothCounter({
     super.key,
     required this.value,
@@ -696,17 +700,17 @@ class SmoothCounter extends StatefulWidget {
     this.duration = const Duration(milliseconds: 400),
     this.curve = Curves.easeOutCubic,
   });
-  
+
   @override
   State<SmoothCounter> createState() => _SmoothCounterState();
 }
 
-class _SmoothCounterState extends State<SmoothCounter> 
+class _SmoothCounterState extends State<SmoothCounter>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
   double _previousValue = 0.0;
-  
+
   @override
   void initState() {
     super.initState();
@@ -717,7 +721,7 @@ class _SmoothCounterState extends State<SmoothCounter>
     _updateAnimation();
     _controller.forward();
   }
-  
+
   void _updateAnimation() {
     _animation = Tween<double>(
       begin: _previousValue,
@@ -727,7 +731,7 @@ class _SmoothCounterState extends State<SmoothCounter>
       curve: widget.curve,
     ));
   }
-  
+
   @override
   void didUpdateWidget(SmoothCounter oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -738,13 +742,13 @@ class _SmoothCounterState extends State<SmoothCounter>
       _controller.forward();
     }
   }
-  
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
@@ -775,7 +779,7 @@ class SmoothCard extends StatefulWidget {
   final bool enableHover;
   final bool enablePress;
   final bool enableGlow;
-  
+
   const SmoothCard({
     super.key,
     required this.child,
@@ -791,16 +795,15 @@ class SmoothCard extends StatefulWidget {
     this.enablePress = true,
     this.enableGlow = false,
   });
-  
+
   @override
   State<SmoothCard> createState() => _SmoothCardState();
 }
 
-class _SmoothCardState extends State<SmoothCard> 
-    with TickerProviderStateMixin {
+class _SmoothCardState extends State<SmoothCard> with TickerProviderStateMixin {
   late AnimationController _hoverController;
   late AnimationController _pressController;
-  
+
   @override
   void initState() {
     super.initState();
@@ -813,42 +816,45 @@ class _SmoothCardState extends State<SmoothCard>
       vsync: this,
     );
   }
-  
+
   @override
   void dispose() {
     _hoverController.dispose();
     _pressController.dispose();
     super.dispose();
   }
-  
+
   void _onEnter(PointerEvent _) {
     if (widget.enableHover) _hoverController.forward();
   }
-  
+
   void _onExit(PointerEvent _) {
     if (widget.enableHover) _hoverController.reverse();
   }
-  
+
   void _onTapDown(TapDownDetails _) {
     if (widget.enablePress) _pressController.forward();
   }
-  
+
   void _onTapUp(TapUpDetails _) {
     if (widget.enablePress) _pressController.reverse();
     widget.onTap?.call();
   }
-  
+
   void _onTapCancel() {
     if (widget.enablePress) _pressController.reverse();
   }
-  
+
   @override
   Widget build(BuildContext context) {
-    final bgColor = widget.backgroundColor ?? AppTheme.surfaceCard.withValues(alpha: 0.85);
-    final hoverColor = widget.hoverColor ?? AppTheme.surfaceCard.withValues(alpha: 0.95);
+    final bgColor = widget.backgroundColor ??
+        AppTheme.cardBackground(darkAlpha: 0.78, lightAlpha: 0.85);
+    final hoverColor = widget.hoverColor ??
+        AppTheme.cardHoverBackground(darkAlpha: 0.88, lightAlpha: 0.95);
     final borderColor = widget.borderColor ?? AppTheme.borderSubtle;
-    final hoverBorderColor = widget.hoverBorderColor ?? AppTheme.accentPrimary.withValues(alpha: 0.4);
-    
+    final hoverBorderColor = widget.hoverBorderColor ??
+        AppTheme.accentPrimary.withValues(alpha: 0.4);
+
     return RepaintBoundary(
       child: MouseRegion(
         onEnter: _onEnter,
@@ -860,10 +866,11 @@ class _SmoothCardState extends State<SmoothCard>
           child: AnimatedBuilder(
             animation: Listenable.merge([_hoverController, _pressController]),
             builder: (context, child) {
-              final hoverValue = Curves.easeOutCubic.transform(_hoverController.value);
+              final hoverValue =
+                  Curves.easeOutCubic.transform(_hoverController.value);
               final pressValue = _pressController.value;
               final scale = 1.0 - (pressValue * 0.02);
-              
+
               return Transform.scale(
                 scale: scale,
                 child: Container(
@@ -872,13 +879,15 @@ class _SmoothCardState extends State<SmoothCard>
                     color: Color.lerp(bgColor, hoverColor, hoverValue),
                     borderRadius: BorderRadius.circular(widget.borderRadius),
                     border: Border.all(
-                      color: Color.lerp(borderColor, hoverBorderColor, hoverValue)!,
+                      color: Color.lerp(
+                          borderColor, hoverBorderColor, hoverValue)!,
                       width: 1.0 + (hoverValue * 0.5),
                     ),
                     boxShadow: widget.enableGlow && hoverValue > 0.01
                         ? [
                             BoxShadow(
-                              color: AppTheme.accentPrimary.withValues(alpha: 0.15 * hoverValue),
+                              color: AppTheme.accentPrimary
+                                  .withValues(alpha: 0.15 * hoverValue),
                               blurRadius: 12 * hoverValue,
                               offset: Offset(0, 4 * hoverValue),
                             ),
@@ -909,7 +918,7 @@ class SmoothPageTransition extends StatefulWidget {
   final Duration duration;
   final Curve curve;
   final PageTransitionType type;
-  
+
   const SmoothPageTransition({
     super.key,
     required this.child,
@@ -918,7 +927,7 @@ class SmoothPageTransition extends StatefulWidget {
     this.curve = Curves.easeOutCubic,
     this.type = PageTransitionType.fadeSlide,
   });
-  
+
   @override
   State<SmoothPageTransition> createState() => _SmoothPageTransitionState();
 }
@@ -930,13 +939,13 @@ enum PageTransitionType {
   scale,
 }
 
-class _SmoothPageTransitionState extends State<SmoothPageTransition> 
+class _SmoothPageTransitionState extends State<SmoothPageTransition>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _scaleAnimation;
-  
+
   @override
   void initState() {
     super.initState();
@@ -947,25 +956,25 @@ class _SmoothPageTransitionState extends State<SmoothPageTransition>
     _setupAnimations();
     _controller.forward();
   }
-  
+
   void _setupAnimations() {
     final curved = CurvedAnimation(parent: _controller, curve: widget.curve);
-    
+
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
         curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
       ),
     );
-    
+
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0.05, 0),
       end: Offset.zero,
     ).animate(curved);
-    
+
     _scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(curved);
   }
-  
+
   @override
   void didUpdateWidget(SmoothPageTransition oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -974,13 +983,13 @@ class _SmoothPageTransitionState extends State<SmoothPageTransition>
       _controller.forward();
     }
   }
-  
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
@@ -988,7 +997,7 @@ class _SmoothPageTransitionState extends State<SmoothPageTransition>
         animation: _controller,
         builder: (context, _) {
           Widget child = widget.child;
-          
+
           switch (widget.type) {
             case PageTransitionType.fade:
               child = Opacity(opacity: _fadeAnimation.value, child: child);
@@ -1009,7 +1018,7 @@ class _SmoothPageTransitionState extends State<SmoothPageTransition>
               );
               break;
           }
-          
+
           return child;
         },
       ),
@@ -1024,7 +1033,7 @@ class SmoothPulse extends StatefulWidget {
   final double minScale;
   final double maxScale;
   final bool enabled;
-  
+
   const SmoothPulse({
     super.key,
     required this.child,
@@ -1033,16 +1042,16 @@ class SmoothPulse extends StatefulWidget {
     this.maxScale = 1.05,
     this.enabled = true,
   });
-  
+
   @override
   State<SmoothPulse> createState() => _SmoothPulseState();
 }
 
-class _SmoothPulseState extends State<SmoothPulse> 
+class _SmoothPulseState extends State<SmoothPulse>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
-  
+
   @override
   void initState() {
     super.initState();
@@ -1057,12 +1066,12 @@ class _SmoothPulseState extends State<SmoothPulse>
       parent: _controller,
       curve: Curves.easeInOut,
     ));
-    
+
     if (widget.enabled) {
       _controller.repeat(reverse: true);
     }
   }
-  
+
   @override
   void didUpdateWidget(SmoothPulse oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -1075,17 +1084,17 @@ class _SmoothPulseState extends State<SmoothPulse>
       }
     }
   }
-  
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     if (!widget.enabled) return widget.child;
-    
+
     return RepaintBoundary(
       child: ScaleTransition(
         scale: _animation,
@@ -1101,7 +1110,7 @@ class SmoothShimmer extends StatefulWidget {
   final double height;
   final BorderRadius? borderRadius;
   final Duration duration;
-  
+
   const SmoothShimmer({
     super.key,
     required this.width,
@@ -1109,16 +1118,16 @@ class SmoothShimmer extends StatefulWidget {
     this.borderRadius,
     this.duration = const Duration(milliseconds: 1500),
   });
-  
+
   @override
   State<SmoothShimmer> createState() => _SmoothShimmerState();
 }
 
-class _SmoothShimmerState extends State<SmoothShimmer> 
+class _SmoothShimmerState extends State<SmoothShimmer>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
-  
+
   @override
   void initState() {
     super.initState();
@@ -1131,13 +1140,13 @@ class _SmoothShimmerState extends State<SmoothShimmer>
     );
     _controller.repeat();
   }
-  
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
