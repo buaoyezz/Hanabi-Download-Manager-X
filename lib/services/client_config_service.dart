@@ -162,6 +162,9 @@ class ClientConfigService extends ChangeNotifier {
     return {
       'version': AppConstants.version,
       'language': 'system', // system | en | zh | <plugin locale>
+      'theme': {
+        'mode': 'system', // system | light | dark
+      },
       'window': {
         'effect_mode': 'acrylic',
         'effect_alpha': 160,
@@ -381,6 +384,29 @@ class ClientConfigService extends ChangeNotifier {
 
   Future<void> setLanguagePreference(String value) async {
     await _setToConfig(_uiConfig, _uiConfigPath, 'language', value);
+  }
+
+  String getThemeMode() {
+    final mode = _getFromConfig<String>(_uiConfig, 'theme.mode',
+            defaultValue: 'system') ??
+        'system';
+    switch (mode.trim().toLowerCase()) {
+      case 'light':
+        return 'light';
+      case 'dark':
+        return 'dark';
+      default:
+        return 'system';
+    }
+  }
+
+  Future<void> setThemeMode(String value) async {
+    final normalized = switch (value.trim().toLowerCase()) {
+      'light' => 'light',
+      'dark' => 'dark',
+      _ => 'system',
+    };
+    await _setToConfig(_uiConfig, _uiConfigPath, 'theme.mode', normalized);
   }
 
   Future<void> setWindowHeight(double height) async {

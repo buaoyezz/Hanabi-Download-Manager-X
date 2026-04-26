@@ -22,11 +22,13 @@ bool get _disableWindowsSemanticsWorkaround =>
 
 class TrayMenuThemeConfig {
   const TrayMenuThemeConfig({
+    this.themeMode = AppThemeMode.system,
     required this.fontFamily,
     this.fontFamilyFallback = const [],
     this.textScaleFactor = 1.0,
   });
 
+  final AppThemeMode themeMode;
   final String fontFamily;
   final List<String> fontFamilyFallback;
   final double textScaleFactor;
@@ -59,12 +61,14 @@ class TrayMenuLaunchData {
     required this.localeTag,
     required this.mousePositionX,
     required this.mousePositionY,
+    this.themeMode,
     this.activeTasks = const [],
   });
 
   final String? localeTag;
   final double mousePositionX;
   final double mousePositionY;
+  final String? themeMode;
   final List<TrayMenuActiveTaskPreview> activeTasks;
 
   factory TrayMenuLaunchData.fromJson(Map<String, dynamic> json) {
@@ -77,6 +81,7 @@ class TrayMenuLaunchData {
       mousePositionY: (json['mouse_y'] is num)
           ? (json['mouse_y'] as num).toDouble()
           : double.tryParse(json['mouse_y']?.toString() ?? '') ?? 0.0,
+      themeMode: json['theme_mode']?.toString(),
       activeTasks: activeTasksRaw is List
           ? activeTasksRaw
               .whereType<Map>()
@@ -159,7 +164,7 @@ Locale? parseTrayLocaleTag(String? tag) {
   );
 }
 
-class TrayMenuApp extends StatelessWidget {
+class TrayMenuApp extends StatefulWidget {
   const TrayMenuApp({
     super.key,
     required this.launchData,
@@ -172,12 +177,85 @@ class TrayMenuApp extends StatelessWidget {
   final TrayMenuThemeConfig? themeConfig;
 
   @override
+  State<TrayMenuApp> createState() => _TrayMenuAppState();
+}
+
+class _TrayMenuAppState extends State<TrayMenuApp> with WidgetsBindingObserver {
+  late TrayMenuLaunchData _launchData;
+
+  @override
+  void initState() {
+    super.initState();
+    _launchData = widget.launchData;
+    WidgetsBinding.instance.addObserver(this);
+    _windowChannel.setMethodCallHandler(_handleAppMethodCall);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _windowChannel.setMethodCallHandler(null);
+    super.dispose();
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<Object?> _handleAppMethodCall(MethodCall call) async {
+    if (call.method != 'updateTrayMenuPayload') {
+      return null;
+    }
+
+    final args = call.arguments;
+    String? rawPayload;
+    if (args is Map) {
+      rawPayload = args['payload']?.toString();
+    } else if (args is String) {
+      rawPayload = args;
+    }
+
+    if (rawPayload == null || rawPayload.trim().isEmpty) {
+      return false;
+    }
+
+    try {
+      final decoded = jsonDecode(rawPayload) as Map<Object?, Object?>;
+      final launchData = TrayMenuLaunchData.fromJson(
+        decoded.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      if (mounted) {
+        setState(() {
+          _launchData = launchData;
+        });
+      }
+      return true;
+    } catch (e) {
+      debugPrint('Failed to update tray menu payload: $e');
+      return false;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final baseTheme = AppTheme.fluentDarkTheme;
+    AppThemeMode currentThemeMode = widget.themeConfig?.themeMode ?? AppThemeMode.system;
+    if (_launchData.themeMode != null && _launchData.themeMode!.isNotEmpty) {
+      currentThemeMode = AppThemeModeStorage.fromStorageValue(_launchData.themeMode!);
+    }
+
+    final baseTheme = AppTheme.themeDataForMode(
+      currentThemeMode,
+      platformBrightness:
+          WidgetsBinding.instance.platformDispatcher.platformBrightness,
+    );
+    AppTheme.applyBrightness(baseTheme.brightness);
     final typography = baseTheme.typography;
-    final fontFamily = themeConfig?.fontFamily.trim() ?? '';
-    final fontFallbacks = themeConfig?.fontFamilyFallback ?? const <String>[];
-    final appliedTheme = themeConfig?.hasFontFamily == true
+    final fontFamily = widget.themeConfig?.fontFamily.trim() ?? '';
+    final fontFallbacks = widget.themeConfig?.fontFamilyFallback ?? const <String>[];
+    final appliedTheme = widget.themeConfig?.hasFontFamily == true
         ? baseTheme.copyWith(
             typography: Typography.raw(
               body: typography.body?.copyWith(
@@ -220,7 +298,7 @@ class TrayMenuApp extends StatelessWidget {
       title: 'Hanabi Tray Menu',
       debugShowCheckedModeBanner: false,
       theme: appliedTheme,
-      locale: locale,
+      locale: widget.locale,
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: const [
         AppLocalizations.delegate,
@@ -231,7 +309,7 @@ class TrayMenuApp extends StatelessWidget {
       ],
       builder: (context, child) {
         Widget content = child ?? const SizedBox.shrink();
-        if (themeConfig?.hasFontFamily == true) {
+        if (widget.themeConfig?.hasFontFamily == true) {
           content = DefaultTextStyle.merge(
             style: TextStyle(
               fontFamily: fontFamily,
@@ -246,13 +324,13 @@ class TrayMenuApp extends StatelessWidget {
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
             textScaler: TextScaler.linear(
-              themeConfig?.safeTextScaleFactor ?? 1.0,
+              widget.themeConfig?.safeTextScaleFactor ?? 1.0,
             ),
           ),
           child: content,
         );
       },
-      home: TrayMenuWindowPage(launchData: launchData),
+      home: TrayMenuWindowPage(launchData: _launchData),
     );
   }
 }
@@ -288,7 +366,6 @@ class _TrayMenuWindowPageState extends State<TrayMenuWindowPage> {
   void initState() {
     super.initState();
     _currentLaunchData = widget.launchData;
-    _windowChannel.setMethodCallHandler(_handleWindowMethodCall);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scheduleWindowSizeSync(force: true);
       Future<void>.delayed(const Duration(milliseconds: 120), () {
@@ -301,39 +378,16 @@ class _TrayMenuWindowPageState extends State<TrayMenuWindowPage> {
   }
 
   @override
-  void dispose() {
-    _windowChannel.setMethodCallHandler(null);
-    super.dispose();
+  void didUpdateWidget(TrayMenuWindowPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.launchData != oldWidget.launchData) {
+      _applyUpdatedLaunchData(widget.launchData);
+    }
   }
 
-  Future<Object?> _handleWindowMethodCall(MethodCall call) async {
-    if (call.method != _updateTrayMenuPayloadMethod) {
-      return null;
-    }
-
-    final args = call.arguments;
-    String? rawPayload;
-    if (args is Map) {
-      rawPayload = args['payload']?.toString();
-    } else if (args is String) {
-      rawPayload = args;
-    }
-
-    if (rawPayload == null || rawPayload.trim().isEmpty) {
-      return false;
-    }
-
-    try {
-      final decoded = jsonDecode(rawPayload) as Map<Object?, Object?>;
-      final launchData = TrayMenuLaunchData.fromJson(
-        decoded.map((key, value) => MapEntry(key.toString(), value)),
-      );
-      _applyUpdatedLaunchData(launchData);
-      return true;
-    } catch (e) {
-      debugPrint('Failed to update tray menu payload: $e');
-      return false;
-    }
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   void _applyUpdatedLaunchData(TrayMenuLaunchData launchData) {
@@ -744,6 +798,12 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
+    final isDark = FluentTheme.of(context).brightness == Brightness.dark;
+    final blueColor = isDark ? const Color(0xFF78C4FF) : const Color(0xFF0078D4);
+    final yellowColor = isDark ? const Color(0xFFF2C879) : const Color(0xFFD29200);
+    final greenColor = isDark ? const Color(0xFF8FD8A9) : const Color(0xFF107C41);
+    final grayColor = isDark ? const Color(0xFF9B9B9B) : const Color(0xFF6B6B6B);
+
     final resolvedLabelStyle =
         DefaultTextStyle.of(context).style.merge(_menuLabelBaseStyle);
     final mainMenuWidth = _resolveMenuWidth(
@@ -767,7 +827,7 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
       ],
       resolvedLabelStyle,
     );
-    final submenuSpecs = _activeSubmenuSpecs;
+    final submenuSpecs = _getActiveSubmenuSpecs(isDark);
     final submenuWidth = submenuSpecs == null
         ? 0.0
         : _resolveMenuWidth(
@@ -967,69 +1027,12 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
   }
 
   void _syncTrayMenuRegion(RenderBox layoutBox) {
-    if (!Platform.isWindows) {
-      return;
-    }
-
-    final rects = <Map<String, double>>[];
-    void addPanelRect(GlobalKey key) {
-      final context = key.currentContext;
-      if (context == null) {
-        return;
-      }
-
-      final renderObject = context.findRenderObject();
-      if (renderObject is! RenderBox || !renderObject.hasSize) {
-        return;
-      }
-
-      final offset = renderObject.localToGlobal(
-        Offset.zero,
-        ancestor: layoutBox,
-      );
-      rects.add(<String, double>{
-        'x': offset.dx,
-        'y': offset.dy,
-        'width': renderObject.size.width,
-        'height': renderObject.size.height,
-      });
-    }
-
-    addPanelRect(_mainPanelKey);
-    addPanelRect(_submenuPanelKey);
-    if (rects.isEmpty) {
-      return;
-    }
-
-    final signature = rects
-        .map(
-          (rect) => [
-            rect['x']!.toStringAsFixed(1),
-            rect['y']!.toStringAsFixed(1),
-            rect['width']!.toStringAsFixed(1),
-            rect['height']!.toStringAsFixed(1),
-          ].join(','),
-        )
-        .join('|');
-    if (_lastReportedRegionSignature == signature) {
-      return;
-    }
-
-    _lastReportedRegionSignature = signature;
-    unawaited(
-      _windowChannel.invokeMethod<void>(
-        'setTrayMenuRegion',
-        <String, Object>{
-          'radius': 14,
-          'rects': rects,
-        },
-      ).catchError((Object e) {
-        debugPrint('Failed to sync tray menu region: $e');
-      }),
-    );
+    // Disabled: Using SetWindowRgn causes jagged corners and clips the shadow.
+    // Flutter's DComp window already handles transparency and anti-aliasing perfectly.
+    return;
   }
 
-  List<_MenuActionSpec>? get _activeSubmenuSpecs {
+  List<_MenuActionSpec>? _getActiveSubmenuSpecs(bool isDark) {
     switch (_activeSubmenu) {
       case _TraySubmenuGroup.activeTasks:
         if (widget.activeTasks.isEmpty) {
@@ -1038,7 +1041,7 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
               index: _activeTaskBaseIndex,
               icon: CustomIcons.FluentIcons.clock_20,
               title: _noActiveTasksTitle,
-              iconColor: const Color(0xFF9B9B9B),
+              iconColor: isDark ? const Color(0xFF9B9B9B) : const Color(0xFF6B6B6B),
               onTap: null,
             ),
           ];
@@ -1053,7 +1056,7 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
               title: visibleTasks[i].fileName.trim().isNotEmpty
                   ? visibleTasks[i].fileName.trim()
                   : visibleTasks[i].id,
-              iconColor: _taskColorForStatus(visibleTasks[i].status),
+              iconColor: _taskColorForStatus(visibleTasks[i].status, isDark),
               onTap: widget.isBusy
                   ? null
                   : () {
@@ -1068,7 +1071,7 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
               index: _moreActiveTasksIndex,
               icon: CustomIcons.FluentIcons.more_horizontal_20,
               title: '...',
-              iconColor: const Color(0xFF9FB0C9),
+              iconColor: isDark ? const Color(0xFF9FB0C9) : const Color(0xFF6B6B6B),
               onTap: widget.isBusy
                   ? null
                   : () {
@@ -1085,7 +1088,7 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
             index: _downloadsIndex,
             icon: CustomIcons.FluentIcons.arrow_download_20,
             title: _downloadsTitle,
-            iconColor: const Color(0xFF78C4FF),
+            iconColor: isDark ? const Color(0xFF78C4FF) : const Color(0xFF0078D4),
             onTap: widget.isBusy
                 ? null
                 : () {
@@ -1096,7 +1099,7 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
             index: _logsIndex,
             icon: CustomIcons.FluentIcons.document_20,
             title: _logsTitle,
-            iconColor: const Color(0xFF9FB0C9),
+            iconColor: isDark ? const Color(0xFF9FB0C9) : const Color(0xFF6B6B6B),
             onTap: widget.isBusy
                 ? null
                 : () {
@@ -1110,7 +1113,7 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
             index: _projectIndex,
             icon: CustomIcons.FluentIcons.bookmark_20,
             title: _projectTitle,
-            iconColor: const Color(0xFF8FD8A9),
+            iconColor: isDark ? const Color(0xFF8FD8A9) : const Color(0xFF107C41),
             onTap: widget.isBusy
                 ? null
                 : () {
@@ -1121,7 +1124,7 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
             index: _officialIndex,
             icon: CustomIcons.FluentIcons.globe_20,
             title: _officialTitle,
-            iconColor: const Color(0xFFF2C879),
+            iconColor: isDark ? const Color(0xFFF2C879) : const Color(0xFFD29200),
             onTap: widget.isBusy
                 ? null
                 : () {
@@ -1159,15 +1162,15 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
     }
   }
 
-  Color _taskColorForStatus(String status) {
+  Color _taskColorForStatus(String status, bool isDark) {
     switch (status) {
       case 'downloading':
-        return const Color(0xFF78C4FF);
+        return isDark ? const Color(0xFF78C4FF) : const Color(0xFF0078D4);
       case 'merging':
-        return const Color(0xFFF2C879);
+        return isDark ? const Color(0xFFF2C879) : const Color(0xFFD29200);
       case 'pending':
       default:
-        return const Color(0xFF8FD8A9);
+        return isDark ? const Color(0xFF8FD8A9) : const Color(0xFF107C41);
     }
   }
 
@@ -1182,16 +1185,17 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
     required double width,
     required Widget child,
   }) {
+    final isDark = FluentTheme.of(context).brightness == Brightness.dark;
     return MouseRegion(
       onEnter: (_) => _cancelSubmenuClose(),
       child: Container(
         key: panelKey,
         width: width,
         decoration: BoxDecoration(
-          color: AppTheme.surfaceCard,
+          color: AppTheme.bgLayer1.withValues(alpha: 0.98),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: AppTheme.borderSubtle,
+            color: isDark ? const Color(0x33FFFFFF) : const Color(0x1A000000),
             width: 1,
           ),
           boxShadow: [
@@ -1203,16 +1207,25 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              6,
-              _panelInnerTop,
-              6,
-              _panelInnerBottom,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(13),
+            border: Border.all(
+              color: isDark ? const Color(0x0FFFFFFF) : const Color(0x08000000),
+              width: 1,
             ),
-            child: child,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                6,
+                _panelInnerTop,
+                6,
+                _panelInnerBottom,
+              ),
+              child: child,
+            ),
           ),
         ),
       ),
@@ -1238,10 +1251,8 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
     final tileRadius = isSubmenu ? 9.0 : 10.0;
     const iconBoxSize = 22.0;
     final iconRadius = isSubmenu ? 7.0 : 8.0;
-    const iconSize = 11.0;
-    final hoverColor = isSubmenu
-        ? AppTheme.surfaceCardHover
-        : AppTheme.bgLayer2;
+    const iconSize = 13.0;
+    final hoverColor = AppTheme.surfaceCardHover;
 
     return MouseRegion(
       onEnter: (_) {
@@ -1251,7 +1262,9 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
             : submenuToActivateOnEnter ?? _activeSubmenu;
         // When this tile would close the submenu, use a delay so that
         // diagonal mouse paths to the submenu panel don't flicker.
-        if (closeSubmenuOnEnter && _activeSubmenu != null && nextSubmenu == null) {
+        if (closeSubmenuOnEnter &&
+            _activeSubmenu != null &&
+            nextSubmenu == null) {
           if (_hoveredIndex != spec.index) {
             setState(() => _hoveredIndex = spec.index);
           }
@@ -1277,8 +1290,7 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: spec.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
+        child: Container(
           margin: EdgeInsets.zero,
           padding: tilePadding,
           decoration: BoxDecoration(
@@ -1292,13 +1304,13 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
                 height: iconBoxSize,
                 decoration: BoxDecoration(
                   color: spec.iconColor
-                      .withValues(alpha: isHighlighted ? 0.18 : 0.12),
+                      .withValues(alpha: isHighlighted ? 0.25 : 0.15),
                   borderRadius: BorderRadius.circular(iconRadius),
                 ),
                 child: Icon(
                   spec.icon,
                   size: iconSize,
-                  color: isDisabled ? AppTheme.textDisabled : spec.iconColor,
+                  color: isDisabled ? AppTheme.textDisabled : spec.iconColor.withValues(alpha: 0.95),
                 ),
               ),
               const SizedBox(width: 8),
@@ -1352,9 +1364,7 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
           duration: const Duration(milliseconds: 120),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
           decoration: BoxDecoration(
-            color: isHovered
-                ? AppTheme.bgLayer2
-                : AppTheme.bgLayer1,
+            color: isHovered ? AppTheme.bgLayer2 : AppTheme.bgLayer1,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isHovered

@@ -122,10 +122,14 @@ class SystemTrayService {
       _logger.warning('Failed to build tray active task payload: $e');
     }
 
+    final clientConfig = ClientConfigService();
+    final themeMode = clientConfig.getThemeMode();
+
     return <String, dynamic>{
       'locale': localeTag,
       'mouse_x': cursorPos['x'] ?? 0.0,
       'mouse_y': cursorPos['y'] ?? 0.0,
+      'theme_mode': themeMode,
       'active_tasks': activeTasks,
     };
   }

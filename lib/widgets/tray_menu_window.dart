@@ -162,7 +162,7 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
               children: [
                 Text(
                   t.appTitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textPrimary,
