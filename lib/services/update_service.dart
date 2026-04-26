@@ -29,30 +29,41 @@ class VersionInfo {
   final int minor;
   final int patch;
   final VersionChannel channel;
+  final int preReleaseNumber;
 
   VersionInfo({
     required this.major,
     required this.minor,
     required this.patch,
     required this.channel,
+    this.preReleaseNumber = 0,
   });
 
-  /// 从版本字符串解析，如 "1.0.2", "1.0.2-alpha", "1.0.2-beta"
+  /// 从版本字符串解析，如 "1.0.2", "1.0.2-alpha", "1.0.2-alpha.2", "1.0.2-beta.1"
   factory VersionInfo.parse(String versionStr) {
     // 移除 v/V 前缀
     var cleaned = versionStr.replaceFirst(RegExp(r'^[vV]'), '').trim();
+    final buildMetadataIndex = cleaned.indexOf('+');
+    if (buildMetadataIndex >= 0) {
+      cleaned = cleaned.substring(0, buildMetadataIndex);
+    }
 
     // 分离版本号和通道
     VersionChannel channel = VersionChannel.release;
+    var preReleaseNumber = 0;
     if (cleaned.contains('-')) {
-      final parts = cleaned.split('-');
-      cleaned = parts[0];
-      final channelStr = parts[1].toLowerCase();
-      if (channelStr == 'alpha') {
+      final separatorIndex = cleaned.indexOf('-');
+      final channelStr = cleaned.substring(separatorIndex + 1).toLowerCase();
+      cleaned = cleaned.substring(0, separatorIndex);
+      final channelMatch =
+          RegExp(r'^(alpha|beta)(?:[._-]?(\d+))?$').firstMatch(channelStr);
+      final channelName = channelMatch?.group(1);
+      if (channelName == 'alpha') {
         channel = VersionChannel.alpha;
-      } else if (channelStr == 'beta') {
+      } else if (channelName == 'beta') {
         channel = VersionChannel.beta;
       }
+      preReleaseNumber = int.tryParse(channelMatch?.group(2) ?? '') ?? 0;
     }
 
     // 解析版本号
@@ -62,6 +73,7 @@ class VersionInfo {
       minor: int.tryParse(versionParts.length > 1 ? versionParts[1] : '0') ?? 0,
       patch: int.tryParse(versionParts.length > 2 ? versionParts[2] : '0') ?? 0,
       channel: channel,
+      preReleaseNumber: preReleaseNumber,
     );
   }
 
@@ -84,7 +96,14 @@ class VersionInfo {
     if (minor != other.minor) return minor - other.minor;
     if (patch != other.patch) return patch - other.patch;
     // 版本号相同时比较通道
-    return channelPriority - other.channelPriority;
+    if (channelPriority != other.channelPriority) {
+      return channelPriority - other.channelPriority;
+    }
+    if (channel != VersionChannel.release &&
+        preReleaseNumber != other.preReleaseNumber) {
+      return preReleaseNumber - other.preReleaseNumber;
+    }
+    return 0;
   }
 
   /// 只比较版本号，不比较通道
@@ -99,6 +118,9 @@ class VersionInfo {
   String get fullVersionString {
     if (channel == VersionChannel.release) {
       return versionString;
+    }
+    if (preReleaseNumber > 0) {
+      return '$versionString-${channel.name}.$preReleaseNumber';
     }
     return '$versionString-${channel.name}';
   }
@@ -610,12 +632,18 @@ class UpdateService extends ChangeNotifier {
   /// 根据版本号查找发布信息
   UpdateInfo? _findReleaseByVersion(String version) {
     final targetVersion = VersionInfo.parse(version);
+    UpdateInfo? sameBaseVersion;
     for (final release in _allReleases) {
-      if (release.versionInfo.versionString == targetVersion.versionString) {
+      if (release.versionInfo.fullVersionString ==
+          targetVersion.fullVersionString) {
         return release;
       }
+      sameBaseVersion ??=
+          release.versionInfo.versionString == targetVersion.versionString
+              ? release
+              : null;
     }
-    return null;
+    return sameBaseVersion;
   }
 
   /// 根据用户设置筛选可用更新
