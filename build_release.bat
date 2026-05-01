@@ -79,6 +79,24 @@ if %SKIP_FLUTTER%==0 (
 )
 echo.
 
+:: ========== Updater Build ==========
+if %SKIP_FLUTTER%==0 (
+    if exist "updater\build_dotnet.ps1" (
+        echo %C_WHITE%[1.5/3] Building NativeAOT updater...%C_RESET%
+        powershell -NoProfile -ExecutionPolicy Bypass -File "updater\build_dotnet.ps1"
+        if errorlevel 1 (
+            echo %C_RED%[ERROR] Updater build failed!%C_RESET%
+            pause
+            exit /b 1
+        )
+        echo %C_YELLOW%[OK] Updater build done%C_RESET%
+        echo.
+    )
+) else (
+    echo %C_GRAY%[SKIP] Updater build%C_RESET%
+    echo.
+)
+
 :: ========== Copy Files ==========
 echo %C_WHITE%[2/3] Copying assets...%C_RESET%
 
@@ -88,12 +106,14 @@ if not exist "%ASSETS_DIR%" (
     echo   %C_GREEN%+%C_RESET% Created %ASSETS_DIR%
 )
 
-:: Copy Update.exe to zzbuaoye_assets
-if exist "assets\update\Update.exe" (
-    copy /Y "assets\update\Update.exe" "%ASSETS_DIR%\" >nul
-    echo   %C_GREEN%+%C_RESET% Update.exe -^> data\zzbuaoye_assets\
+:: Copy HanabiUpdater bundle to zzbuaoye_assets (NativeAOT Avalonia updater)
+if exist "updater\dist\HanabiUpdater.exe" (
+    if exist "%ASSETS_DIR%\updater" rmdir /S /Q "%ASSETS_DIR%\updater"
+    mkdir "%ASSETS_DIR%\updater"
+    xcopy /E /I /Y "updater\dist\*" "%ASSETS_DIR%\updater\" >nul
+    echo   %C_GREEN%+%C_RESET% HanabiUpdater bundle -^> data\zzbuaoye_assets\updater\
 ) else (
-    echo   %C_RED%-%C_RESET% Update.exe not found
+    echo   %C_YELLOW%-%C_RESET% HanabiUpdater bundle not found, skipping new updater
 )
 
 echo.

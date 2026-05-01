@@ -1,0 +1,64 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Hanabi.Updater.App.App"
+             RequestedThemeVariant="Default">
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="WindowBg">#F3F3F3</SolidColorBrush>
+                    <SolidColorBrush x:Key="BorderBrush">#E5E5E5</SolidColorBrush>
+                    <SolidColorBrush x:Key="TextPrimary">#000000</SolidColorBrush>
+                    <SolidColorBrush x:Key="TextSecondary">#505050</SolidColorBrush>
+                    <SolidColorBrush x:Key="TextMuted">#6B6B6B</SolidColorBrush>
+                    <SolidColorBrush x:Key="SidebarBg">#F9F9F9</SolidColorBrush>
+                    <SolidColorBrush x:Key="SidebarBorder">#E0E0E0</SolidColorBrush>
+                    <SolidColorBrush x:Key="SidebarBtnBg">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="SidebarBtnBorder">#D1D1D1</SolidColorBrush>
+                    <SolidColorBrush x:Key="ContentBg">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="CardBg">#F3F3F3</SolidColorBrush>
+                    <SolidColorBrush x:Key="CardBorder">#E5E5E5</SolidColorBrush>
+                    <SolidColorBrush x:Key="TitleBtnHoverBg">#E5E5E5</SolidColorBrush>
+                    <SolidColorBrush x:Key="TitleBtnFg">#1A1A1A</SolidColorBrush>
+                    <SolidColorBrush x:Key="HeroBtnBg">#0078D4</SolidColorBrush>
+                    <SolidColorBrush x:Key="HeroBtnHover">#106EBE</SolidColorBrush>
+                    <SolidColorBrush x:Key="PrimaryBtnBg">#0078D4</SolidColorBrush>
+                    <SolidColorBrush x:Key="PrimaryBtnHover">#106EBE</SolidColorBrush>
+                    <SolidColorBrush x:Key="PrimaryBtnDisabledBg">#E5E5E5</SolidColorBrush>
+                    <SolidColorBrush x:Key="PrimaryBtnDisabledFg">#A0A0A0</SolidColorBrush>
+                    <SolidColorBrush x:Key="ProgressBg">#E5E5E5</SolidColorBrush>
+                    <SolidColorBrush x:Key="ProgressFg">#0078D4</SolidColorBrush>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="WindowBg">#202020</SolidColorBrush>
+                    <SolidColorBrush x:Key="BorderBrush">#454545</SolidColorBrush>
+                    <SolidColorBrush x:Key="TextPrimary">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="TextSecondary">#B0B0B0</SolidColorBrush>
+                    <SolidColorBrush x:Key="TextMuted">#A7A7A7</SolidColorBrush>
+                    <SolidColorBrush x:Key="SidebarBg">#252525</SolidColorBrush>
+                    <SolidColorBrush x:Key="SidebarBorder">#3B3B3B</SolidColorBrush>
+                    <SolidColorBrush x:Key="SidebarBtnBg">#272727</SolidColorBrush>
+                    <SolidColorBrush x:Key="SidebarBtnBorder">#474747</SolidColorBrush>
+                    <SolidColorBrush x:Key="ContentBg">#1F1F1F</SolidColorBrush>
+                    <SolidColorBrush x:Key="CardBg">#2A2A2A</SolidColorBrush>
+                    <SolidColorBrush x:Key="CardBorder">#464646</SolidColorBrush>
+                    <SolidColorBrush x:Key="TitleBtnHoverBg">#333333</SolidColorBrush>
+                    <SolidColorBrush x:Key="TitleBtnFg">#D7D7D7</SolidColorBrush>
+                    <SolidColorBrush x:Key="HeroBtnBg">#1388E6</SolidColorBrush>
+                    <SolidColorBrush x:Key="HeroBtnHover">#2494EF</SolidColorBrush>
+                    <SolidColorBrush x:Key="PrimaryBtnBg">#0F75BE</SolidColorBrush>
+                    <SolidColorBrush x:Key="PrimaryBtnHover">#1688DA</SolidColorBrush>
+                    <SolidColorBrush x:Key="PrimaryBtnDisabledBg">#0B5F9C</SolidColorBrush>
+                    <SolidColorBrush x:Key="PrimaryBtnDisabledFg">#7FAED1</SolidColorBrush>
+                    <SolidColorBrush x:Key="ProgressBg">#373737</SolidColorBrush>
+                    <SolidColorBrush x:Key="ProgressFg">#1388E6</SolidColorBrush>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme />
+    </Application.Styles>
+</Application>

@@ -1,0 +1,413 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:Hanabi.Updater.App.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:DataType="vm:UpdaterViewModel"
+        d:DesignWidth="632"
+        d:DesignHeight="420"
+        x:Class="Hanabi.Updater.App.MainWindow"
+        Title="Hanabi Download Manager X Setup"
+        Width="632"
+        Height="420"
+        MinWidth="632"
+        MinHeight="420"
+        MaxWidth="632"
+        MaxHeight="420"
+        CanResize="False"
+        WindowDecorations="None"
+        Icon="/Assets/logo.ico"
+        Background="Transparent">
+
+    <Window.Styles>
+        <Style Selector="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI, Microsoft YaHei UI" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        </Style>
+
+        <Style Selector="Button">
+            <Setter Property="FontFamily" Value="Segoe UI, Microsoft YaHei UI" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <Style Selector="Button.titleButton">
+            <Setter Property="Width" Value="46" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{DynamicResource TitleBtnFg}" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
+        <Style Selector="Button.titleButton:pointerover">
+            <Setter Property="Background" Value="{DynamicResource TitleBtnHoverBg}" />
+        </Style>
+
+        <Style Selector="Button.closeButton:pointerover">
+            <Setter Property="Background" Value="#C42B1C" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+        </Style>
+
+        <Style Selector="Button.heroButton">
+            <Setter Property="Width" Value="280" />
+            <Setter Property="Height" Value="48" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Background" Value="{DynamicResource HeroBtnBg}" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
+        <Style Selector="Button.heroButton:pointerover">
+            <Setter Property="Background" Value="{DynamicResource HeroBtnHover}" />
+        </Style>
+
+        <Style Selector="Button.primaryButton">
+            <Setter Property="Width" Value="100" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Background" Value="{DynamicResource PrimaryBtnBg}" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
+        <Style Selector="Button.primaryButton:pointerover">
+            <Setter Property="Background" Value="{DynamicResource PrimaryBtnHover}" />
+        </Style>
+
+        <Style Selector="Button.primaryButton:disabled">
+            <Setter Property="Background" Value="{DynamicResource PrimaryBtnDisabledBg}" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryBtnDisabledFg}" />
+        </Style>
+
+        <Style Selector="TextBlock.muted">
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+
+        <Style Selector="TextBlock.sidebarLabel">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <Style Selector="CheckBox">
+            <Setter Property="FontFamily" Value="Segoe UI, Microsoft YaHei UI" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        </Style>
+
+        <Style Selector="ProgressBar">
+            <Setter Property="Height" Value="8" />
+            <Setter Property="Background" Value="{DynamicResource ProgressBg}" />
+            <Setter Property="Foreground" Value="{DynamicResource ProgressFg}" />
+            <Setter Property="CornerRadius" Value="4" />
+        </Style>
+    </Window.Styles>
+
+    <Border Background="{DynamicResource WindowBg}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="1"
+            CornerRadius="6"
+            ClipToBounds="True">
+        <Grid RowDefinitions="32,*">
+            <Border Grid.Row="0"
+                    Background="{DynamicResource WindowBg}"
+                    PointerPressed="OnTitleBarPointerPressed">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="8"
+                                Margin="9,0,0,0"
+                                VerticalAlignment="Center"
+                                IsVisible="{Binding IsWizardVisible}">
+                        <Image Source="/Assets/logo.png" Width="16" Height="16" Stretch="Uniform" />
+                        <TextBlock Text="Hanabi Download Manager X Setup"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource TextPrimary}"
+                                   FontWeight="Regular"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Classes="titleButton"
+                                Content="&#xE706;"
+                                FontSize="13"
+                                IsVisible="{Binding IsWizardVisible}"
+                                Click="OnThemeToggleClick" />
+                        <Button Classes="titleButton"
+                                Content="&#xE8C1;"
+                                FontSize="13"
+                                IsVisible="{Binding IsWizardVisible}"
+                                Click="OnLangToggleClick" />
+                        <Button Classes="titleButton"
+                                Content="&#xE921;"
+                                FontSize="11"
+                                Click="OnMinimizeClick" />
+                        <Button Classes="titleButton closeButton"
+                                Content="&#xE8BB;"
+                                FontSize="11"
+                                Click="OnCloseClick" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1" IsVisible="{Binding IsWelcomeVisible}">
+                <StackPanel HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="0">
+                    <Image Source="/Assets/logo.png"
+                           Width="180"
+                           Height="130"
+                           Stretch="Uniform" />
+                    <TextBlock Text="{Binding SetupTitleText}"
+                               FontSize="26"
+                               FontWeight="Medium"
+                               HorizontalAlignment="Center"
+                               Margin="0,20,0,0" />
+                    <TextBlock Text="{Binding SetupSubtitleText}"
+                               FontSize="14"
+                               Foreground="{DynamicResource TextSecondary}"
+                               HorizontalAlignment="Center"
+                               Margin="0,8,0,0" />
+                    <Button Classes="heroButton"
+                            Width="260"
+                            Height="44"
+                            Margin="0,35,0,0"
+                            HorizontalAlignment="Center"
+                            Click="OnStartButtonClick">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6">
+                            <TextBlock Text="{Binding StartInstallText}"
+                                       FontSize="15"
+                                       Foreground="#FFFFFF"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Text="〉"
+                                       FontSize="14"
+                                       Foreground="#FFFFFF"
+                                       VerticalAlignment="Center"
+                                       Margin="0,1,0,0" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <Grid Grid.Row="1"
+                  ColumnDefinitions="180,*"
+                  IsVisible="{Binding IsMainContentVisible}">
+                <Border Grid.Column="0"
+                        Background="{DynamicResource SidebarBg}"
+                        BorderBrush="{DynamicResource SidebarBorder}"
+                        BorderThickness="0,0,1,0">
+                    <Grid RowDefinitions="*,Auto" Margin="8,10,8,10">
+                        <ItemsControl ItemsSource="{Binding Steps}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:StepItem">
+                                    <Border Height="32"
+                                            Margin="0,0,0,5"
+                                            CornerRadius="4"
+                                            Background="{Binding Background}">
+                                        <Grid ColumnDefinitions="26,*" Margin="10,0,0,0">
+                                            <TextBlock Text="{Binding Indicator}"
+                                                       Foreground="{Binding IndicatorForeground}"
+                                                       FontSize="14"
+                                                       FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol"
+                                                       FontWeight="Regular"
+                                                       VerticalAlignment="Center"
+                                                       HorizontalAlignment="Center" />
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding Label}"
+                                                       Classes="sidebarLabel"
+                                                       Foreground="{Binding LabelForeground}" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Button Grid.Row="1"
+                                Width="66"
+                                Height="36"
+                                HorizontalAlignment="Left"
+                                Background="{DynamicResource SidebarBtnBg}"
+                                BorderBrush="{DynamicResource SidebarBtnBorder}"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                Click="OnAboutClick">
+                            <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <TextBlock Text="&#xE946;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol" FontSize="14" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding AboutText}" FontSize="13" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <Grid Grid.Column="1" RowDefinitions="*,Auto" Background="{DynamicResource ContentBg}">
+                    <Grid Margin="20,18,20,0">
+                        <StackPanel IsVisible="{Binding IsLicenseVisible}" Spacing="8">
+                            <TextBlock Text="{Binding Title}"
+                                       FontSize="22"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimary}" />
+                            <TextBlock Text="{Binding Description}"
+                                       Classes="muted"
+                                       Margin="0,-5,0,0" />
+
+                            <Border Height="218"
+                                    Background="{DynamicResource CardBg}"
+                                    BorderBrush="{DynamicResource CardBorder}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="12"
+                                    Margin="0,4,0,0">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <TextBlock Text="{Binding LicenseText}"
+                                               FontFamily="Consolas, Cascadia Mono, Microsoft YaHei UI"
+                                               FontSize="11"
+                                               FontWeight="Normal"
+                                               LineHeight="18"
+                                               Foreground="{DynamicResource TextPrimary}"
+                                               TextWrapping="Wrap" />
+                                </ScrollViewer>
+                            </Border>
+
+                            <CheckBox Content="{Binding AcceptLicenseText}"
+                                      IsChecked="{Binding LicenseAccepted}"
+                                      Margin="0,1,0,0" />
+                        </StackPanel>
+
+                        <StackPanel IsVisible="{Binding IsLocationVisible}" Spacing="12">
+                            <TextBlock Text="{Binding Title}"
+                                       FontSize="22"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimary}" />
+                            <TextBlock Text="{Binding Description}" Classes="muted" />
+                            <Border Background="{DynamicResource CardBg}"
+                                    BorderBrush="{DynamicResource CardBorder}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="14"
+                                    Margin="0,10,0,0">
+                                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                                    <TextBlock Text="{Binding TargetDirText}"
+                                               FontSize="13"
+                                               FontWeight="SemiBold" />
+                                    <Button Grid.Column="1" Grid.RowSpan="2"
+                                            Content="{Binding ChangeDirText}"
+                                            Click="OnBrowseClick"
+                                            VerticalAlignment="Center"
+                                            Background="Transparent"
+                                            BorderBrush="{DynamicResource CardBorder}"
+                                            BorderThickness="1"
+                                            Foreground="{DynamicResource TextSecondary}"
+                                            Padding="12,6" CornerRadius="4" Cursor="Hand" />
+                                    <TextBlock Grid.Row="1" Text="{Binding InstallLocation}"
+                                               FontSize="12" Margin="0,6,0,0"
+                                               Foreground="{DynamicResource TextSecondary}"
+                                               TextWrapping="Wrap" />
+                                </Grid>
+                            </Border>
+                            <TextBlock Text="{Binding LocationWarningText}"
+                                       Classes="muted"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <StackPanel IsVisible="{Binding IsProgressVisible}" Spacing="13">
+                            <TextBlock Text="{Binding Title}"
+                                       FontSize="22"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimary}" />
+                            <TextBlock Text="{Binding Description}" Classes="muted" />
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,18,0,0">
+                                <TextBlock Text="{Binding InstallProgressText}"
+                                           FontSize="13"
+                                           FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding PercentText}"
+                                           FontSize="13"
+                                           Foreground="{DynamicResource TextSecondary}" />
+                            </Grid>
+                            <ProgressBar Minimum="0" Maximum="100" Value="{Binding Percent}" />
+                            <Border Background="{DynamicResource CardBg}"
+                                    BorderBrush="{DynamicResource CardBorder}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="14"
+                                    Margin="0,10,0,0">
+                                <TextBlock Text="{Binding Detail}"
+                                           FontSize="12"
+                                           Foreground="{DynamicResource TextPrimary}"
+                                           TextWrapping="Wrap" />
+                            </Border>
+                        </StackPanel>
+
+                        <StackPanel IsVisible="{Binding IsDoneVisible}" Spacing="12">
+                            <TextBlock Text="{Binding Title}"
+                                       FontSize="22"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimary}" />
+                            <TextBlock Text="{Binding Description}" Classes="muted" />
+                            <Border Background="{DynamicResource CardBg}"
+                                    BorderBrush="{DynamicResource CardBorder}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="18"
+                                    Margin="0,16,0,0">
+                                <TextBlock Text="{Binding Detail}"
+                                           FontSize="13"
+                                           Foreground="{DynamicResource TextPrimary}"
+                                           TextWrapping="Wrap" />
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Grid.Row="1" Height="52" ColumnDefinitions="*,Auto" Margin="20,0,20,0">
+                        <Button Grid.Column="1"
+                                Classes="primaryButton"
+                                Content="{Binding PrimaryButtonText}"
+                                IsEnabled="{Binding CanUsePrimaryButton}"
+                                Click="OnPrimaryButtonClick" />
+                    </Grid>
+                </Grid>
+            </Grid>
+
+            <Grid Grid.Row="1" IsVisible="{Binding IsAboutVisibleOverlay}">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+                    <TextBlock Text="{Binding AboutText}"
+                               FontSize="22"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center"
+                               Foreground="{DynamicResource TextPrimary}" />
+                    <TextBlock Text="Hanabi Download Manager X" Classes="muted" HorizontalAlignment="Center" />
+                    <Border Background="{DynamicResource CardBg}"
+                            BorderBrush="{DynamicResource CardBorder}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="32"
+                            Width="360"
+                            Margin="0,16,0,0">
+                        <StackPanel Spacing="12">
+                            <Image Source="/Assets/logo.png" Width="64" Height="64" Stretch="Uniform" HorizontalAlignment="Center" />
+                            <TextBlock Text="Version 2.0.0" FontSize="14" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" />
+                            <TextBlock Text="{Binding SpecialThanksText}" FontSize="12" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" />
+                            <TextBlock Text="© 2026 ZZBuAoYe. All rights reserved." FontSize="12" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <Button Classes="primaryButton" Content="{Binding BackText}" HorizontalAlignment="Center" Click="OnAboutClick" Margin="0,15,0,0" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
