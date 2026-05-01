@@ -9,10 +9,9 @@ import '../utils/constants.dart';
 import 'app_logger_service.dart';
 
 /// 版本通道枚举
-/// alpha < beta < release
+/// alpha < release
 enum VersionChannel {
   alpha,
-  beta,
   release,
 }
 
@@ -30,6 +29,8 @@ class VersionInfo {
   final int patch;
   final VersionChannel channel;
   final int preReleaseNumber;
+  final String? preReleaseLabel;
+  final bool isSupportedChannel;
 
   VersionInfo({
     required this.major,
@@ -37,12 +38,18 @@ class VersionInfo {
     required this.patch,
     required this.channel,
     this.preReleaseNumber = 0,
+    this.preReleaseLabel,
+    this.isSupportedChannel = true,
   });
 
-  /// 从版本字符串解析，如 "1.0.2", "1.0.2-alpha", "1.0.2-alpha.2", "1.0.2-beta.1"
+  /// 从版本字符串解析，如 "1.0.2", "1.0.2-alpha", "1.0.2-alpha.2"
   factory VersionInfo.parse(String versionStr) {
     // 移除 v/V 前缀
-    var cleaned = versionStr.replaceFirst(RegExp(r'^[vV]'), '').trim();
+    var cleaned = versionStr
+        .replaceAll('。', '.')
+        .replaceAll('．', '.')
+        .replaceFirst(RegExp(r'^[vV]'), '')
+        .trim();
     final buildMetadataIndex = cleaned.indexOf('+');
     if (buildMetadataIndex >= 0) {
       cleaned = cleaned.substring(0, buildMetadataIndex);
@@ -51,17 +58,21 @@ class VersionInfo {
     // 分离版本号和通道
     VersionChannel channel = VersionChannel.release;
     var preReleaseNumber = 0;
+    String? preReleaseLabel;
+    var isSupportedChannel = true;
     if (cleaned.contains('-')) {
       final separatorIndex = cleaned.indexOf('-');
       final channelStr = cleaned.substring(separatorIndex + 1).toLowerCase();
       cleaned = cleaned.substring(0, separatorIndex);
       final channelMatch =
-          RegExp(r'^(alpha|beta)(?:[._-]?(\d+))?$').firstMatch(channelStr);
+          RegExp(r'^([a-z][a-z0-9]*)(?:[._-]?(\d+))?$').firstMatch(channelStr);
       final channelName = channelMatch?.group(1);
+      preReleaseLabel = channelName;
       if (channelName == 'alpha') {
         channel = VersionChannel.alpha;
-      } else if (channelName == 'beta') {
-        channel = VersionChannel.beta;
+      } else {
+        channel = VersionChannel.alpha;
+        isSupportedChannel = false;
       }
       preReleaseNumber = int.tryParse(channelMatch?.group(2) ?? '') ?? 0;
     }
@@ -74,18 +85,18 @@ class VersionInfo {
       patch: int.tryParse(versionParts.length > 2 ? versionParts[2] : '0') ?? 0,
       channel: channel,
       preReleaseNumber: preReleaseNumber,
+      preReleaseLabel: preReleaseLabel,
+      isSupportedChannel: isSupportedChannel,
     );
   }
 
-  /// 获取通道优先级 (release > beta > alpha)
+  /// 获取通道优先级 (release > alpha)
   int get channelPriority {
     switch (channel) {
       case VersionChannel.alpha:
         return 0;
-      case VersionChannel.beta:
-        return 1;
       case VersionChannel.release:
-        return 2;
+        return 1;
     }
   }
 
@@ -98,6 +109,10 @@ class VersionInfo {
     // 版本号相同时比较通道
     if (channelPriority != other.channelPriority) {
       return channelPriority - other.channelPriority;
+    }
+    if (channel != VersionChannel.release &&
+        preReleaseLabel != other.preReleaseLabel) {
+      return (preReleaseLabel ?? '').compareTo(other.preReleaseLabel ?? '');
     }
     if (channel != VersionChannel.release &&
         preReleaseNumber != other.preReleaseNumber) {
@@ -119,10 +134,11 @@ class VersionInfo {
     if (channel == VersionChannel.release) {
       return versionString;
     }
+    final label = preReleaseLabel ?? channel.name;
     if (preReleaseNumber > 0) {
-      return '$versionString-${channel.name}.$preReleaseNumber';
+      return '$versionString-$label.$preReleaseNumber';
     }
-    return '$versionString-${channel.name}';
+    return '$versionString-$label';
   }
 
   @override
@@ -152,19 +168,29 @@ class UpdateInfo {
   });
 
   factory UpdateInfo.fromJson(Map<String, dynamic> json) {
-    // 查找 Windows 可执行文件
+    // 查找 Windows 主程序更新包，避免误选浏览器扩展或源码包。
     String downloadUrl = '';
     final assets = json['assets'] as List<dynamic>? ?? [];
-    for (final asset in assets) {
-      final name = asset['name'] as String? ?? '';
-      if (name.endsWith('.exe') || name.endsWith('.zip')) {
-        downloadUrl = asset['browser_download_url'] as String? ?? '';
-        break;
-      }
+    final asset = _selectWindowsPackageAsset(assets);
+    if (asset != null) {
+      downloadUrl = asset['browser_download_url'] as String? ?? '';
     }
 
     String version = json['tag_name'] as String? ?? '';
     version = version.replaceFirst(RegExp(r'^[vV]'), '');
+    final isPrerelease = json['prerelease'] as bool? ?? false;
+    final parsedVersion = VersionInfo.parse(version);
+    final versionInfo =
+        isPrerelease && parsedVersion.channel == VersionChannel.release
+            ? VersionInfo(
+                major: parsedVersion.major,
+                minor: parsedVersion.minor,
+                patch: parsedVersion.patch,
+                channel: VersionChannel.alpha,
+                preReleaseLabel: 'prerelease',
+                isSupportedChannel: false,
+              )
+            : parsedVersion;
 
     final changelog = json['body'] as String? ?? '暂无更新日志';
     final explicitUrgency = (json['update_urgency'] ??
@@ -187,17 +213,80 @@ class UpdateInfo {
 
     return UpdateInfo(
       version: version,
-      versionInfo: VersionInfo.parse(version),
+      versionInfo: versionInfo,
       downloadUrl: downloadUrl,
       changelog: changelog,
       publishedAt: json['published_at'] as String? ?? '',
-      isPrerelease: json['prerelease'] as bool? ?? false,
+      isPrerelease: isPrerelease,
       urgency: urgency,
       minSupportedVersion: minSupportedVersion,
     );
   }
 
   bool get isForcedUpdate => urgency == UpdateUrgency.forced;
+
+  static Map<String, dynamic>? _selectWindowsPackageAsset(
+    List<dynamic> assets,
+  ) {
+    final candidates = assets.whereType<Map>().where((asset) {
+      final name = asset['name']?.toString() ?? '';
+      return name.endsWith('.exe') || name.endsWith('.zip');
+    }).map((asset) {
+      return asset.map((key, value) => MapEntry(key.toString(), value));
+    }).toList(growable: false);
+
+    if (candidates.isEmpty) return null;
+
+    int score(Map<String, dynamic> asset) {
+      final name = (asset['name']?.toString() ?? '').toLowerCase();
+      if (name.contains('source') ||
+          name.contains('chrome_extension') ||
+          name.contains('firefox_extension') ||
+          name.contains('extension')) {
+        return -1000;
+      }
+
+      var value = 0;
+      if (name.contains('hanabidownloadmanagerx')) value += 100;
+      if (name.contains('release_latest')) value += 80;
+      if (name.contains('windows') ||
+          name.contains('win64') ||
+          name.contains('win-x64')) {
+        value += 40;
+      }
+      if (name.contains('alpha')) value += 10;
+      if (name.contains('mac') ||
+          name.contains('darwin') ||
+          name.contains('linux') ||
+          name.contains('ubuntu')) {
+        value -= 200;
+      }
+
+      final size = asset['size'];
+      if (size is num) {
+        if (size >= 10 * 1024 * 1024) value += 20;
+        if (size > 0 && size < 1024 * 1024) value -= 50;
+      }
+
+      return value;
+    }
+
+    Map<String, dynamic>? best;
+    var bestScore = 0;
+    var bestSize = 0;
+    for (final candidate in candidates) {
+      final candidateScore = score(candidate);
+      final candidateSize =
+          candidate['size'] is num ? (candidate['size'] as num).toInt() : 0;
+      if (candidateScore > bestScore ||
+          (candidateScore == bestScore && candidateSize > bestSize)) {
+        best = candidate;
+        bestScore = candidateScore;
+        bestSize = candidateSize;
+      }
+    }
+    return best;
+  }
 
   UpdateInfo copyWith({
     String? version,
@@ -345,7 +434,6 @@ class UpdateService extends ChangeNotifier {
   static const String _keyCachedChangelog = 'update_cached_changelog';
   static const String _keyCachedVersion = 'update_cached_version';
   static const String _keyCheckInterval = 'update_check_interval';
-  static const String _keyAllowBeta = 'update_allow_beta';
   static const String _keyAllowAlpha = 'update_allow_alpha';
 
   final AppLoggerService? _logger;
@@ -363,16 +451,16 @@ class UpdateService extends ChangeNotifier {
   VersionChannel _currentChannel = VersionChannel.release;
 
   // 用户设置
-  bool _allowBeta = false;
   bool _allowAlpha = false;
   UpdateCheckInterval _checkInterval = UpdateCheckInterval.startup;
   DateTime? _lastCheckTime;
   String? _cachedChangelog;
   Timer? _autoCheckTimer;
 
-  // .NET 8 检测相关
-  bool? _isDotNet8Installed;
-  bool _isCheckingDotNet = false;
+  // 更新下载相关
+  bool _isDownloading = false;
+  double _downloadProgress = 0.0;
+  String? _downloadError;
 
   // Getters
   bool get isChecking => _isChecking;
@@ -382,28 +470,26 @@ class UpdateService extends ChangeNotifier {
   UpdateInfo? get availableUpdate => _availableUpdate;
   String get currentVersion => _currentVersion;
   VersionChannel get currentChannel => _currentChannel;
-  bool get allowBeta => _allowBeta;
   bool get allowAlpha => _allowAlpha;
   UpdateCheckInterval get checkInterval => _checkInterval;
   DateTime? get lastCheckTime => _lastCheckTime;
   bool get isVersionNewer => _isCurrentVersionNewer();
-  bool? get isDotNet8Installed => _isDotNet8Installed;
-  bool get isCheckingDotNet => _isCheckingDotNet;
+  bool get isDownloading => _isDownloading;
+  double get downloadProgress => _downloadProgress;
+  String? get downloadError => _downloadError;
   bool get isForcedUpdate => _availableUpdate?.isForcedUpdate ?? false;
   bool get isRecommendedUpdate =>
       _availableUpdate?.urgency == UpdateUrgency.recommended;
 
   UpdateService({AppLoggerService? logger}) : _logger = logger {
     _currentVersionInfo = VersionInfo.parse(_currentVersion);
-    _currentChannel = _parseChannel(AppConstants.channel);
+    _currentChannel = _resolveCurrentChannel(_currentVersionInfo);
   }
 
   VersionChannel _parseChannel(String channel) {
     switch (channel.toLowerCase()) {
       case 'alpha':
         return VersionChannel.alpha;
-      case 'beta':
-        return VersionChannel.beta;
       default:
         return VersionChannel.release;
     }
@@ -415,11 +501,8 @@ class UpdateService extends ChangeNotifier {
     await _loadCache();
     _currentVersion = AppConstants.version;
     _currentVersionInfo = VersionInfo.parse(_currentVersion);
-    _currentChannel = _parseChannel(AppConstants.channel);
+    _currentChannel = _resolveCurrentChannel(_currentVersionInfo);
     _logger?.info('Update', '当前版本: $_currentVersion (${_currentChannel.name})');
-
-    // 检测 .NET 8 是否安装
-    await checkDotNet8Installation();
 
     // 启动自动检查定时器
     _startAutoCheckTimer();
@@ -431,7 +514,6 @@ class UpdateService extends ChangeNotifier {
   Future<void> _loadSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      _allowBeta = prefs.getBool(_keyAllowBeta) ?? false;
       _allowAlpha = prefs.getBool(_keyAllowAlpha) ?? false;
       final intervalIndex = prefs.getInt(_keyCheckInterval) ?? 0;
       _checkInterval = UpdateCheckInterval.values[
@@ -443,7 +525,7 @@ class UpdateService extends ChangeNotifier {
       }
 
       _logger?.info('Update',
-          '设置已加载: allowBeta=$_allowBeta, allowAlpha=$_allowAlpha, interval=${_checkInterval.name}');
+          '设置已加载: allowAlpha=$_allowAlpha, interval=${_checkInterval.name}');
     } catch (e) {
       _logger?.error('Update', '加载设置失败: $e');
     }
@@ -481,15 +563,6 @@ class UpdateService extends ChangeNotifier {
     } catch (e) {
       _logger?.error('Update', '保存缓存失败: $e');
     }
-  }
-
-  /// 设置是否允许 Beta 更新
-  Future<void> setAllowBeta(bool value) async {
-    _allowBeta = value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_keyAllowBeta, value);
-    _filterAvailableUpdate();
-    notifyListeners();
   }
 
   /// 设置是否允许 Alpha 更新
@@ -616,6 +689,7 @@ class UpdateService extends ChangeNotifier {
         final data = json.decode(response.body) as List<dynamic>;
         final releases = data
             .map((item) => UpdateInfo.fromJson(item as Map<String, dynamic>))
+            .where((item) => item.versionInfo.isSupportedChannel)
             .toList();
         _logger?.info('Update', '获取到 ${releases.length} 个发布版本');
         return releases;
@@ -634,6 +708,9 @@ class UpdateService extends ChangeNotifier {
     final targetVersion = VersionInfo.parse(version);
     UpdateInfo? sameBaseVersion;
     for (final release in _allReleases) {
+      if (!release.versionInfo.isSupportedChannel) {
+        continue;
+      }
       if (release.versionInfo.fullVersionString ==
           targetVersion.fullVersionString) {
         return release;
@@ -643,7 +720,18 @@ class UpdateService extends ChangeNotifier {
               ? release
               : null;
     }
+    if (targetVersion.channel != VersionChannel.release ||
+        targetVersion.preReleaseNumber > 0) {
+      return null;
+    }
     return sameBaseVersion;
+  }
+
+  VersionChannel _resolveCurrentChannel(VersionInfo versionInfo) {
+    if (versionInfo.channel != VersionChannel.release) {
+      return versionInfo.channel;
+    }
+    return _parseChannel(AppConstants.channel);
   }
 
   /// 根据用户设置筛选可用更新
@@ -658,6 +746,9 @@ class UpdateService extends ChangeNotifier {
     for (final release in _allReleases) {
       final effectiveRelease = _applyUrgencyPolicy(release);
       final releaseVersion = effectiveRelease.versionInfo;
+      if (!releaseVersion.isSupportedChannel) {
+        continue;
+      }
 
       // 检查是否比当前版本新
       if (releaseVersion.compareTo(_currentVersionInfo) <= 0) {
@@ -712,13 +803,19 @@ class UpdateService extends ChangeNotifier {
 
   /// 检查通道是否允许
   bool _isChannelAllowed(VersionChannel channel) {
+    if (channel == VersionChannel.release) {
+      return true;
+    }
+
+    if (_currentChannel == VersionChannel.alpha) {
+      return true;
+    }
+
     switch (channel) {
       case VersionChannel.alpha:
         return _allowAlpha;
-      case VersionChannel.beta:
-        return _allowBeta || _allowAlpha; // alpha 用户也能收到 beta
       case VersionChannel.release:
-        return true; // release 总是允许
+        return true;
     }
   }
 
@@ -756,6 +853,9 @@ class UpdateService extends ChangeNotifier {
   /// 格式化 changelog，清理不需要的内容并改善显示
   String _formatChangelog(String raw) {
     if (raw.isEmpty) return '暂无更新日志';
+
+    // 处理可能存在的双转义 \n (文本中的 "\n" 字面量转为真正换行)
+    raw = raw.replaceAll('\\n', '\n');
 
     final lines = raw.split('\n');
     final result = <String>[];
@@ -835,11 +935,34 @@ class UpdateService extends ChangeNotifier {
     switch (channel) {
       case VersionChannel.alpha:
         return 'Alpha (测试版)';
-      case VersionChannel.beta:
-        return 'Beta (公测版)';
       case VersionChannel.release:
         return 'Release (稳定版)';
     }
+  }
+
+  @visibleForTesting
+  void debugSetCurrentVersionForTest(
+    String version, {
+    VersionChannel? channel,
+  }) {
+    _currentVersion = version;
+    _currentVersionInfo = VersionInfo.parse(version);
+    _currentChannel = channel ?? _resolveCurrentChannel(_currentVersionInfo);
+  }
+
+  @visibleForTesting
+  void debugSetReleasesForTest(List<UpdateInfo> releases) {
+    _allReleases = releases;
+  }
+
+  @visibleForTesting
+  UpdateInfo? debugFindReleaseByVersion(String version) {
+    return _findReleaseByVersion(version);
+  }
+
+  @visibleForTesting
+  void debugFilterAvailableUpdateForTest() {
+    _filterAvailableUpdate();
   }
 
   /// 释放资源
@@ -849,112 +972,257 @@ class UpdateService extends ChangeNotifier {
     super.dispose();
   }
 
-  /// 检测 .NET 8 是否安装
-  Future<bool> checkDotNet8Installation() async {
-    if (_isCheckingDotNet) return _isDotNet8Installed ?? false;
+  /// 下载更新包
+  Future<String?> downloadUpdate() async {
+    if (_availableUpdate == null) return null;
+    if (_isDownloading) return null;
 
-    _isCheckingDotNet = true;
+    _isDownloading = true;
+    _downloadProgress = 0.0;
+    _downloadError = null;
     notifyListeners();
 
     try {
-      _logger?.info('Update', '检测 .NET 8 安装状态...');
-
-      // 使用 dotnet --list-runtimes 命令检测
-      final result = await Process.run(
-        'dotnet',
-        ['--list-runtimes'],
-        runInShell: true,
-      ).timeout(const Duration(seconds: 5));
-
-      if (result.exitCode == 0) {
-        final output = result.stdout.toString();
-        // 检查是否包含 Microsoft.WindowsDesktop.App 8.x
-        final hasDesktopRuntime = output
-            .contains(RegExp(r'Microsoft\.WindowsDesktop\.App\s+8\.\d+\.\d+'));
-        _isDotNet8Installed = hasDesktopRuntime;
-
-        if (hasDesktopRuntime) {
-          _logger?.info('Update', '.NET 8 Desktop Runtime 已安装');
-        } else {
-          _logger?.info('Update', '.NET 8 Desktop Runtime 未安装');
-        }
-      } else {
-        _isDotNet8Installed = false;
-        _logger?.info('Update', 'dotnet 命令不可用，.NET 8 未安装');
+      final downloadUrl = _availableUpdate!.downloadUrl;
+      if (downloadUrl.isEmpty) {
+        throw Exception('下载链接为空');
       }
-    } catch (e) {
-      _isDotNet8Installed = false;
-      _logger?.info('Update', '.NET 8 检测失败: $e');
-    }
 
-    _isCheckingDotNet = false;
-    notifyListeners();
-    return _isDotNet8Installed ?? false;
+      _logger?.info('Update', '开始下载更新包: $downloadUrl');
+
+      // 创建临时目录
+      final tempDir = await Directory.systemTemp.createTemp('hanabi_update_');
+      final zipFileName = path.basename(downloadUrl);
+      final zipPath = path.join(
+          tempDir.path, zipFileName.isNotEmpty ? zipFileName : 'update.zip');
+
+      // 使用 http 下载，支持进度回调
+      final request = await HttpClient().getUrl(Uri.parse(downloadUrl));
+      final response = await request.close();
+
+      if (response.statusCode != 200) {
+        throw Exception('下载失败: HTTP ${response.statusCode}');
+      }
+
+      final totalBytes = response.contentLength;
+      var receivedBytes = 0;
+      final file = File(zipPath);
+      final sink = file.openWrite();
+
+      await for (final chunk in response) {
+        sink.add(chunk);
+        receivedBytes += chunk.length;
+        if (totalBytes > 0) {
+          _downloadProgress = receivedBytes / totalBytes;
+          notifyListeners();
+        }
+      }
+
+      await sink.close();
+      _downloadProgress = 1.0;
+      _isDownloading = false;
+      notifyListeners();
+
+      _logger?.info('Update', '更新包下载完成: $zipPath');
+      return zipPath;
+    } catch (e) {
+      _downloadError = '下载失败: $e';
+      _logger?.error('Update', _downloadError!);
+      _isDownloading = false;
+      notifyListeners();
+      return null;
+    }
   }
 
-  /// 启动 update.exe 更新器
-  Future<bool> launchUpdateExe() async {
-    try {
-      _logger?.info('Update', '启动 update.exe...');
+  /// 查找更新器可执行文件
+  Future<_UpdaterLocation?> _findUpdaterLocation() async {
+    final exePath = Platform.resolvedExecutable;
+    final exeDir = path.dirname(exePath);
 
-      // 获取 update.exe 的路径
-      final exePath = Platform.resolvedExecutable;
-      final exeDir = path.dirname(exePath);
+    // 新更新器是 NativeAOT + Avalonia，小目录中包含 exe 和 native 渲染依赖。
+    final possibleBundlePaths = [
+      path.join(
+          exeDir, 'data', 'zzbuaoye_assets', 'updater', 'HanabiUpdater.exe'),
+      path.join(Directory.current.path, 'assets', 'update', 'updater',
+          'HanabiUpdater.exe'),
+      path.join(Directory.current.path, 'updater', 'dist', 'HanabiUpdater.exe'),
+    ];
 
-      // 尝试多个可能的路径
-      final possiblePaths = [
-        // Release 模式路径：data/zzbuaoye_assets 目录
-        path.join(exeDir, 'data', 'zzbuaoye_assets', 'Update.exe'),
-        // Debug 模式路径（从项目根目录，修复flutter run下无法启动）
-        path.join(Directory.current.path, 'assets', 'update', 'Update.exe'),
-        // 备用路径：直接在 exe 目录下
-        path.join(exeDir, 'Update.exe'),
-        // 旧路径兼容
-        path.join(
-            exeDir, 'data', 'flutter_assets', 'assets', 'update', 'Update.exe'),
-      ];
-
-      String? updateExePath;
-      for (final testPath in possiblePaths) {
-        if (await File(testPath).exists()) {
-          updateExePath = testPath;
-          break;
-        }
+    for (final testPath in possibleBundlePaths) {
+      if (await File(testPath).exists()) {
+        return _UpdaterLocation(
+          executablePath: testPath,
+          bundleDirectory: path.dirname(testPath),
+        );
       }
+    }
 
-      if (updateExePath == null) {
-        _logger?.error('Update', 'Update.exe 未找到，尝试的路径:');
-        for (final testPath in possiblePaths) {
-          _logger?.error('Update', '  - $testPath');
-        }
+    // 单文件更新器兼容路径。
+    final possibleSinglePaths = [
+      path.join(exeDir, 'data', 'zzbuaoye_assets', 'HanabiUpdater.exe'),
+      path.join(
+          Directory.current.path, 'assets', 'update', 'HanabiUpdater.exe'),
+      path.join(exeDir, 'HanabiUpdater.exe'),
+    ];
+
+    for (final testPath in possibleSinglePaths) {
+      if (await File(testPath).exists()) {
+        return _UpdaterLocation(executablePath: testPath);
+      }
+    }
+
+    return null;
+  }
+
+  /// 将更新器释放到临时目录
+  Future<String?> _extractUpdaterToTemp() async {
+    final updaterLocation = await _findUpdaterLocation();
+    if (updaterLocation == null) {
+      _downloadError = '更新器可执行文件未找到：请确认安装包包含 HanabiUpdater.exe';
+      _logger?.error('Update', _downloadError!);
+      return null;
+    }
+
+    final tempDir = await Directory.systemTemp.createTemp('hanabi_updater_');
+    late final String destPath;
+
+    if (updaterLocation.bundleDirectory != null) {
+      final destDir = path.join(tempDir.path, 'updater');
+      await _copyDirectory(updaterLocation.bundleDirectory!, destDir);
+      destPath =
+          path.join(destDir, path.basename(updaterLocation.executablePath));
+    } else {
+      destPath = path.join(
+          tempDir.path, path.basename(updaterLocation.executablePath));
+      await File(updaterLocation.executablePath).copy(destPath);
+    }
+
+    _logger?.info('Update', '更新器已释放到: $destPath');
+    return destPath;
+  }
+
+  Future<void> _copyDirectory(String sourcePath, String destinationPath) async {
+    final sourceDir = Directory(sourcePath);
+    final destinationDir = Directory(destinationPath);
+    await destinationDir.create(recursive: true);
+
+    await for (final entity
+        in sourceDir.list(recursive: true, followLinks: false)) {
+      final relativePath = path.relative(entity.path, from: sourcePath);
+      final targetPath = path.join(destinationPath, relativePath);
+
+      if (entity is Directory) {
+        await Directory(targetPath).create(recursive: true);
+      } else if (entity is File) {
+        await Directory(path.dirname(targetPath)).create(recursive: true);
+        await entity.copy(targetPath);
+      }
+    }
+  }
+
+  /// 启动更新器并退出主程序
+  Future<bool> launchUpdater({
+    String? zipPath,
+    bool allowUpdaterDownload = false,
+  }) async {
+    try {
+      _logger?.info('Update', '准备启动更新器...');
+
+      String? actualZipPath = zipPath;
+      if (actualZipPath == null && !allowUpdaterDownload) {
+        actualZipPath = await downloadUpdate();
+      }
+      if (actualZipPath != null && !await File(actualZipPath).exists()) {
+        _logger?.error('Update', '更新包不存在，无法启动更新器');
+        return false;
+      }
+      if (actualZipPath == null &&
+          (_availableUpdate == null || _availableUpdate!.downloadUrl.isEmpty)) {
+        _downloadError = '更新包不存在，且没有可用的下载地址';
+        _logger?.error('Update', _downloadError!);
+        notifyListeners();
         return false;
       }
 
-      _logger?.info('Update', 'Update.exe 路径: $updateExePath');
+      // 将更新器释放到临时目录
+      final updaterPath = await _extractUpdaterToTemp();
+      if (updaterPath == null) {
+        _downloadError ??= '无法准备更新器';
+        _logger?.error('Update', _downloadError!);
+        notifyListeners();
+        return false;
+      }
 
-      // 启动 update.exe
+      // 获取当前进程 PID
+      final currentPid = pid;
+
+      // 获取主程序路径
+      final appPath = Platform.resolvedExecutable;
+
+      // 构建更新器参数
+      final args = [
+        '--app-path',
+        appPath,
+        if (actualZipPath != null) ...[
+          '--zip-path',
+          actualZipPath,
+        ],
+        '--app-name',
+        'Hanabi Download Manager X',
+        '--wait-pid',
+        currentPid.toString(),
+        if (_availableUpdate != null) ...[
+          '--version',
+          _availableUpdate!.version,
+          if (_availableUpdate!.downloadUrl.isNotEmpty) ...[
+            '--download-url',
+            _availableUpdate!.downloadUrl,
+          ],
+          if (_availableUpdate!.versionInfo.channel == VersionChannel.alpha)
+            '--alpha',
+          if (_availableUpdate!.versionInfo.channel == VersionChannel.alpha)
+            'true',
+        ],
+      ];
+
+      _logger?.info('Update', '启动更新器: $updaterPath ${args.join(' ')}');
+
+      // 启动更新器
       await Process.start(
-        updateExePath,
-        [],
+        updaterPath,
+        args,
+        workingDirectory: path.dirname(updaterPath),
         mode: ProcessStartMode.detached,
       );
 
-      _logger?.info('Update', 'Update.exe 已启动');
+      _logger?.info('Update', '更新器已启动，准备退出主程序');
 
       // 延迟 500ms 后退出应用，确保更新器已启动
-      Future.delayed(const Duration(milliseconds: 500), () {
+      Future.delayed(const Duration(milliseconds: 800), () {
         exit(0);
       });
 
       return true;
     } catch (e) {
-      _logger?.error('Update', '启动 Update.exe 失败: $e');
+      _downloadError = '启动更新器失败: $e';
+      _logger?.error('Update', _downloadError!);
+      notifyListeners();
       return false;
     }
   }
 
-  /// 获取 .NET 8 下载链接
-  String getDotNet8DownloadUrl() {
-    return 'https://dotnet.microsoft.com/download/dotnet/8.0';
+  /// 启动更新（下载 + 启动更新器）
+  Future<bool> startUpdate() async {
+    return launchUpdater(allowUpdaterDownload: true);
   }
+}
+
+class _UpdaterLocation {
+  final String executablePath;
+  final String? bundleDirectory;
+
+  const _UpdaterLocation({
+    required this.executablePath,
+    this.bundleDirectory,
+  });
 }

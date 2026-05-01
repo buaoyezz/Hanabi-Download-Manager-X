@@ -164,6 +164,7 @@ class ClientConfigService extends ChangeNotifier {
       'language': 'system', // system | en | zh | <plugin locale>
       'theme': {
         'mode': 'system', // system | light | dark
+        'classic_control_visuals': true, // 暗色模式默认保留旧版控件视觉
       },
       'window': {
         'effect_mode': 'acrylic',
@@ -407,6 +408,21 @@ class ClientConfigService extends ChangeNotifier {
       _ => 'system',
     };
     await _setToConfig(_uiConfig, _uiConfigPath, 'theme.mode', normalized);
+  }
+
+  bool getClassicControlVisuals() {
+    return _getFromConfig<bool>(_uiConfig, 'theme.classic_control_visuals',
+            defaultValue: true) ??
+        true;
+  }
+
+  Future<void> setClassicControlVisuals(bool value) async {
+    await _setToConfig(
+      _uiConfig,
+      _uiConfigPath,
+      'theme.classic_control_visuals',
+      value,
+    );
   }
 
   Future<void> setWindowHeight(double height) async {
