@@ -1671,6 +1671,29 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            _buildSettingItem(
+              context,
+              title: t.appearanceClassicControlVisualsTitle,
+              subtitle: t.appearanceClassicControlVisualsSubtitle,
+              trailing: ToggleSwitch(
+                checked: clientConfig.getClassicControlVisuals(),
+                onChanged: (value) async {
+                  final notificationManager = NotificationManager.of(context);
+                  final message = value
+                      ? t.appearanceClassicControlVisualsEnabledMessage
+                      : t.appearanceClassicControlVisualsDisabledMessage;
+                  await clientConfig.setClassicControlVisuals(value);
+                  if (!mounted) {
+                    return;
+                  }
+                  notificationManager?.showSuccess(
+                    t.appearanceClassicControlVisualsSavedTitle,
+                    message: message,
+                  );
+                },
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 24),
@@ -2106,14 +2129,41 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                       ],
                     ],
                     onChanged: (value) async {
-                      if (value != null) {
-                        await windowEffect.setEffectMode(value);
-                        if (mounted) {
-                          NotificationManager.of(context)?.showSuccess(
-                            t.appearanceWindowEffectSwitchedTitle,
-                            message: _getEffectModeDescription(value, t),
-                          );
-                        }
+                      if (value == null) return;
+
+                      if (windowEffect.isWindows11 &&
+                          (value == 'acrylic' || value == 'blur')) {
+                        final isZh = Localizations.localeOf(context)
+                            .languageCode
+                            .startsWith('zh');
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => ContentDialog(
+                            title: Text(isZh ? '警告 (Warning)' : 'Warning'),
+                            content: Text(isZh
+                                ? '在 Windows 11 上开启 亚克力(Acrylic) 或 模糊(Blur) 可能会导致部分设备发生严重的底层崩溃。\n如果您遇到闪退，应用将在下次启动时自动为您恢复到 云母(Mica) 效果。\n\n是否继续开启？'
+                                : 'Enabling Acrylic or Blur on Windows 11 may cause severe native crashes on some devices.\nIf the app crashes, it will automatically recover to Mica effect on the next launch.\n\nDo you want to continue?'),
+                            actions: [
+                              Button(
+                                child: Text(isZh ? '取消' : 'Cancel'),
+                                onPressed: () => Navigator.pop(context, false),
+                              ),
+                              FilledButton(
+                                child: Text(isZh ? '继续开启' : 'Continue'),
+                                onPressed: () => Navigator.pop(context, true),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirmed != true) return;
+                      }
+
+                      await windowEffect.setEffectMode(value);
+                      if (mounted) {
+                        NotificationManager.of(context)?.showSuccess(
+                          t.appearanceWindowEffectSwitchedTitle,
+                          message: _getEffectModeDescription(value, t),
+                        );
                       }
                     },
                   ),

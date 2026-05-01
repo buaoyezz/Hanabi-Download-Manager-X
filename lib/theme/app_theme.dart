@@ -111,7 +111,8 @@ class AppTheme {
   // ============ 核心颜色系统 ============
 
   // 主色调 - Fluent 2 更克制的蓝色
-  static const Color accentPrimary = Color(0xFF0F6CBD);
+  static Color accentPrimary = const Color(0xFF0F6CBD);
+  static const Color _originalAccentPrimary = Color(0xFF0F6CBD);
 
   static const Color statusSuccess = Color(0xFF6CCB5F);
   static const Color statusWarning = Color(0xFFFFB900);
@@ -142,6 +143,30 @@ class AppTheme {
     shadowBase: Color(0xFF000000),
   );
 
+  static const AppThemePalette _classicDarkPalette = AppThemePalette(
+    brightness: Brightness.dark,
+    accentLight: Color(0xFF60CDFF),
+    accentDark: Color(0xFF005A9E),
+    bgSolid: Color(0xFF202020),
+    bgBase: Color(0xFF1A1A1A),
+    bgLayer1: Color(0xFF2B2B2B),
+    bgLayer2: Color(0xFF323232),
+    bgLayer3: Color(0xFF3B3B3B),
+    micaBase: Color(0xFF202020),
+    micaLayer: Color(0xFF2B2B2B),
+    surfaceCard: Color(0xFF2B2B2B),
+    surfaceCardHover: Color(0xFF323232),
+    surfaceCardPressed: Color(0xFF3B3B3B),
+    borderSubtle: Color(0xFF3A3A3A),
+    borderDefault: Color(0xFF4A4A4A),
+    borderStrong: Color(0xFF5A5A5A),
+    textPrimary: Color(0xFFFFFFFF),
+    textSecondary: Color(0xFFAAAAAA),
+    textTertiary: Color(0xFF808080),
+    textDisabled: Color(0xFF5C5C5C),
+    shadowBase: Color(0xFF000000),
+  );
+
   static const AppThemePalette _lightPalette = AppThemePalette(
     brightness: Brightness.light,
     accentLight: Color(0xFF115EA3),
@@ -168,6 +193,7 @@ class AppTheme {
 
   static AppThemePalette _activePalette = _darkPalette;
   static double _activeLightProgress = 0.0;
+  static bool _classicControlVisuals = true;
 
   static const Color _lightShellBackground = Color(0xFFF3F8FC);
   static const Color _lightShellHoverBackground = Color(0xFFEAF1F6);
@@ -188,12 +214,67 @@ class AppTheme {
   static const double radiusXl = 12.0;
   static const double radiusRound = 999.0;
 
-  static void applyBrightness(Brightness brightness) {
-    _activePalette = paletteFor(brightness);
+  static bool get classicControlVisuals => _classicControlVisuals;
+
+  static void applyBrightness(
+    Brightness brightness, {
+    bool? classicControlVisuals,
+  }) {
+    if (classicControlVisuals != null) {
+      _classicControlVisuals = classicControlVisuals;
+    }
+    _activePalette = paletteFor(
+      brightness,
+      classicControlVisuals: _classicControlVisuals,
+    );
     _activeLightProgress = brightness == Brightness.light ? 1.0 : 0.0;
   }
 
-  static void applyFluentTheme(FluentThemeData theme) {
+  static void applyPluginOverrides(Map<String, dynamic>? overrides) {
+    if (overrides == null || overrides.isEmpty) {
+      // Reset to original
+      accentPrimary = _originalAccentPrimary;
+      // You can add more resets here as needed
+      return;
+    }
+
+    final colors = overrides['colors'];
+    if (colors is Map) {
+      final primaryStr = colors['primary']?.toString();
+      if (primaryStr != null && primaryStr.isNotEmpty) {
+        accentPrimary = _parseColor(primaryStr) ?? _originalAccentPrimary;
+      }
+    }
+  }
+
+  static Color? _parseColor(String colorStr) {
+    var hexColor = colorStr.toUpperCase().replaceAll('#', '');
+    if (hexColor.length == 6) {
+      hexColor = 'FF$hexColor';
+    }
+    if (hexColor.length == 8) {
+      return Color(int.parse(hexColor, radix: 16));
+    }
+    return null;
+  }
+
+  static void applyFluentTheme(
+    FluentThemeData theme, {
+    bool? classicControlVisuals,
+  }) {
+    if (classicControlVisuals != null) {
+      _classicControlVisuals = classicControlVisuals;
+    }
+    if (_classicControlVisuals && theme.brightness == Brightness.dark) {
+      _activeLightProgress = 0.0;
+      _activePalette = _classicDarkPalette;
+      return;
+    }
+    if (theme.brightness == Brightness.light) {
+      _activeLightProgress = 1.0;
+      _activePalette = _lightPalette;
+      return;
+    }
     _activeLightProgress = _lightProgressForFluentTheme(theme);
     _activePalette = AppThemePalette.lerp(
       _darkPalette,
@@ -212,7 +293,14 @@ class AppTheme {
     return ((theme.cardColor.a - darkAlpha) / alphaRange).clamp(0.0, 1.0);
   }
 
-  static AppThemePalette paletteFor(Brightness brightness) {
+  static AppThemePalette paletteFor(
+    Brightness brightness, {
+    bool? classicControlVisuals,
+  }) {
+    final useClassic = classicControlVisuals ?? _classicControlVisuals;
+    if (brightness == Brightness.dark && useClassic) {
+      return _classicDarkPalette;
+    }
     return brightness == Brightness.dark ? _darkPalette : _lightPalette;
   }
 
@@ -239,14 +327,27 @@ class AppTheme {
   static FluentThemeData themeDataForMode(
     AppThemeMode mode, {
     Brightness? platformBrightness,
+    bool? classicControlVisuals,
   }) {
     return themeDataForBrightness(
       resolveBrightness(mode, platformBrightness: platformBrightness),
+      classicControlVisuals: classicControlVisuals,
     );
   }
 
-  static FluentThemeData themeDataForBrightness(Brightness brightness) {
-    return _buildFluentTheme(paletteFor(brightness));
+  static FluentThemeData themeDataForBrightness(
+    Brightness brightness, {
+    bool? classicControlVisuals,
+  }) {
+    if (classicControlVisuals != null) {
+      _classicControlVisuals = classicControlVisuals;
+    }
+    return _buildFluentTheme(
+      paletteFor(
+        brightness,
+        classicControlVisuals: classicControlVisuals,
+      ),
+    );
   }
 
   static Color get accentLight => _activePalette.accentLight;
@@ -270,16 +371,19 @@ class AppTheme {
   static Color get textDisabled => _activePalette.textDisabled;
   static double get lightProgress => _activeLightProgress;
   static Color get shellBackground => Color.lerp(
-        _darkPalette.bgSolid,
+        _activeDarkPalette.bgSolid,
         _lightShellBackground,
         _activeLightProgress,
       )!;
 
   static Color get shellHoverBackground => Color.lerp(
-        _darkPalette.bgLayer2,
+        _activeDarkPalette.bgLayer2,
         _lightShellHoverBackground,
         _activeLightProgress,
       )!;
+
+  static AppThemePalette get _activeDarkPalette =>
+      _classicControlVisuals ? _classicDarkPalette : _darkPalette;
 
   static Color shellNavItemBackground({
     required double hoverValue,
@@ -297,7 +401,7 @@ class AppTheme {
     )!;
 
     return Color.lerp(
-      _darkPalette.bgLayer2.withValues(alpha: darkAlpha),
+      _activeDarkPalette.bgLayer2.withValues(alpha: darkAlpha),
       lightColor.withValues(alpha: lightAlpha),
       _activeLightProgress,
     )!;
@@ -308,7 +412,7 @@ class AppTheme {
     double lightAlpha = 0.86,
   }) {
     return Color.lerp(
-      _darkPalette.bgLayer1.withValues(alpha: darkAlpha),
+      _activeDarkPalette.bgLayer1.withValues(alpha: darkAlpha),
       _lightPalette.surfaceCard.withValues(alpha: lightAlpha),
       _activeLightProgress,
     )!;
@@ -319,7 +423,7 @@ class AppTheme {
     double lightAlpha = 0.95,
   }) {
     return Color.lerp(
-      _darkPalette.bgLayer2.withValues(alpha: darkAlpha),
+      _activeDarkPalette.bgLayer2.withValues(alpha: darkAlpha),
       _lightPalette.surfaceCard.withValues(alpha: lightAlpha),
       _activeLightProgress,
     )!;

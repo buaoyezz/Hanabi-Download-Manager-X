@@ -25,6 +25,7 @@ class WindowEffectService extends ChangeNotifier {
       const WindowsWindowEffectBridge();
   bool _isInitialized = false;
   bool _isWindows11 = false;
+  bool _recoveredFromCrash = false;
 
   String get effectMode => _effectMode;
   int get alpha => _alpha;
@@ -32,6 +33,7 @@ class WindowEffectService extends ChangeNotifier {
       !_isWindows11 || !_disableNativeEffectsOnWindows11;
   bool get effectEnabled => _effectEnabled && windowEffectsAvailable;
   bool get isWindows11 => _isWindows11;
+  bool get recoveredFromCrash => _recoveredFromCrash;
   bool get dragSuspend => _dragSuspend;
   bool get roundedCornersEnabled => _roundedCornersEnabled;
   double get windowCornerRadius =>
@@ -51,6 +53,13 @@ class WindowEffectService extends ChangeNotifier {
       effectEnabled &&
       (_effectMode == 'mica_main' || _effectMode == 'mica_transient');
 
+  void clearCrashRecoveryFlag() {
+    if (_recoveredFromCrash) {
+      _recoveredFromCrash = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> initialize(
       {Brightness initialBrightness = Brightness.dark}) async {
     if (_isInitialized) return;
@@ -58,14 +67,25 @@ class WindowEffectService extends ChangeNotifier {
     await _detectWindowsVersion();
 
     final prefs = await SharedPreferences.getInstance();
-    _effectMode = prefs.getString('window_effect_mode') ?? 'acrylic';
+
+    // Check if we crashed while applying acrylic previously
+    if (_isWindows11) {
+      final wasApplyingAcrylic = prefs.getBool('window_effect_applying_acrylic') ?? false;
+      if (wasApplyingAcrylic) {
+        _recoveredFromCrash = true;
+        await prefs.setBool('window_effect_applying_acrylic', false);
+        await prefs.setString('window_effect_mode', 'mica_main');
+      }
+    }
+
+    _effectMode = prefs.getString('window_effect_mode') ?? (_isWindows11 ? 'mica_main' : 'acrylic');
     _alpha = prefs.getInt('window_effect_alpha') ?? 160;
 
-    // 如果没有保存过设置（新用户），Win11 默认开启，Win10 默认关闭（性能考虑）
+    // 如果没有保存过设置（新用户），默认关闭，避免 Win11 上的 flutter_acrylic (或 C++ 的不支持特效) 导致无日志硬崩溃
     if (prefs.containsKey('window_effect_enabled')) {
       _effectEnabled = prefs.getBool('window_effect_enabled')!;
     } else {
-      _effectEnabled = _isWindows11;
+      _effectEnabled = false;
     }
 
     if (!windowEffectsAvailable) {
@@ -78,6 +98,10 @@ class WindowEffectService extends ChangeNotifier {
     if (!_isWindows11 &&
         (_effectMode == 'mica_main' || _effectMode == 'mica_transient')) {
       _effectMode = 'acrylic';
+      await _saveSettings();
+    } else if (_isWindows11 && _effectMode == 'acrylic') {
+      // 避免 Win11 开启 acrylic 导致硬崩溃，强转为 mica_main
+      _effectMode = 'mica_main';
       await _saveSettings();
     }
 
@@ -174,6 +198,14 @@ class WindowEffectService extends ChangeNotifier {
   }
 
   Future<void> _applyWindowEffect() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isTryingAcrylicOnWin11 = _isWindows11 && effectEnabled && (_effectMode == 'acrylic' || _effectMode == 'blur');
+    
+    if (isTryingAcrylicOnWin11) {
+      // 写入标记，如果在此之后发生硬崩溃，下次启动 initialize 时能检测到
+      await prefs.setBool('window_effect_applying_acrylic', true);
+    }
+
     try {
       final effectiveMode = effectEnabled
           ? WindowsWindowEffectMode.fromName(_effectMode)
@@ -189,6 +221,11 @@ class WindowEffectService extends ChangeNotifier {
       );
     } catch (e) {
       debugPrint('setWindowEffect error: $e');
+    } finally {
+      if (isTryingAcrylicOnWin11) {
+        // 成功应用，清除标记
+        await prefs.setBool('window_effect_applying_acrylic', false);
+      }
     }
   }
 

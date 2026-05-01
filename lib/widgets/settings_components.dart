@@ -6,15 +6,17 @@ import '../l10n/app_localizations.dart';
 /// 设置页面区块卡片
 class SettingsSection extends StatelessWidget {
   final String title;
-  final IconData icon;
+  final IconData? icon;
+  final Widget Function(BuildContext, Color)? iconBuilder;
   final List<Widget> children;
 
   const SettingsSection({
     super.key,
     required this.title,
-    required this.icon,
+    this.icon,
+    this.iconBuilder,
     required this.children,
-  });
+  }) : assert(icon != null || iconBuilder != null);
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +44,9 @@ class SettingsSection extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(icon, size: 16, color: AppTheme.textSecondary),
+                iconBuilder != null
+                    ? iconBuilder!(context, AppTheme.textSecondary)
+                    : Icon(icon, size: 16, color: AppTheme.textSecondary),
                 const SizedBox(width: 10),
                 Text(
                   title,
@@ -351,13 +355,15 @@ class DangerZone extends StatelessWidget {
 /// 页面头部组件
 class SettingsPageHeader extends StatelessWidget {
   final String title;
-  final IconData icon;
+  final IconData? icon;
+  final Widget Function(BuildContext, Color)? iconBuilder;
 
   const SettingsPageHeader({
     super.key,
     required this.title,
-    required this.icon,
-  });
+    this.icon,
+    this.iconBuilder,
+  }) : assert(icon != null || iconBuilder != null);
 
   @override
   Widget build(BuildContext context) {
@@ -383,11 +389,13 @@ class SettingsPageHeader extends StatelessWidget {
                     .withValues(alpha: isDark ? 0.3 : 0.18),
               ),
             ),
-            child: Icon(
-              icon,
-              size: 18,
-              color: isDark ? AppTheme.accentLight : AppTheme.accentPrimary,
-            ),
+            child: iconBuilder != null
+                ? iconBuilder!(context, isDark ? AppTheme.accentLight : AppTheme.accentPrimary)
+                : Icon(
+                    icon,
+                    size: 18,
+                    color: isDark ? AppTheme.accentLight : AppTheme.accentPrimary,
+                  ),
           ),
           const SizedBox(width: 14),
           Text(title),

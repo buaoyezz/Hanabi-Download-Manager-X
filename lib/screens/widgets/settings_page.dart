@@ -107,6 +107,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   // Tab state
   int _currentTabIndex = 0;
+  int _tabAnimationDirection = 1;
   final ScrollController _tabScrollController =
       createSmoothScrollController(config: SmoothScrollConfig.fast);
 
@@ -1706,19 +1707,81 @@ class _SettingsPageState extends State<SettingsPage> {
       content: SmoothSingleChildScrollView(
         config: SmoothScrollConfig.fast,
         padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (_currentTabIndex == 0) ..._buildGeneralTab(context),
-            if (_currentTabIndex == 1) ..._buildDownloadTab(context),
-            if (_currentTabIndex == 2) const AppearanceSettingsPage(),
-            if (_currentTabIndex == 3) const UpdatePage(),
-            if (_currentTabIndex == 4) ..._buildAdvancedTab(context),
-            if (_currentTabIndex == 5 && isDeveloperMode)
-              const DeveloperSettingsPage(),
-            const SizedBox(height: 40),
-          ],
+        child: ClipRect(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 240),
+            reverseDuration: const Duration(milliseconds: 180),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: _buildTabContentTransition,
+            layoutBuilder: (currentChild, previousChildren) {
+              return Stack(
+                alignment: AlignmentDirectional.topStart,
+                children: [
+                  ...previousChildren,
+                  if (currentChild != null) currentChild,
+                ],
+              );
+            },
+            child: _buildCurrentTabContent(context, isDeveloperMode),
+          ),
         ),
+      ),
+    );
+  }
+
+  void _selectTab(int index) {
+    if (_currentTabIndex == index) {
+      return;
+    }
+
+    setState(() {
+      _tabAnimationDirection = index > _currentTabIndex ? 1 : -1;
+      _currentTabIndex = index;
+    });
+  }
+
+  Widget _buildCurrentTabContent(BuildContext context, bool isDeveloperMode) {
+    return Column(
+      key: ValueKey<int>(_currentTabIndex),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_currentTabIndex == 0) ..._buildGeneralTab(context),
+        if (_currentTabIndex == 1) ..._buildDownloadTab(context),
+        if (_currentTabIndex == 2) const AppearanceSettingsPage(),
+        if (_currentTabIndex == 3) const UpdatePage(),
+        if (_currentTabIndex == 4) ..._buildAdvancedTab(context),
+        if (_currentTabIndex == 5 && isDeveloperMode)
+          const DeveloperSettingsPage(),
+        const SizedBox(height: 40),
+      ],
+    );
+  }
+
+  Widget _buildTabContentTransition(
+    Widget child,
+    Animation<double> animation,
+  ) {
+    final childKey = child.key;
+    final isIncoming =
+        childKey is ValueKey<int> && childKey.value == _currentTabIndex;
+    final direction = _tabAnimationDirection.toDouble();
+    final beginOffset = isIncoming
+        ? Offset(0.035 * direction, 0)
+        : Offset(-0.025 * direction, 0);
+    final curvedAnimation = CurvedAnimation(
+      parent: animation,
+      curve: isIncoming ? Curves.easeOutCubic : Curves.easeInCubic,
+    );
+
+    return FadeTransition(
+      opacity: curvedAnimation,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: beginOffset,
+          end: Offset.zero,
+        ).animate(curvedAnimation),
+        child: child,
       ),
     );
   }
@@ -1736,48 +1799,76 @@ class _SettingsPageState extends State<SettingsPage> {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        onTap: () => setState(() => _currentTabIndex = index),
-        child: AnimatedContainer(
+        onTap: () => _selectTab(index),
+        child: TweenAnimationBuilder<double>(
+          tween: Tween<double>(end: isSelected ? 1 : 0),
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? AppTheme.accentPrimary.withValues(alpha: 0.15)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            border: Border.all(
-              color: isSelected
-                  ? AppTheme.accentPrimary.withValues(alpha: 0.4)
-                  : Colors.transparent,
-              width: 1.5,
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 14,
-                color:
-                    isSelected ? AppTheme.accentLight : AppTheme.textSecondary,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: FluentTheme.of(context).typography.body?.copyWith(
-                      fontFamily: fontFamily,
-                      fontFamilyFallback: fontFamilyFallback,
-                      color: isSelected
-                          ? AppTheme.accentLight
-                          : AppTheme.textSecondary,
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.w500,
-                      fontSize: 13,
+          builder: (context, selectedValue, child) {
+            final contentColor = Color.lerp(
+              AppTheme.textSecondary,
+              AppTheme.accentLight,
+              selectedValue,
+            )!;
+            final backgroundColor = Color.lerp(
+              Colors.transparent,
+              AppTheme.accentPrimary.withValues(alpha: 0.15),
+              selectedValue,
+            )!;
+            final borderColor = Color.lerp(
+              Colors.transparent,
+              AppTheme.accentPrimary.withValues(alpha: 0.4),
+              selectedValue,
+            )!;
+
+            return Transform.scale(
+              scale: 1 + selectedValue * 0.018,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                padding: EdgeInsets.symmetric(
+                  horizontal: 16 + selectedValue * 2,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: backgroundColor,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  border: Border.all(
+                    color: borderColor,
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Transform.translate(
+                      offset: Offset(0, -selectedValue),
+                      child: Icon(
+                        icon,
+                        size: 14,
+                        color: contentColor,
+                      ),
                     ),
+                    const SizedBox(width: 8),
+                    Text(
+                      title,
+                      style: FluentTheme.of(context).typography.body?.copyWith(
+                            fontFamily: fontFamily,
+                            fontFamilyFallback: fontFamilyFallback,
+                            color: contentColor,
+                            fontWeight: FontWeight.lerp(
+                              FontWeight.w500,
+                              FontWeight.w600,
+                              selectedValue,
+                            ),
+                            fontSize: 13,
+                          ),
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
