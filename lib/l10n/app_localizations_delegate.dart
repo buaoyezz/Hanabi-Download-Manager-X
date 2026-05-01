@@ -56,7 +56,7 @@ class PluginAppLocalizations extends AppLocalizations {
   String _string(String key, String fallback) {
     final value = _strings[key];
     if (value == null || value.isEmpty) return fallback;
-    return value;
+    return value.replaceAll(r'\n', '\n');
   }
 
   String _format(String key, Map<String, Object> params, String fallback) {
@@ -235,6 +235,31 @@ class PluginAppLocalizations extends AppLocalizations {
       'appearanceThemeSavedMessage',
       {'mode': mode},
       _fallback.appearanceThemeSavedMessage(mode));
+
+  @override
+  String get appearanceClassicControlVisualsTitle => _string(
+      'appearanceClassicControlVisualsTitle',
+      _fallback.appearanceClassicControlVisualsTitle);
+
+  @override
+  String get appearanceClassicControlVisualsSubtitle => _string(
+      'appearanceClassicControlVisualsSubtitle',
+      _fallback.appearanceClassicControlVisualsSubtitle);
+
+  @override
+  String get appearanceClassicControlVisualsSavedTitle => _string(
+      'appearanceClassicControlVisualsSavedTitle',
+      _fallback.appearanceClassicControlVisualsSavedTitle);
+
+  @override
+  String get appearanceClassicControlVisualsEnabledMessage => _string(
+      'appearanceClassicControlVisualsEnabledMessage',
+      _fallback.appearanceClassicControlVisualsEnabledMessage);
+
+  @override
+  String get appearanceClassicControlVisualsDisabledMessage => _string(
+      'appearanceClassicControlVisualsDisabledMessage',
+      _fallback.appearanceClassicControlVisualsDisabledMessage);
 
   @override
   String get appearanceSectionLanguage =>
@@ -2930,10 +2955,6 @@ class PluginAppLocalizations extends AppLocalizations {
       _string('updateChannelAlpha', _fallback.updateChannelAlpha);
 
   @override
-  String get updateChannelBeta =>
-      _string('updateChannelBeta', _fallback.updateChannelBeta);
-
-  @override
   String get updateChannelRelease =>
       _string('updateChannelRelease', _fallback.updateChannelRelease);
 
@@ -2964,14 +2985,6 @@ class PluginAppLocalizations extends AppLocalizations {
   @override
   String get updateIntervalNever =>
       _string('updateIntervalNever', _fallback.updateIntervalNever);
-
-  @override
-  String get updateAllowBetaTitle =>
-      _string('updateAllowBetaTitle', _fallback.updateAllowBetaTitle);
-
-  @override
-  String get updateAllowBetaSubtitle =>
-      _string('updateAllowBetaSubtitle', _fallback.updateAllowBetaSubtitle);
 
   @override
   String get updateAllowAlphaTitle =>

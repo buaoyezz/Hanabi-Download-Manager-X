@@ -41,6 +41,7 @@ import 'services/main_window_command_service.dart';
 import 'services/single_instance_service.dart';
 import 'services/plugin_lifecycle_service.dart';
 import 'services/plugin_store_service.dart';
+import 'services/plugin_process_runner.dart';
 import 'screens/home_screen.dart';
 import 'popup/popup_window_bootstrap.dart';
 import 'tray_menu/tray_menu_bootstrap.dart'
@@ -114,6 +115,7 @@ Future<void> popupMain(List<String> args) async {
         fontFamily: fontStack.primaryFamily,
         fontFamilyFallback: fontStack.fallbackFamilies,
         textScaleFactor: clientConfig.getWindowScaleFactor(),
+        classicControlVisuals: clientConfig.getClassicControlVisuals(),
       );
     } catch (e) {
       appLogger.warning('Popup', 'Failed to load popup font settings: $e');
@@ -171,6 +173,7 @@ Future<void> trayMenuMain(List<String> args) async {
         fontFamily: fontStack.primaryFamily,
         fontFamilyFallback: fontStack.fallbackFamilies,
         textScaleFactor: clientConfig.getWindowScaleFactor(),
+        classicControlVisuals: clientConfig.getClassicControlVisuals(),
       );
     } catch (e) {
       appLogger.warning('TrayMenu', 'Failed to load tray font settings: $e');
@@ -337,6 +340,7 @@ void main(List<String> args) async {
           ChangeNotifierProvider.value(value: localizationService),
           ChangeNotifierProvider.value(value: pluginLifecycleService),
           ChangeNotifierProvider.value(value: pluginStoreService),
+          Provider<PluginProcessRunner>(create: (_) => PluginProcessRunner()),
           Provider<bool>.value(value: isAutoStart), // 传递启动模式
         ],
         child: const MyApp(),
@@ -905,6 +909,18 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final pluginService = context.watch<PluginLifecycleService>();
+    Map<String, dynamic>? activeThemeOverrides;
+    for (final plugin in pluginService.plugins) {
+      if (plugin.enabled &&
+          plugin.manifest.supportsCapability('theme_provider') &&
+          plugin.manifest.themeOverrides != null) {
+        activeThemeOverrides = plugin.manifest.themeOverrides;
+        break;
+      }
+    }
+    AppTheme.applyPluginOverrides(activeThemeOverrides);
+
     return Consumer3<FontService, ClientConfigService, LocalizationService>(
       builder:
           (context, fontService, clientConfig, localizationService, child) {
@@ -914,8 +930,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           themeMode,
           platformBrightness:
               WidgetsBinding.instance.platformDispatcher.platformBrightness,
+          classicControlVisuals: clientConfig.getClassicControlVisuals(),
         );
-        AppTheme.applyBrightness(baseTheme.brightness);
+        AppTheme.applyBrightness(
+          baseTheme.brightness,
+          classicControlVisuals: clientConfig.getClassicControlVisuals(),
+        );
         unawaited(
           context
               .read<WindowEffectService>()
@@ -985,7 +1005,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             ),
           ),
           builder: (context, child) {
-            AppTheme.applyFluentTheme(fluent.FluentTheme.of(context));
+            AppTheme.applyFluentTheme(
+              fluent.FluentTheme.of(context),
+              classicControlVisuals: clientConfig.getClassicControlVisuals(),
+            );
             Widget content = NotificationManager(
               child: child!,
             );

@@ -34,12 +34,14 @@ class PopupWindowThemeConfig {
     required this.fontFamily,
     this.fontFamilyFallback = const [],
     this.textScaleFactor = 1.0,
+    this.classicControlVisuals = true,
   });
 
   final AppThemeMode themeMode;
   final String fontFamily;
   final List<String> fontFamilyFallback;
   final double textScaleFactor;
+  final bool classicControlVisuals;
 
   bool get hasFontFamily => fontFamily.trim().isNotEmpty;
   double get safeTextScaleFactor =>
@@ -316,8 +318,12 @@ class PopupWindowApp extends StatelessWidget {
       themeConfig?.themeMode ?? AppThemeMode.system,
       platformBrightness:
           WidgetsBinding.instance.platformDispatcher.platformBrightness,
+      classicControlVisuals: themeConfig?.classicControlVisuals ?? true,
     );
-    AppTheme.applyBrightness(baseTheme.brightness);
+    AppTheme.applyBrightness(
+      baseTheme.brightness,
+      classicControlVisuals: themeConfig?.classicControlVisuals ?? true,
+    );
     final typography = baseTheme.typography;
     final fontFamily = themeConfig?.fontFamily.trim() ?? '';
     final fontFallbacks = themeConfig?.fontFamilyFallback ?? const <String>[];

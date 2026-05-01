@@ -124,12 +124,14 @@ class SystemTrayService {
 
     final clientConfig = ClientConfigService();
     final themeMode = clientConfig.getThemeMode();
+    final classicControlVisuals = clientConfig.getClassicControlVisuals();
 
     return <String, dynamic>{
       'locale': localeTag,
       'mouse_x': cursorPos['x'] ?? 0.0,
       'mouse_y': cursorPos['y'] ?? 0.0,
       'theme_mode': themeMode,
+      'classic_control_visuals': classicControlVisuals,
       'active_tasks': activeTasks,
     };
   }

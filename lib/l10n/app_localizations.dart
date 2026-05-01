@@ -338,6 +338,36 @@ abstract class AppLocalizations {
   /// **'当前主题模式：{mode}'**
   String appearanceThemeSavedMessage(Object mode);
 
+  /// No description provided for @appearanceClassicControlVisualsTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'经典控件视觉'**
+  String get appearanceClassicControlVisualsTitle;
+
+  /// No description provided for @appearanceClassicControlVisualsSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'在暗色模式下使用旧版灰色控件边框，降低新版 Fluent 2 的白色描边感'**
+  String get appearanceClassicControlVisualsSubtitle;
+
+  /// No description provided for @appearanceClassicControlVisualsSavedTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'控件视觉已更新'**
+  String get appearanceClassicControlVisualsSavedTitle;
+
+  /// No description provided for @appearanceClassicControlVisualsEnabledMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'已启用经典控件视觉'**
+  String get appearanceClassicControlVisualsEnabledMessage;
+
+  /// No description provided for @appearanceClassicControlVisualsDisabledMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'已启用新版 Fluent 2 控件视觉'**
+  String get appearanceClassicControlVisualsDisabledMessage;
+
   /// No description provided for @appearanceSectionLanguage.
   ///
   /// In zh, this message translates to:
@@ -2555,7 +2585,7 @@ abstract class AppLocalizations {
   /// No description provided for @appearanceWindowEffectMica.
   ///
   /// In zh, this message translates to:
-  /// **'mica_main'**
+  /// **'Mica'**
   String get appearanceWindowEffectMica;
 
   /// No description provided for @appearanceWindowEffectMicaAlt.
@@ -3785,7 +3815,7 @@ abstract class AppLocalizations {
   /// No description provided for @updateConfirmDetails.
   ///
   /// In zh, this message translates to:
-  /// **'新版本: {newVersion}\\n当前版本: {currentVersion}\\n变更: {change}\\n渠道: {currentChannel} -> {targetChannel}\\n准备更新？'**
+  /// **'新版本: {newVersion}\n当前版本: {currentVersion}\n变更: {change}\n渠道: {currentChannel} -> {targetChannel}\n准备更新？'**
   String updateConfirmDetails(Object newVersion, Object currentVersion,
       Object change, Object currentChannel, Object targetChannel);
 
@@ -3822,7 +3852,7 @@ abstract class AppLocalizations {
   /// No description provided for @updateLauncherFailedMessage.
   ///
   /// In zh, this message translates to:
-  /// **'无法启动 Update.exe\\n排查步骤:\\n • 检查 Update.exe 是否被删除或移动\\n • 确认已安装 .NET 8\\n • 确认安装包完整\\n如果仍失败，请手动下载安装。'**
+  /// **'无法启动更新器\n排查步骤:\n • 检查 HanabiUpdater.exe 是否被删除或移动\n • 确认安装包完整\n • 尝试以管理员身份运行\n如果仍失败，请手动下载安装。'**
   String get updateLauncherFailedMessage;
 
   /// No description provided for @updateLauncherFailedCloseButton.
@@ -3909,12 +3939,6 @@ abstract class AppLocalizations {
   /// **'Alpha（预览版）'**
   String get updateChannelAlpha;
 
-  /// No description provided for @updateChannelBeta.
-  ///
-  /// In zh, this message translates to:
-  /// **'Beta（公测版）'**
-  String get updateChannelBeta;
-
   /// No description provided for @updateChannelRelease.
   ///
   /// In zh, this message translates to:
@@ -3962,18 +3986,6 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'从不'**
   String get updateIntervalNever;
-
-  /// No description provided for @updateAllowBetaTitle.
-  ///
-  /// In zh, this message translates to:
-  /// **'接收 Beta 更新'**
-  String get updateAllowBetaTitle;
-
-  /// No description provided for @updateAllowBetaSubtitle.
-  ///
-  /// In zh, this message translates to:
-  /// **'允许接收稳定的 Beta 版本'**
-  String get updateAllowBetaSubtitle;
 
   /// No description provided for @updateAllowAlphaTitle.
   ///

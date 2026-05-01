@@ -23,7 +23,7 @@
     "x-auto-source-zh": "但是感谢你使用 {appName}！\\n感谢你的支持\\n希望你可以给他一个 Star",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "aboutEasterEggDismiss": "pretend not to know",
+  "aboutEasterEggDismiss": "Pretend not to know",
   "@aboutEasterEggDismiss": {
     "x-auto-source-zh": "假装不知道",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -41,7 +41,7 @@
     "x-auto-source-zh": "嘿！",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "aboutPageTitle": "about",
+  "aboutPageTitle": "About",
   "@aboutPageTitle": {
     "x-auto-source-zh": "关于",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -77,7 +77,7 @@
     "x-auto-source-zh": "开发者",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "aboutDetailKernelLabel": "Download core",
+  "aboutDetailKernelLabel": "Download Engine",
   "@aboutDetailKernelLabel": {
     "x-auto-source-zh": "下载核心",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -92,7 +92,7 @@
     "x-auto-source-zh": "Fluent UI for Flutter",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "aboutSectionLinks": "Link",
+  "aboutSectionLinks": "Links",
   "@aboutSectionLinks": {
     "x-auto-source-zh": "链接",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -131,7 +131,7 @@
     "x-auto-source-zh": "© {year} {developer}。保留所有权利。",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "aboutOpenLinkErrorTitle": "mistake",
+  "aboutOpenLinkErrorTitle": "Error",
   "@aboutOpenLinkErrorTitle": {
     "x-auto-source-zh": "错误",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -144,32 +144,32 @@
     "x-auto-source-zh": "打开链接失败: {error}",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsTitle": "set up",
+  "settingsTitle": "Settings",
   "@settingsTitle": {
     "x-auto-source-zh": "设置",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsTabGeneral": "conventional",
+  "settingsTabGeneral": "General",
   "@settingsTabGeneral": {
     "x-auto-source-zh": "常规",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsTabDownload": "download",
+  "settingsTabDownload": "Download",
   "@settingsTabDownload": {
     "x-auto-source-zh": "下载",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsTabAppearance": "interface",
+  "settingsTabAppearance": "Interface",
   "@settingsTabAppearance": {
     "x-auto-source-zh": "界面",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsTabUpdate": "renew",
+  "settingsTabUpdate": "Update",
   "@settingsTabUpdate": {
     "x-auto-source-zh": "更新",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsTabAdvanced": "advanced",
+  "settingsTabAdvanced": "Advanced",
   "@settingsTabAdvanced": {
     "x-auto-source-zh": "高级",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -179,11 +179,11 @@
     "x-auto-source-zh": "开发者",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceThemeSection": "theme",
+  "appearanceThemeSection": "Theme",
   "@appearanceThemeSection": {
     "x-auto-source-zh": "主题"
   },
-  "appearanceThemeModeTitle": "theme mode",
+  "appearanceThemeModeTitle": "Theme mode",
   "@appearanceThemeModeTitle": {
     "x-auto-source-zh": "主题模式"
   },
@@ -214,12 +214,32 @@
     },
     "x-auto-source-zh": "当前主题模式：{mode}"
   },
-  "appearanceSectionLanguage": "language",
+  "appearanceClassicControlVisualsTitle": "Classic control visuals",
+  "@appearanceClassicControlVisualsTitle": {
+    "x-auto-source-zh": "经典控件视觉"
+  },
+  "appearanceClassicControlVisualsSubtitle": "Use the older gray control borders in dark mode to reduce the bright Fluent 2 outline.",
+  "@appearanceClassicControlVisualsSubtitle": {
+    "x-auto-source-zh": "在暗色模式下使用旧版灰色控件边框，降低新版 Fluent 2 的白色描边感"
+  },
+  "appearanceClassicControlVisualsSavedTitle": "Control visuals updated",
+  "@appearanceClassicControlVisualsSavedTitle": {
+    "x-auto-source-zh": "控件视觉已更新"
+  },
+  "appearanceClassicControlVisualsEnabledMessage": "Classic control visuals are enabled",
+  "@appearanceClassicControlVisualsEnabledMessage": {
+    "x-auto-source-zh": "已启用经典控件视觉"
+  },
+  "appearanceClassicControlVisualsDisabledMessage": "Fluent 2 control visuals are enabled",
+  "@appearanceClassicControlVisualsDisabledMessage": {
+    "x-auto-source-zh": "已启用新版 Fluent 2 控件视觉"
+  },
+  "appearanceSectionLanguage": "Language",
   "@appearanceSectionLanguage": {
     "x-auto-source-zh": "语言",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceLanguageTitle": "interface language",
+  "appearanceLanguageTitle": "Interface language",
   "@appearanceLanguageTitle": {
     "x-auto-source-zh": "界面语言",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -249,7 +269,7 @@
     "x-auto-source-zh": "语言已切换",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceLanguageSwitchedSystem": "will be automatically selected based on the system language",
+  "appearanceLanguageSwitchedSystem": "Will follow the system language",
   "@appearanceLanguageSwitchedSystem": {
     "x-auto-source-zh": "将根据系统语言自动选择",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -293,7 +313,7 @@
     "x-auto-source-zh": "刷新语言包",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "trayMenuShowWindowTitle": "display window",
+  "trayMenuShowWindowTitle": "Show window",
   "@trayMenuShowWindowTitle": {
     "x-auto-source-zh": "显示窗口",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -318,7 +338,7 @@
     "x-auto-source-zh": "已停止",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "trayMenuExitTitle": "Exit application",
+  "trayMenuExitTitle": "Exit app",
   "@trayMenuExitTitle": {
     "x-auto-source-zh": "退出应用",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -369,7 +389,7 @@
     "x-auto-source-zh": "文件数",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "tempFilesStatTotalSize": "total size",
+  "tempFilesStatTotalSize": "Total size",
   "@tempFilesStatTotalSize": {
     "x-auto-source-zh": "总大小",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -399,17 +419,17 @@
     "x-auto-source-zh": "排序:",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "tempFilesSortName": "name",
+  "tempFilesSortName": "Name",
   "@tempFilesSortName": {
     "x-auto-source-zh": "名称",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "tempFilesSortSize": "size",
+  "tempFilesSortSize": "Size",
   "@tempFilesSortSize": {
     "x-auto-source-zh": "大小",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "tempFilesSortTime": "time",
+  "tempFilesSortTime": "Time",
   "@tempFilesSortTime": {
     "x-auto-source-zh": "时间",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -419,7 +439,7 @@
     "x-auto-source-zh": "没有找到临时文件",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "tempFilesCloseButton": "closure",
+  "tempFilesCloseButton": "Close",
   "@tempFilesCloseButton": {
     "x-auto-source-zh": "关闭",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -463,7 +483,7 @@
     "x-auto-source-zh": "取消",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "tempFilesDeleteButton": "delete",
+  "tempFilesDeleteButton": "Delete",
   "@tempFilesDeleteButton": {
     "x-auto-source-zh": "删除",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -500,12 +520,12 @@
     "x-auto-source-zh": "已完成",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "homeNavLog": "log",
+  "homeNavLog": "Logs",
   "@homeNavLog": {
     "x-auto-source-zh": "日志",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "homeNavStatus": "state",
+  "homeNavStatus": "Status",
   "@homeNavStatus": {
     "x-auto-source-zh": "状态",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -525,17 +545,17 @@
     "x-auto-source-zh": "连接调试",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "homeNavSettings": "set up",
+  "homeNavSettings": "Settings",
   "@homeNavSettings": {
     "x-auto-source-zh": "设置",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "homeNavNotice": "notify",
+  "homeNavNotice": "Notifications",
   "@homeNavNotice": {
     "x-auto-source-zh": "通知",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "homeNavAbout": "about",
+  "homeNavAbout": "About",
   "@homeNavAbout": {
     "x-auto-source-zh": "关于",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -579,7 +599,7 @@
     "x-auto-source-zh": "新建",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "fileName": "file name",
+  "fileName": "File name",
   "@fileName": {
     "x-auto-source-zh": "文件名",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -589,22 +609,22 @@
     "x-auto-source-zh": "ID",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "name": "name",
+  "name": "Name",
   "@name": {
     "x-auto-source-zh": "名称",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "segments": "segmentation",
+  "segments": "Segments",
   "@segments": {
     "x-auto-source-zh": "分段",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "speed": "speed",
+  "speed": "Speed",
   "@speed": {
     "x-auto-source-zh": "速度",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "status": "state",
+  "status": "Status",
   "@status": {
     "x-auto-source-zh": "状态",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -619,32 +639,32 @@
     "x-auto-source-zh": "系统设置",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsAutoStartTitle": "Start automatically at boot",
+  "settingsAutoStartTitle": "Start at login",
   "@settingsAutoStartTitle": {
     "x-auto-source-zh": "开机自启",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsAutoStartSubtitle": "Automatically run applications when the system starts",
+  "settingsAutoStartSubtitle": "Run the app when the system starts",
   "@settingsAutoStartSubtitle": {
     "x-auto-source-zh": "系统启动时自动运行应用程序",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsAutoStartEnabledTitle": "Auto-start at boot is on",
+  "settingsAutoStartEnabledTitle": "Startup enabled",
   "@settingsAutoStartEnabledTitle": {
     "x-auto-source-zh": "开机自启已开启",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsAutoStartEnabledMessage": "The software will run automatically when the system starts",
+  "settingsAutoStartEnabledMessage": "The app will run when the system starts",
   "@settingsAutoStartEnabledMessage": {
     "x-auto-source-zh": "软件将随系统启动自动运行",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsAutoStartDisabledTitle": "Autostart at power on is turned off",
+  "settingsAutoStartDisabledTitle": "Startup disabled",
   "@settingsAutoStartDisabledTitle": {
     "x-auto-source-zh": "开机自启已关闭",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsAutoStartDisabledMessage": "The software will not run automatically",
+  "settingsAutoStartDisabledMessage": "The app will not run automatically",
   "@settingsAutoStartDisabledMessage": {
     "x-auto-source-zh": "软件将不会自动运行",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -664,7 +684,7 @@
     "x-auto-source-zh": "自启动已修复",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsAutoStartFixedMessage": "An old version of self-starting registration was detected and has been automatically updated to the current version.",
+  "settingsAutoStartFixedMessage": "An older startup entry was detected and updated to the current version.",
   "@settingsAutoStartFixedMessage": {
     "x-auto-source-zh": "检测到旧版本的自启动注册，已自动更新为当前版本",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -674,7 +694,7 @@
     "x-auto-source-zh": "行为设置",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsAutoDownloadTitle": "Automatically start downloading",
+  "settingsAutoDownloadTitle": "Auto-start downloads",
   "@settingsAutoDownloadTitle": {
     "x-auto-source-zh": "自动开始下载",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -684,7 +704,7 @@
     "x-auto-source-zh": "新任务将自动开始下载",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsAutoDownloadEnabledTitle": "Automatically start downloading is turned on",
+  "settingsAutoDownloadEnabledTitle": "Auto-start downloads enabled",
   "@settingsAutoDownloadEnabledTitle": {
     "x-auto-source-zh": "自动开始下载已开启",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -694,7 +714,7 @@
     "x-auto-source-zh": "新任务将自动开始下载",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsAutoDownloadDisabledTitle": "Automatic download is turned off",
+  "settingsAutoDownloadDisabledTitle": "Auto-start downloads disabled",
   "@settingsAutoDownloadDisabledTitle": {
     "x-auto-source-zh": "自动下载已关闭",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -719,7 +739,7 @@
     "x-auto-source-zh": "弹窗已开启",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsPopupEnabledMessage": "Browser download will open a separate popup window, and the main window remains in the background",
+  "settingsPopupEnabledMessage": "Browser downloads will open a separate popup window while the main window stays in the background.",
   "@settingsPopupEnabledMessage": {
     "x-auto-source-zh": "浏览器下载将打开独立 popup 窗口，主窗口保持后台",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -729,7 +749,7 @@
     "x-auto-source-zh": "弹窗已关闭",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsPopupDisabledMessage": "The browser download will be directly added to the task and no independent popup window will pop up.",
+  "settingsPopupDisabledMessage": "Browser downloads will be added directly to tasks without opening a separate popup window.",
   "@settingsPopupDisabledMessage": {
     "x-auto-source-zh": "浏览器下载将直接加入任务，不再弹出独立 popup 窗口",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -749,7 +769,7 @@
     "x-auto-source-zh": "完成通知已开启",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsCompleteNotifyEnabledMessage": "Notification will be sent when download is complete",
+  "settingsCompleteNotifyEnabledMessage": "A notification will be sent when a download completes",
   "@settingsCompleteNotifyEnabledMessage": {
     "x-auto-source-zh": "下载完成时将发送通知",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -834,7 +854,7 @@
     "x-auto-source-zh": "最小化到托盘",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsCloseBehaviorExitLabel": "Exit application",
+  "settingsCloseBehaviorExitLabel": "Exit app",
   "@settingsCloseBehaviorExitLabel": {
     "x-auto-source-zh": "退出应用",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -844,12 +864,12 @@
     "x-auto-source-zh": "最小化到系统托盘，保持后台运行",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsCloseBehaviorExit": "Exit the application completely",
+  "settingsCloseBehaviorExit": "Exit the app completely",
   "@settingsCloseBehaviorExit": {
     "x-auto-source-zh": "完全退出应用程序",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsCloseBehaviorUnknown": "unknown behavior",
+  "settingsCloseBehaviorUnknown": "Unknown behavior",
   "@settingsCloseBehaviorUnknown": {
     "x-auto-source-zh": "未知行为",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -867,7 +887,7 @@
     "x-auto-source-zh": "设置已保存",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsSaveFailedTitle": "Setup failed",
+  "settingsSaveFailedTitle": "Settings failed",
   "@settingsSaveFailedTitle": {
     "x-auto-source-zh": "设置失败",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -880,12 +900,12 @@
     "x-auto-source-zh": "无法保存设置: {error}",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsBrowserExtensionPortTitle": "browser bridge port",
+  "settingsBrowserExtensionPortTitle": "Browser bridge port",
   "@settingsBrowserExtensionPortTitle": {
     "x-auto-source-zh": "浏览器桥接端口",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsBrowserExtensionPortSubtitle": "The current local API address is http://127.0.0.1:{port} | After modification, the extension will automatically migrate to the new port for you",
+  "settingsBrowserExtensionPortSubtitle": "Current local API: http://127.0.0.1:{port} | The extension will migrate automatically after changes",
   "@settingsBrowserExtensionPortSubtitle": {
     "placeholders": {
       "port": {}
@@ -913,7 +933,7 @@
     "x-auto-source-zh": "1024 - 65535",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsBrowserExtensionPortHintBody": "Hanabi will immediately switch the local bridge to the new port, and retain the old port as a compatible entry point during the migration, and the browser extension will automatically switch over.",
+  "settingsBrowserExtensionPortHintBody": "Hanabi will switch the local bridge to the new port immediately and keep the old port as a compatibility endpoint during migration. The browser extension will switch automatically.",
   "@settingsBrowserExtensionPortHintBody": {
     "x-auto-source-zh": "Hanabi 会立即把本地桥接切到新端口，并在迁移期间保留旧端口作为兼容入口，浏览器扩展会自动切换过去。",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -923,7 +943,7 @@
     "x-auto-source-zh": "端口无效",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsBrowserExtensionPortInvalidMessage": "Sorry, the port number you entered is illegal \n Please enter a port number between {min} and {max}",
+  "settingsBrowserExtensionPortInvalidMessage": "Invalid port number.\nEnter a port between {min} and {max}.",
   "@settingsBrowserExtensionPortInvalidMessage": {
     "placeholders": {
       "min": {},
@@ -932,7 +952,7 @@
     "x-auto-source-zh": "抱歉您输入的端口号不合法\n请输入 {min} 到 {max} 之间的端口号",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsBrowserExtensionPortSavedMessage": "The browser bridge port has been switched to {port} and the extension will update automatically.",
+  "settingsBrowserExtensionPortSavedMessage": "Browser bridge port switched to {port}. The extension will update automatically.",
   "@settingsBrowserExtensionPortSavedMessage": {
     "placeholders": {
       "port": {}
@@ -953,7 +973,7 @@
     "x-auto-source-zh": "下载路径",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsDownloadPathTitle": "save location",
+  "settingsDownloadPathTitle": "Save location",
   "@settingsDownloadPathTitle": {
     "x-auto-source-zh": "保存位置",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -968,7 +988,7 @@
     "x-auto-source-zh": "设置下载路径",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsDownloadPathDialogPrompt": "Please enter or browse to select the download save path:",
+  "settingsDownloadPathDialogPrompt": "Enter or browse for the download save path:",
   "@settingsDownloadPathDialogPrompt": {
     "x-auto-source-zh": "请输入或浏览选择下载保存路径:",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -983,7 +1003,7 @@
     "x-auto-source-zh": "浏览",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsDownloadPathHintTitle": "hint:",
+  "settingsDownloadPathHintTitle": "Tip:",
   "@settingsDownloadPathHintTitle": {
     "x-auto-source-zh": "提示:",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1021,12 +1041,12 @@
     "x-auto-source-zh": "下载配置",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsDownloadModeTitle": "download mode",
+  "settingsDownloadModeTitle": "Download mode",
   "@settingsDownloadModeTitle": {
     "x-auto-source-zh": "下载模式",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsDownloadModeAuto": "automatic",
+  "settingsDownloadModeAuto": "Auto",
   "@settingsDownloadModeAuto": {
     "x-auto-source-zh": "自动",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1036,7 +1056,7 @@
     "x-auto-source-zh": "仅线程",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsDownloadModeSegmentsOnly": "segment only",
+  "settingsDownloadModeSegmentsOnly": "Segments only",
   "@settingsDownloadModeSegmentsOnly": {
     "x-auto-source-zh": "仅分段",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1066,12 +1086,12 @@
     "x-auto-source-zh": "每个任务的分段数量",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsDynamicSegmentsTitle": "dynamic segmentation",
+  "settingsDynamicSegmentsTitle": "Dynamic segments",
   "@settingsDynamicSegmentsTitle": {
     "x-auto-source-zh": "动态分段",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsDynamicSegmentsSubtitle": "Automatically adjust segments based on file size",
+  "settingsDynamicSegmentsSubtitle": "Adjust segment count automatically based on file size",
   "@settingsDynamicSegmentsSubtitle": {
     "x-auto-source-zh": "根据文件大小自动调整分段",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1116,7 +1136,7 @@
     "x-auto-source-zh": "限制单分段速度",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsGlobalSpeedLimitTitle": "global speed limit",
+  "settingsGlobalSpeedLimitTitle": "Global speed limit",
   "@settingsGlobalSpeedLimitTitle": {
     "x-auto-source-zh": "全局限速",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1222,7 +1242,7 @@
     "x-auto-source-zh": "保存后可随时切换使用",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsUaCustomNamePlaceholder": "name",
+  "settingsUaCustomNamePlaceholder": "Name",
   "@settingsUaCustomNamePlaceholder": {
     "x-auto-source-zh": "名称",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1265,12 +1285,12 @@
     "x-auto-source-zh": "已启用",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsUaCustomApplyButton": "application",
+  "settingsUaCustomApplyButton": "Apply",
   "@settingsUaCustomApplyButton": {
     "x-auto-source-zh": "应用",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsSpeedUnlimited": "no speed limit",
+  "settingsSpeedUnlimited": "Unlimited",
   "@settingsSpeedUnlimited": {
     "x-auto-source-zh": "不限速",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1291,7 +1311,7 @@
     "x-auto-source-zh": "无法保存弹窗设置: {error}",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsProxySection": "proxy settings",
+  "settingsProxySection": "Proxy settings",
   "@settingsProxySection": {
     "x-auto-source-zh": "代理设置",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1325,7 +1345,7 @@
     "x-auto-source-zh": "已启用代理：跟随系统设置",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsProxyDisabledMessage": "proxy disabled",
+  "settingsProxyDisabledMessage": "Proxy disabled",
   "@settingsProxyDisabledMessage": {
     "x-auto-source-zh": "已禁用代理",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1340,7 +1360,7 @@
     "x-auto-source-zh": "选择代理协议",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsProxyTypeSystem": "system agent",
+  "settingsProxyTypeSystem": "System proxy",
   "@settingsProxyTypeSystem": {
     "x-auto-source-zh": "系统代理",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1355,7 +1375,7 @@
     "x-auto-source-zh": "SOCKS5",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsProxyServerTitle": "proxy server",
+  "settingsProxyServerTitle": "Proxy server",
   "@settingsProxyServerTitle": {
     "x-auto-source-zh": "代理服务器",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1380,7 +1400,7 @@
     "x-auto-source-zh": "需要用户名和密码",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsProxyUsernameTitle": "username",
+  "settingsProxyUsernameTitle": "Username",
   "@settingsProxyUsernameTitle": {
     "x-auto-source-zh": "用户名",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1390,12 +1410,12 @@
     "x-auto-source-zh": "代理账号用户名",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsProxyUsernamePlaceholder": "username",
+  "settingsProxyUsernamePlaceholder": "Username",
   "@settingsProxyUsernamePlaceholder": {
     "x-auto-source-zh": "用户名",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsProxyPasswordTitle": "password",
+  "settingsProxyPasswordTitle": "Password",
   "@settingsProxyPasswordTitle": {
     "x-auto-source-zh": "密码",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1405,7 +1425,7 @@
     "x-auto-source-zh": "代理账号密码",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsProxyPasswordPlaceholder": "password",
+  "settingsProxyPasswordPlaceholder": "Password",
   "@settingsProxyPasswordPlaceholder": {
     "x-auto-source-zh": "密码",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1435,7 +1455,7 @@
     "x-auto-source-zh": "• 支持系统代理、HTTP/HTTPS 和 SOCKS5 代理\n• 配置后将应用到所有新的下载任务\n• 正在进行的下载不会受到影响",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsProxyTestButton": "test connection",
+  "settingsProxyTestButton": "Test connection",
   "@settingsProxyTestButton": {
     "x-auto-source-zh": "测试连接",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1455,7 +1475,7 @@
     "x-auto-source-zh": "连接成功",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsProxyTestSuccessMessage": "The proxy server connection is normal and can be used normally.",
+  "settingsProxyTestSuccessMessage": "Proxy server connection is working.",
   "@settingsProxyTestSuccessMessage": {
     "x-auto-source-zh": "代理服务器连接正常，可以正常使用",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1470,12 +1490,12 @@
     "x-auto-source-zh": "无法连接到代理服务器，请检查配置",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsProxyTestErrorTitle": "test failed",
+  "settingsProxyTestErrorTitle": "Test failed",
   "@settingsProxyTestErrorTitle": {
     "x-auto-source-zh": "测试失败",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsProxyTestErrorMessage": "Agent connection test failed: {error}",
+  "settingsProxyTestErrorMessage": "Proxy connection test failed: {error}",
   "@settingsProxyTestErrorMessage": {
     "placeholders": {
       "error": {}
@@ -1503,7 +1523,7 @@
     "x-auto-source-zh": "当前内核",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsKernelOnline": "online",
+  "settingsKernelOnline": "Online",
   "@settingsKernelOnline": {
     "x-auto-source-zh": "在线",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1546,7 +1566,7 @@
     "x-auto-source-zh": "切换失败",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsKernelSwitchFailedNewMessage": "Unable to start new kernel, please try again later",
+  "settingsKernelSwitchFailedNewMessage": "Unable to start the new engine. Try again later.",
   "@settingsKernelSwitchFailedNewMessage": {
     "x-auto-source-zh": "无法启动新内核，请稍后重试",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1566,7 +1586,7 @@
     "x-auto-source-zh": "Browser Extension",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsModeDescriptionAuto": "Intelligent dynamic segmentation, automatic optimization based on file size (recommended)",
+  "settingsModeDescriptionAuto": "Dynamic segments, automatically optimized by file size (recommended)",
   "@settingsModeDescriptionAuto": {
     "x-auto-source-zh": "智能动态分段，根据文件大小自动优化 (推荐)",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1706,7 +1726,7 @@
     "x-auto-source-zh": "删除所有下载任务和历史记录",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsDangerClearDataButton": "clear data",
+  "settingsDangerClearDataButton": "Clear data",
   "@settingsDangerClearDataButton": {
     "x-auto-source-zh": "清除数据",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1736,7 +1756,7 @@
     "x-auto-source-zh": "请稍候",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsDangerClearedTitle": "cleared",
+  "settingsDangerClearedTitle": "Cleared",
   "@settingsDangerClearedTitle": {
     "x-auto-source-zh": "已清除",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1751,7 +1771,7 @@
     "x-auto-source-zh": "清除失败",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsDangerClearFailedMessage": "Unable to clear data, please ensure download core is running",
+  "settingsDangerClearFailedMessage": "Unable to clear data. Make sure the download engine is running.",
   "@settingsDangerClearFailedMessage": {
     "x-auto-source-zh": "无法清除数据，请确保下载核心正在运行",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1766,17 +1786,17 @@
     "x-auto-source-zh": "获取失败",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsUserUnknown": "unknown user",
+  "settingsUserUnknown": "Unknown user",
   "@settingsUserUnknown": {
     "x-auto-source-zh": "未知用户",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceWindowSizeSection": "window size",
+  "appearanceWindowSizeSection": "Window size",
   "@appearanceWindowSizeSection": {
     "x-auto-source-zh": "窗口大小",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceWindowRememberTitle": "memory window size",
+  "appearanceWindowRememberTitle": "Remember window size",
   "@appearanceWindowRememberTitle": {
     "x-auto-source-zh": "记忆窗口大小",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1817,7 +1837,7 @@
     "x-auto-source-zh": "启动默认高度 (400-{max})",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceWindowSaveTitle": "saved",
+  "appearanceWindowSaveTitle": "Saved",
   "@appearanceWindowSaveTitle": {
     "x-auto-source-zh": "已保存",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1850,7 +1870,7 @@
     "x-auto-source-zh": "已重置默认窗口大小为 889×586",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceWindowResetButton": "reset to default",
+  "appearanceWindowResetButton": "Reset to default",
   "@appearanceWindowResetButton": {
     "x-auto-source-zh": "重置为默认",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1938,12 +1958,12 @@
     "x-auto-source-zh": "调整此设置可以让应用在高分辨率屏幕上显示更清晰。4K屏幕推荐125%-150%",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceFontSection": "font",
+  "appearanceFontSection": "Fonts",
   "@appearanceFontSection": {
     "x-auto-source-zh": "字体",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceFontTitle": "Apply font",
+  "appearanceFontTitle": "Font",
   "@appearanceFontTitle": {
     "x-auto-source-zh": "应用字体",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -1961,7 +1981,7 @@
     "x-auto-source-zh": "当前字体: {font}",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceFontSystemLabel": "system",
+  "appearanceFontSystemLabel": "System",
   "@appearanceFontSystemLabel": {
     "x-auto-source-zh": "system",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -2052,7 +2072,7 @@
     "x-auto-source-zh": "取消",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceFontDeleteConfirmButton": "delete",
+  "appearanceFontDeleteConfirmButton": "Delete",
   "@appearanceFontDeleteConfirmButton": {
     "x-auto-source-zh": "删除",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -2105,7 +2125,7 @@
     "x-auto-source-zh": "没有找到匹配的字体",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceFontPickerRecommended": "recommend",
+  "appearanceFontPickerRecommended": "Recommended",
   "@appearanceFontPickerRecommended": {
     "x-auto-source-zh": "推荐",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -2115,7 +2135,7 @@
     "x-auto-source-zh": "取消",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceWindowEffectsSection": "window effect",
+  "appearanceWindowEffectsSection": "Window effects",
   "@appearanceWindowEffectsSection": {
     "x-auto-source-zh": "窗口效果",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -2170,14 +2190,14 @@
     "x-auto-source-zh": "Acrylic",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceWindowEffectBlur": "Vague",
+  "appearanceWindowEffectBlur": "Blur",
   "@appearanceWindowEffectBlur": {
     "x-auto-source-zh": "模糊",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceWindowEffectMica": "mica_main",
+  "appearanceWindowEffectMica": "Mica",
   "@appearanceWindowEffectMica": {
-    "x-auto-source-zh": "mica_main",
+    "x-auto-source-zh": "Mica",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
   "appearanceWindowEffectMicaAlt": "Mica Alt",
@@ -2215,7 +2235,7 @@
     "x-auto-source-zh": "拖动时保持特效（Win10 可能卡顿）",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceWindowEffectsRoundedCornersTitle": "window rounded corners",
+  "appearanceWindowEffectsRoundedCornersTitle": "Rounded window corners",
   "@appearanceWindowEffectsRoundedCornersTitle": {
     "x-auto-source-zh": "窗口圆角",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -2270,12 +2290,12 @@
     "x-auto-source-zh": "Mica Alt 效果 - Windows 11 临时窗口云母效果",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceEffectUnknown": "unknown effect",
+  "appearanceEffectUnknown": "Unknown effect",
   "@appearanceEffectUnknown": {
     "x-auto-source-zh": "未知效果",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceSidebarSection": "sidebar",
+  "appearanceSidebarSection": "Sidebar",
   "@appearanceSidebarSection": {
     "x-auto-source-zh": "侧边栏",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -2295,12 +2315,12 @@
     "x-auto-source-zh": "展开",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceSidebarCollapsedLabel": "close",
+  "appearanceSidebarCollapsedLabel": "Collapsed",
   "@appearanceSidebarCollapsedLabel": {
     "x-auto-source-zh": "收起",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceSidebarSavedTitle": "saved",
+  "appearanceSidebarSavedTitle": "Saved",
   "@appearanceSidebarSavedTitle": {
     "x-auto-source-zh": "已保存",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -2313,7 +2333,7 @@
     "x-auto-source-zh": "侧边栏默认状态已设为 {state}",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceNotificationSection": "notify",
+  "appearanceNotificationSection": "Notifications",
   "@appearanceNotificationSection": {
     "x-auto-source-zh": "通知",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -2328,22 +2348,22 @@
     "x-auto-source-zh": "显示下载完成和错误通知",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceNotificationSchemeTitle": "color scheme",
+  "appearanceNotificationSchemeTitle": "Color scheme",
   "@appearanceNotificationSchemeTitle": {
     "x-auto-source-zh": "配色方案",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceNotificationSchemeSystem": "follow the topic",
+  "appearanceNotificationSchemeSystem": "Follow theme",
   "@appearanceNotificationSchemeSystem": {
     "x-auto-source-zh": "跟随主题",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceNotificationSchemeLight": "light color",
+  "appearanceNotificationSchemeLight": "Light colors",
   "@appearanceNotificationSchemeLight": {
     "x-auto-source-zh": "浅色系",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceNotificationSchemeDark": "dark color",
+  "appearanceNotificationSchemeDark": "Dark colors",
   "@appearanceNotificationSchemeDark": {
     "x-auto-source-zh": "深色系",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -2353,17 +2373,17 @@
     "x-auto-source-zh": "Fluent 2 色系（推荐）",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceNotificationSchemeUnknown": "unknown",
+  "appearanceNotificationSchemeUnknown": "Unknown",
   "@appearanceNotificationSchemeUnknown": {
     "x-auto-source-zh": "未知",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceNotificationSchemeDefaultOption": "dark",
+  "appearanceNotificationSchemeDefaultOption": "Dark",
   "@appearanceNotificationSchemeDefaultOption": {
     "x-auto-source-zh": "dark",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceNotificationSchemeLightOption": "light color",
+  "appearanceNotificationSchemeLightOption": "Light",
   "@appearanceNotificationSchemeLightOption": {
     "x-auto-source-zh": "浅色",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -2378,32 +2398,32 @@
     "x-auto-source-zh": "Fluent 2",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceNotificationPositionTitle": "show location",
+  "appearanceNotificationPositionTitle": "Display position",
   "@appearanceNotificationPositionTitle": {
     "x-auto-source-zh": "显示位置",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceNotificationPositionTopRight": "Upper right corner (below the title bar)",
+  "appearanceNotificationPositionTopRight": "Top right, below the title bar",
   "@appearanceNotificationPositionTopRight": {
     "x-auto-source-zh": "右上角（标题栏下方）",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceNotificationPositionBottomRight": "lower right corner",
+  "appearanceNotificationPositionBottomRight": "Bottom right",
   "@appearanceNotificationPositionBottomRight": {
     "x-auto-source-zh": "右下角",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceNotificationPositionUnknown": "unknown",
+  "appearanceNotificationPositionUnknown": "Unknown",
   "@appearanceNotificationPositionUnknown": {
     "x-auto-source-zh": "未知",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceNotificationPositionTopRightOption": "upper right corner",
+  "appearanceNotificationPositionTopRightOption": "Top right",
   "@appearanceNotificationPositionTopRightOption": {
     "x-auto-source-zh": "右上角",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceNotificationPositionBottomRightOption": "lower right corner",
+  "appearanceNotificationPositionBottomRightOption": "Bottom right",
   "@appearanceNotificationPositionBottomRightOption": {
     "x-auto-source-zh": "右下角",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -2413,17 +2433,17 @@
     "x-auto-source-zh": "渲染性能模式",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceNotificationPerformanceOptionPerformance": "balanced",
+  "appearanceNotificationPerformanceOptionPerformance": "Performance",
   "@appearanceNotificationPerformanceOptionPerformance": {
     "x-auto-source-zh": "balanced",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceNotificationPerformanceOptionBalanced": "balance",
+  "appearanceNotificationPerformanceOptionBalanced": "Balanced",
   "@appearanceNotificationPerformanceOptionBalanced": {
     "x-auto-source-zh": "平衡",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceNotificationPerformanceOptionQuality": "high quality",
+  "appearanceNotificationPerformanceOptionQuality": "Quality",
   "@appearanceNotificationPerformanceOptionQuality": {
     "x-auto-source-zh": "高质量",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -2463,7 +2483,7 @@
     "x-auto-source-zh": "操作成功完成",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceNotificationPreviewWarningTitle": "warning notification",
+  "appearanceNotificationPreviewWarningTitle": "Warning notification",
   "@appearanceNotificationPreviewWarningTitle": {
     "x-auto-source-zh": "警告通知",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -2518,7 +2538,7 @@
     "x-auto-source-zh": "高质量（完整毛玻璃效果）",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearancePerformanceModeUnknown": "unknown",
+  "appearancePerformanceModeUnknown": "Unknown",
   "@appearancePerformanceModeUnknown": {
     "x-auto-source-zh": "未知",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -2528,12 +2548,12 @@
     "x-auto-source-zh": "分段进度显示模式",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceSegmentsModeNoneOption": "merged",
+  "appearanceSegmentsModeNoneOption": "Combined",
   "@appearanceSegmentsModeNoneOption": {
     "x-auto-source-zh": "merged",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceSegmentsModeMergedOption": "merge bar",
+  "appearanceSegmentsModeMergedOption": "Merged bar",
   "@appearanceSegmentsModeMergedOption": {
     "x-auto-source-zh": "合并条",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -2583,7 +2603,7 @@
     "x-auto-source-zh": "下载列表显示",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceSpeedChartTitle": "speed curve background",
+  "appearanceSpeedChartTitle": "Speed curve background",
   "@appearanceSpeedChartTitle": {
     "x-auto-source-zh": "速度曲线背景",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -2593,7 +2613,7 @@
     "x-auto-source-zh": "在下载卡片上显示实时速度曲线",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceChartFrostTitle": "curved frosted glass",
+  "appearanceChartFrostTitle": "Frosted Curve",
   "@appearanceChartFrostTitle": {
     "x-auto-source-zh": "曲线毛玻璃",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -2618,12 +2638,12 @@
     "x-auto-source-zh": "低",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceChartPositionMid": "middle",
+  "appearanceChartPositionMid": "Middle",
   "@appearanceChartPositionMid": {
     "x-auto-source-zh": "中",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceChartPositionHigh": "high",
+  "appearanceChartPositionHigh": "High",
   "@appearanceChartPositionHigh": {
     "x-auto-source-zh": "高",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -2638,12 +2658,12 @@
     "x-auto-source-zh": "自定义速度曲线的颜色",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceChartColorBlue": "blue",
+  "appearanceChartColorBlue": "Blue",
   "@appearanceChartColorBlue": {
     "x-auto-source-zh": "蓝色",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceChartColorCyan": "blue",
+  "appearanceChartColorCyan": "Cyan",
   "@appearanceChartColorCyan": {
     "x-auto-source-zh": "青色",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -2653,17 +2673,17 @@
     "x-auto-source-zh": "紫色",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceChartColorGreen": "green",
+  "appearanceChartColorGreen": "Green",
   "@appearanceChartColorGreen": {
     "x-auto-source-zh": "绿色",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceChartColorPink": "pink",
+  "appearanceChartColorPink": "Pink",
   "@appearanceChartColorPink": {
     "x-auto-source-zh": "粉色",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "appearanceChartColorOrange": "orange color",
+  "appearanceChartColorOrange": "Orange",
   "@appearanceChartColorOrange": {
     "x-auto-source-zh": "橙色",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -2673,7 +2693,7 @@
     "x-auto-source-zh": "调试工具",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "developerSectionTestTools": "testing tools",
+  "developerSectionTestTools": "Test tools",
   "@developerSectionTestTools": {
     "x-auto-source-zh": "测试工具",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -2943,32 +2963,32 @@
     "x-auto-source-zh": "连接失败",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "connectionDebugLocalHost": "local machine",
+  "connectionDebugLocalHost": "Local host",
   "@connectionDebugLocalHost": {
     "x-auto-source-zh": "本机",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "connectionDebugProxy": "acting",
+  "connectionDebugProxy": "Proxy",
   "@connectionDebugProxy": {
     "x-auto-source-zh": "代理",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "connectionDebugUnknown": "unknown",
+  "connectionDebugUnknown": "Unknown",
   "@connectionDebugUnknown": {
     "x-auto-source-zh": "未知",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "connectionDebugReceived": "take over",
+  "connectionDebugReceived": "Received",
   "@connectionDebugReceived": {
     "x-auto-source-zh": "接收",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "connectionDebugFileSize": "file size",
+  "connectionDebugFileSize": "File size",
   "@connectionDebugFileSize": {
     "x-auto-source-zh": "文件大小",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "connectionDebugRangeSupported": "support",
+  "connectionDebugRangeSupported": "Supported",
   "@connectionDebugRangeSupported": {
     "x-auto-source-zh": "支持",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -2988,7 +3008,7 @@
     "x-auto-source-zh": "观察每个 host 因历史下载失败而学到的协议降级和并发上限",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "connectionDebugStrategyRefresh": "refresh",
+  "connectionDebugStrategyRefresh": "Refresh",
   "@connectionDebugStrategyRefresh": {
     "x-auto-source-zh": "刷新",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3011,17 +3031,17 @@
     "x-auto-source-zh": "共 {count} 条站点策略",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "connectionDebugStrategyPolicy": "protocol",
+  "connectionDebugStrategyPolicy": "Protocol",
   "@connectionDebugStrategyPolicy": {
     "x-auto-source-zh": "协议",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "connectionDebugStrategyConcurrency": "concurrent",
+  "connectionDebugStrategyConcurrency": "Concurrency",
   "@connectionDebugStrategyConcurrency": {
     "x-auto-source-zh": "并发",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "connectionDebugStrategyTtl": "time left",
+  "connectionDebugStrategyTtl": "Time left",
   "@connectionDebugStrategyTtl": {
     "x-auto-source-zh": "剩余时间",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3036,7 +3056,7 @@
     "x-auto-source-zh": "通知测试",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "developerTestNotificationTitlePlaceholder": "title",
+  "developerTestNotificationTitlePlaceholder": "Title",
   "@developerTestNotificationTitlePlaceholder": {
     "x-auto-source-zh": "标题",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3046,22 +3066,22 @@
     "x-auto-source-zh": "内容（可选）",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "developerTestNotificationTypeSuccess": "success",
+  "developerTestNotificationTypeSuccess": "Success",
   "@developerTestNotificationTypeSuccess": {
     "x-auto-source-zh": "成功",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "developerTestNotificationTypeWarning": "warn",
+  "developerTestNotificationTypeWarning": "Warning",
   "@developerTestNotificationTypeWarning": {
     "x-auto-source-zh": "警告",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "developerTestNotificationTypeError": "mistake",
+  "developerTestNotificationTypeError": "Error",
   "@developerTestNotificationTypeError": {
     "x-auto-source-zh": "错误",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "developerTestNotificationTypeInfo": "information",
+  "developerTestNotificationTypeInfo": "Info",
   "@developerTestNotificationTypeInfo": {
     "x-auto-source-zh": "信息",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3099,7 +3119,7 @@
     "x-auto-source-zh": "成功 · {time}![",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "developerTestPopupResultFailed": "fail",
+  "developerTestPopupResultFailed": "Failed",
   "@developerTestPopupResultFailed": {
     "x-auto-source-zh": "失败",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3152,7 +3172,7 @@
     "x-auto-source-zh": "查看完整更新日志",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "updateChangelogDialogTitle": "v{version} update log",
+  "updateChangelogDialogTitle": "v{version} Changelog",
   "@updateChangelogDialogTitle": {
     "placeholders": {
       "version": {}
@@ -3170,7 +3190,7 @@
     "x-auto-source-zh": "开始更新",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "updateCheckAgainButton": "recheck",
+  "updateCheckAgainButton": "Check again",
   "@updateCheckAgainButton": {
     "x-auto-source-zh": "重新检查",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3200,7 +3220,7 @@
     "x-auto-source-zh": "点击\"重新检查\"按钮检查最新版本",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "updateUnreleasedTitle": "unreleased version",
+  "updateUnreleasedTitle": "Unreleased version",
   "@updateUnreleasedTitle": {
     "x-auto-source-zh": "未发布的版本",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3218,12 +3238,12 @@
     "x-auto-source-zh": "确认更新",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "updateConfirmMessage": "The new version is ready. To ensure that the installation process can proceed normally, this application will be closed!",
+  "updateConfirmMessage": "The new version is ready. The app will close so installation can proceed normally.",
   "@updateConfirmMessage": {
     "x-auto-source-zh": "新版本已经准备好啦，为保障安装过程可以正常进行，本应用将会关闭！",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "updateConfirmDetails": "New version: {newVersion}\\nCurrent version: {currentVersion}\\nChange: {change}\\nChannel: {currentChannel} -> {targetChannel}\\nReady to update?",
+  "updateConfirmDetails": "New version: {newVersion}\nCurrent version: {currentVersion}\nChange: {change}\nChannel: {currentChannel} -> {targetChannel}\nReady to update?",
   "@updateConfirmDetails": {
     "placeholders": {
       "newVersion": {},
@@ -3245,12 +3265,12 @@
     "x-auto-source-zh": "确认更新",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "updateUnknownVersion": "unknown",
+  "updateUnknownVersion": "Unknown",
   "@updateUnknownVersion": {
     "x-auto-source-zh": "未知",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "updateUnknownChannel": "unknown",
+  "updateUnknownChannel": "Unknown",
   "@updateUnknownChannel": {
     "x-auto-source-zh": "未知",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3260,12 +3280,12 @@
     "x-auto-source-zh": "启动更新器失败",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "updateLauncherFailedMessage": "Unable to start Update.exe\\nTroubleshooting steps:\\n • Check whether Update.exe has been deleted or moved\\n • Confirm that .NET 8 is installed\\n • Confirm that the installation package is complete\\nIf it still fails, please download and install it manually.",
+  "updateLauncherFailedMessage": "Unable to start updater\nTroubleshooting steps:\n • Check whether HanabiUpdater.exe has been deleted or moved\n • Confirm that the installation package is complete\n • Try running as administrator\nIf it still fails, please download and install it manually.",
   "@updateLauncherFailedMessage": {
-    "x-auto-source-zh": "无法启动 Update.exe\\n排查步骤:\\n • 检查 Update.exe 是否被删除或移动\\n • 确认已安装 .NET 8\\n • 确认安装包完整\\n如果仍失败，请手动下载安装。",
+    "x-auto-source-zh": "无法启动更新器\n排查步骤:\n • 检查 HanabiUpdater.exe 是否被删除或移动\n • 确认安装包完整\n • 尝试以管理员身份运行\n如果仍失败，请手动下载安装。",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "updateLauncherFailedCloseButton": "closure",
+  "updateLauncherFailedCloseButton": "Close",
   "@updateLauncherFailedCloseButton": {
     "x-auto-source-zh": "关闭",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3295,7 +3315,7 @@
     "x-auto-source-zh": "未安装 - 推荐安装以使用自动更新器",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "updateDotNetDownloadButton": "download",
+  "updateDotNetDownloadButton": "Download",
   "@updateDotNetDownloadButton": {
     "x-auto-source-zh": "下载",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3335,11 +3355,6 @@
     "x-auto-source-zh": "Alpha（预览版）",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "updateChannelBeta": "Beta (public beta version)",
-  "@updateChannelBeta": {
-    "x-auto-source-zh": "Beta（公测版）",
-    "x-auto-synced-at": "2026-04-17T16:57:46.639595"
-  },
   "updateChannelRelease": "Release (stable version)",
   "@updateChannelRelease": {
     "x-auto-source-zh": "Release（稳定版）",
@@ -3360,17 +3375,17 @@
     "x-auto-source-zh": "仅启动时",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "updateIntervalHourly": "per hour",
+  "updateIntervalHourly": "Hourly",
   "@updateIntervalHourly": {
     "x-auto-source-zh": "每小时",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "updateIntervalDaily": "every day",
+  "updateIntervalDaily": "Daily",
   "@updateIntervalDaily": {
     "x-auto-source-zh": "每天",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "updateIntervalWeekly": "weekly",
+  "updateIntervalWeekly": "Weekly",
   "@updateIntervalWeekly": {
     "x-auto-source-zh": "每周",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3378,16 +3393,6 @@
   "updateIntervalNever": "Never",
   "@updateIntervalNever": {
     "x-auto-source-zh": "从不",
-    "x-auto-synced-at": "2026-04-17T16:57:46.639595"
-  },
-  "updateAllowBetaTitle": "Receive beta updates",
-  "@updateAllowBetaTitle": {
-    "x-auto-source-zh": "接收 Beta 更新",
-    "x-auto-synced-at": "2026-04-17T16:57:46.639595"
-  },
-  "updateAllowBetaSubtitle": "Allow receiving stable beta releases",
-  "@updateAllowBetaSubtitle": {
-    "x-auto-source-zh": "允许接收稳定的 Beta 版本",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
   "updateAllowAlphaTitle": "Receive Alpha updates",
@@ -3408,7 +3413,7 @@
     "x-auto-source-zh": "上次检查: {time}",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "updateTimeJustNow": "just",
+  "updateTimeJustNow": "Just now",
   "@updateTimeJustNow": {
     "x-auto-source-zh": "刚刚",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3429,12 +3434,12 @@
     "x-auto-source-zh": "{hours} 小时前",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "updateDialogCloseButton": "closure",
+  "updateDialogCloseButton": "Close",
   "@updateDialogCloseButton": {
     "x-auto-source-zh": "关闭",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusOnline": "online",
+  "statusOnline": "Online",
   "@statusOnline": {
     "x-auto-source-zh": "在线",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3464,7 +3469,7 @@
     "x-auto-source-zh": "HTTP/HTTPS 链接",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "popupDownloadFileNameLabel": "file name",
+  "popupDownloadFileNameLabel": "File name",
   "@popupDownloadFileNameLabel": {
     "x-auto-source-zh": "文件名",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3474,7 +3479,7 @@
     "x-auto-source-zh": "保存为文件名",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "popupDownloadSavePathLabel": "save to",
+  "popupDownloadSavePathLabel": "Save to",
   "@popupDownloadSavePathLabel": {
     "x-auto-source-zh": "保存到",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3527,7 +3532,7 @@
     "x-auto-source-zh": "添加任务失败: {error}",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "popupDownloadErrorTitle": "mistake",
+  "popupDownloadErrorTitle": "Error",
   "@popupDownloadErrorTitle": {
     "x-auto-source-zh": "错误",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3718,7 +3723,7 @@
     "x-auto-source-zh": "支持多线程下载和断点续传",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "addDownloadUrlLabel": "Download link",
+  "addDownloadUrlLabel": "Download URL",
   "@addDownloadUrlLabel": {
     "x-auto-source-zh": "下载链接",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3748,7 +3753,7 @@
     "x-auto-source-zh": "自定义文件名",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "addDownloadAdvancedExpandedHint": "close",
+  "addDownloadAdvancedExpandedHint": "Collapse",
   "@addDownloadAdvancedExpandedHint": {
     "x-auto-source-zh": "收起",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3773,7 +3778,7 @@
     "x-auto-source-zh": "智能下载特性",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "addDownloadFeature1Title": "Multi-threaded segmentation",
+  "addDownloadFeature1Title": "Multi-threaded Segments",
   "@addDownloadFeature1Title": {
     "x-auto-source-zh": "多线程分段",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3783,7 +3788,7 @@
     "x-auto-source-zh": "最大化下载速度",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "addDownloadFeature2Title": "Automatically resume download",
+  "addDownloadFeature2Title": "Auto Resume",
   "@addDownloadFeature2Title": {
     "x-auto-source-zh": "自动续传",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3793,7 +3798,7 @@
     "x-auto-source-zh": "网络中断后恢复",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "addDownloadFeature3Title": "dynamic segmentation",
+  "addDownloadFeature3Title": "Dynamic Segments",
   "@addDownloadFeature3Title": {
     "x-auto-source-zh": "动态分段",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3828,7 +3833,7 @@
     "x-auto-source-zh": "请输入有效的下载链接",
     "x-auto-synced-at": "2026-04-25T15:16:49.094588"
   },
-  "downloadIntentTypeUnknown": "unknown link",
+  "downloadIntentTypeUnknown": "Unknown link",
   "@downloadIntentTypeUnknown": {
     "x-auto-source-zh": "未知链接",
     "x-auto-synced-at": "2026-04-25T15:16:49.094588"
@@ -3859,7 +3864,7 @@
     "x-auto-source-zh": "添加任务失败: {error}",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "addDownloadErrorTitle": "mistake",
+  "addDownloadErrorTitle": "Error",
   "@addDownloadErrorTitle": {
     "x-auto-source-zh": "错误",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3882,7 +3887,7 @@
     "x-auto-source-zh": "正在下载：{fileName}",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "folderPickerErrorPathNotFound": "path does not exist",
+  "folderPickerErrorPathNotFound": "Path does not exist",
   "@folderPickerErrorPathNotFound": {
     "x-auto-source-zh": "路径不存在",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3910,7 +3915,7 @@
     "x-auto-source-zh": "在以下位置创建文件夹：",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "folderPickerCreatePlaceholder": "folder name",
+  "folderPickerCreatePlaceholder": "Folder name",
   "@folderPickerCreatePlaceholder": {
     "x-auto-source-zh": "文件夹名称",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -3920,7 +3925,7 @@
     "x-auto-source-zh": "取消",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "folderPickerCreateButton": "create",
+  "folderPickerCreateButton": "Create",
   "@folderPickerCreateButton": {
     "x-auto-source-zh": "创建",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4037,7 +4042,7 @@
     "x-auto-source-zh": "选择文件夹",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "folderPickerNavUpTooltip": "superior folder",
+  "folderPickerNavUpTooltip": "Parent folder",
   "@folderPickerNavUpTooltip": {
     "x-auto-source-zh": "上级文件夹",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4047,7 +4052,7 @@
     "x-auto-source-zh": "输入路径或在下方选择",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "folderPickerRefreshTooltip": "refresh",
+  "folderPickerRefreshTooltip": "Refresh",
   "@folderPickerRefreshTooltip": {
     "x-auto-source-zh": "刷新",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4067,17 +4072,17 @@
     "x-auto-source-zh": "此文件夹为空",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "folderPickerSelectButton": "choose",
+  "folderPickerSelectButton": "Select",
   "@folderPickerSelectButton": {
     "x-auto-source-zh": "选择",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "updateLatestVersionLabel": "latest version",
+  "updateLatestVersionLabel": "Latest version",
   "@updateLatestVersionLabel": {
     "x-auto-source-zh": "最新版本",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "updateDialogLaterButton": "later",
+  "updateDialogLaterButton": "Later",
   "@updateDialogLaterButton": {
     "x-auto-source-zh": "稍后",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4107,7 +4112,7 @@
     "x-auto-source-zh": "等待中",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "downloadStatusFailed": "fail",
+  "downloadStatusFailed": "Failed",
   "@downloadStatusFailed": {
     "x-auto-source-zh": "失败",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4122,7 +4127,7 @@
     "x-auto-source-zh": "已完成",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "downloadFilterTitle": "filter",
+  "downloadFilterTitle": "Filter",
   "@downloadFilterTitle": {
     "x-auto-source-zh": "筛选",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4132,17 +4137,17 @@
     "x-auto-source-zh": "按状态筛选下载任务",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "downloadFilterAll": "all",
+  "downloadFilterAll": "All",
   "@downloadFilterAll": {
     "x-auto-source-zh": "全部",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "downloadDialogCloseButton": "closure",
+  "downloadDialogCloseButton": "Close",
   "@downloadDialogCloseButton": {
     "x-auto-source-zh": "关闭",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "downloadSortTitle": "sort",
+  "downloadSortTitle": "Sort",
   "@downloadSortTitle": {
     "x-auto-source-zh": "排序",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4152,12 +4157,12 @@
     "x-auto-source-zh": "选择下载任务的排序方式",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "downloadSortNewest": "up to date",
+  "downloadSortNewest": "Newest",
   "@downloadSortNewest": {
     "x-auto-source-zh": "最新",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "downloadSortOldest": "oldest",
+  "downloadSortOldest": "Oldest",
   "@downloadSortOldest": {
     "x-auto-source-zh": "最旧",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4192,12 +4197,12 @@
     "x-auto-source-zh": "活动",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "downloadStatsSpeedLabel": "speed",
+  "downloadStatsSpeedLabel": "Speed",
   "@downloadStatsSpeedLabel": {
     "x-auto-source-zh": "速度",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "downloadStatsSegmentsLabel": "segmentation",
+  "downloadStatsSegmentsLabel": "Segments",
   "@downloadStatsSegmentsLabel": {
     "x-auto-source-zh": "分段",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4237,7 +4242,7 @@
     "x-auto-source-zh": "复制失败",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "downloadCopyFailedMessage": "Replication failed: {error}",
+  "downloadCopyFailedMessage": "Copy failed: {error}",
   "@downloadCopyFailedMessage": {
     "placeholders": {
       "error": {}
@@ -4250,17 +4255,17 @@
     "x-auto-source-zh": "复制链接",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "downloadActionStart": "start",
+  "downloadActionStart": "Start",
   "@downloadActionStart": {
     "x-auto-source-zh": "开始",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "downloadActionPause": "pause",
+  "downloadActionPause": "Pause",
   "@downloadActionPause": {
     "x-auto-source-zh": "暂停",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "downloadActionRetrySegments": "Retry failed segment",
+  "downloadActionRetrySegments": "Retry failed segments",
   "@downloadActionRetrySegments": {
     "x-auto-source-zh": "重试失败分段",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4270,7 +4275,7 @@
     "x-auto-source-zh": "全部重试",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "downloadActionDelete": "delete",
+  "downloadActionDelete": "Delete",
   "@downloadActionDelete": {
     "x-auto-source-zh": "删除",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4308,7 +4313,7 @@
     "x-auto-source-zh": "分段 ({count})",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "downloadSegmentsTitle": "segmentation",
+  "downloadSegmentsTitle": "Segments",
   "@downloadSegmentsTitle": {
     "x-auto-source-zh": "分段",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4323,7 +4328,7 @@
     "x-auto-source-zh": "下载中",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "downloadSegmentsStatusFailed": "fail",
+  "downloadSegmentsStatusFailed": "Failed",
   "@downloadSegmentsStatusFailed": {
     "x-auto-source-zh": "失败",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4370,7 +4375,7 @@
     "x-auto-source-zh": "重试{count}次",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "downloadSegmentsCollapse": "close",
+  "downloadSegmentsCollapse": "Collapse",
   "@downloadSegmentsCollapse": {
     "x-auto-source-zh": "收起",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4417,7 +4422,7 @@
     "x-auto-source-zh": "确定要删除任务 \"{fileName}\" 吗？",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "downloadDeleteButton": "delete",
+  "downloadDeleteButton": "Delete",
   "@downloadDeleteButton": {
     "x-auto-source-zh": "删除",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4427,7 +4432,7 @@
     "x-auto-source-zh": "所有下载",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "completedCategoryVideo": "video",
+  "completedCategoryVideo": "Videos",
   "@completedCategoryVideo": {
     "x-auto-source-zh": "视频",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4442,12 +4447,12 @@
     "x-auto-source-zh": "压缩包",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "completedCategoryDocument": "document",
+  "completedCategoryDocument": "Documents",
   "@completedCategoryDocument": {
     "x-auto-source-zh": "文档",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "completedCategoryProgram": "program",
+  "completedCategoryProgram": "Programs",
   "@completedCategoryProgram": {
     "x-auto-source-zh": "程序",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4477,7 +4482,7 @@
     "x-auto-source-zh": "已完成",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "completedOpenFolderButton": "open folder",
+  "completedOpenFolderButton": "Open folder",
   "@completedOpenFolderButton": {
     "x-auto-source-zh": "打开文件夹",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4497,17 +4502,17 @@
     "x-auto-source-zh": "下载统计",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "completedStatsPeakSpeed": "peak speed",
+  "completedStatsPeakSpeed": "Peak speed",
   "@completedStatsPeakSpeed": {
     "x-auto-source-zh": "峰值速度",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "completedStatsAverageSpeed": "average speed",
+  "completedStatsAverageSpeed": "Average speed",
   "@completedStatsAverageSpeed": {
     "x-auto-source-zh": "平均速度",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "completedStatsDuration": "time",
+  "completedStatsDuration": "Duration",
   "@completedStatsDuration": {
     "x-auto-source-zh": "用时",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4527,7 +4532,7 @@
     "x-auto-source-zh": "下载核心",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "completedActionRun": "run",
+  "completedActionRun": "Run",
   "@completedActionRun": {
     "x-auto-source-zh": "运行",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4537,7 +4542,7 @@
     "x-auto-source-zh": "位置",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "completedTimeJustNow": "just",
+  "completedTimeJustNow": "Just now",
   "@completedTimeJustNow": {
     "x-auto-source-zh": "刚刚",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4596,7 +4601,7 @@
     "x-auto-source-zh": "打开文件位置失败: {error}",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "completedHintTitle": "hint",
+  "completedHintTitle": "Tip",
   "@completedHintTitle": {
     "x-auto-source-zh": "提示",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4670,12 +4675,12 @@
     "x-auto-source-zh": "移除",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "completedDeleteButton": "delete",
+  "completedDeleteButton": "Delete",
   "@completedDeleteButton": {
     "x-auto-source-zh": "删除",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "completedCreateButton": "create",
+  "completedCreateButton": "Create",
   "@completedCreateButton": {
     "x-auto-source-zh": "创建",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4695,7 +4700,7 @@
     "x-auto-source-zh": "例如：图片",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "completedCreateCategoryExtensionsLabel": "file extension",
+  "completedCreateCategoryExtensionsLabel": "File extensions",
   "@completedCreateCategoryExtensionsLabel": {
     "x-auto-source-zh": "文件扩展名",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4764,7 +4769,7 @@
     "x-auto-source-zh": "系统状态",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusPageRefresh": "refresh",
+  "statusPageRefresh": "Refresh",
   "@statusPageRefresh": {
     "x-auto-source-zh": "刷新",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4784,7 +4789,7 @@
     "x-auto-source-zh": "下载核心状态",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusItemKernelRuntime": "kernel runtime",
+  "statusItemKernelRuntime": "Kernel runtime",
   "@statusItemKernelRuntime": {
     "x-auto-source-zh": "内核运行时",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4809,17 +4814,17 @@
     "x-auto-source-zh": "HTTP 服务",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusValueHealthy": "normal",
+  "statusValueHealthy": "Healthy",
   "@statusValueHealthy": {
     "x-auto-source-zh": "正常",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusValueBuiltIn": "built-in",
+  "statusValueBuiltIn": "Built-in",
   "@statusValueBuiltIn": {
     "x-auto-source-zh": "内置",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusValueUnhealthy": "abnormal",
+  "statusValueUnhealthy": "Unhealthy",
   "@statusValueUnhealthy": {
     "x-auto-source-zh": "异常",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4829,17 +4834,17 @@
     "x-auto-source-zh": "服务地址",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusItemKernelVersion": "core version",
+  "statusItemKernelVersion": "Kernel version",
   "@statusItemKernelVersion": {
     "x-auto-source-zh": "核心版本",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusSectionNetwork": "network status",
+  "statusSectionNetwork": "Network status",
   "@statusSectionNetwork": {
     "x-auto-source-zh": "网络状态",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusItemLocalNetwork": "local network",
+  "statusItemLocalNetwork": "Local network",
   "@statusItemLocalNetwork": {
     "x-auto-source-zh": "本地网络",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4854,12 +4859,12 @@
     "x-auto-source-zh": "未连接",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusItemInternet": "internet",
+  "statusItemInternet": "Internet",
   "@statusItemInternet": {
     "x-auto-source-zh": "互联网",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusValueReachable": "accessible",
+  "statusValueReachable": "Reachable",
   "@statusValueReachable": {
     "x-auto-source-zh": "可访问",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4869,12 +4874,12 @@
     "x-auto-source-zh": "不可访问",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusItemLocalIp": "local IP",
+  "statusItemLocalIp": "Local IP",
   "@statusItemLocalIp": {
     "x-auto-source-zh": "本地 IP",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusItemNetworkLatency": "network delay",
+  "statusItemNetworkLatency": "Network latency",
   "@statusItemNetworkLatency": {
     "x-auto-source-zh": "网络延迟",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4897,7 +4902,7 @@
     "x-auto-source-zh": "API 测试结果",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusValueFailed": "fail",
+  "statusValueFailed": "Failed",
   "@statusValueFailed": {
     "x-auto-source-zh": "失败",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4907,12 +4912,12 @@
     "x-auto-source-zh": "系统信息",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusItemOs": "operating system",
+  "statusItemOs": "Operating system",
   "@statusItemOs": {
     "x-auto-source-zh": "操作系统",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusValueUnknown": "unknown",
+  "statusValueUnknown": "Unknown",
   "@statusValueUnknown": {
     "x-auto-source-zh": "未知",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4950,7 +4955,7 @@
     "x-auto-source-zh": "总下载数",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusItemActiveTasks": "active tasks",
+  "statusItemActiveTasks": "Active tasks",
   "@statusItemActiveTasks": {
     "x-auto-source-zh": "活跃任务",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4960,12 +4965,12 @@
     "x-auto-source-zh": "已完成",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusItemFailedTasks": "failed task",
+  "statusItemFailedTasks": "Failed tasks",
   "@statusItemFailedTasks": {
     "x-auto-source-zh": "失败任务",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusItemTotalDownloaded": "total downloads",
+  "statusItemTotalDownloaded": "Total downloaded",
   "@statusItemTotalDownloaded": {
     "x-auto-source-zh": "总下载量",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -4985,17 +4990,17 @@
     "x-auto-source-zh": "错误数",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusItemWarningCount": "number of warnings",
+  "statusItemWarningCount": "Warnings",
   "@statusItemWarningCount": {
     "x-auto-source-zh": "警告数",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusSectionExtension": "browser extension",
+  "statusSectionExtension": "Browser extension",
   "@statusSectionExtension": {
     "x-auto-source-zh": "浏览器扩展",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusItemTip": "hint",
+  "statusItemTip": "Tip",
   "@statusItemTip": {
     "x-auto-source-zh": "提示",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5030,7 +5035,7 @@
     "x-auto-source-zh": "仅支持 Windows 平台",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusItemAutoStartStatus": "self-starting state",
+  "statusItemAutoStartStatus": "Startup status",
   "@statusItemAutoStartStatus": {
     "x-auto-source-zh": "自启动状态",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5050,7 +5055,7 @@
     "x-auto-source-zh": "注册路径",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusValueCorrect": "correct",
+  "statusValueCorrect": "Correct",
   "@statusValueCorrect": {
     "x-auto-source-zh": "正确",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5065,12 +5070,12 @@
     "x-auto-source-zh": "当前注册",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusItemCurrentPath": "current path",
+  "statusItemCurrentPath": "Current path",
   "@statusItemCurrentPath": {
     "x-auto-source-zh": "当前路径",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusAutoStartOldRegistryTitle": "Older version of self-starting registration detected",
+  "statusAutoStartOldRegistryTitle": "Older startup entry detected",
   "@statusAutoStartOldRegistryTitle": {
     "x-auto-source-zh": "检测到旧版本的自启动注册",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5090,7 +5095,7 @@
     "x-auto-source-zh": "弹窗窗口测试",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusItemDescription": "illustrate",
+  "statusItemDescription": "Description",
   "@statusItemDescription": {
     "x-auto-source-zh": "说明",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5259,7 +5264,7 @@
     "x-auto-source-zh": "独立 popup 窗口打开失败: {error}",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusPopupTestFailedTitle": "test failed",
+  "statusPopupTestFailedTitle": "Test failed",
   "@statusPopupTestFailedTitle": {
     "x-auto-source-zh": "测试失败",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5293,7 +5298,7 @@
     "x-auto-source-zh": "Dialog 弹窗失败: {error}",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "statusApiTestHealthCheck": "health check",
+  "statusApiTestHealthCheck": "Health check",
   "@statusApiTestHealthCheck": {
     "x-auto-source-zh": "健康检查",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5354,7 +5359,7 @@
     "x-auto-source-zh": "设备 ID",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "onlineStatsNotInitialized": "not initialized",
+  "onlineStatsNotInitialized": "Not initialized",
   "@onlineStatsNotInitialized": {
     "x-auto-source-zh": "未初始化",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5364,7 +5369,7 @@
     "x-auto-source-zh": "应用版本",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "onlineStatsHeartbeatLabel": "heartbeat interval",
+  "onlineStatsHeartbeatLabel": "Heartbeat interval",
   "@onlineStatsHeartbeatLabel": {
     "x-auto-source-zh": "心跳间隔",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5374,7 +5379,7 @@
     "x-auto-source-zh": "每 5 分钟自动发送",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "onlineStatsServerLabel": "statistics server",
+  "onlineStatsServerLabel": "Statistics server",
   "@onlineStatsServerLabel": {
     "x-auto-source-zh": "统计服务器",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5469,12 +5474,12 @@
     "x-auto-source-zh": "确定",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logPageTitle": "log",
+  "logPageTitle": "Logs",
   "@logPageTitle": {
     "x-auto-source-zh": "日志",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logFilterLevelLabel": "level",
+  "logFilterLevelLabel": "Level",
   "@logFilterLevelLabel": {
     "x-auto-source-zh": "级别",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5487,7 +5492,7 @@
     "x-auto-source-zh": "{count} 个标签",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logFilterSourceLabel": "source",
+  "logFilterSourceLabel": "Source",
   "@logFilterSourceLabel": {
     "x-auto-source-zh": "来源",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5497,12 +5502,12 @@
     "x-auto-source-zh": "时间 ✓",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logFilterTimeLabel": "time",
+  "logFilterTimeLabel": "Time",
   "@logFilterTimeLabel": {
     "x-auto-source-zh": "时间",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logRegexRulesButton": "regular rules",
+  "logRegexRulesButton": "Regex rules",
   "@logRegexRulesButton": {
     "x-auto-source-zh": "正则规则",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5547,7 +5552,7 @@
     "x-auto-source-zh": "导出诊断包",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logArchiveButton": "archive log",
+  "logArchiveButton": "Archive logs",
   "@logArchiveButton": {
     "x-auto-source-zh": "归档日志",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5587,7 +5592,7 @@
     "x-auto-source-zh": "日志将在此处显示",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logStatTotal": "total",
+  "logStatTotal": "Total",
   "@logStatTotal": {
     "x-auto-source-zh": "总计",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5623,7 +5628,7 @@
     "x-auto-source-zh": "暂无下载失败记录",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logFailureReasonUnknown": "unknown error",
+  "logFailureReasonUnknown": "Unknown error",
   "@logFailureReasonUnknown": {
     "x-auto-source-zh": "未知错误",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5732,12 +5737,12 @@
     "x-auto-source-zh": "最近 {hours} 小时",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logTimeRangeLabel": "time range",
+  "logTimeRangeLabel": "Time range",
   "@logTimeRangeLabel": {
     "x-auto-source-zh": "时间范围",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logStatCountUnit": "strip",
+  "logStatCountUnit": "items",
   "@logStatCountUnit": {
     "x-auto-source-zh": "条",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5807,12 +5812,12 @@
     "x-auto-source-zh": "筛选日志级别",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logFilterAllLabel": "all",
+  "logFilterAllLabel": "All",
   "@logFilterAllLabel": {
     "x-auto-source-zh": "全部",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logDialogClose": "closure",
+  "logDialogClose": "Close",
   "@logDialogClose": {
     "x-auto-source-zh": "关闭",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5899,12 +5904,12 @@
     "x-auto-source-zh": "最近30分钟",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logTimeRangePreset10Min": "last 10 minutes",
+  "logTimeRangePreset10Min": "Last 10 minutes",
   "@logTimeRangePreset10Min": {
     "x-auto-source-zh": "最近10分钟",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logTimeRangePreset5Min": "last 5 minutes",
+  "logTimeRangePreset5Min": "Last 5 minutes",
   "@logTimeRangePreset5Min": {
     "x-auto-source-zh": "最近5分钟",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5919,7 +5924,7 @@
     "x-auto-source-zh": "结束时间:",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logTimeRangeNotSet": "not set",
+  "logTimeRangeNotSet": "Not set",
   "@logTimeRangeNotSet": {
     "x-auto-source-zh": "未设置",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5934,7 +5939,7 @@
     "x-auto-source-zh": "清除",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logDialogApply": "application",
+  "logDialogApply": "Apply",
   "@logDialogApply": {
     "x-auto-source-zh": "应用",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5964,7 +5969,7 @@
     "x-auto-source-zh": "暂无自定义规则",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logRulesLegendTitle": "color legend",
+  "logRulesLegendTitle": "Color legend",
   "@logRulesLegendTitle": {
     "x-auto-source-zh": "颜色图例",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5974,7 +5979,7 @@
     "x-auto-source-zh": "URL",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logRulesLegendPath": "path",
+  "logRulesLegendPath": "Path",
   "@logRulesLegendPath": {
     "x-auto-source-zh": "路径",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -5984,22 +5989,22 @@
     "x-auto-source-zh": "IP",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logRulesLegendNumber": "numerical value",
+  "logRulesLegendNumber": "Number",
   "@logRulesLegendNumber": {
     "x-auto-source-zh": "数值",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logRulesLegendError": "mistake",
+  "logRulesLegendError": "Error",
   "@logRulesLegendError": {
     "x-auto-source-zh": "错误",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logRulesLegendSuccess": "success",
+  "logRulesLegendSuccess": "Success",
   "@logRulesLegendSuccess": {
     "x-auto-source-zh": "成功",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logRulesLegendWarning": "warn",
+  "logRulesLegendWarning": "Warning",
   "@logRulesLegendWarning": {
     "x-auto-source-zh": "警告",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6009,7 +6014,7 @@
     "x-auto-source-zh": "HTTP",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logRulesLegendStep": "step",
+  "logRulesLegendStep": "Step",
   "@logRulesLegendStep": {
     "x-auto-source-zh": "步骤",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6019,7 +6024,7 @@
     "x-auto-source-zh": "PID",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logRulesLegendKeyValue": "key value",
+  "logRulesLegendKeyValue": "Key-value",
   "@logRulesLegendKeyValue": {
     "x-auto-source-zh": "键值",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6039,7 +6044,7 @@
     "x-auto-source-zh": "例如: 任务ID",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logAddRulePatternLabel": "regular expression",
+  "logAddRulePatternLabel": "Regular expression",
   "@logAddRulePatternLabel": {
     "x-auto-source-zh": "正则表达式",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6067,7 +6072,7 @@
     "x-auto-source-zh": "错误: {error}",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logArchiveTitle": "archive log",
+  "logArchiveTitle": "Archive logs",
   "@logArchiveTitle": {
     "x-auto-source-zh": "归档日志",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6195,7 +6200,7 @@
     "x-auto-source-zh": "URL",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logRuleFilePath": "file path",
+  "logRuleFilePath": "File path",
   "@logRuleFilePath": {
     "x-auto-source-zh": "文件路径",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6205,7 +6210,7 @@
     "x-auto-source-zh": "IP地址",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logRuleNumber": "numerical value",
+  "logRuleNumber": "Number",
   "@logRuleNumber": {
     "x-auto-source-zh": "数值",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6215,17 +6220,17 @@
     "x-auto-source-zh": "ID/Hash",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logRuleError": "mistake",
+  "logRuleError": "Error",
   "@logRuleError": {
     "x-auto-source-zh": "错误",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logRuleSuccess": "success",
+  "logRuleSuccess": "Success",
   "@logRuleSuccess": {
     "x-auto-source-zh": "成功",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logRuleWarning": "warn",
+  "logRuleWarning": "Warning",
   "@logRuleWarning": {
     "x-auto-source-zh": "警告",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6240,12 +6245,12 @@
     "x-auto-source-zh": "HTTP状态码",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logRuleTime": "time",
+  "logRuleTime": "Time",
   "@logRuleTime": {
     "x-auto-source-zh": "时间",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logRuleStep": "step",
+  "logRuleStep": "Step",
   "@logRuleStep": {
     "x-auto-source-zh": "步骤",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6255,7 +6260,7 @@
     "x-auto-source-zh": "PID",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "logRuleKeyValue": "key value pair",
+  "logRuleKeyValue": "Key-value pair",
   "@logRuleKeyValue": {
     "x-auto-source-zh": "键值对",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6285,7 +6290,7 @@
     "x-auto-source-zh": "开始监控",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "performanceMonitorRealtimeTitle": "real time data",
+  "performanceMonitorRealtimeTitle": "Real-time data",
   "@performanceMonitorRealtimeTitle": {
     "x-auto-source-zh": "实时数据",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6320,17 +6325,17 @@
     "x-auto-source-zh": "统计摘要",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "performanceMonitorStatTotalFrames": "total frames",
+  "performanceMonitorStatTotalFrames": "Total frames",
   "@performanceMonitorStatTotalFrames": {
     "x-auto-source-zh": "总帧数",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "performanceMonitorStatJankFrames": "lag frame rate",
+  "performanceMonitorStatJankFrames": "Janky frames",
   "@performanceMonitorStatJankFrames": {
     "x-auto-source-zh": "卡顿帧数",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "performanceMonitorStatJankRate": "lag rate",
+  "performanceMonitorStatJankRate": "Jank rate",
   "@performanceMonitorStatJankRate": {
     "x-auto-source-zh": "卡顿率",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6403,7 +6408,7 @@
     "x-auto-source-zh": "暂无数据，请开始监控",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "performanceMonitorLegendNormal": "normal frame",
+  "performanceMonitorLegendNormal": "Normal frame",
   "@performanceMonitorLegendNormal": {
     "x-auto-source-zh": "正常帧",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6441,7 +6446,7 @@
     "x-auto-source-zh": "模糊强度",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "performanceMonitorSettingsWindowEffectLabel": "window effects",
+  "performanceMonitorSettingsWindowEffectLabel": "Window effects",
   "@performanceMonitorSettingsWindowEffectLabel": {
     "x-auto-source-zh": "窗口特效",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6451,7 +6456,7 @@
     "x-auto-source-zh": "亚克力透明度",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "performanceMonitorValueEnabled": "enable",
+  "performanceMonitorValueEnabled": "Enabled",
   "@performanceMonitorValueEnabled": {
     "x-auto-source-zh": "启用",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6484,7 +6489,7 @@
     "x-auto-source-zh": "导出日志",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "performanceMonitorActionCopy": "copy to clipboard",
+  "performanceMonitorActionCopy": "Copy to clipboard",
   "@performanceMonitorActionCopy": {
     "x-auto-source-zh": "复制到剪贴板",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6540,12 +6545,12 @@
     "x-auto-source-zh": "性能日志已复制到剪贴板",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "performanceMonitorModeQuality": "high quality",
+  "performanceMonitorModeQuality": "High quality",
   "@performanceMonitorModeQuality": {
     "x-auto-source-zh": "高质量",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "performanceMonitorModeBalanced": "balance",
+  "performanceMonitorModeBalanced": "Balanced",
   "@performanceMonitorModeBalanced": {
     "x-auto-source-zh": "平衡",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6645,7 +6650,7 @@
     "x-auto-source-zh": "将前缀/后缀应用到当前列表中的文件名",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "completedBatchRenamePrefixLabel": "prefix",
+  "completedBatchRenamePrefixLabel": "Prefix",
   "@completedBatchRenamePrefixLabel": {
     "x-auto-source-zh": "前缀",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6655,7 +6660,7 @@
     "x-auto-source-zh": "prefix_",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "completedBatchRenameSuffixLabel": "suffix",
+  "completedBatchRenameSuffixLabel": "Suffix",
   "@completedBatchRenameSuffixLabel": {
     "x-auto-source-zh": "后缀",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6766,7 +6771,7 @@
     "x-auto-source-zh": "取消",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "downloadBadgeHostHint": "site cache",
+  "downloadBadgeHostHint": "Site cache",
   "@downloadBadgeHostHint": {
     "x-auto-source-zh": "站点缓存",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6869,12 +6874,12 @@
     "x-auto-source-zh": "覆盖原文件",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "noticePageTitle": "notify",
+  "noticePageTitle": "Notifications",
   "@noticePageTitle": {
     "x-auto-source-zh": "通知",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "noticePinned": "pin to top",
+  "noticePinned": "Pin to top",
   "@noticePinned": {
     "x-auto-source-zh": "置顶",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6884,7 +6889,7 @@
     "x-auto-source-zh": "暂无通知",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "noticeRefresh": "refresh",
+  "noticeRefresh": "Refresh",
   "@noticeRefresh": {
     "x-auto-source-zh": "刷新",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6907,7 +6912,7 @@
     "x-auto-source-zh": "已同步 {timeAgo}",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "noticeJustNow": "just",
+  "noticeJustNow": "Just now",
   "@noticeJustNow": {
     "x-auto-source-zh": "刚刚",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6936,7 +6941,7 @@
     "x-auto-source-zh": "{count} 天前",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "noticeOpenLink": "open link",
+  "noticeOpenLink": "Open link",
   "@noticeOpenLink": {
     "x-auto-source-zh": "打开链接",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -6976,7 +6981,7 @@
     "x-auto-source-zh": "确认清空",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsLogClearSuccessTitle": "The log has been cleared",
+  "settingsLogClearSuccessTitle": "Logs cleared",
   "@settingsLogClearSuccessTitle": {
     "x-auto-source-zh": "日志已清空",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -7024,7 +7029,7 @@
     "x-auto-source-zh": "自动删除 {days} 天前的日志",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsLogRetentionDays": "sky",
+  "settingsLogRetentionDays": "days",
   "@settingsLogRetentionDays": {
     "x-auto-source-zh": "天",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"

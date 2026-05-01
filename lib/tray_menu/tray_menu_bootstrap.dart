@@ -26,12 +26,14 @@ class TrayMenuThemeConfig {
     required this.fontFamily,
     this.fontFamilyFallback = const [],
     this.textScaleFactor = 1.0,
+    this.classicControlVisuals = true,
   });
 
   final AppThemeMode themeMode;
   final String fontFamily;
   final List<String> fontFamilyFallback;
   final double textScaleFactor;
+  final bool classicControlVisuals;
 
   bool get hasFontFamily => fontFamily.trim().isNotEmpty;
   double get safeTextScaleFactor =>
@@ -62,6 +64,7 @@ class TrayMenuLaunchData {
     required this.mousePositionX,
     required this.mousePositionY,
     this.themeMode,
+    this.classicControlVisuals,
     this.activeTasks = const [],
   });
 
@@ -69,6 +72,7 @@ class TrayMenuLaunchData {
   final double mousePositionX;
   final double mousePositionY;
   final String? themeMode;
+  final bool? classicControlVisuals;
   final List<TrayMenuActiveTaskPreview> activeTasks;
 
   factory TrayMenuLaunchData.fromJson(Map<String, dynamic> json) {
@@ -82,6 +86,9 @@ class TrayMenuLaunchData {
           ? (json['mouse_y'] as num).toDouble()
           : double.tryParse(json['mouse_y']?.toString() ?? '') ?? 0.0,
       themeMode: json['theme_mode']?.toString(),
+      classicControlVisuals: json['classic_control_visuals'] is bool
+          ? json['classic_control_visuals'] as bool
+          : null,
       activeTasks: activeTasksRaw is List
           ? activeTasksRaw
               .whereType<Map>()
@@ -241,20 +248,31 @@ class _TrayMenuAppState extends State<TrayMenuApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    AppThemeMode currentThemeMode = widget.themeConfig?.themeMode ?? AppThemeMode.system;
+    AppThemeMode currentThemeMode =
+        widget.themeConfig?.themeMode ?? AppThemeMode.system;
     if (_launchData.themeMode != null && _launchData.themeMode!.isNotEmpty) {
-      currentThemeMode = AppThemeModeStorage.fromStorageValue(_launchData.themeMode!);
+      currentThemeMode =
+          AppThemeModeStorage.fromStorageValue(_launchData.themeMode!);
     }
 
     final baseTheme = AppTheme.themeDataForMode(
       currentThemeMode,
       platformBrightness:
           WidgetsBinding.instance.platformDispatcher.platformBrightness,
+      classicControlVisuals: _launchData.classicControlVisuals ??
+          widget.themeConfig?.classicControlVisuals ??
+          true,
     );
-    AppTheme.applyBrightness(baseTheme.brightness);
+    AppTheme.applyBrightness(
+      baseTheme.brightness,
+      classicControlVisuals: _launchData.classicControlVisuals ??
+          widget.themeConfig?.classicControlVisuals ??
+          true,
+    );
     final typography = baseTheme.typography;
     final fontFamily = widget.themeConfig?.fontFamily.trim() ?? '';
-    final fontFallbacks = widget.themeConfig?.fontFamilyFallback ?? const <String>[];
+    final fontFallbacks =
+        widget.themeConfig?.fontFamilyFallback ?? const <String>[];
     final appliedTheme = widget.themeConfig?.hasFontFamily == true
         ? baseTheme.copyWith(
             typography: Typography.raw(
@@ -799,10 +817,14 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     final isDark = FluentTheme.of(context).brightness == Brightness.dark;
-    final blueColor = isDark ? const Color(0xFF78C4FF) : const Color(0xFF0078D4);
-    final yellowColor = isDark ? const Color(0xFFF2C879) : const Color(0xFFD29200);
-    final greenColor = isDark ? const Color(0xFF8FD8A9) : const Color(0xFF107C41);
-    final grayColor = isDark ? const Color(0xFF9B9B9B) : const Color(0xFF6B6B6B);
+    final blueColor =
+        isDark ? const Color(0xFF78C4FF) : const Color(0xFF0078D4);
+    final yellowColor =
+        isDark ? const Color(0xFFF2C879) : const Color(0xFFD29200);
+    final greenColor =
+        isDark ? const Color(0xFF8FD8A9) : const Color(0xFF107C41);
+    final grayColor =
+        isDark ? const Color(0xFF9B9B9B) : const Color(0xFF6B6B6B);
 
     final resolvedLabelStyle =
         DefaultTextStyle.of(context).style.merge(_menuLabelBaseStyle);
@@ -1041,7 +1063,8 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
               index: _activeTaskBaseIndex,
               icon: CustomIcons.FluentIcons.clock_20,
               title: _noActiveTasksTitle,
-              iconColor: isDark ? const Color(0xFF9B9B9B) : const Color(0xFF6B6B6B),
+              iconColor:
+                  isDark ? const Color(0xFF9B9B9B) : const Color(0xFF6B6B6B),
               onTap: null,
             ),
           ];
@@ -1071,7 +1094,8 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
               index: _moreActiveTasksIndex,
               icon: CustomIcons.FluentIcons.more_horizontal_20,
               title: '...',
-              iconColor: isDark ? const Color(0xFF9FB0C9) : const Color(0xFF6B6B6B),
+              iconColor:
+                  isDark ? const Color(0xFF9FB0C9) : const Color(0xFF6B6B6B),
               onTap: widget.isBusy
                   ? null
                   : () {
@@ -1088,7 +1112,8 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
             index: _downloadsIndex,
             icon: CustomIcons.FluentIcons.arrow_download_20,
             title: _downloadsTitle,
-            iconColor: isDark ? const Color(0xFF78C4FF) : const Color(0xFF0078D4),
+            iconColor:
+                isDark ? const Color(0xFF78C4FF) : const Color(0xFF0078D4),
             onTap: widget.isBusy
                 ? null
                 : () {
@@ -1099,7 +1124,8 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
             index: _logsIndex,
             icon: CustomIcons.FluentIcons.document_20,
             title: _logsTitle,
-            iconColor: isDark ? const Color(0xFF9FB0C9) : const Color(0xFF6B6B6B),
+            iconColor:
+                isDark ? const Color(0xFF9FB0C9) : const Color(0xFF6B6B6B),
             onTap: widget.isBusy
                 ? null
                 : () {
@@ -1113,7 +1139,8 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
             index: _projectIndex,
             icon: CustomIcons.FluentIcons.bookmark_20,
             title: _projectTitle,
-            iconColor: isDark ? const Color(0xFF8FD8A9) : const Color(0xFF107C41),
+            iconColor:
+                isDark ? const Color(0xFF8FD8A9) : const Color(0xFF107C41),
             onTap: widget.isBusy
                 ? null
                 : () {
@@ -1124,7 +1151,8 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
             index: _officialIndex,
             icon: CustomIcons.FluentIcons.globe_20,
             title: _officialTitle,
-            iconColor: isDark ? const Color(0xFFF2C879) : const Color(0xFFD29200),
+            iconColor:
+                isDark ? const Color(0xFFF2C879) : const Color(0xFFD29200),
             onTap: widget.isBusy
                 ? null
                 : () {
@@ -1310,7 +1338,9 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
                 child: Icon(
                   spec.icon,
                   size: iconSize,
-                  color: isDisabled ? AppTheme.textDisabled : spec.iconColor.withValues(alpha: 0.95),
+                  color: isDisabled
+                      ? AppTheme.textDisabled
+                      : spec.iconColor.withValues(alpha: 0.95),
                 ),
               ),
               const SizedBox(width: 8),

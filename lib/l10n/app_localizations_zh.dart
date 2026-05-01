@@ -143,6 +143,23 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get appearanceClassicControlVisualsTitle => '经典控件视觉';
+
+  @override
+  String get appearanceClassicControlVisualsSubtitle =>
+      '在暗色模式下使用旧版灰色控件边框，降低新版 Fluent 2 的白色描边感';
+
+  @override
+  String get appearanceClassicControlVisualsSavedTitle => '控件视觉已更新';
+
+  @override
+  String get appearanceClassicControlVisualsEnabledMessage => '已启用经典控件视觉';
+
+  @override
+  String get appearanceClassicControlVisualsDisabledMessage =>
+      '已启用新版 Fluent 2 控件视觉';
+
+  @override
   String get appearanceSectionLanguage => '语言';
 
   @override
@@ -1330,7 +1347,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appearanceWindowEffectBlur => '模糊';
 
   @override
-  String get appearanceWindowEffectMica => 'mica_main';
+  String get appearanceWindowEffectMica => 'Mica';
 
   @override
   String get appearanceWindowEffectMicaAlt => 'Mica Alt';
@@ -1971,7 +1988,7 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String updateConfirmDetails(Object newVersion, Object currentVersion,
       Object change, Object currentChannel, Object targetChannel) {
-    return '新版本: $newVersion\\n当前版本: $currentVersion\\n变更: $change\\n渠道: $currentChannel -> $targetChannel\\n准备更新？';
+    return '新版本: $newVersion\n当前版本: $currentVersion\n变更: $change\n渠道: $currentChannel -> $targetChannel\n准备更新？';
   }
 
   @override
@@ -1991,7 +2008,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get updateLauncherFailedMessage =>
-      '无法启动 Update.exe\\n排查步骤:\\n • 检查 Update.exe 是否被删除或移动\\n • 确认已安装 .NET 8\\n • 确认安装包完整\\n如果仍失败，请手动下载安装。';
+      '无法启动更新器\n排查步骤:\n • 检查 HanabiUpdater.exe 是否被删除或移动\n • 确认安装包完整\n • 尝试以管理员身份运行\n如果仍失败，请手动下载安装。';
 
   @override
   String get updateLauncherFailedCloseButton => '关闭';
@@ -2037,9 +2054,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get updateChannelAlpha => 'Alpha（预览版）';
 
   @override
-  String get updateChannelBeta => 'Beta（公测版）';
-
-  @override
   String get updateChannelRelease => 'Release（稳定版）';
 
   @override
@@ -2062,12 +2076,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get updateIntervalNever => '从不';
-
-  @override
-  String get updateAllowBetaTitle => '接收 Beta 更新';
-
-  @override
-  String get updateAllowBetaSubtitle => '允许接收稳定的 Beta 版本';
 
   @override
   String get updateAllowAlphaTitle => '接收 Alpha 更新';
