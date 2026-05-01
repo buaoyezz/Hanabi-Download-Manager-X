@@ -294,3 +294,4 @@ updater/dotnet/**/bin/
 updater/dotnet/**/obj/
 updater/dist/
 updater/standalone/
+app_meow.arb
