@@ -12,7 +12,7 @@
 > - 若存在比较好笑的质量问题也请见谅
 >  本README是人写的XD
 > + `不建议`给本项目`提交PR`，有问题建议提交`ISSUE`，因为生活繁忙我没空合并
-> + [官网地址](https://x.zzbuaoye.top) | [NOTICE](https://x.zzbuaoye.top/web-notices.html) | [RELEASE](https://github.com/buaoyezz/Hanabi-Download-Manager-X/releases)
+> + [官网地址](https://x.zzbuaoye.top) | [NOTICE](https://x.zzbuaoye.top/web-notices.html) | [RELEASE](https://github.com/buaoyezz/Hanabi-Download-Manager-X/releases) | [开发文档](docs/Menu.md)
 
 ![Preview](readme_assets/image1.png)
 
@@ -58,6 +58,20 @@ flutter build windows --release
 > 这两个没有本质上的区别，按需选择，脚本之前是为了更方便打包内核和下载器本体，现在下载器和内核都是flutter了，可以直接指令编译
 ---
 
+## DOCS
+**[I目录](docs/Menu.md)**
+#### 插件
+
+- [插件市场设计方案](docs/plugin/PLUGIN_MARKET_DESIGN_CN.md)
+- [插件 API 文档](docs/plugin/PLUGIN_API_CN.md)
+- [插件发布流程](docs/plugin/PLUGIN_PUBLISH_FLOW_CN.md)
+- [插件商店签名方案](docs/plugin/PLUGIN_STORE_SIGNATURE_CN.md)
+
+#### 开发
+
+- [添加新语言](docs/i18n/ADD_NEW_LANGUAGE_CN.md)
+- [更新器构建](docs/UPDATER_BUILD_CN.md)
+- [常见问题](docs/faq/FAQ.md)
 ## LINK
 - [报告 Bug](https://github.com/buaoyezz/hanabi-download-manager-x/issues)
 - [功能建议](https://github.com/buaoyezz/hanabi-download-manager-x/issues)

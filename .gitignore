@@ -62,12 +62,14 @@ devtools_options.yaml
 !assets/update/Update.exe
 
 # Docs(not ready now)
-.docs/
-docs/
-!docs/PLUGIN_PUBLISH_FLOW_CN.md
-!docs/PLUGIN_STORE_SIGNATURE_CN.md
-!docs/PLUGIN_STORE_TODO_CN.md
-!docs/PLUGIN_MARKET_HYBRID_MODEL_CN.md
+# .docs/
+# docs/*
+# !docs/Menu.md
+# !docs/PLUGIN_API_CN.md
+# !docs/PLUGIN_PUBLISH_FLOW_CN.md
+# !docs/PLUGIN_STORE_SIGNATURE_CN.md
+# !docs/PLUGIN_STORE_TODO_CN.md
+# !docs/PLUGIN_MARKET_HYBRID_MODEL_CN.md
 
 # Web and deployment related
 web_stats/
@@ -75,7 +77,7 @@ x.zzbuaoye.top/node_modules/
 x.zzbuaoye.top/dist/
 x.zzbuaoye.top/.env
 x.zzbuaoye.top/package-lock.json
-x.zzbuaoye.top/ 
+x.zzbuaoye.top/
 chromium-main/
 # Full X.zzbuaoye.top not open sources
 
@@ -286,3 +288,8 @@ tools/run_http_integration.ps1
 log_export_*.txt
 lib/services/kernel/next/server/log_export_*.txt
 mustfix！！！！！！！！！！！！！
+
+# NativeAOT updater build outputs
+updater/dotnet/**/bin/
+updater/dotnet/**/obj/
+updater/dist/
