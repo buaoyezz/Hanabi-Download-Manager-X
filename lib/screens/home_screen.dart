@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'dart:async';
 import 'package:fluent_ui/fluent_ui.dart';
+import 'dart:io';
+import 'package:path/path.dart' as path;
 import 'package:provider/provider.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import '../main.dart' show systemTrayService;
@@ -9,6 +11,7 @@ import '../services/integrated_download_service.dart';
 import '../services/developer_mode_service.dart';
 import '../services/app_logger_service.dart';
 import '../services/kernel/kernel_manager.dart';
+import '../services/plugin_diagnostic_logger.dart';
 import '../services/window_effect_service.dart';
 import '../services/client_config_service.dart';
 import '../services/update_service.dart';
@@ -18,6 +21,7 @@ import '../models/download_task.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/animated_notifications.dart';
+import '../widgets/page_transition.dart';
 import '../widgets/smooth_scroll_wrapper.dart';
 import '../l10n/app_localizations.dart';
 import 'widgets/download_list.dart';
@@ -32,19 +36,28 @@ import 'widgets/debug/status_page.dart';
 import 'widgets/debug/connection_debug_page.dart';
 import 'widgets/performance_monitor_page.dart';
 import 'widgets/update_dialog.dart';
+import 'widgets/plugin_sidebar_page.dart';
+import '../services/plugin_lifecycle_service.dart';
+import '../models/plugin_manifest.dart';
 
 class NavigationItem {
   final String id;
-  final IconData icon;
+  final IconData? icon;
+  final Widget Function(BuildContext context, Color color)? iconBuilder;
   final String title;
   final Widget body;
+  final InstalledPlugin? plugin;
+  final bool isBottomPlacement;
 
   NavigationItem({
     required this.id,
-    required this.icon,
+    this.icon,
+    this.iconBuilder,
     required this.title,
     required this.body,
-  });
+    this.plugin,
+    this.isBottomPlacement = false,
+  }) : assert(icon != null || iconBuilder != null);
 }
 
 class HomeScreen extends StatefulWidget {
@@ -71,12 +84,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _pageStatus,
     _pagePerformance,
     _pageConnectionDebug,
+    _pagePlugins,
     _pageSettings,
     _pageNotice,
     _pageAbout,
   };
 
   static const Set<String> _bottomPageIds = {
+    _pagePlugins,
     _pageLog,
     _pageStatus,
     _pagePerformance,
@@ -100,6 +115,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   double _lastSavedHeight = 0;
   bool _forcedUpdateDialogShown = false;
   int _lastHandledMainWindowCommandToken = 0;
+  final PluginDiagnosticLogger _diag = PluginDiagnosticLogger();
+  String? _lastPluginNavSignature;
+  String? _lastPageContentSignature;
 
   List<NavigationItem> _getNavItems(BuildContext context) {
     final t = AppLocalizations.of(context)!;
@@ -138,6 +156,91 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         body: const PluginStorePage(key: ValueKey('plugin_store_page')),
       ),
     ];
+
+    // Inject Plugin Sidebar Pages
+    final pluginService = context.watch<PluginLifecycleService>();
+    final pluginNavIds = <String>[];
+    for (final plugin in pluginService.plugins) {
+      if (plugin.enabled &&
+          plugin.manifest.uiExtensions?['sidebar']?.isNotEmpty == true) {
+        pluginNavIds
+            .add('${plugin.id}:${plugin.manifest.sidebarPlacement.name}');
+        IconData? iconData;
+        Widget Function(BuildContext, Color)? iconBuilder;
+
+        final iconRaw = plugin.manifest.icon;
+        if (iconRaw != null && iconRaw.isNotEmpty) {
+          if (iconRaw.startsWith('fluent:')) {
+            final iconName = iconRaw.substring(7);
+            iconData = CustomIcons.FluentIcons.getIcon(iconName);
+          } else {
+            // treat as a local file inside plugin.directory
+            iconBuilder = (context, color) {
+              final iconFile = File(path.join(plugin.directory, iconRaw));
+              if (!iconFile.existsSync()) {
+                _diag.mark(
+                  'home.pluginIcon.missing',
+                  pluginId: plugin.id,
+                  data: <String, Object?>{'path': iconFile.path},
+                );
+                return Icon(CustomIcons.FluentIcons.app_icon_default,
+                    size: 16, color: color);
+              }
+              return Image.file(
+                iconFile,
+                width: 16,
+                height: 16,
+                color: color,
+                errorBuilder: (context, error, stackTrace) {
+                  _diag.error(
+                    'home.pluginIcon.error',
+                    error,
+                    pluginId: plugin.id,
+                    stackTrace: stackTrace,
+                    data: <String, Object?>{'path': iconFile.path},
+                  );
+                  return Icon(CustomIcons.FluentIcons.app_icon_default,
+                      size: 16, color: color);
+                },
+              );
+            };
+          }
+        } else {
+          iconData = CustomIcons.FluentIcons.app_icon_default;
+        }
+
+        items.add(
+          NavigationItem(
+            id: 'plugin_${plugin.id}',
+            icon: iconData,
+            iconBuilder: iconBuilder,
+            title: plugin.name,
+            body: const SizedBox.shrink(),
+            plugin: plugin,
+            isBottomPlacement: plugin.manifest.sidebarPlacement ==
+                PluginSidebarPlacement.bottom,
+          ),
+        );
+      }
+    }
+    final pluginNavSignature = pluginNavIds.join('|');
+    if (_lastPluginNavSignature != pluginNavSignature) {
+      _lastPluginNavSignature = pluginNavSignature;
+      _diag.mark('home.pluginNav.changed', data: <String, Object?>{
+        'pluginNavIds': pluginNavIds,
+        'allPlugins': pluginService.plugins
+            .map((plugin) => <String, Object?>{
+                  'id': plugin.id,
+                  'enabled': plugin.enabled,
+                  'state': plugin.state.name,
+                  'hasSidebar':
+                      plugin.manifest.uiExtensions?['sidebar']?.isNotEmpty ==
+                          true,
+                  'sidebarPlacement': plugin.manifest.sidebarPlacement.name,
+                })
+            .toList(),
+      });
+    }
 
     final bottomItems = <NavigationItem>[];
 
@@ -204,12 +307,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return [...items, ...bottomItems];
   }
 
+  bool _isBottomNavItem(NavigationItem item) {
+    return _bottomPageIds.contains(item.id) || item.isBottomPlacement;
+  }
+
   @override
   void initState() {
     super.initState();
     AppLoggerService().info('App', 'HomeScreen initialized');
     systemTrayService.onExitRequested = _confirmExitRequest;
     mainWindowCommandService.addListener(_handleMainWindowCommand);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkWindowEffectCrashRecovery();
+    });
 
     // 侧边栏动画控制器 - 快速响应的展开/收缩
     _sidebarController = AnimationController(
@@ -327,6 +438,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       // 如果加载失败，使用默认展开状态
       _isSidebarExpanded = true;
       _sidebarController.value = 0;
+    }
+  }
+
+  void _checkWindowEffectCrashRecovery() {
+    if (!mounted) return;
+    final windowEffect = context.read<WindowEffectService>();
+    if (windowEffect.recoveredFromCrash) {
+      final isZh =
+          Localizations.localeOf(context).languageCode.startsWith('zh');
+      NotificationManager.of(context)?.showWarning(
+        isZh ? '已回退窗口特效' : 'Window Effect Reverted',
+        message: isZh
+            ? '检测到上次尝试开启亚克力(Acrylic)效果时导致了应用崩溃，已为您自动回退到云母(Mica)效果以保证正常运行。'
+            : 'Detected a crash when trying to enable Acrylic effect last time. Automatically reverted to Mica effect to ensure stability.',
+      );
+      windowEffect.clearCrashRecoveryFlag();
     }
   }
 
@@ -573,6 +700,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _currentIndex = correctIndex;
     } else {
       // 当前页面不在列表里了（可能是相关功能开关关闭了）
+      if (_currentPageId.startsWith('plugin_')) {
+        final pluginsIndex =
+            navItems.indexWhere((item) => item.id == _pagePlugins);
+        if (pluginsIndex != -1) {
+          _currentIndex = pluginsIndex;
+          _currentPageId = _pagePlugins;
+        }
+      }
       // 检查索引越界情况
       if (_currentIndex >= navItems.length) {
         _currentIndex = navItems.length > 0 ? navItems.length - 1 : 0;
@@ -673,7 +808,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       ),
       clipBehavior: Clip.hardEdge,
-      child: _buildPageContent(kernelManagerIsRunning, navItems),
+      child: PageTransition(
+        pageKey: _currentPageId,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        child: _buildPageContent(kernelManagerIsRunning, navItems),
+      ),
     );
 
     // 优化：移除内容区独立的 BackdropFilter，由外层 shell 统一处理模糊
@@ -830,21 +970,88 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       bool kernelManagerIsRunning, List<NavigationItem> navItems) {
     final isKernelRunning = kernelManagerIsRunning;
 
-    // 如果内核正在运行，或者当前页面是调试页面（日志、状态、Web检测、在线统计、性能监控），直接显示页面
-    final currentPageId = navItems[_currentIndex].id;
-    final isDebugPage = _debugPageIds.contains(currentPageId);
+    // Safety clamp: navItems may have changed since _currentIndex was set
+    if (navItems.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    if (_currentIndex >= navItems.length) {
+      _currentIndex = navItems.length - 1;
+    }
 
-    if (isKernelRunning || isDebugPage) {
+    // 如果内核正在运行，或者当前页面是调试页面（日志、状态、Web检测、在线统计、性能监控），直接显示页面
+    final currentItem = navItems[_currentIndex];
+    final currentPageId = currentItem.id;
+    final isDebugPage = _debugPageIds.contains(currentPageId);
+    final isPluginPage = currentItem.plugin != null;
+
+    if (isKernelRunning || isDebugPage || isPluginPage) {
+      final plugin = currentItem.plugin;
+      if (plugin != null) {
+        _markPageContent(
+          'plugin:${plugin.id}',
+          <String, Object?>{
+            'currentIndex': _currentIndex,
+            'currentPageId': currentPageId,
+            'pluginId': plugin.id,
+            'directory': plugin.directory,
+            'state': plugin.state.name,
+            'enabled': plugin.enabled,
+          },
+        );
+        final isChinese = Localizations.localeOf(context)
+            .languageCode
+            .toLowerCase()
+            .startsWith('zh');
+        return RepaintBoundary(
+          child: KeyedSubtree(
+            key: ValueKey('plugin_${plugin.id}_active_page'),
+            child: PluginSidebarPage(
+              plugin: plugin,
+              isChinese: isChinese,
+            ),
+          ),
+        );
+      }
+
+      final pageItems =
+          navItems.where((item) => item.plugin == null).toList(growable: false);
+      final stackIndex = pageItems.indexWhere(
+        (item) => item.id == currentPageId,
+      );
+      final safeStackIndex = stackIndex == -1
+          ? pageItems.indexWhere((item) => item.id == _pagePlugins)
+          : stackIndex;
+      if (safeStackIndex == -1) {
+        _markPageContent(
+          'stack:missing:$currentPageId',
+          <String, Object?>{
+            'currentIndex': _currentIndex,
+            'currentPageId': currentPageId,
+            'pageIds': pageItems.map((item) => item.id).toList(),
+          },
+        );
+        return const SizedBox.shrink();
+      }
+
+      _markPageContent(
+        'stack:${pageItems[safeStackIndex].id}',
+        <String, Object?>{
+          'currentIndex': _currentIndex,
+          'currentPageId': currentPageId,
+          'safeStackIndex': safeStackIndex,
+          'pageIds': pageItems.map((item) => item.id).toList(),
+        },
+      );
       return RepaintBoundary(
         child: IndexedStack(
-          index: _currentIndex,
+          index: safeStackIndex,
           children: [
-            for (var index = 0; index < navItems.length; index++)
+            for (var index = 0; index < pageItems.length; index++)
               TickerMode(
-                enabled: index == _currentIndex,
+                enabled: index == safeStackIndex,
                 child: KeyedSubtree(
-                  key: ValueKey(navItems[index].id),
-                  child: navItems[index].body,
+                  key: ValueKey(pageItems[index].id),
+                  child: pageItems[index].body,
                 ),
               ),
           ],
@@ -854,6 +1061,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     // 否则显示加载动画
     return _buildLoadingIndicator();
+  }
+
+  void _markPageContent(String signature, Map<String, Object?> data) {
+    if (_lastPageContentSignature == signature) {
+      return;
+    }
+    _lastPageContentSignature = signature;
+    _diag.mark('home.pageContent.changed', data: data);
   }
 
   Widget _buildLoadingIndicator() {
@@ -1028,7 +1243,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ...navItems
                     .asMap()
                     .entries
-                    .where((entry) => !_bottomPageIds.contains(entry.value.id))
+                    .where((entry) => !_isBottomNavItem(entry.value))
                     .map((entry) => _buildNavItemWidget(
                         context, entry.key, entry.value, isCompact)),
 
@@ -1093,7 +1308,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final bottomItems = navItems
         .asMap()
         .entries
-        .where((entry) => _bottomPageIds.contains(entry.value.id))
+        .where((entry) => _isBottomNavItem(entry.value))
         .toList();
 
     return bottomItems.map((entry) {
@@ -1242,12 +1457,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         vertical: 2,
       ),
       child: _NavItem(
+        key: ValueKey('nav_${item.id}'),
+        id: item.id,
+        pluginId: item.plugin?.id,
         icon: item.icon,
+        iconBuilder: item.iconBuilder,
         title: item.title,
         isSelected: isSelected,
         isCompact: isCompact,
         onTap: () {
           AppLoggerService().info('App', 'Navigated to: ${item.title}');
+          _diag.mark(
+            'home.nav.tap',
+            pluginId: item.plugin?.id,
+            data: <String, Object?>{
+              'fromIndex': _currentIndex,
+              'fromPageId': _currentPageId,
+              'toIndex': index,
+              'toPageId': item.id,
+              'title': item.title,
+              'isPlugin': item.plugin != null,
+            },
+          );
           setState(() {
             _currentIndex = index;
             _currentPageId = item.id;
@@ -1405,14 +1636,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
 /// Fluent Design 导航项组件 - 简洁版本（性能优化）
 class _NavItem extends StatefulWidget {
-  final IconData icon;
+  final String id;
+  final String? pluginId;
+  final IconData? icon;
+  final Widget Function(BuildContext context, Color color)? iconBuilder;
   final String title;
   final bool isSelected;
   final bool isCompact;
   final VoidCallback onTap;
 
   const _NavItem({
-    required this.icon,
+    super.key,
+    required this.id,
+    this.pluginId,
+    this.icon,
+    this.iconBuilder,
     required this.title,
     required this.isSelected,
     required this.isCompact,
@@ -1423,49 +1661,108 @@ class _NavItem extends StatefulWidget {
   State<_NavItem> createState() => _NavItemState();
 }
 
-class _NavItemState extends State<_NavItem>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
+  late AnimationController _selectController;
+  late Animation<double> _selectAnimation;
+  late AnimationController _hoverController;
   bool _isHovered = false;
   bool _isPressed = false;
+  bool _loggedBuild = false;
+  final PluginDiagnosticLogger _diag = PluginDiagnosticLogger();
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 180),
+    if (widget.pluginId != null) {
+      _diag.mark(
+        'navItem.initState',
+        pluginId: widget.pluginId,
+        data: <String, Object?>{
+          'id': widget.id,
+          'title': widget.title,
+          'isSelected': widget.isSelected,
+          'isCompact': widget.isCompact,
+          'hasIconBuilder': widget.iconBuilder != null,
+          'hasIcon': widget.icon != null,
+        },
+      );
+    }
+    _selectController = AnimationController(
+      duration: const Duration(milliseconds: 200),
       vsync: this,
       value: widget.isSelected ? 1.0 : 0.0,
+    );
+    _selectAnimation = CurvedAnimation(
+      parent: _selectController,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeOutCubic,
+    );
+    _hoverController = AnimationController(
+      duration: const Duration(milliseconds: 180),
+      vsync: this,
+      value: 0.0,
     );
   }
 
   @override
   void didUpdateWidget(_NavItem oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.pluginId != null &&
+        (oldWidget.id != widget.id ||
+            oldWidget.title != widget.title ||
+            oldWidget.isSelected != widget.isSelected ||
+            oldWidget.isCompact != widget.isCompact)) {
+      _diag.mark(
+        'navItem.didUpdateWidget',
+        pluginId: widget.pluginId,
+        data: <String, Object?>{
+          'id': widget.id,
+          'title': widget.title,
+          'oldSelected': oldWidget.isSelected,
+          'newSelected': widget.isSelected,
+          'oldCompact': oldWidget.isCompact,
+          'newCompact': widget.isCompact,
+        },
+      );
+    }
     if (oldWidget.isSelected != widget.isSelected) {
       if (widget.isSelected) {
-        _controller.forward();
+        _selectController.forward();
       } else {
-        _controller.reverse();
+        // 取消选中时立即 snap 到 0，不播放动画，避免旧项残留选中态
+        _selectController.value = 0.0;
       }
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    if (widget.pluginId != null) {
+      _diag.mark(
+        'navItem.dispose',
+        pluginId: widget.pluginId,
+        data: <String, Object?>{
+          'id': widget.id,
+          'title': widget.title,
+        },
+      );
+    }
+    _selectController.dispose();
+    _hoverController.dispose();
     super.dispose();
   }
 
   void _onEnter(PointerEvent _) {
     if (!_isHovered) {
       setState(() => _isHovered = true);
+      _hoverController.forward();
     }
   }
 
   void _onExit(PointerEvent _) {
     if (_isHovered) {
       setState(() => _isHovered = false);
+      _hoverController.reverse();
     }
   }
 
@@ -1484,6 +1781,21 @@ class _NavItemState extends State<_NavItem>
 
   @override
   Widget build(BuildContext context) {
+    if (widget.pluginId != null && !_loggedBuild) {
+      _loggedBuild = true;
+      _diag.mark(
+        'navItem.build',
+        pluginId: widget.pluginId,
+        data: <String, Object?>{
+          'id': widget.id,
+          'title': widget.title,
+          'isSelected': widget.isSelected,
+          'isCompact': widget.isCompact,
+          'hasIconBuilder': widget.iconBuilder != null,
+          'hasIcon': widget.icon != null,
+        },
+      );
+    }
     return RepaintBoundary(
       child: MouseRegion(
         onEnter: _onEnter,
@@ -1493,13 +1805,16 @@ class _NavItemState extends State<_NavItem>
           onTapUp: _onTapUp,
           onTapCancel: _onTapCancel,
           child: AnimatedBuilder(
-            animation: _controller,
+            animation: Listenable.merge([_selectAnimation, _hoverController]),
             builder: (context, child) {
-              final selectValue = _controller.value;
-              final hoverValue = _isHovered ? 1.0 : 0.0;
+              final selectValue = _selectAnimation.value;
+              final hoverValue = _hoverController.value;
               final pressValue = _isPressed ? 1.0 : 0.0;
 
-              final scale = 1.0 - (pressValue * 0.02);
+              // 悬停时轻微放大 (1.0 → 1.025)，按压时保持原样
+              final hoverScale = 1.0 + (hoverValue * 0.025);
+              final pressScale = 1.0 - (pressValue * 0.02);
+              final scale = hoverScale * pressScale;
 
               return Transform.scale(
                 scale: scale,
@@ -1553,11 +1868,13 @@ class _NavItemState extends State<_NavItem>
                   ),
                 ),
               ),
-            Icon(
-              widget.icon,
-              size: 16,
-              color: iconColor,
-            ),
+            widget.iconBuilder != null
+                ? widget.iconBuilder!(context, iconColor)
+                : Icon(
+                    widget.icon,
+                    size: 16,
+                    color: iconColor,
+                  ),
           ],
         ),
       ),
@@ -1602,7 +1919,9 @@ class _NavItemState extends State<_NavItem>
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-          Icon(widget.icon, size: 16, color: iconColor),
+          widget.iconBuilder != null
+              ? widget.iconBuilder!(context, iconColor)
+              : Icon(widget.icon, size: 16, color: iconColor),
           const SizedBox(width: 12),
           Expanded(
             child: Text(

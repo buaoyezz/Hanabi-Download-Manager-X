@@ -6,6 +6,7 @@ import 'package:path/path.dart' as path;
 
 import '../models/plugin_manifest.dart';
 import 'app_logger_service.dart';
+import 'plugin_diagnostic_logger.dart';
 import 'plugin_lifecycle_service.dart';
 
 class PluginInvocationResult {
@@ -45,6 +46,7 @@ class PluginProcessRunner {
 
   final PluginLifecycleService _pluginService;
   final AppLoggerService _logger;
+  final PluginDiagnosticLogger _diag = PluginDiagnosticLogger();
 
   Future<PluginInvocationResult> invoke(
     InstalledPlugin plugin, {
@@ -67,6 +69,19 @@ class PluginProcessRunner {
 
     Process? process;
     try {
+      _diag.mark(
+        'process.invoke.start',
+        pluginId: plugin.id,
+        data: <String, Object?>{
+          'method': method,
+          'requestId': id,
+          'directory': plugin.directory,
+          'executable': spec.executable,
+          'arguments': spec.arguments,
+          'params': params,
+          'timeoutMs': timeout.inMilliseconds,
+        },
+      );
       process = await Process.start(
         spec.executable,
         spec.arguments,
@@ -77,14 +92,37 @@ class PluginProcessRunner {
           'HANABI_PLUGIN_LOG_DIR': logDir.path,
         },
       );
+      _diag.mark(
+        'process.started',
+        pluginId: plugin.id,
+        data: <String, Object?>{
+          'method': method,
+          'requestId': id,
+          'pid': process.pid,
+        },
+      );
 
       final stdoutFuture = process.stdout.transform(utf8.decoder).join();
       final stderrFuture = process.stderr.transform(utf8.decoder).join();
 
       process.stdin.writeln(jsonEncode(request));
       await process.stdin.close();
+      _diag.mark(
+        'process.stdin.closed',
+        pluginId: plugin.id,
+        data: <String, Object?>{'method': method, 'requestId': id},
+      );
 
       final exitCode = await process.exitCode.timeout(timeout, onTimeout: () {
+        _diag.mark(
+          'process.timeout',
+          pluginId: plugin.id,
+          data: <String, Object?>{
+            'method': method,
+            'requestId': id,
+            'pid': process?.pid,
+          },
+        );
         process?.kill(ProcessSignal.sigkill);
         throw TimeoutException(
           'Plugin ${plugin.id} timed out after ${timeout.inSeconds}s',
@@ -94,6 +132,19 @@ class PluginProcessRunner {
       final stdout = await stdoutFuture;
       final stderr = await stderrFuture;
       await _appendLog(logFile, method, exitCode, stdout, stderr);
+      _diag.mark(
+        'process.exited',
+        pluginId: plugin.id,
+        data: <String, Object?>{
+          'method': method,
+          'requestId': id,
+          'exitCode': exitCode,
+          'stdoutLength': stdout.length,
+          'stderrLength': stderr.length,
+          'stdoutTail': _tail(stdout),
+          'stderrTail': _tail(stderr),
+        },
+      );
 
       if (exitCode != 0) {
         return PluginInvocationResult(
@@ -108,6 +159,15 @@ class PluginProcessRunner {
 
       final decoded = _decodeResponse(stdout);
       if (decoded == null) {
+        _diag.mark(
+          'process.decode.empty',
+          pluginId: plugin.id,
+          data: <String, Object?>{
+            'method': method,
+            'requestId': id,
+            'stdoutTail': _tail(stdout),
+          },
+        );
         return PluginInvocationResult(
           success: false,
           error: 'plugin returned no JSON-RPC response',
@@ -119,6 +179,15 @@ class PluginProcessRunner {
 
       final error = decoded['error'];
       if (error != null) {
+        _diag.mark(
+          'process.response.error',
+          pluginId: plugin.id,
+          data: <String, Object?>{
+            'method': method,
+            'requestId': id,
+            'error': error,
+          },
+        );
         return PluginInvocationResult(
           success: false,
           error: error is Map
@@ -130,6 +199,15 @@ class PluginProcessRunner {
         );
       }
 
+      _diag.mark(
+        'process.invoke.success',
+        pluginId: plugin.id,
+        data: <String, Object?>{
+          'method': method,
+          'requestId': id,
+          'result': decoded['result'],
+        },
+      );
       return PluginInvocationResult(
         success: true,
         result: decoded['result'],
@@ -137,10 +215,21 @@ class PluginProcessRunner {
         stdout: stdout,
         stderr: stderr,
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
       if (process != null) {
         process.kill(ProcessSignal.sigkill);
       }
+      _diag.error(
+        'process.invoke.error',
+        e,
+        pluginId: plugin.id,
+        stackTrace: stackTrace,
+        data: <String, Object?>{
+          'method': method,
+          'requestId': id,
+          'pid': process?.pid,
+        },
+      );
       _logger.error('Plugin', 'Plugin invocation failed: ${plugin.id}: $e');
       await logFile.writeAsString(
         '[${DateTime.now().toIso8601String()}] $method failed: $e\n',
@@ -231,5 +320,13 @@ class PluginProcessRunner {
         ..writeln(stderr.trimRight());
     }
     await file.writeAsString('${buffer.toString()}\n', mode: FileMode.append);
+  }
+
+  String _tail(String value) {
+    const maxLength = 400;
+    if (value.length <= maxLength) {
+      return value;
+    }
+    return value.substring(value.length - maxLength);
   }
 }

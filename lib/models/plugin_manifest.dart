@@ -1,11 +1,18 @@
 import 'dart:convert';
 
+import 'plugin_ui_schema.dart';
+
 enum PluginInstallState {
   available,
   enabled,
   disabled,
   incompatible,
   invalid,
+}
+
+enum PluginSidebarPlacement {
+  top,
+  bottom,
 }
 
 class PluginPermissionSet {
@@ -58,10 +65,14 @@ class PluginManifest {
     required this.author,
     required this.entry,
     required this.capabilities,
+    this.icon,
     this.description = '',
     this.category = 'other',
     this.minAppVersion,
     this.permissions = const PluginPermissionSet(),
+    this.themeOverrides,
+    this.uiExtensions,
+    this.sidebarPlacement = PluginSidebarPlacement.bottom,
   });
 
   final String id;
@@ -70,10 +81,14 @@ class PluginManifest {
   final String author;
   final String entry;
   final List<String> capabilities;
+  final String? icon;
   final String description;
   final String category;
   final String? minAppVersion;
   final PluginPermissionSet permissions;
+  final Map<String, dynamic>? themeOverrides;
+  final Map<String, List<PluginUIElement>>? uiExtensions;
+  final PluginSidebarPlacement sidebarPlacement;
 
   factory PluginManifest.fromJson(Map<String, dynamic> json) {
     final capabilitiesRaw = json['capabilities'];
@@ -84,6 +99,8 @@ class PluginManifest {
             .toList(growable: false)
         : const <String>[];
 
+    final uiExtensionsRaw = json['ui_extensions'] ?? json['uiExtensions'];
+
     return PluginManifest(
       id: json['id']?.toString().trim() ?? '',
       name: json['name']?.toString().trim() ?? '',
@@ -91,19 +108,111 @@ class PluginManifest {
       author: json['author']?.toString().trim() ?? '',
       entry: json['entry']?.toString().trim() ?? '',
       capabilities: capabilities,
+      icon: json['icon']?.toString().trim(),
       description: json['description']?.toString().trim() ?? '',
       category: json['category']?.toString().trim() ?? 'other',
       minAppVersion: json['minAppVersion']?.toString().trim(),
       permissions: PluginPermissionSet.fromJson(json['permissions']),
+      themeOverrides:
+          _stringKeyedMap(json['theme_overrides'] ?? json['themeOverrides']),
+      uiExtensions: _parseUiExtensions(uiExtensionsRaw),
+      sidebarPlacement: _parseSidebarPlacement(uiExtensionsRaw, json),
     );
+  }
+
+  static Map<String, List<PluginUIElement>>? _parseUiExtensions(dynamic json) {
+    if (json is! Map) return null;
+    final map = <String, List<PluginUIElement>>{};
+    for (final entry in json.entries) {
+      final elementsRaw = _uiElementsRaw(entry.value);
+      if (elementsRaw == null) {
+        continue;
+      }
+      final elements = <PluginUIElement>[];
+      for (final rawElement in elementsRaw) {
+        try {
+          final element = PluginUIElement.fromJson(rawElement);
+          if (element.type != PluginUIElementType.unknown) {
+            elements.add(element);
+          }
+        } catch (_) {
+          // A malformed UI control should not make the whole plugin unloadable.
+        }
+      }
+      if (elements.isNotEmpty) {
+        map[entry.key.toString()] = elements;
+      }
+    }
+    return map.isEmpty ? null : map;
+  }
+
+  static List<dynamic>? _uiElementsRaw(dynamic value) {
+    if (value is List) {
+      return value;
+    }
+    if (value is Map) {
+      final elements = value['elements'] ?? value['items'] ?? value['controls'];
+      if (elements is List) {
+        return elements;
+      }
+    }
+    return null;
+  }
+
+  static PluginSidebarPlacement _parseSidebarPlacement(
+    dynamic uiExtensions,
+    Map<String, dynamic> manifestJson,
+  ) {
+    Object? rawPlacement =
+        manifestJson['sidebar_placement'] ?? manifestJson['sidebarPlacement'];
+    if (rawPlacement == null && uiExtensions is Map) {
+      final sidebar = uiExtensions['sidebar'];
+      if (sidebar is Map) {
+        rawPlacement = sidebar['placement'] ??
+            sidebar['position'] ??
+            sidebar['nav_position'] ??
+            sidebar['navPosition'];
+      }
+    }
+    final placement = rawPlacement?.toString().trim().toLowerCase();
+    switch (placement) {
+      case 'top':
+      case 'upper':
+      case 'main':
+        return PluginSidebarPlacement.top;
+      case 'bottom':
+      case 'lower':
+      case 'footer':
+        return PluginSidebarPlacement.bottom;
+      default:
+        return PluginSidebarPlacement.bottom;
+    }
+  }
+
+  static String _sidebarPlacementToString(PluginSidebarPlacement placement) {
+    switch (placement) {
+      case PluginSidebarPlacement.top:
+        return 'top';
+      case PluginSidebarPlacement.bottom:
+        return 'bottom';
+    }
+  }
+
+  static Map<String, dynamic>? _stringKeyedMap(dynamic value) {
+    if (value is! Map) {
+      return null;
+    }
+    return {
+      for (final entry in value.entries) entry.key.toString(): entry.value,
+    };
   }
 
   factory PluginManifest.fromJsonString(String content) {
     final decoded = jsonDecode(content);
-    if (decoded is! Map<String, dynamic>) {
+    if (decoded is! Map) {
       throw const FormatException('plugin.json must be a JSON object');
     }
-    return PluginManifest.fromJson(decoded);
+    return PluginManifest.fromJson(_stringKeyedMap(decoded)!);
   }
 
   Map<String, dynamic> toJson() => {
@@ -113,11 +222,20 @@ class PluginManifest {
         'author': author,
         'entry': entry,
         'capabilities': capabilities,
+        if (icon != null && icon!.isNotEmpty) 'icon': icon,
         if (description.isNotEmpty) 'description': description,
         if (category.isNotEmpty && category != 'other') 'category': category,
         if (minAppVersion != null && minAppVersion!.isNotEmpty)
           'minAppVersion': minAppVersion,
         'permissions': permissions.toList(),
+        if (themeOverrides != null) 'theme_overrides': themeOverrides,
+        if (uiExtensions != null)
+          'ui_extensions': uiExtensions!.map(
+            (key, value) =>
+                MapEntry(key, value.map((e) => e.toJson()).toList()),
+          ),
+        if (sidebarPlacement != PluginSidebarPlacement.bottom)
+          'sidebar_placement': _sidebarPlacementToString(sidebarPlacement),
       };
 
   List<String> validate() {

@@ -1,11 +1,11 @@
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/plugin_manifest.dart';
 import '../../models/plugin_store_models.dart';
+import '../../services/plugin_diagnostic_logger.dart';
 import '../../services/plugin_lifecycle_service.dart';
 import '../../services/plugin_store_service.dart';
 import '../../theme/app_theme.dart';
@@ -13,6 +13,8 @@ import '../../utils/fluent_icons.dart' as custom_icons;
 import '../../widgets/animated_notifications.dart';
 import '../../widgets/settings_components.dart';
 import '../../widgets/smooth_scroll_wrapper.dart';
+import '../../widgets/folder_picker_dialog.dart';
+import 'plugin_settings_dialog.dart';
 
 class PluginStorePage extends StatefulWidget {
   const PluginStorePage({super.key});
@@ -23,6 +25,7 @@ class PluginStorePage extends StatefulWidget {
 
 class _PluginStorePageState extends State<PluginStorePage> {
   final TextEditingController _searchController = TextEditingController();
+  final PluginDiagnosticLogger _diag = PluginDiagnosticLogger();
   bool _busy = false;
   String _installedCategory = 'all';
   String _storeCategory = 'all';
@@ -38,6 +41,7 @@ class _PluginStorePageState extends State<PluginStorePage> {
 
   @override
   void dispose() {
+    _diag.mark('storePage.dispose');
     _searchController.dispose();
     super.dispose();
   }
@@ -191,7 +195,7 @@ class _PluginStorePageState extends State<PluginStorePage> {
       if (category.isEmpty) return 'Other';
       return category[0].toUpperCase() + category.substring(1);
     }
-    
+
     switch (category.toLowerCase()) {
       case 'feature':
         return '功能类';
@@ -215,10 +219,12 @@ class _PluginStorePageState extends State<PluginStorePage> {
       'protocol',
       'tool',
       'other',
-    ].map((cat) => ComboBoxItem(
-      value: cat,
-      child: Text(_getCategoryName(cat)),
-    )).toList();
+    ]
+        .map((cat) => ComboBoxItem(
+              value: cat,
+              child: Text(_getCategoryName(cat)),
+            ))
+        .toList();
   }
 
   Widget _buildInstalledSection(PluginLifecycleService service) {
@@ -226,7 +232,7 @@ class _PluginStorePageState extends State<PluginStorePage> {
       if (_installedCategory == 'all') return true;
       return p.manifest.category.toLowerCase() == _installedCategory;
     }).toList();
-    
+
     final groupedPlugins = <String, List<InstalledPlugin>>{};
     for (final plugin in plugins) {
       final category = plugin.manifest.category;
@@ -252,30 +258,26 @@ class _PluginStorePageState extends State<PluginStorePage> {
       ),
       const SizedBox(height: 12),
     ];
-    
+
     if (plugins.isEmpty) {
-      children.add(
-        _emptyState(
-          _isChinese ? '还没有安装本地插件' : 'No local plugins installed',
-          _isChinese
-              ? '可以从本地目录或 .hanabi-plugin.zip 包安装。'
-              : 'Install from a local folder or a .hanabi-plugin.zip package.',
-        )
-      );
+      children.add(_emptyState(
+        _isChinese ? '还没有安装本地插件' : 'No local plugins installed',
+        _isChinese
+            ? '可以从本地目录或 .hanabi-plugin.zip 包安装。'
+            : 'Install from a local folder or a .hanabi-plugin.zip package.',
+      ));
     } else {
       final sortedCategories = groupedPlugins.keys.toList()..sort();
       for (final category in sortedCategories) {
-        children.add(
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8, top: 8),
-            child: Text(
-              _getCategoryName(category),
-              style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
-            ),
-          )
-        );
+        children.add(Padding(
+          padding: const EdgeInsets.only(bottom: 8, top: 8),
+          child: Text(
+            _getCategoryName(category),
+            style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
+                  color: AppTheme.textSecondary,
+                ),
+          ),
+        ));
         for (final plugin in groupedPlugins[category]!) {
           children.add(_installedPluginTile(service, plugin));
         }
@@ -412,6 +414,12 @@ class _PluginStorePageState extends State<PluginStorePage> {
                 onPressed:
                     _busy ? null : () => _uninstallPlugin(service, plugin),
               ),
+              if (plugin.manifest.uiExtensions?['settings']?.isNotEmpty == true)
+                _actionButton(
+                  icon: custom_icons.FluentIcons.settings,
+                  label: _isChinese ? '设置' : 'Settings',
+                  onPressed: () => _openPluginSettings(context, plugin),
+                ),
             ],
           ),
         ],
@@ -474,28 +482,24 @@ class _PluginStorePageState extends State<PluginStorePage> {
     if (storeService.lastError != null) {
       children.add(_errorText(storeService.lastError!));
     } else if (entries.isEmpty) {
-      children.add(
-        _emptyState(
-          _isChinese ? '商店索引为空' : 'Store index is empty',
-          _isChinese
-              ? '加载一个索引 JSON 后，会在这里显示可安装插件。'
-              : 'Load an index JSON to show installable plugins here.',
-        )
-      );
+      children.add(_emptyState(
+        _isChinese ? '商店索引为空' : 'Store index is empty',
+        _isChinese
+            ? '加载一个索引 JSON 后，会在这里显示可安装插件。'
+            : 'Load an index JSON to show installable plugins here.',
+      ));
     } else {
       final sortedCategories = groupedEntries.keys.toList()..sort();
       for (final category in sortedCategories) {
-        children.add(
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8, top: 8),
-            child: Text(
-              _getCategoryName(category),
-              style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
-            ),
-          )
-        );
+        children.add(Padding(
+          padding: const EdgeInsets.only(bottom: 8, top: 8),
+          child: Text(
+            _getCategoryName(category),
+            style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
+                  color: AppTheme.textSecondary,
+                ),
+          ),
+        ));
         for (final entry in groupedEntries[category]!) {
           children.add(_storeEntryTile(pluginService, entry));
         }
@@ -916,28 +920,136 @@ class _PluginStorePageState extends State<PluginStorePage> {
     }
   }
 
+  Future<String?> _showPathInputDialog({
+    required String title,
+    required String placeholder,
+    String? description,
+    bool isDirectory = false,
+  }) async {
+    final controller = TextEditingController();
+    try {
+      return await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => ContentDialog(
+          title: Text(title),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (description != null && description.isNotEmpty) ...[
+                  Text(
+                    description,
+                    style: FluentTheme.of(context).typography.caption,
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormBox(
+                        controller: controller,
+                        autofocus: true,
+                        placeholder: placeholder,
+                      ),
+                    ),
+                    if (isDirectory) ...[
+                      const SizedBox(width: 8),
+                      Button(
+                        onPressed: () async {
+                          final selectedPath = await showDialog<String>(
+                            context: context,
+                            builder: (context) => FolderPickerDialog(
+                              initialPath: controller.text,
+                            ),
+                          );
+                          if (selectedPath != null && selectedPath.isNotEmpty) {
+                            controller.text = selectedPath;
+                          }
+                        },
+                        child: Text(_isChinese ? '浏览' : 'Browse'),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            Button(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(_isChinese ? '取消' : 'Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final normalized = _normalizeInputPath(controller.text);
+                Navigator.pop(dialogContext, normalized);
+              },
+              child: Text(_isChinese ? '安装' : 'Install'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      controller.dispose();
+    }
+  }
+
+  String _normalizeInputPath(String value) {
+    var normalized = value.trim();
+    if (normalized.length >= 2 &&
+        normalized.startsWith('"') &&
+        normalized.endsWith('"')) {
+      normalized = normalized.substring(1, normalized.length - 1).trim();
+    }
+    return normalized;
+  }
+
   Future<void> _installFromDirectory(BuildContext context) async {
-    final selected = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: _isChinese ? '选择插件目录' : 'Select plugin folder',
+    _diag.mark('storePage.installDirectory.pathDialog.open');
+    final selected = await _showPathInputDialog(
+      title: _isChinese ? '安装本地插件目录' : 'Install local plugin folder',
+      placeholder: r'E:\path\to\plugin',
+      description: _isChinese
+          ? '输入或粘贴包含 plugin.json 的插件目录路径。'
+          : 'Enter or paste the plugin folder path that contains plugin.json.',
+      isDirectory: true,
     );
+    _diag.mark('storePage.installDirectory.pathDialog.result',
+        data: <String, Object?>{
+          'selected': selected,
+          'mounted': mounted,
+        });
     if (selected == null || selected.trim().isEmpty) {
+      _diag.mark('storePage.installDirectory.cancelled');
       return;
     }
     await _runAction(
       () =>
           context.read<PluginLifecycleService>().installFromDirectory(selected),
       successTitle: _isChinese ? '插件已安装' : 'Plugin installed',
+      diagnosticName: 'storePage.installDirectory',
+      diagnosticData: <String, Object?>{'selected': selected},
     );
   }
 
   Future<void> _installFromPackage(BuildContext context) async {
-    final picked = await FilePicker.platform.pickFiles(
-      dialogTitle: _isChinese ? '选择插件包' : 'Select plugin package',
-      type: FileType.custom,
-      allowedExtensions: ['zip', 'hanabi-plugin'],
+    _diag.mark('storePage.installPackage.pathDialog.open');
+    final packagePath = await _showPathInputDialog(
+      title: _isChinese ? '安装插件包' : 'Install plugin package',
+      placeholder: r'E:\path\to\plugin.hanabi-plugin.zip',
+      description: _isChinese
+          ? '输入或粘贴 .zip 或 .hanabi-plugin 插件包路径。'
+          : 'Enter or paste a .zip or .hanabi-plugin package path.',
     );
-    final packagePath = picked?.files.single.path;
+    _diag.mark('storePage.installPackage.pathDialog.result',
+        data: <String, Object?>{
+          'packagePath': packagePath,
+          'mounted': mounted,
+        });
     if (packagePath == null || packagePath.trim().isEmpty) {
+      _diag.mark('storePage.installPackage.cancelled');
       return;
     }
     await _runAction(
@@ -945,6 +1057,8 @@ class _PluginStorePageState extends State<PluginStorePage> {
           .read<PluginLifecycleService>()
           .installFromPackage(packagePath),
       successTitle: _isChinese ? '插件包已安装' : 'Plugin package installed',
+      diagnosticName: 'storePage.installPackage',
+      diagnosticData: <String, Object?>{'packagePath': packagePath},
     );
   }
 
@@ -966,6 +1080,12 @@ class _PluginStorePageState extends State<PluginStorePage> {
     await _runAction(
       () => context.read<PluginStoreService>().installEntry(entry),
       successTitle: _isChinese ? '插件已安装' : 'Plugin installed',
+      diagnosticName: 'storePage.installStoreEntry',
+      diagnosticData: <String, Object?>{
+        'id': entry.id,
+        'name': entry.name,
+        'version': entry.version,
+      },
     );
   }
 
@@ -973,6 +1093,7 @@ class _PluginStorePageState extends State<PluginStorePage> {
     await _runAction(
       () => context.read<PluginStoreService>().updateAllAvailable(),
       successTitle: _isChinese ? '插件已更新' : 'Plugins updated',
+      diagnosticName: 'storePage.updateAllPlugins',
     );
   }
 
@@ -986,6 +1107,9 @@ class _PluginStorePageState extends State<PluginStorePage> {
       successTitle: enabled
           ? (_isChinese ? '插件已启用' : 'Plugin enabled')
           : (_isChinese ? '插件已禁用' : 'Plugin disabled'),
+      diagnosticName: 'storePage.setPluginEnabled',
+      diagnosticPluginId: plugin.id,
+      diagnosticData: <String, Object?>{'enabled': enabled},
     );
   }
 
@@ -993,6 +1117,14 @@ class _PluginStorePageState extends State<PluginStorePage> {
     PluginLifecycleService service,
     InstalledPlugin plugin,
   ) async {
+    _diag.mark(
+      'storePage.uninstall.dialog.open',
+      pluginId: plugin.id,
+      data: <String, Object?>{
+        'name': plugin.name,
+        'directory': plugin.directory,
+      },
+    );
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => ContentDialog(
@@ -1010,6 +1142,14 @@ class _PluginStorePageState extends State<PluginStorePage> {
         ],
       ),
     );
+    _diag.mark(
+      'storePage.uninstall.dialog.result',
+      pluginId: plugin.id,
+      data: <String, Object?>{
+        'confirmed': confirmed,
+        'mounted': mounted,
+      },
+    );
     if (confirmed != true) {
       return;
     }
@@ -1017,23 +1157,56 @@ class _PluginStorePageState extends State<PluginStorePage> {
     await _runAction(
       () => service.uninstallPlugin(plugin.id),
       successTitle: _isChinese ? '插件已卸载' : 'Plugin uninstalled',
+      diagnosticName: 'storePage.uninstall',
+      diagnosticPluginId: plugin.id,
+      diagnosticData: <String, Object?>{
+        'name': plugin.name,
+        'directory': plugin.directory,
+      },
     );
   }
 
   Future<void> _runAction(
     Future<Object?> Function() action, {
     required String successTitle,
+    String? diagnosticName,
+    String? diagnosticPluginId,
+    Map<String, Object?> diagnosticData = const <String, Object?>{},
   }) async {
     if (_busy) {
+      _diag.mark(
+        '${diagnosticName ?? 'storePage.action'}.ignoredBusy',
+        pluginId: diagnosticPluginId,
+        data: diagnosticData,
+      );
       return;
     }
 
+    _diag.mark(
+      '${diagnosticName ?? 'storePage.action'}.start',
+      pluginId: diagnosticPluginId,
+      data: diagnosticData,
+    );
     setState(() => _busy = true);
     try {
       await action();
+      _diag.mark(
+        '${diagnosticName ?? 'storePage.action'}.success',
+        pluginId: diagnosticPluginId,
+        data: <String, Object?>{
+          ...diagnosticData,
+          'successTitle': successTitle,
+        },
+      );
       if (!mounted) return;
       NotificationManager.of(context)?.showSuccess(successTitle);
     } catch (e) {
+      _diag.error(
+        '${diagnosticName ?? 'storePage.action'}.error',
+        e,
+        pluginId: diagnosticPluginId,
+        data: diagnosticData,
+      );
       if (!mounted) return;
       NotificationManager.of(context)?.showError(
         _isChinese ? '操作失败' : 'Action failed',
@@ -1043,10 +1216,41 @@ class _PluginStorePageState extends State<PluginStorePage> {
       if (mounted) {
         setState(() => _busy = false);
       }
+      _diag.mark(
+        '${diagnosticName ?? 'storePage.action'}.done',
+        pluginId: diagnosticPluginId,
+        data: <String, Object?>{
+          ...diagnosticData,
+          'mounted': mounted,
+        },
+      );
     }
   }
 
+  Future<void> _openPluginSettings(
+      BuildContext context, InstalledPlugin plugin) async {
+    _diag.mark(
+      'storePage.settings.open',
+      pluginId: plugin.id,
+      data: <String, Object?>{
+        'name': plugin.name,
+        'directory': plugin.directory,
+      },
+    );
+    await showDialog(
+      context: context,
+      builder: (context) => PluginSettingsDialog(
+        plugin: plugin,
+        isChinese: _isChinese,
+      ),
+    );
+    _diag.mark('storePage.settings.closed', pluginId: plugin.id);
+  }
+
   Future<void> _openDirectory(String directoryPath) async {
+    _diag.mark('storePage.openDirectory.start', data: <String, Object?>{
+      'directoryPath': directoryPath,
+    });
     final directory = Directory(directoryPath);
     if (!await directory.exists()) {
       await directory.create(recursive: true);
@@ -1056,5 +1260,8 @@ class _PluginStorePageState extends State<PluginStorePage> {
       [directory.path],
       mode: ProcessStartMode.detached,
     );
+    _diag.mark('storePage.openDirectory.done', data: <String, Object?>{
+      'directoryPath': directory.path,
+    });
   }
 }

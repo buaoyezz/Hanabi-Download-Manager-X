@@ -1,0 +1,72 @@
+{
+  "id": "my_test_plugin",
+  "name": "极客看板",
+  "version": "1.0.0",
+  "author": "ZZBuAoYe",
+  "description": "一个测试用侧边栏和设置扩展的演示插件",
+  "entry": "main.js",
+  "capabilities": ["sidebar", "settings"],
+  "icon": "fluent:data_bar_vertical_24",
+  "ui_extensions": {
+    "settings": [
+      {
+        "type": "switch",
+        "id": "enable_auto_catch",
+        "label": "全局自动嗅探",
+        "description": "开启后将自动接管系统下载请求",
+        "default": true
+      },
+      {
+        "type": "text_input",
+        "id": "proxy_url",
+        "label": "代理节点地址",
+        "placeholder": "socks5://127.0.0.1:1080"
+      },
+      {
+        "type": "slider",
+        "id": "performance_level",
+        "label": "性能加速级别",
+        "min": 1,
+        "max": 5,
+        "divisions": 4,
+        "default": 3
+      },
+      {
+        "type": "dropdown",
+        "id": "theme_style",
+        "label": "面板风格",
+        "default": "cyberpunk",
+        "options": [
+          {"label": "赛博朋克 (Cyberpunk)", "value": "cyberpunk"},
+          {"label": "极简白 (Minimalist)", "value": "minimalist"},
+          {"label": "暗夜黑 (Dark Mode)", "value": "dark"}
+        ]
+      }
+    ],
+    "sidebar": [
+      {
+        "type": "text",
+        "id": "welcome_text",
+        "label": "数据分析大盘",
+        "description": "这里是极客看板，您可以在这里查看所有的分析数据。"
+      },
+      {
+        "type": "switch",
+        "id": "live_update",
+        "label": "实时更新数据",
+        "default": true
+      },
+      {
+        "type": "button",
+        "action": "forceSync",
+        "label": "手动强制同步数据"
+      },
+      {
+        "type": "text_input",
+        "id": "search_query",
+        "label": "快速检索下载历史",
+        "placeholder": "输入文件名关键字..."
+      }
+    ]
+  }
+}
