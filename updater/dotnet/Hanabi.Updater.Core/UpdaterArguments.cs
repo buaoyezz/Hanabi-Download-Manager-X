@@ -9,7 +9,8 @@ public sealed record UpdaterArguments(
     string AppName,
     int WaitPid,
     string TargetVersion,
-    bool AllowAlpha)
+    bool AllowAlpha,
+    bool SkipMirror)
 {
     public static ParseResult Parse(IEnumerable<string> args)
     {
@@ -109,6 +110,8 @@ public sealed record UpdaterArguments(
                 bool.TryParse(alphaRaw, out var alphaResult) && alphaResult;
         }
 
+        var skipMirror = values.ContainsKey("skip-mirror");
+
         return ParseResult.Ok(new UpdaterArguments(
             Path.GetFullPath(appPath),
             zipPath,
@@ -116,7 +119,8 @@ public sealed record UpdaterArguments(
             appName,
             waitPid,
             targetVersion,
-            allowAlpha));
+            allowAlpha,
+            skipMirror));
     }
 }
 

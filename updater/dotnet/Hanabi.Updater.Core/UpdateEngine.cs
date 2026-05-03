@@ -124,13 +124,21 @@ public sealed class UpdateEngine
             5,
             "开始下载",
             $"正在下载版本 {tagName}",
-            "正在并发测试下载节点"));
+            _arguments.SkipMirror ? "使用 GitHub 源直接下载" : "正在并发测试下载节点"));
 
-        var rankedUrls = await RankDownloadUrlCandidatesAsync(
-            client,
-            BuildDownloadUrlCandidates(downloadUrl),
-            progress,
-            cancellationToken);
+        IReadOnlyList<string> rankedUrls;
+        if (_arguments.SkipMirror)
+        {
+            rankedUrls = new[] { downloadUrl };
+        }
+        else
+        {
+            rankedUrls = await RankDownloadUrlCandidatesAsync(
+                client,
+                BuildDownloadUrlCandidates(downloadUrl),
+                progress,
+                cancellationToken);
+        }
 
         Exception? lastDownloadError = null;
         foreach (var candidateUrl in rankedUrls)
@@ -202,11 +210,14 @@ public sealed class UpdateEngine
         return (downloadUrl, tagName);
     }
 
-    private static async Task<string> FetchReleasesJsonAsync(HttpClient client, CancellationToken cancellationToken)
+    private async Task<string> FetchReleasesJsonAsync(HttpClient client, CancellationToken cancellationToken)
     {
         const string apiUrl = "https://api.github.com/repos/buaoyezz/Hanabi-Download-Manager-X/releases";
         Exception? lastError = null;
-        foreach (var candidateUrl in BuildGitHubUrlCandidates(apiUrl))
+        var candidates = _arguments.SkipMirror
+            ? new[] { apiUrl }
+            : BuildGitHubUrlCandidates(apiUrl);
+        foreach (var candidateUrl in candidates)
         {
             try
             {

@@ -322,6 +322,9 @@
                             <TextBlock Text="{Binding LocationWarningText}"
                                        Classes="muted"
                                        TextWrapping="Wrap" />
+                            <CheckBox Content="{Binding AccelerationNodeText}"
+                                      IsChecked="{Binding UseAccelerationNode}"
+                                      Margin="0,4,0,0" />
                         </StackPanel>
 
                         <StackPanel IsVisible="{Binding IsProgressVisible}" Spacing="13">
@@ -340,6 +343,17 @@
                                            Foreground="{DynamicResource TextSecondary}" />
                             </Grid>
                             <ProgressBar Minimum="0" Maximum="100" Value="{Binding Percent}" />
+                            <Button Content="{Binding SkipText}"
+                                    IsVisible="{Binding IsSkipVisible}"
+                                    HorizontalAlignment="Right"
+                                    Background="Transparent"
+                                    BorderBrush="{DynamicResource CardBorder}"
+                                    BorderThickness="1"
+                                    Foreground="{DynamicResource TextSecondary}"
+                                    Padding="12,6"
+                                    CornerRadius="4"
+                                    Cursor="Hand"
+                                    Click="OnSkipClick" />
                             <Border Background="{DynamicResource CardBg}"
                                     BorderBrush="{DynamicResource CardBorder}"
                                     BorderThickness="1"

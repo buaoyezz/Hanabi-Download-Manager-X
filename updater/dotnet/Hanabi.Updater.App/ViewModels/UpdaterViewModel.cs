@@ -19,9 +19,14 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
     private bool _hasFailed;
     private bool _licenseAccepted;
     private bool _canCancel = true;
+    private bool _isSkipVisible;
     private bool _isAboutVisibleOverlay;
     private string _primaryButtonText = "下一步  >";
     private bool _isEnglish = false;
+    private bool _useAccelerationNode = true;
+    private UpdateStage _currentStage;
+    private bool _isSkippingSpeedTest;
+    private bool _currentSkipMirror;
 
     public string SetupTitleText => "Hanabi Download Manager X";
     public string SetupSubtitleText => _isEnglish ? "Fast and powerful download manager" : "快速、强大的下载管理器";
@@ -182,6 +187,23 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
         }
     }
 
+    public bool UseAccelerationNode
+    {
+        get => _useAccelerationNode;
+        set => SetField(ref _useAccelerationNode, value);
+    }
+
+    public bool IsSkipVisible
+    {
+        get => _isSkipVisible;
+        private set => SetField(ref _isSkipVisible, value);
+    }
+
+    public string AccelerationNodeText =>
+        _isEnglish ? "Use acceleration nodes" : "使用加速节点";
+
+    public string SkipText => _isEnglish ? "Skip speed test" : "跳过测速";
+
     public string PrimaryButtonText
     {
         get => _primaryButtonText;
@@ -233,6 +255,8 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(LocationWarningText));
         OnPropertyChanged(nameof(InstallProgressText));
         OnPropertyChanged(nameof(SpecialThanksText));
+        OnPropertyChanged(nameof(AccelerationNodeText));
+        OnPropertyChanged(nameof(SkipText));
 
         Steps[0].Label = _isEnglish ? "License" : "许可协议";
         Steps[1].Label = _isEnglish ? "Location" : "安装位置";
@@ -285,7 +309,7 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
         }
     }
 
-    private async Task StartInstallAsync()
+    private async Task StartInstallAsync(bool skipMirror = false)
     {
         if (IsRunning)
         {
@@ -300,6 +324,8 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
         IsRunning = true;
         HasFailed = false;
         CanCancel = true;
+        IsSkipVisible = false;
+        _currentSkipMirror = skipMirror || !UseAccelerationNode;
         PrimaryButtonText = _isEnglish ? "Cancel" : "取消";
         UpdateStepState(2);
         NotifyPageState();
@@ -311,7 +337,11 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
         }
 
         var actualAppPath = Path.Combine(InstallLocation, "HanabiDownloadManagerX.exe");
-        var actualArgs = _parseResult.Arguments with { AppPath = actualAppPath };
+        var actualArgs = _parseResult.Arguments with
+        {
+            AppPath = actualAppPath,
+            SkipMirror = skipMirror || !UseAccelerationNode
+        };
 
         _cancellation = new CancellationTokenSource();
         var engine = new UpdateEngine(actualArgs);
@@ -324,6 +354,12 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
         }
         catch (OperationCanceledException)
         {
+            if (_isSkippingSpeedTest)
+            {
+                _isSkippingSpeedTest = false;
+                await StartInstallAsync(skipMirror: true);
+                return;
+            }
             Fail(_isEnglish ? "Update Canceled" : "已取消更新", _isEnglish ? "No files were replaced" : "没有继续替换应用文件", _isEnglish ? "You can restart the update process later" : "你可以稍后重新启动更新流程");
         }
         catch (Exception ex)
@@ -344,13 +380,28 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
         _cancellation?.Cancel();
     }
 
+    public async void SkipSpeedTest()
+    {
+        if (!IsRunning || !IsSkipVisible)
+        {
+            return;
+        }
+
+        IsSkipVisible = false;
+        _isSkippingSpeedTest = true;
+        Detail = _isEnglish ? "Skipping speed test, using GitHub directly..." : "跳过测速，直接使用 GitHub 源...";
+        _cancellation?.Cancel();
+    }
+
     private void ApplyProgress(UpdateProgress progress)
     {
+        _currentStage = progress.Stage;
         Title = progress.Title;
         Description = progress.Description;
         Detail = progress.Detail;
         Percent = Math.Clamp(progress.Percent, 0, 100);
-        CanCancel = progress.Stage is UpdateStage.Preparing or UpdateStage.WaitingForAppExit or UpdateStage.Extracting;
+        CanCancel = progress.Stage is UpdateStage.Preparing or UpdateStage.Downloading or UpdateStage.WaitingForAppExit or UpdateStage.Extracting;
+        IsSkipVisible = !_currentSkipMirror && progress.Stage == UpdateStage.Downloading && Percent < 50;
     }
 
     private void Succeed()

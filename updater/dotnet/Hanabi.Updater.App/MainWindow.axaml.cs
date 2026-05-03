@@ -92,4 +92,9 @@ public partial class MainWindow : Window
 
         Close();
     }
+
+    private void OnSkipClick(object? sender, RoutedEventArgs e)
+    {
+        _viewModel.SkipSpeedTest();
+    }
 }
