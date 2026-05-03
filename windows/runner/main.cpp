@@ -4,12 +4,15 @@
 #include <flutter/flutter_view_controller.h>
 #include <windows.h>
 
+#include "crash_reporter.h"
 #include "flutter_window.h"
 #include "single_instance_manager.h"
 #include "utils.h"
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
+  crash_reporter::Install();
+
   // Check if another instance is already running
   HANDLE hMutex = single_instance::AcquireMutexHandle();
   if (hMutex == NULL) {
@@ -44,6 +47,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);
+  crash_reporter::Install();
 
   ::MSG msg;
   while (::GetMessage(&msg, nullptr, 0, 0)) {

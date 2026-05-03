@@ -1,5 +1,6 @@
 #include "flutter_window.h"
 
+#include <algorithm>
 #include <optional>
 #include <cstdio>
 #include <cmath>
@@ -301,11 +302,26 @@ FlutterWindow::FlutterWindow(const flutter::DartProject& project,
 
 FlutterWindow::~FlutterWindow() {}
 
+const char* FlutterWindow::WindowKindName() const {
+  switch (kind_) {
+    case WindowKind::kPopup:
+      return "popup";
+    case WindowKind::kTrayMenu:
+      return "tray";
+    case WindowKind::kMain:
+    default:
+      return "main";
+  }
+}
+
 bool FlutterWindow::OnCreate() {
   if (!Win32Window::OnCreate()) {
     return false;
   }
-  LogA("FlutterWindow::OnCreate begin");
+  char create_log[128];
+  sprintf_s(create_log, "FlutterWindow::OnCreate begin kind=%s hwnd=%p",
+            WindowKindName(), GetHandle());
+  LogA(create_log);
 
   RECT frame = GetClientArea();
 
@@ -353,7 +369,24 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
-  LogA("=== FlutterWindow::OnDestroy START ===");
+  char destroy_log[128];
+  sprintf_s(destroy_log, "=== FlutterWindow::OnDestroy START kind=%s hwnd=%p ===",
+            WindowKindName(), GetHandle());
+  LogA(destroy_log);
+
+  if (pSetWindowCompositionAttribute) {
+    ACCENT_POLICY policy{};
+    policy.AccentState = 0; // ACCENT_DISABLED
+    policy.AccentFlags = 0;
+    policy.GradientColor = 0;
+    policy.AnimationId = 0;
+    WINDOWCOMPOSITIONATTRIBUTEDATA data{};
+    data.Attribute = 19; // WCA_ACCENT_POLICY
+    data.Data = &policy;
+    data.SizeOfData = sizeof(policy);
+    pSetWindowCompositionAttribute(GetHandle(), &data);
+  }
+
   if (kind_ == WindowKind::kPopup) {
     RestorePreviousForegroundWindow();
   }
@@ -361,7 +394,9 @@ void FlutterWindow::OnDestroy() {
     g_main_flutter_window = nullptr;
     g_main_window_handle = nullptr;
   }
-  LogA("=== FlutterWindow::OnDestroy END ===");
+  sprintf_s(destroy_log, "=== FlutterWindow::OnDestroy END kind=%s ===",
+            WindowKindName());
+  LogA(destroy_log);
 
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
@@ -374,6 +409,14 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
+  // Intercept WM_CLOSE for popup windows to prevent Flutter from
+  // triggering a global application exit when a secondary engine is closed.
+  if (message == WM_CLOSE && kind_ == WindowKind::kPopup) {
+    LogA("Intercepted WM_CLOSE for Popup, hiding window to avoid abort().");
+    ShowWindow(hwnd, SW_HIDE);
+    return 0;
+  }
+
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     std::optional<LRESULT> result =
@@ -385,6 +428,14 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
   }
 
   switch (message) {
+    case WM_CLOSE:
+      {
+        char buffer[128];
+        sprintf_s(buffer, "FlutterWindow WM_CLOSE kind=%s hwnd=%p",
+                  WindowKindName(), hwnd);
+        LogA(buffer);
+      }
+      break;
     case WM_FONTCHANGE:
       if (flutter_controller_ && flutter_controller_->engine()) {
         flutter_controller_->engine()->ReloadSystemFonts();
@@ -552,9 +603,113 @@ void FlutterWindow::SetupMethodChannel() {
                   }
                 }
 
+                WindowEffectSnapshot popup_effect;
+                bool has_popup_effect = false;
+                auto effect_it =
+                    arguments->find(flutter::EncodableValue("windowEffect"));
+                if (effect_it != arguments->end()) {
+                  if (const auto* effect_map =
+                          std::get_if<flutter::EncodableMap>(&effect_it->second)) {
+                    has_popup_effect = true;
+                    popup_effect.effect_mode = effect_mode_;
+                    popup_effect.effect_alpha = effect_alpha_;
+                    popup_effect.dark_mode = dark_mode_;
+                    popup_effect.rounded_corners_enabled =
+                        rounded_corners_enabled_;
+                    popup_effect.corner_radius = corner_radius_;
+                    popup_effect.drag_suspend = drag_suspend_;
+
+                    auto enabled_it =
+                        effect_map->find(flutter::EncodableValue("enabled"));
+                    bool effect_enabled = true;
+                    if (enabled_it != effect_map->end()) {
+                      if (const bool* enabled =
+                              std::get_if<bool>(&enabled_it->second)) {
+                        effect_enabled = *enabled;
+                      }
+                    }
+
+                    auto mode_it =
+                        effect_map->find(flutter::EncodableValue("mode"));
+                    if (mode_it != effect_map->end()) {
+                      if (const std::string* mode =
+                              std::get_if<std::string>(&mode_it->second)) {
+                        if (!effect_enabled || *mode == "none") {
+                          popup_effect.effect_mode = 0;
+                        } else if (*mode == "blur") {
+                          popup_effect.effect_mode = 1;
+                        } else if (*mode == "acrylic") {
+                          popup_effect.effect_mode = 2;
+                        } else if (*mode == "mica_main") {
+                          popup_effect.effect_mode = 3;
+                        } else if (*mode == "mica_transient") {
+                          popup_effect.effect_mode = 4;
+                        }
+                      }
+                    }
+
+                    auto alpha_it =
+                        effect_map->find(flutter::EncodableValue("alpha"));
+                    if (alpha_it != effect_map->end()) {
+                      if (const int32_t* alpha32 =
+                              std::get_if<int32_t>(&alpha_it->second)) {
+                        popup_effect.effect_alpha =
+                            std::max(0, std::min(255, *alpha32));
+                      } else if (const int64_t* alpha64 =
+                                     std::get_if<int64_t>(&alpha_it->second)) {
+                        popup_effect.effect_alpha = std::max(
+                            0, std::min(255, static_cast<int>(*alpha64)));
+                      }
+                    }
+
+                    auto dark_it =
+                        effect_map->find(flutter::EncodableValue("dark_mode"));
+                    if (dark_it != effect_map->end()) {
+                      if (const bool* dark =
+                              std::get_if<bool>(&dark_it->second)) {
+                        popup_effect.dark_mode = *dark;
+                      }
+                    }
+
+                    auto rounded_it = effect_map->find(
+                        flutter::EncodableValue("rounded_corners_enabled"));
+                    if (rounded_it != effect_map->end()) {
+                      if (const bool* rounded =
+                              std::get_if<bool>(&rounded_it->second)) {
+                        popup_effect.rounded_corners_enabled = *rounded;
+                      }
+                    }
+
+                    auto radius_it = effect_map->find(
+                        flutter::EncodableValue("corner_radius"));
+                    if (radius_it != effect_map->end()) {
+                      if (const int32_t* radius32 =
+                              std::get_if<int32_t>(&radius_it->second)) {
+                        popup_effect.corner_radius =
+                            std::max(0, std::min(32, *radius32));
+                      } else if (const int64_t* radius64 =
+                                     std::get_if<int64_t>(&radius_it->second)) {
+                        popup_effect.corner_radius = std::max(
+                            0, std::min(32, static_cast<int>(*radius64)));
+                      }
+                    }
+
+                    auto drag_it = effect_map->find(
+                        flutter::EncodableValue("drag_suspend"));
+                    if (drag_it != effect_map->end()) {
+                      if (const bool* drag =
+                              std::get_if<bool>(&drag_it->second)) {
+                        popup_effect.drag_suspend = *drag;
+                      }
+                    }
+                  }
+                }
+
                 result->Success(
                     flutter::EncodableValue(
-                        CreatePopupWindow(*payload, window_title)));
+                        CreatePopupWindow(
+                            *payload, window_title,
+                            has_popup_effect ? &popup_effect : nullptr)));
                 return;
               }
             }
@@ -710,19 +865,46 @@ void FlutterWindow::SetupMethodChannel() {
             }
           }
 
-          const int min_width =
-              kind_ == WindowKind::kTrayMenu ? 172 : current_width;
-          const int max_width =
-              kind_ == WindowKind::kTrayMenu ? 420 : current_width;
+          const int min_width = kind_ == WindowKind::kTrayMenu
+                                    ? 172
+                                    : kind_ == WindowKind::kPopup ? 520
+                                                                  : current_width;
+          const int max_width = kind_ == WindowKind::kTrayMenu
+                                    ? 420
+                                    : kind_ == WindowKind::kPopup ? 720
+                                                                  : current_width;
           const int min_height =
               kind_ == WindowKind::kTrayMenu ? 120 : 220;
           const int max_height =
               kind_ == WindowKind::kTrayMenu ? 600 : 900;
           const int safe_width = std::max(min_width, std::min(max_width, width));
           const int safe_height = std::max(min_height, std::min(max_height, height));
+
+          bool suspended_here = false;
+          if (effect_mode_ > 0 && !is_suspended_) {
+            if (pSetWindowCompositionAttribute) {
+              ACCENT_POLICY policy{};
+              policy.AccentState = ACCENT_ENABLE_TRANSPARENTGRADIENT;
+              policy.AccentFlags = 2;
+              policy.GradientColor = 0xF0202020;
+              policy.AnimationId = 0;
+              WINDOWCOMPOSITIONATTRIBUTEDATA data{};
+              data.Attribute = 19;
+              data.Data = &policy;
+              data.SizeOfData = sizeof(policy);
+              pSetWindowCompositionAttribute(hwnd, &data);
+              suspended_here = true;
+            }
+          }
+
           const BOOL ok = SetWindowPos(
               hwnd, nullptr, 0, 0, safe_width, safe_height,
               SWP_NOMOVE | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOZORDER);
+
+          if (suspended_here) {
+            ApplyWindowEffect(hwnd);
+          }
+
           result->Success(flutter::EncodableValue(ok != FALSE));
           return;
         } else if (call.method_name() == "setWindowEffect") {
@@ -1108,6 +1290,10 @@ void FlutterWindow::FlashWindowAttention() {
 void FlutterWindow::CloseCurrentWindow() {
   const HWND hwnd = GetHandle();
   if (hwnd) {
+    char buffer[128];
+    sprintf_s(buffer, "CloseCurrentWindow kind=%s hwnd=%p", WindowKindName(),
+              hwnd);
+    LogA(buffer);
     PostMessage(hwnd, WM_CLOSE, 0, 0);
   }
 }
@@ -1157,9 +1343,65 @@ void FlutterWindow::SendTrayMenuPayloadToFlutter(
       std::make_unique<flutter::EncodableValue>(payload));
 }
 
-bool FlutterWindow::CreatePopupWindow(const std::string& payload_json,
-                                      const std::wstring& window_title) {
+void FlutterWindow::SendPopupPayloadToFlutter(
+    const std::string& payload_json) {
+  if (kind_ != WindowKind::kPopup || payload_json.empty() ||
+      !flutter_controller_ || !flutter_controller_->engine()) {
+    return;
+  }
+
+  flutter::MethodChannel<> popup_channel(
+      flutter_controller_->engine()->messenger(),
+      "com.hanabi.download/window",
+      &flutter::StandardMethodCodec::GetInstance());
+  flutter::EncodableMap payload;
+  payload[flutter::EncodableValue("payload")] =
+      flutter::EncodableValue(payload_json);
+  popup_channel.InvokeMethod(
+      "updatePopupPayload",
+      std::make_unique<flutter::EncodableValue>(payload));
+}
+
+bool FlutterWindow::CreatePopupWindow(
+    const std::string& payload_json,
+    const std::wstring& window_title,
+    const FlutterWindow::WindowEffectSnapshot* effect_override) {
   CleanupPopupWindows();
+
+  if (!g_popup_windows.empty()) {
+    auto& popup_window = g_popup_windows.front();
+    const HWND existing_hwnd =
+        popup_window ? popup_window->GetHandle() : nullptr;
+    if (existing_hwnd) {
+      if (effect_override != nullptr) {
+        popup_window->effect_mode_ = effect_override->effect_mode;
+        popup_window->effect_alpha_ = effect_override->effect_alpha;
+        popup_window->dark_mode_ = effect_override->dark_mode;
+        popup_window->rounded_corners_enabled_ =
+            effect_override->rounded_corners_enabled;
+        popup_window->corner_radius_ = effect_override->corner_radius;
+        popup_window->drag_suspend_ = effect_override->drag_suspend;
+      } else {
+        popup_window->effect_mode_ = effect_mode_;
+        popup_window->effect_alpha_ = effect_alpha_;
+        popup_window->dark_mode_ = dark_mode_;
+        popup_window->rounded_corners_enabled_ = rounded_corners_enabled_;
+        popup_window->corner_radius_ = corner_radius_;
+        popup_window->drag_suspend_ = drag_suspend_;
+      }
+
+      SetWindowTextW(existing_hwnd, window_title.c_str());
+      popup_window->SendPopupPayloadToFlutter(payload_json);
+      CenterWindowOnWorkArea(existing_hwnd);
+      popup_window->ApplyWindowEffect(existing_hwnd);
+      InvalidateRect(existing_hwnd, nullptr, TRUE);
+      ::ShowWindow(existing_hwnd, SW_SHOW);
+      SetForegroundWindow(existing_hwnd);
+      SetFocus(existing_hwnd);
+      LogA("Reused existing popup window");
+      return true;
+    }
+  }
 
   flutter::DartProject popup_project(L"data");
   popup_project.set_dart_entrypoint("popupMain");
@@ -1168,6 +1410,22 @@ bool FlutterWindow::CreatePopupWindow(const std::string& payload_json,
 
   auto popup_window = std::make_unique<FlutterWindow>(
       popup_project, WindowKind::kPopup);
+  if (effect_override != nullptr) {
+    popup_window->effect_mode_ = effect_override->effect_mode;
+    popup_window->effect_alpha_ = effect_override->effect_alpha;
+    popup_window->dark_mode_ = effect_override->dark_mode;
+    popup_window->rounded_corners_enabled_ =
+        effect_override->rounded_corners_enabled;
+    popup_window->corner_radius_ = effect_override->corner_radius;
+    popup_window->drag_suspend_ = effect_override->drag_suspend;
+  } else {
+    popup_window->effect_mode_ = effect_mode_;
+    popup_window->effect_alpha_ = effect_alpha_;
+    popup_window->dark_mode_ = dark_mode_;
+    popup_window->rounded_corners_enabled_ = rounded_corners_enabled_;
+    popup_window->corner_radius_ = corner_radius_;
+    popup_window->drag_suspend_ = drag_suspend_;
+  }
 
   Win32Window::Point origin(120, 120);
   Win32Window::Size size(565, 388);
@@ -1177,6 +1435,9 @@ bool FlutterWindow::CreatePopupWindow(const std::string& payload_json,
 
   popup_window->SetQuitOnClose(false);
   CenterWindowOnWorkArea(popup_window->GetHandle());
+  if (popup_window->GetHandle()) {
+    SetTimer(popup_window->GetHandle(), 1, 180, NULL);
+  }
   LogA("CreatePopupWindow waiting for first Flutter frame before showing");
   g_popup_windows.push_back(std::move(popup_window));
   return true;
@@ -1238,13 +1499,8 @@ void FlutterWindow::CleanupPopupWindows() {
 void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
   if (!hwnd) return;
 
-  // Debounce: avoid repeated calls in short time
-  static DWORD lastApplyTime = 0;
-  static int lastEffectMode = -1;
-  static bool lastDarkMode = true;
-  static bool lastRoundedCornersEnabled = true;
-  static int lastCornerRadius = 14;
-  static RECT lastWindowRect = {0, 0, 0, 0};
+  // Debounce per window: popup windows may be created in quick succession and
+  // must not inherit the last apply state from the main window or another popup.
   DWORD currentTime = GetTickCount();
 
   // Get current window size for Win10 rounded corners
@@ -1254,31 +1510,23 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
   int height = windowRect.bottom - windowRect.top;
 
   // Allow immediate update if effect mode changed or window size changed
-  bool modeChanged = (lastEffectMode != effect_mode_) ||
-                     (lastDarkMode != dark_mode_);
+  bool modeChanged = (last_effect_mode_ != effect_mode_) ||
+                     (last_dark_mode_ != dark_mode_);
   bool cornerSettingChanged =
-      (lastRoundedCornersEnabled != rounded_corners_enabled_) ||
-      (lastCornerRadius != corner_radius_);
-  bool sizeChanged = (width != (lastWindowRect.right - lastWindowRect.left) ||
-                      height != (lastWindowRect.bottom - lastWindowRect.top));
+      (last_rounded_corners_enabled_ != rounded_corners_enabled_) ||
+      (last_corner_radius_ != corner_radius_);
+  bool sizeChanged = (width != (last_window_rect_.right - last_window_rect_.left) ||
+                      height != (last_window_rect_.bottom - last_window_rect_.top));
   if (!modeChanged && !sizeChanged && !cornerSettingChanged &&
-      (currentTime - lastApplyTime < 100)) {
+      (currentTime - last_apply_time_ < 100)) {
     return;
   }
-  lastApplyTime = currentTime;
-  lastEffectMode = effect_mode_;
-  lastDarkMode = dark_mode_;
-  lastRoundedCornersEnabled = rounded_corners_enabled_;
-  lastCornerRadius = corner_radius_;
-  lastWindowRect = windowRect;
-
-  if (kind_ == WindowKind::kPopup) {
-    BOOL dark = TRUE;
-    DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark,
-                          sizeof(dark));
-    ApplyRoundedCorners(hwnd, GetWindowsBuildNumber(), width, height);
-    return;
-  }
+  last_apply_time_ = currentTime;
+  last_effect_mode_ = effect_mode_;
+  last_dark_mode_ = dark_mode_;
+  last_rounded_corners_enabled_ = rounded_corners_enabled_;
+  last_corner_radius_ = corner_radius_;
+  last_window_rect_ = windowRect;
 
   if (kind_ == WindowKind::kTrayMenu) {
     BOOL dark = TRUE;
@@ -1330,8 +1578,11 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
 
   DWORD buildNumber = GetWindowsBuildNumber();
   char logBuf[256];
-  sprintf_s(logBuf, "ApplyWindowEffect: mode=%d, build=%lu, changed=%d, size=%dx%d", 
-            effect_mode_, buildNumber, modeChanged, width, height);
+  const char* kindName = WindowKindName();
+  sprintf_s(logBuf,
+            "ApplyWindowEffect: kind=%s mode=%d alpha=%d build=%lu changed=%d size=%dx%d",
+            kindName, effect_mode_, effect_alpha_, buildNumber, modeChanged,
+            width, height);
   LogA(logBuf);
 
   // Load SetWindowCompositionAttribute
@@ -1395,15 +1646,25 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
     // DWMWA_SYSTEMBACKDROP_TYPE has no plain Blur option, so keep Blur on
     // SetWindowCompositionAttribute; mapping Blur to Acrylic makes Blur appear
     // ineffective/indistinguishable from Acrylic.
-    if (effect_mode_ == 1 && pSetWindowCompositionAttribute) {
+    if ((effect_mode_ == 1 || (kind_ == WindowKind::kPopup && effect_mode_ == 2)) &&
+        pSetWindowCompositionAttribute) {
       INT backdropType = 0;  // DWMSBT_AUTO / disable DWM backdrop first.
       DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, &backdropType,
                             sizeof(backdropType));
 
       ACCENT_POLICY policy{};
-      policy.AccentState = ACCENT_ENABLE_BLURBEHIND;
+      policy.AccentState = effect_mode_ == 2
+                               ? ACCENT_ENABLE_ACRYLICBLURBEHIND
+                               : ACCENT_ENABLE_BLURBEHIND;
       policy.AccentFlags = 2;
-      policy.GradientColor = 0;
+      if (effect_mode_ == 2) {
+        unsigned int a =
+            static_cast<unsigned int>(std::min(effect_alpha_, 150) & 0xFF);
+        const unsigned int tint = dark_mode_ ? 0x202020 : 0xF3F8FC;
+        policy.GradientColor = (a << 24) | tint;
+      } else {
+        policy.GradientColor = 0;
+      }
       policy.AnimationId = 0;
 
       WINDOWCOMPOSITIONATTRIBUTEDATA data{};
@@ -1411,7 +1672,10 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
       data.Data = &policy;
       data.SizeOfData = sizeof(policy);
       BOOL ok = pSetWindowCompositionAttribute(hwnd, &data);
-      sprintf_s(logBuf, "Win11 22H2+: BLURBEHIND via SWCA ok=%d", ok);
+      sprintf_s(logBuf,
+                "Win11 22H2+: %s via SWCA ok=%d alpha=%d",
+                effect_mode_ == 2 ? "ACRYLIC" : "BLURBEHIND", ok,
+                effect_alpha_);
       LogA(logBuf);
     } else {
       INT backdropType = 0;  // Disabled / solid fallback.
@@ -1450,6 +1714,9 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
         policy.AccentState = ACCENT_ENABLE_ACRYLICBLURBEHIND;
         policy.AccentFlags = 2;
         unsigned int a = static_cast<unsigned int>(effect_alpha_ & 0xFF);
+        if (kind_ == WindowKind::kPopup) {
+          a = std::min(a, 120u);
+        }
         const unsigned int tint = dark_mode_ ? 0x202020 : 0xF3F8FC;
         policy.GradientColor = (a << 24) | tint;
       }
@@ -1473,6 +1740,9 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
         policy.AccentState = ACCENT_ENABLE_ACRYLICBLURBEHIND;
         policy.AccentFlags = 2;
         unsigned int a = static_cast<unsigned int>(effect_alpha_ & 0xFF);
+        if (kind_ == WindowKind::kPopup) {
+          a = std::min(a, 120u);
+        }
         const unsigned int tint = dark_mode_ ? 0x202020 : 0xF3F8FC;
         policy.GradientColor = (a << 24) | tint;
       }
@@ -1483,7 +1753,9 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
       data.Data = &policy;
       data.SizeOfData = sizeof(policy);
       BOOL ok = pSetWindowCompositionAttribute(hwnd, &data);
-      sprintf_s(logBuf, "Win10: SetWindowCompositionAttribute AccentState=%d ok=%d", policy.AccentState, ok);
+      sprintf_s(logBuf,
+                "Win10: SetWindowCompositionAttribute kind=%s AccentState=%d ok=%d alpha=%d",
+                kindName, policy.AccentState, ok, effect_alpha_);
       LogA(logBuf);
     }
   }

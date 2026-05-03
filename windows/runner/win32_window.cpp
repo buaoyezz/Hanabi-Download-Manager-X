@@ -335,8 +335,8 @@ Win32Window::MessageHandler(HWND hwnd,
       break;
       
     case WM_DESTROY:
+      OnDestroy();
       window_handle_ = nullptr;
-      Destroy();
       if (quit_on_close_) {
         PostQuitMessage(0);
       }
@@ -461,12 +461,10 @@ Win32Window::MessageHandler(HWND hwnd,
       return 0;
   }
 
-  return DefWindowProc(window_handle_, message, wparam, lparam);
+  return DefWindowProc(hwnd, message, wparam, lparam);
 }
 
 void Win32Window::Destroy() {
-  OnDestroy();
-
   if (window_handle_) {
     DestroyWindow(window_handle_);
     window_handle_ = nullptr;
@@ -533,7 +531,7 @@ void Win32Window::OnDestroy() {
 }
 
 DWORD Win32Window::WindowStyle() const {
-  return WS_POPUP | WS_THICKFRAME | WS_MINIMIZEBOX;
+  return WS_OVERLAPPEDWINDOW;
 }
 
 DWORD Win32Window::WindowExStyle() const {
