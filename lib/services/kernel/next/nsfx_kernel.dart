@@ -80,8 +80,12 @@ class NsfxKernel implements KernelInterface {
       );
 
       _tasks.addAll(await _storage.loadTasks());
+      final recoveredTaskStates = await _recoverLoadedTaskStates();
       if (_tasks.isNotEmpty) {
         _logger.info('NSFX', 'Loaded ${_tasks.length} tasks from storage');
+      }
+      if (recoveredTaskStates) {
+        await _storage.saveTasks(_tasks);
       }
 
       // 设置默认下载目录
@@ -206,6 +210,66 @@ class NsfxKernel implements KernelInterface {
     for (int i = 0; i < slotsAvailable && i < pendingTasks.length; i++) {
       _engine.startDownload(pendingTasks[i]);
     }
+  }
+
+  Future<bool> _recoverLoadedTaskStates() async {
+    var changed = false;
+
+    for (final task in _tasks.values) {
+      if (task.status != TaskStatus.downloading &&
+          task.status != TaskStatus.merging) {
+        continue;
+      }
+
+      task.speed = 0;
+      task.eta = 0;
+
+      final file = File(task.filepath);
+      final fileExists = await file.exists();
+      final fileLength = fileExists ? await file.length() : 0;
+      final hasExpectedSize =
+          task.totalSize > 0 && fileLength >= task.totalSize;
+      final hasPersistedCompleteProgress = task.progress >= 100 &&
+          task.downloadedSize > 0 &&
+          fileLength >= task.downloadedSize;
+      final isCompleteFile = fileExists &&
+          fileLength > 0 &&
+          (hasExpectedSize || hasPersistedCompleteProgress);
+
+      if (isCompleteFile) {
+        task.status = TaskStatus.completed;
+        task.downloadedSize = fileLength;
+        if (task.totalSize <= 0 || fileLength > task.totalSize) {
+          task.totalSize = fileLength;
+        }
+        task.progress = 100;
+        task.endTime ??= DateTime.now();
+        task.targetReachable = true;
+        _logger.info(
+          'NSFX',
+          'Recovered completed task from disk: ${task.filename}',
+        );
+      } else {
+        task.status = TaskStatus.paused;
+        task.progress = task.totalSize > 0
+            ? (task.downloadedSize / task.totalSize) * 100
+            : 0;
+        for (final segment in task.segments) {
+          if (segment.status == SegmentStatus.downloading) {
+            segment.status = SegmentStatus.paused;
+            segment.speed = 0;
+          }
+        }
+        _logger.warning(
+          'NSFX',
+          'Recovered interrupted active task as paused: ${task.filename}',
+        );
+      }
+
+      changed = true;
+    }
+
+    return changed;
   }
 
   Future<String> _resolveFileNameConflict(
@@ -682,7 +746,12 @@ class NsfxKernel implements KernelInterface {
 
   void _onTaskComplete(Task task) {
     _logger.info('NSFX', 'Download completed: ${task.filename}');
-    _completeController.add(_toDownloadTask(task));
+    final completedTask = _toDownloadTask(task);
+    _lastEmittedStatus[task.id] = task.status;
+    _lastEmittedTotalSize[task.id] = task.totalSize;
+    _progressController.add(completedTask);
+    _completeController.add(completedTask);
+    _saveTasksInBackground('completion');
     _checkQueue();
   }
 
@@ -692,7 +761,14 @@ class NsfxKernel implements KernelInterface {
       _logger.error('NSFX', 'Download failed: ${task.filename}');
     }
     _progressController.add(_toDownloadTask(task));
+    _saveTasksInBackground('failure');
     _checkQueue();
+  }
+
+  void _saveTasksInBackground(String reason) {
+    unawaited(_storage.saveTasks(_tasks).catchError((error) {
+      _logger.warning('NSFX', 'Failed to save tasks after $reason: $error');
+    }));
   }
 
   void _emitStatistics() {

@@ -40,7 +40,7 @@ class NsfxHttpServer {
 
   NsfxHttpServer(
     this._kernel, {
-    this.port = 9710,
+    this.port = 9701,
     Iterable<int> compatibilityPorts = const [],
   }) : compatibilityPorts = compatibilityPorts
             .where((candidate) =>

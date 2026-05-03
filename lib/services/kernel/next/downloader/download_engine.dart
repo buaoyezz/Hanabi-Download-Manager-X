@@ -1150,19 +1150,7 @@ class DownloadEngine {
 
       await _mergeSegments(task, tempDir);
 
-      task.status = TaskStatus.completed;
-      task.endTime = DateTime.now();
-      task.progress = 100;
-      task.targetReachable = true;
-      _syncHttpPolicyDecision(task, client);
-
-      if (task.startTime != null && task.endTime != null) {
-        final duration = task.endTime!.difference(task.startTime!).inSeconds;
-        if (duration > 0) task.averageSpeed = task.totalSize / duration;
-      }
-
-      task.targetReachable = true;
-      _syncHttpPolicyDecision(task, client);
+      _markTaskCompleted(task, client: client);
       _logger.info('NSFX-Engine', 'Download completed: ${task.filename}');
       onComplete(task);
     } catch (e) {
@@ -2125,6 +2113,64 @@ class DownloadEngine {
     onError(task);
   }
 
+  void _markTaskCompleted(
+    Task task, {
+    int? downloadedSize,
+    NsfxHttpClient? client,
+  }) {
+    if (downloadedSize != null) {
+      task.downloadedSize = downloadedSize;
+    } else if (task.totalSize > 0) {
+      task.downloadedSize = task.totalSize;
+    }
+
+    if (task.totalSize <= 0 && task.downloadedSize > 0) {
+      task.totalSize = task.downloadedSize;
+    }
+
+    task.status = TaskStatus.completed;
+    task.endTime = DateTime.now();
+    task.progress = 100;
+    task.speed = 0;
+    task.eta = 0;
+    task.targetReachable = true;
+
+    if (client != null) {
+      _syncHttpPolicyDecision(task, client);
+    }
+
+    if (task.startTime != null && task.endTime != null) {
+      final duration = task.endTime!.difference(task.startTime!).inSeconds;
+      if (duration > 0 && task.totalSize > 0) {
+        task.averageSpeed = task.totalSize / duration;
+      }
+    }
+  }
+
+  Future<bool> _completeSingleThreadTaskIfFileFinished(
+    Task task,
+    File file,
+    NsfxHttpClient client,
+  ) async {
+    if (task.totalSize <= 0 || !await file.exists()) {
+      return false;
+    }
+
+    final finalSize = await file.length();
+    if (finalSize < task.totalSize) {
+      return false;
+    }
+
+    _markTaskCompleted(task, downloadedSize: finalSize, client: client);
+    _logger.info(
+      'NSFX-Engine',
+      'Single-thread transfer reached expected size before stream close: '
+          '${task.filename}',
+    );
+    onComplete(task);
+    return true;
+  }
+
   Future<void> _singleThreadDownload(
     Task task,
     Map<String, String> headers, {
@@ -2164,12 +2210,11 @@ class DownloadEngine {
         await response.drain();
         if (totalFromRange != null && existingLength >= totalFromRange) {
           task.totalSize = totalFromRange;
-          task.downloadedSize = totalFromRange;
-          task.progress = 100;
-          task.status = TaskStatus.completed;
-          task.endTime = DateTime.now();
-          task.targetReachable = true;
-          _syncHttpPolicyDecision(task, client);
+          _markTaskCompleted(
+            task,
+            downloadedSize: totalFromRange,
+            client: client,
+          );
           onComplete(task);
           return;
         }
@@ -2309,20 +2354,14 @@ class DownloadEngine {
       if (task.totalSize <= 0) {
         task.totalSize = finalSize;
       }
-      task.downloadedSize = finalSize;
-
-      task.status = TaskStatus.completed;
-      task.endTime = DateTime.now();
-      task.progress = 100;
-
-      if (task.startTime != null && task.endTime != null) {
-        final duration = task.endTime!.difference(task.startTime!).inSeconds;
-        if (duration > 0) task.averageSpeed = task.totalSize / duration;
-      }
+      _markTaskCompleted(task, downloadedSize: finalSize, client: client);
 
       onComplete(task);
     } catch (e) {
       await sink.close();
+      if (await _completeSingleThreadTaskIfFileFinished(task, file, client)) {
+        return;
+      }
       if (client.fallbackHttpPolicyOnTransferError(e, url: task.url)) {
         _logger.warning(
           'NSFX-Engine',
