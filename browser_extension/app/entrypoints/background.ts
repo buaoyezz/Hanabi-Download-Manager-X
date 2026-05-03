@@ -15,6 +15,10 @@ import {
 import { STORAGE_DEFAULTS, STORAGE_KEYS, normalizePortMode } from '@/lib/storage';
 
 const HEARTBEAT_ALARM = 'hanabi-connection-heartbeat';
+const DESKTOP_REQUEST_TIMEOUT = 3000;
+const CONNECTED_CHECK_CACHE_TTL = 15 * 1000;
+const DISCONNECTED_CHECK_CACHE_TTL = 5 * 1000;
+const HEARTBEAT_MIN_INTERVAL = 60 * 1000;
 const HEADER_SNAPSHOT_TTL = 2 * 60 * 1000;
 const HEADER_SNAPSHOT_LIMIT = 200;
 const NOTIFICATION_DEDUP_TTL = 4000;
@@ -29,6 +33,16 @@ const MENU_IDS = {
 } as const;
 let initializePromise: Promise<void> | null = null;
 let contextMenuSyncPromise: Promise<void> = Promise.resolve();
+let connectionCheckPromise: Promise<boolean> | null = null;
+let lastConnectionCheck:
+  | {
+      checkedAt: number;
+      connected: boolean;
+    }
+  | null = null;
+let lastHeartbeatAt = 0;
+let lastPersistedConnectionStatus: boolean | null = null;
+let lastPersistedPopupLocale: string | null = null;
 
 type HeaderRecord = Record<string, string>;
 type HeaderSnapshot = {
@@ -62,6 +76,11 @@ type DownloadPayload = {
   headers: HeaderRecord;
   from_browser: boolean;
   browser: string;
+};
+
+type ConnectionCheckOptions = {
+  force?: boolean;
+  sendHeartbeat?: boolean;
 };
 
 const browserKind = isFirefoxBrowser() ? 'firefox' : 'chromium';
@@ -127,7 +146,7 @@ async function persistDesktopServicePort(port: number) {
 async function resolveDesktopServicePorts(preferredPort?: number) {
   const mode = await getPortMode();
 
-  // 'fixed' mode: always use default 9710 only
+  // 'fixed' mode: always use the compiled default bridge port only
   if (mode === 'fixed') {
     return dedupePorts([DEFAULT_DESKTOP_SERVICE_PORT]);
   }
@@ -142,7 +161,7 @@ async function resolveDesktopServicePorts(preferredPort?: number) {
     return dedupePorts([storedPort]);
   }
 
-  // 'auto' mode: try stored port first, then default, then scan nearby ports
+  // 'auto' mode: try stored port first, then the default, then scan nearby ports
   const primaryPorts = dedupePorts([storedPort, DEFAULT_DESKTOP_SERVICE_PORT]);
   const scanPorts = getAutoDiscoveryCandidatePorts(primaryPorts);
   return [...primaryPorts, ...scanPorts];
@@ -157,8 +176,19 @@ async function fetchDesktopJson<T extends DesktopBridgeResponse>(
   let lastError: unknown = null;
 
   for (const candidatePort of candidatePorts) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, DESKTOP_REQUEST_TIMEOUT);
+
     try {
-      const response = await fetch(`${getHanabiDesktopServiceUrl(candidatePort)}${path}`, init);
+      const response = await fetch(
+        `${getHanabiDesktopServiceUrl(candidatePort)}${path}`,
+        {
+          ...init,
+          signal: controller.signal,
+        },
+      );
       if (!response.ok) {
         lastError = new Error(`HTTP ${response.status}`);
         continue;
@@ -179,6 +209,8 @@ async function fetchDesktopJson<T extends DesktopBridgeResponse>(
       };
     } catch (error) {
       lastError = error;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
@@ -265,13 +297,19 @@ function normalizeHeaders(headers: Array<{ name?: string; value?: string }> | un
   return result;
 }
 
+let lastPruneTime = 0;
+const PRUNE_INTERVAL = 10000; // 10 seconds
+
 function pruneHeaderSnapshots() {
   const now = Date.now();
 
-  for (const [url, snapshot] of headerSnapshotsByUrl) {
-    if (now - snapshot.capturedAt > HEADER_SNAPSHOT_TTL) {
-      headerSnapshotsByUrl.delete(url);
+  if (now - lastPruneTime > PRUNE_INTERVAL) {
+    for (const [url, snapshot] of headerSnapshotsByUrl) {
+      if (now - snapshot.capturedAt > HEADER_SNAPSHOT_TTL) {
+        headerSnapshotsByUrl.delete(url);
+      }
     }
+    lastPruneTime = now;
   }
 
   while (headerSnapshotsByUrl.size > HEADER_SNAPSHOT_LIMIT) {
@@ -359,10 +397,26 @@ async function syncConnectionBadge() {
 }
 
 async function updateConnectionStatus(connected: boolean) {
+  if (lastPersistedConnectionStatus === connected) {
+    return;
+  }
+
+  lastPersistedConnectionStatus = connected;
   await browser.storage.local.set({
     [STORAGE_KEYS.isConnected]: connected,
   });
   await syncConnectionBadge();
+}
+
+async function persistPopupLocale(locale: string | undefined) {
+  if (!locale || lastPersistedPopupLocale === locale) {
+    return;
+  }
+
+  lastPersistedPopupLocale = locale;
+  await browser.storage.local.set({
+    [STORAGE_KEYS.popupLocale]: locale,
+  });
 }
 
 function getDeviceInfo() {
@@ -389,29 +443,61 @@ async function sendDesktopHeartbeat() {
   });
 }
 
-async function checkConnection() {
-  try {
-    const { data } = await fetchDesktopJson<DesktopHealthResponse>('/health');
-    const connected = data.status === 'ok';
-    if (connected) {
-      await sendDesktopHeartbeat();
-    }
-    await updateConnectionStatus(connected);
-    if (data.locale) {
-      await browser.storage.local.set({
-        [STORAGE_KEYS.popupLocale]: data.locale,
-      });
-    }
-    return connected;
-  } catch (error) {
-    console.warn('Connection check failed', error);
-    await updateConnectionStatus(false);
-    return false;
+async function maybeSendDesktopHeartbeat(force = false) {
+  const now = Date.now();
+  if (!force && now - lastHeartbeatAt < HEARTBEAT_MIN_INTERVAL) {
+    return;
   }
+
+  await sendDesktopHeartbeat();
+  lastHeartbeatAt = Date.now();
+}
+
+async function checkConnection(options: ConnectionCheckOptions = {}) {
+  const now = Date.now();
+  const cacheTtl = lastConnectionCheck?.connected
+    ? CONNECTED_CHECK_CACHE_TTL
+    : DISCONNECTED_CHECK_CACHE_TTL;
+  if (
+    !options.force &&
+    lastConnectionCheck &&
+    now - lastConnectionCheck.checkedAt < cacheTtl
+  ) {
+    return lastConnectionCheck.connected;
+  }
+
+  if (connectionCheckPromise) {
+    return connectionCheckPromise;
+  }
+
+  connectionCheckPromise = (async () => {
+    const checkedAt = Date.now();
+
+    try {
+      const { data } = await fetchDesktopJson<DesktopHealthResponse>('/health');
+      const connected = data.status === 'ok';
+      lastConnectionCheck = { checkedAt, connected };
+      if (connected && options.sendHeartbeat) {
+        await maybeSendDesktopHeartbeat();
+      }
+      await updateConnectionStatus(connected);
+      await persistPopupLocale(data.locale);
+      return connected;
+    } catch (error) {
+      console.warn('Connection check failed', error);
+      lastConnectionCheck = { checkedAt, connected: false };
+      await updateConnectionStatus(false);
+      return false;
+    } finally {
+      connectionCheckPromise = null;
+    }
+  })();
+
+  return connectionCheckPromise;
 }
 
 async function getConnectionSnapshot() {
-  const connected = await checkConnection().catch(() => false);
+  const connected = await checkConnection({ force: true }).catch(() => false);
   const desktopServicePort = await getStoredDesktopServicePort();
   const values = await browser.storage.local.get({
     [STORAGE_KEYS.popupLocale]: STORAGE_DEFAULTS[STORAGE_KEYS.popupLocale],
@@ -475,14 +561,17 @@ function buildPayloadFromHeaders(
 
 async function sendDownloadToHanabi(
   payload: DownloadPayload,
-  options: { notifyOnSuccess?: boolean } = {},
+  options: { notifyOnSuccess?: boolean; skipConnectionCheck?: boolean } = {},
 ) {
   const _notifyOnSuccess = options.notifyOnSuccess ?? false;
   void _notifyOnSuccess;
-  const connected = await checkConnection();
-  if (!connected) {
-    await createNotification('Hanabi desktop client is disconnected.');
-    return { success: false, error: 'disconnected' };
+
+  if (!options.skipConnectionCheck) {
+    const connected = await checkConnection();
+    if (!connected) {
+      await createNotification('Hanabi desktop client is disconnected.');
+      return { success: false, error: 'disconnected' };
+    }
   }
 
   try {
@@ -589,6 +678,7 @@ async function handoffAutomaticDownload(
 
   await sendDownloadToHanabi(
     buildPayloadFromHeaders(downloadUrl, filename, headers, downloadItem.referrer ?? ''),
+    { skipConnectionCheck: true },
   );
 }
 
@@ -764,7 +854,7 @@ async function initialize() {
 
   await scheduleContextMenuSync();
   await syncConnectionBadge();
-  await checkConnection();
+  await checkConnection({ force: true, sendHeartbeat: true });
   await browser.alarms.create(HEARTBEAT_ALARM, { periodInMinutes: 1 });
 }
 
@@ -787,7 +877,7 @@ export default defineBackground(() => {
 
   browser.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === HEARTBEAT_ALARM) {
-      void checkConnection();
+      void checkConnection({ force: true, sendHeartbeat: true });
     }
   });
 
@@ -858,11 +948,16 @@ export default defineBackground(() => {
 
     if (
       STORAGE_KEYS.desktopServicePort in changes ||
-      STORAGE_KEYS.portMode in changes ||
+      STORAGE_KEYS.portMode in changes
+    ) {
+      lastConnectionCheck = null;
+      void checkConnection({ force: true });
+    }
+
+    if (
       STORAGE_KEYS.showConnectionBadge in changes ||
       STORAGE_KEYS.isConnected in changes
     ) {
-      void checkConnection();
       void syncConnectionBadge();
     }
   });

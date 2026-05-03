@@ -7,9 +7,11 @@ const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const appDir = path.resolve(currentDir, '..');
 const bundlesDir = path.resolve(appDir, '..');
 const packageJsonPath = path.join(appDir, 'package.json');
+const publicIconDir = path.join(appDir, 'public', 'icon');
 const wxtCliPath = path.join(appDir, 'node_modules', 'wxt', 'bin', 'wxt.mjs');
 const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
 const extensionVersion = String(packageJson.version ?? '0.0.0');
+const requiredIconFiles = ['16.png', '32.png', '48.png', '128.png'];
 
 const targetDefinitions = {
   chrome: {
@@ -51,6 +53,23 @@ function runWxtCommand(args) {
   }
 }
 
+function validateSourceIcons() {
+  const missingIcons = requiredIconFiles.filter(
+    (fileName) => !existsSync(path.join(publicIconDir, fileName)),
+  );
+
+  if (missingIcons.length > 0) {
+    console.error(
+      `[build] Missing browser extension icon assets: ${missingIcons
+        .map((fileName) => path.join('public', 'icon', fileName))
+        .join(', ')}`,
+    );
+    process.exit(1);
+  }
+}
+
+validateSourceIcons();
+
 for (const target of targets) {
   const definition = targetDefinitions[target];
   const bundlePath = path.join(bundlesDir, definition.outputDir);
@@ -62,6 +81,7 @@ for (const target of targets) {
 
   rmSync(bundlePath, { recursive: true, force: true });
   rmSync(bundleZipPath, { force: true });
+  rmSync(wxtZipPath, { force: true });
 
   console.log(
     `[build] ${definition.label} -> ${definition.outputDir} (v${extensionVersion})`,
