@@ -246,7 +246,8 @@ class IntegratedDownloadService extends ChangeNotifier {
         _hasActiveDownloads ? _activePollingInterval : _idlePollingInterval;
     _pollTimer = Timer(interval, () async {
       // 确保已订阅内核 Stream
-      if (_progressSubscription == null && isKernelRunning) {
+      if ((_progressSubscription == null || _completeSubscription == null) &&
+          isKernelRunning) {
         _subscribeToKernelStreams();
       }
       await _updateTasks();
@@ -305,11 +306,17 @@ class IntegratedDownloadService extends ChangeNotifier {
     var hasChanges = false;
     var hasCriticalChange = false;
 
+    final taskIndices = <String, int>{};
+    for (var i = 0; i < _tasks.length; i++) {
+      taskIndices[_tasks[i].id] = i;
+    }
+
     for (final record in records) {
       final newTask = record.toDownloadTask();
-      final existingIndex = _tasks.indexWhere((task) => task.id == newTask.id);
+      final existingIndex = taskIndices[newTask.id] ?? -1;
       if (existingIndex == -1) {
         _tasks.add(newTask);
+        taskIndices[newTask.id] = _tasks.length - 1;
         hasChanges = true;
         hasCriticalChange = true;
         if (newTask.status == DownloadStatus.failed) {
@@ -372,9 +379,13 @@ class IntegratedDownloadService extends ChangeNotifier {
       bool hasChanges = false;
       bool hasCriticalChange = false;
 
+      final taskIndices = <String, int>{};
+      for (var i = 0; i < _tasks.length; i++) {
+        taskIndices[_tasks[i].id] = i;
+      }
+
       for (var kernelTask in kernelTasks) {
-        final existingIndex =
-            _tasks.indexWhere((t) => t.id == kernelTask['id']);
+        final existingIndex = taskIndices[kernelTask['id']] ?? -1;
 
         final newTask = _convertKernelTask(kernelTask);
 
@@ -657,7 +668,8 @@ class IntegratedDownloadService extends ChangeNotifier {
 
     // 注意：kernelTask['progress'] 是 0-100 的百分比，需要转换为 0-1 的小数供 UI 使用
     final progressValue = (kernelTask['progress'] ?? 0.0).toDouble();
-    final normalizedProgress = progressValue / 100.0;
+    final normalizedProgress =
+        status == DownloadStatus.completed ? 1.0 : progressValue / 100.0;
 
     // 调试日志：输出进度值
     if (status == DownloadStatus.downloading) {
@@ -723,7 +735,8 @@ class IntegratedDownloadService extends ChangeNotifier {
     }
 
     // 确保已订阅内核 Stream（内核可能刚启动）
-    if (intent.isHttp && _progressSubscription == null) {
+    if (intent.isHttp &&
+        (_progressSubscription == null || _completeSubscription == null)) {
       _subscribeToKernelStreams();
     }
 

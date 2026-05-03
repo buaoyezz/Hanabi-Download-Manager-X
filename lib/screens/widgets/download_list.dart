@@ -92,17 +92,8 @@ class _DownloadListState extends State<DownloadList> {
             if (previousTasks[i].id != nextTasks[i].id) return true;
             // 状态变化（如从下载中变为完成）
             if (previousTasks[i].status != nextTasks[i].status) return true;
-            // 进度变化（修复：下载中任务的进度更新）
-            if (previousTasks[i].status == DownloadStatus.downloading ||
-                nextTasks[i].status == DownloadStatus.downloading) {
-              // 进度变化超过 0.1% 才重建，避免过于频繁
-              if ((previousTasks[i].progress - nextTasks[i].progress).abs() >
-                  0.001) {
-                return true;
-              }
-              // 速度变化也需要更新
-              if (previousTasks[i].speed != nextTasks[i].speed) return true;
-            }
+            // 如果文件大小发生变化（对于未知大小的下载任务转为已知），也需要重建结构
+            if (previousTasks[i].fileSize != nextTasks[i].fileSize) return true;
           }
           return false;
         },
@@ -163,15 +154,6 @@ class _DownloadListState extends State<DownloadList> {
             return _buildEmptyState(context);
           }
 
-          // 计算总体统计
-          final downloadingTasks = activeTasks
-              .where((t) => t.status == DownloadStatus.downloading)
-              .toList();
-          final totalSpeed = downloadingTasks.fold<double>(
-              0, (sum, t) => sum + (t.speed ?? 0));
-          final totalSegments = downloadingTasks.fold<int>(
-              0, (sum, t) => sum + (t.segments?.length ?? 0));
-
           return Column(
             children: [
               // 顶部工具栏：搜索和筛选按钮
@@ -179,9 +161,22 @@ class _DownloadListState extends State<DownloadList> {
               // 搜索和筛选栏（展开时显示）
               _buildSearchBar(context, downloadService),
               // 下载统计栏
-              if (downloadingTasks.isNotEmpty)
-                _buildStatsBar(context, downloadingTasks.length, totalSpeed,
-                    totalSegments),
+              Selector<IntegratedDownloadService, ({int count, double speed, int segments})>(
+                selector: (_, service) {
+                  final downloadingTasks = service.tasks
+                      .where((t) => t.status == DownloadStatus.downloading)
+                      .toList();
+                  return (
+                    count: downloadingTasks.length,
+                    speed: downloadingTasks.fold<double>(0, (sum, t) => sum + (t.speed ?? 0)),
+                    segments: downloadingTasks.fold<int>(0, (sum, t) => sum + (t.segments?.length ?? 0)),
+                  );
+                },
+                builder: (context, stats, child) {
+                  if (stats.count == 0) return const SizedBox.shrink();
+                  return _buildStatsBar(context, stats.count, stats.speed, stats.segments);
+                },
+              ),
               // 任务列表
               Expanded(
                 child: SmoothListView.builder(
@@ -196,14 +191,26 @@ class _DownloadListState extends State<DownloadList> {
                   // 平滑滚动配置 - 使用快速响应模式
                   config: SmoothScrollConfig.fast,
                   itemBuilder: (context, index) {
-                    final task = activeTasks[index];
+                    final taskId = activeTasks[index].id;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       // 使用 RepaintBoundary 隔离每个卡片的重绘
                       child: RepaintBoundary(
-                        child: _DownloadTaskCard(
-                          key: ValueKey(task.id),
-                          task: task,
+                        child: Selector<IntegratedDownloadService, DownloadTask?>(
+                          key: ValueKey(taskId),
+                          selector: (_, service) {
+                            try {
+                              return service.tasks.firstWhere((t) => t.id == taskId);
+                            } catch (_) {
+                              return null;
+                            }
+                          },
+                          builder: (context, task, child) {
+                            if (task == null) return const SizedBox.shrink();
+                            return _DownloadTaskCard(
+                              task: task,
+                            );
+                          },
                         ),
                       ),
                     );

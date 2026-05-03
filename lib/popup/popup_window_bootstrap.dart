@@ -48,6 +48,87 @@ class PopupWindowThemeConfig {
       textScaleFactor.isFinite && textScaleFactor > 0 ? textScaleFactor : 1.0;
 }
 
+class PopupWindowEffectConfig {
+  const PopupWindowEffectConfig({
+    required this.enabled,
+    required this.mode,
+    required this.alpha,
+    required this.isWindows11,
+    this.roundedCornersEnabled = true,
+  });
+
+  final bool enabled;
+  final String mode;
+  final int alpha;
+  final bool isWindows11;
+  final bool roundedCornersEnabled;
+
+  bool get isMicaEffect =>
+      enabled && (mode == 'mica_main' || mode == 'mica_transient');
+
+  bool get isTransparentBackground =>
+      enabled &&
+      (mode == 'acrylic' ||
+          mode == 'blur' ||
+          mode == 'mica_main' ||
+          mode == 'mica_transient');
+
+  double get panelBackgroundAlpha {
+    if (!isTransparentBackground) {
+      return 1.0;
+    }
+    final effectOpacity = (alpha / 255.0).clamp(0.0, 1.0);
+    if (isMicaEffect) {
+      return isWindows11 ? 0.22 + effectOpacity * 0.54 : 0.72;
+    }
+    if (mode == 'blur') {
+      return isWindows11
+          ? 0.22 + effectOpacity * 0.34
+          : 0.28 + effectOpacity * 0.36;
+    }
+    if (mode == 'acrylic') {
+      return isWindows11
+          ? 0.16 + effectOpacity * 0.34
+          : 0.14 + effectOpacity * 0.30;
+    }
+    return 1.0;
+  }
+
+  factory PopupWindowEffectConfig.fromJson(Object? raw) {
+    if (raw is! Map) {
+      return const PopupWindowEffectConfig(
+        enabled: false,
+        mode: 'none',
+        alpha: 255,
+        isWindows11: false,
+      );
+    }
+
+    bool readBool(String key, {bool fallback = false}) {
+      final value = raw[key];
+      return value is bool ? value : fallback;
+    }
+
+    int readAlpha() {
+      final value = raw['alpha'];
+      final parsed =
+          value is int ? value : int.tryParse(value?.toString() ?? '');
+      return (parsed ?? 255).clamp(0, 255).toInt();
+    }
+
+    return PopupWindowEffectConfig(
+      enabled: readBool('enabled'),
+      mode: raw['mode']?.toString() ?? 'none',
+      alpha: readAlpha(),
+      isWindows11: readBool('is_windows11'),
+      roundedCornersEnabled: readBool(
+        'rounded_corners_enabled',
+        fallback: true,
+      ),
+    );
+  }
+}
+
 Future<void> runPopupWindowApp(
   List<String> args, {
   PopupWindowThemeConfig? themeConfig,
@@ -77,6 +158,7 @@ class PopupWindowLaunchData {
     this.userAgent,
     this.cookies,
     this.headers,
+    this.windowEffect,
   });
 
   final String url;
@@ -89,6 +171,7 @@ class PopupWindowLaunchData {
   final String? userAgent;
   final String? cookies;
   final Map<String, dynamic>? headers;
+  final PopupWindowEffectConfig? windowEffect;
 
   factory PopupWindowLaunchData.fromArgs(List<String> args) {
     if (args.isEmpty) {
@@ -97,33 +180,38 @@ class PopupWindowLaunchData {
 
     try {
       final json = jsonDecode(args.first) as Map<Object?, Object?>;
-      final headersRaw = json['headers'];
-      final debugPreviewRaw = json['debug_preview'];
-      return PopupWindowLaunchData(
-        url: json['url']?.toString() ?? '',
-        filename: json['filename']?.toString(),
-        windowTitle: json['window_title']?.toString().trim().isNotEmpty == true
-            ? json['window_title']!.toString().trim()
-            : 'Hanabi Download Pop',
-        savePath: json['save_path']?.toString().trim().isNotEmpty == true
-            ? json['save_path']!.toString().trim()
-            : _defaultDownloadDirectory(),
-        debugPreviewStage: debugPreviewRaw is Map
-            ? debugPreviewRaw['stage']?.toString()
-            : json['debug_preview_stage']?.toString(),
-        localeTag: json['locale']?.toString(),
-        referer: json['referer']?.toString(),
-        userAgent: (json['user_agent'] ?? json['userAgent'])?.toString(),
-        cookies: json['cookies']?.toString(),
-        headers: headersRaw is Map
-            ? headersRaw.map(
-                (key, value) => MapEntry(key.toString(), value),
-              )
-            : null,
-      );
+      return PopupWindowLaunchData.fromJson(json);
     } catch (_) {
       return PopupWindowLaunchData.empty();
     }
+  }
+
+  factory PopupWindowLaunchData.fromJson(Map<Object?, Object?> json) {
+    final headersRaw = json['headers'];
+    final debugPreviewRaw = json['debug_preview'];
+    return PopupWindowLaunchData(
+      url: json['url']?.toString() ?? '',
+      filename: json['filename']?.toString(),
+      windowTitle: json['window_title']?.toString().trim().isNotEmpty == true
+          ? json['window_title']!.toString().trim()
+          : 'Hanabi Download Pop',
+      savePath: json['save_path']?.toString().trim().isNotEmpty == true
+          ? json['save_path']!.toString().trim()
+          : _defaultDownloadDirectory(),
+      debugPreviewStage: debugPreviewRaw is Map
+          ? debugPreviewRaw['stage']?.toString()
+          : json['debug_preview_stage']?.toString(),
+      localeTag: json['locale']?.toString(),
+      referer: json['referer']?.toString(),
+      userAgent: (json['user_agent'] ?? json['userAgent'])?.toString(),
+      cookies: json['cookies']?.toString(),
+      headers: headersRaw is Map
+          ? headersRaw.map(
+              (key, value) => MapEntry(key.toString(), value),
+            )
+          : null,
+      windowEffect: PopupWindowEffectConfig.fromJson(json['window_effect']),
+    );
   }
 
   factory PopupWindowLaunchData.empty() => PopupWindowLaunchData(
@@ -132,6 +220,7 @@ class PopupWindowLaunchData {
         windowTitle: 'Hanabi Download Pop',
         savePath: _defaultDownloadDirectory(),
         debugPreviewStage: null,
+        windowEffect: null,
       );
 }
 
@@ -179,6 +268,7 @@ const int _popupComposeWindowHeightWithError = 424;
 const int _popupProgressWindowHeight = 280;
 const int _popupProgressWindowHeightWithError = 404;
 const int _popupCompletedWindowHeight = 272;
+const double _popupMinimumContentWidth = 460;
 
 class _PopupSegmentSnapshot {
   const _PopupSegmentSnapshot({
@@ -300,7 +390,7 @@ double _asDouble(Object? value) {
   return double.tryParse(value?.toString() ?? '') ?? 0;
 }
 
-class PopupWindowApp extends StatelessWidget {
+class PopupWindowApp extends StatefulWidget {
   const PopupWindowApp({
     super.key,
     required this.launchData,
@@ -313,21 +403,89 @@ class PopupWindowApp extends StatelessWidget {
   final PopupWindowThemeConfig? themeConfig;
 
   @override
+  State<PopupWindowApp> createState() => _PopupWindowAppState();
+}
+
+class _PopupWindowAppState extends State<PopupWindowApp>
+    with WidgetsBindingObserver {
+  late PopupWindowLaunchData _launchData;
+  late Locale _locale;
+
+  @override
+  void initState() {
+    super.initState();
+    _launchData = widget.launchData;
+    _locale = widget.locale;
+    WidgetsBinding.instance.addObserver(this);
+    _popupWindowChannel.setMethodCallHandler(_handleAppMethodCall);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _popupWindowChannel.setMethodCallHandler(null);
+    super.dispose();
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<Object?> _handleAppMethodCall(MethodCall call) async {
+    if (call.method != 'updatePopupPayload') {
+      return null;
+    }
+
+    final args = call.arguments;
+    String? rawPayload;
+    if (args is Map) {
+      rawPayload = args['payload']?.toString();
+    } else if (args is String) {
+      rawPayload = args;
+    }
+
+    if (rawPayload == null || rawPayload.trim().isEmpty) {
+      return false;
+    }
+
+    try {
+      final decoded = jsonDecode(rawPayload) as Map<Object?, Object?>;
+      final launchData = PopupWindowLaunchData.fromJson(decoded);
+      final locale = parsePopupLocaleTag(launchData.localeTag) ??
+          WidgetsBinding.instance.platformDispatcher.locale;
+      if (mounted) {
+        setState(() {
+          _launchData = launchData;
+          _locale = locale;
+        });
+      }
+      return true;
+    } catch (e) {
+      debugPrint('Failed to update popup payload: $e');
+      return false;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final baseTheme = AppTheme.themeDataForMode(
-      themeConfig?.themeMode ?? AppThemeMode.system,
+      widget.themeConfig?.themeMode ?? AppThemeMode.system,
       platformBrightness:
           WidgetsBinding.instance.platformDispatcher.platformBrightness,
-      classicControlVisuals: themeConfig?.classicControlVisuals ?? true,
+      classicControlVisuals: widget.themeConfig?.classicControlVisuals ?? true,
     );
     AppTheme.applyBrightness(
       baseTheme.brightness,
-      classicControlVisuals: themeConfig?.classicControlVisuals ?? true,
+      classicControlVisuals: widget.themeConfig?.classicControlVisuals ?? true,
     );
     final typography = baseTheme.typography;
-    final fontFamily = themeConfig?.fontFamily.trim() ?? '';
-    final fontFallbacks = themeConfig?.fontFamilyFallback ?? const <String>[];
-    final appliedTheme = themeConfig?.hasFontFamily == true
+    final fontFamily = widget.themeConfig?.fontFamily.trim() ?? '';
+    final fontFallbacks =
+        widget.themeConfig?.fontFamilyFallback ?? const <String>[];
+    final appliedTheme = widget.themeConfig?.hasFontFamily == true
         ? baseTheme.copyWith(
             typography: Typography.raw(
               body: typography.body?.copyWith(
@@ -370,7 +528,7 @@ class PopupWindowApp extends StatelessWidget {
       title: 'Hanabi Download Pop',
       debugShowCheckedModeBanner: false,
       theme: appliedTheme,
-      locale: locale,
+      locale: _locale,
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: const [
         AppLocalizations.delegate,
@@ -381,7 +539,7 @@ class PopupWindowApp extends StatelessWidget {
       ],
       builder: (context, child) {
         Widget content = child ?? const SizedBox.shrink();
-        if (themeConfig?.hasFontFamily == true) {
+        if (widget.themeConfig?.hasFontFamily == true) {
           content = DefaultTextStyle.merge(
             style: TextStyle(
               fontFamily: fontFamily,
@@ -396,13 +554,16 @@ class PopupWindowApp extends StatelessWidget {
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
             textScaler: TextScaler.linear(
-              themeConfig?.safeTextScaleFactor ?? 1.0,
+              widget.themeConfig?.safeTextScaleFactor ?? 1.0,
             ),
           ),
           child: content,
         );
       },
-      home: PopupWindowPage(launchData: launchData),
+      home: PopupWindowPage(
+        key: ValueKey(_launchData.windowTitle),
+        launchData: _launchData,
+      ),
     );
   }
 }
@@ -428,6 +589,7 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
   bool _isSubmitting = false;
   bool _isTransferActionBusy = false;
   bool _progressPollInFlight = false;
+  bool _windowVisible = true;
   String? _errorText;
   String? _parsedFileName;
   String? _lastSuggestedFileName;
@@ -631,11 +793,19 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
 
   @override
   Widget build(BuildContext context) {
+    final windowEffect = widget.launchData.windowEffect;
+    final panelBackgroundColor = AppTheme.bgBase.withValues(
+      alpha: windowEffect?.panelBackgroundAlpha ?? 1.0,
+    );
+    final outerBackgroundColor = windowEffect?.isTransparentBackground == true
+        ? Colors.transparent
+        : panelBackgroundColor;
+
     return ColoredBox(
-      color: AppTheme.bgBase,
+      color: outerBackgroundColor,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: AppTheme.bgBase,
+          color: panelBackgroundColor,
           borderRadius: BorderRadius.circular(AppTheme.radiusLg),
           border: Border.all(
             color: AppTheme.borderStrong.withValues(alpha: 0.94),
@@ -648,8 +818,27 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final compact = constraints.maxHeight < 360;
+              final horizontalPadding = (compact ? 14.0 : 16.0) * 2;
               final verticalPadding =
                   (compact ? 10.0 : 14.0) + (compact ? 10.0 : 12.0);
+              final contentHeight = math.max(
+                0.0,
+                constraints.maxHeight - verticalPadding,
+              );
+              final availableContentWidth =
+                  math.max(0.0, constraints.maxWidth - horizontalPadding);
+              final needsWidthFallback =
+                  availableContentWidth < _popupMinimumContentWidth;
+              final contentWidth = needsWidthFallback
+                  ? _popupMinimumContentWidth
+                  : availableContentWidth;
+              final content = SizedBox(
+                width: contentWidth,
+                height: contentHeight,
+                child: _buildWorkspacePanel(
+                  compact: compact || needsWidthFallback,
+                ),
+              );
               return Padding(
                 padding: EdgeInsets.fromLTRB(
                   compact ? 14 : 16,
@@ -657,13 +846,13 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
                   compact ? 14 : 16,
                   compact ? 10 : 12,
                 ),
-                child: SizedBox(
-                  height: math.max(
-                    0.0,
-                    constraints.maxHeight - verticalPadding,
-                  ),
-                  child: _buildWorkspacePanel(compact: compact),
-                ),
+                child: needsWidthFallback
+                    ? SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const ClampingScrollPhysics(),
+                        child: content,
+                      )
+                    : content,
               );
             },
           ),
@@ -2498,6 +2687,7 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
     required String fileName,
   }) {
     _progressPollTimer?.cancel();
+    _windowVisible = true;
     setState(() {
       _activeTaskId = taskId;
       _taskSnapshot = _PopupTaskSnapshot(
@@ -2523,7 +2713,11 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
 
   Future<void> _pollTaskSnapshot({bool forceLog = false}) async {
     final taskId = _activeTaskId;
-    if (!mounted || taskId == null || taskId.isEmpty || _progressPollInFlight) {
+    if (!_windowVisible ||
+        !mounted ||
+        taskId == null ||
+        taskId.isEmpty ||
+        _progressPollInFlight) {
       return;
     }
 
@@ -2665,6 +2859,7 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
 
   Future<void> _closeWindow() async {
     _logToMain('debug', 'Close requested');
+    _prepareForHiddenWindow();
     await _logChannelWindowDebugInfo('close');
     try {
       await _popupWindowChannel.invokeMethod<void>('closeWindow');
@@ -2681,6 +2876,13 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
     if (mounted) {
       Navigator.of(context).maybePop();
     }
+  }
+
+  void _prepareForHiddenWindow() {
+    _windowVisible = false;
+    _progressPollTimer?.cancel();
+    _progressPollTimer = null;
+    _progressPollInFlight = false;
   }
 
   Future<void> _minimizeWindow() async {

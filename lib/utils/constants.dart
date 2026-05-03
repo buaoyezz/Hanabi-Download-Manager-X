@@ -3,7 +3,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 class AppConstants {
   // App Information
   static const String appName = 'Hanabi Download ManagerX';
-  static const String channel = 'alpha';
+  static const String channel = 'release';
   static const String developer = 'ZZBuAoYe';
 
   static const String _versionFallback = '0.0.0';
@@ -27,8 +27,8 @@ class AppConstants {
 
   // Kernel Information
   static const String kernelName = 'NextSpeedForceXKernel';
-  static const String newKernelVersion = '2.5.0';
-  static const String newKernelBuildNumber = 'b260417-nsfx-r';
+  static const String newKernelVersion = '2.5.1';
+  static const String newKernelBuildNumber = 'b260503-nsfx-r';
   static const String newKernelFullName = 'NSFX (Next Speed Force X)';
 
   // // API Endpoints

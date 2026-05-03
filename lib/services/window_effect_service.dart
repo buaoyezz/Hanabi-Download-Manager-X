@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'client_config_service.dart';
 import '../platform/windows/window_effect_bridge.dart';
 
 class WindowEffectService extends ChangeNotifier {
@@ -14,6 +15,8 @@ class WindowEffectService extends ChangeNotifier {
   // DWM corner preference, so keep it slightly tighter to match the same feel.
   static const double _windows10CornerRadius = 6.0;
   static const double _windows11CornerRadius = 8.0;
+  static const String popupEffectCrashGuardPreferenceKey =
+      'popup_window_effect_applying_native_effect';
 
   String _effectMode = 'acrylic';
   int _alpha = 160;
@@ -36,6 +39,7 @@ class WindowEffectService extends ChangeNotifier {
   bool get recoveredFromCrash => _recoveredFromCrash;
   bool get dragSuspend => _dragSuspend;
   bool get roundedCornersEnabled => _roundedCornersEnabled;
+  bool get darkMode => _darkMode;
   double get windowCornerRadius =>
       _isWindows11 ? _windows11CornerRadius : _windows10CornerRadius;
   bool get usesCustomWindowClip =>
@@ -68,9 +72,24 @@ class WindowEffectService extends ChangeNotifier {
 
     final prefs = await SharedPreferences.getInstance();
 
+    final wasApplyingPopupNativeEffect =
+        prefs.getBool(popupEffectCrashGuardPreferenceKey) ?? false;
+    if (wasApplyingPopupNativeEffect) {
+      _recoveredFromCrash = true;
+      await prefs.setBool(popupEffectCrashGuardPreferenceKey, false);
+      try {
+        await ClientConfigService().setPopupWindowEffectMode(
+          ClientConfigService.popupWindowEffectSolid,
+        );
+      } catch (e) {
+        debugPrint('popup window effect crash recovery error: $e');
+      }
+    }
+
     // Check if we crashed while applying acrylic previously
     if (_isWindows11) {
-      final wasApplyingAcrylic = prefs.getBool('window_effect_applying_acrylic') ?? false;
+      final wasApplyingAcrylic =
+          prefs.getBool('window_effect_applying_acrylic') ?? false;
       if (wasApplyingAcrylic) {
         _recoveredFromCrash = true;
         await prefs.setBool('window_effect_applying_acrylic', false);
@@ -78,14 +97,16 @@ class WindowEffectService extends ChangeNotifier {
       }
     }
 
-    _effectMode = prefs.getString('window_effect_mode') ?? (_isWindows11 ? 'mica_main' : 'acrylic');
+    _effectMode = prefs.getString('window_effect_mode') ??
+        (_isWindows11 ? 'mica_main' : 'acrylic');
     _alpha = prefs.getInt('window_effect_alpha') ?? 160;
 
-    // 如果没有保存过设置（新用户），默认关闭，避免 Win11 上的 flutter_acrylic (或 C++ 的不支持特效) 导致无日志硬崩溃
+    // 新用户：Win11 默认启用 Mica，Win10 默认关闭窗口特效。
+    // Win11 的 Mica 走 DWM 原生路径，比 Acrylic/Blur 更稳定。
     if (prefs.containsKey('window_effect_enabled')) {
       _effectEnabled = prefs.getBool('window_effect_enabled')!;
     } else {
-      _effectEnabled = false;
+      _effectEnabled = _isWindows11;
     }
 
     if (!windowEffectsAvailable) {
@@ -199,8 +220,10 @@ class WindowEffectService extends ChangeNotifier {
 
   Future<void> _applyWindowEffect() async {
     final prefs = await SharedPreferences.getInstance();
-    final isTryingAcrylicOnWin11 = _isWindows11 && effectEnabled && (_effectMode == 'acrylic' || _effectMode == 'blur');
-    
+    final isTryingAcrylicOnWin11 = _isWindows11 &&
+        effectEnabled &&
+        (_effectMode == 'acrylic' || _effectMode == 'blur');
+
     if (isTryingAcrylicOnWin11) {
       // 写入标记，如果在此之后发生硬崩溃，下次启动 initialize 时能检测到
       await prefs.setBool('window_effect_applying_acrylic', true);

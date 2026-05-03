@@ -295,3 +295,9 @@ updater/dotnet/**/obj/
 updater/dist/
 updater/standalone/
 app_meow.arb
+
+# Browser extension source icons must stay in the source tree. This override
+# intentionally lives after the macOS "Icon" ignore rule above.
+!browser_extension/app/public/
+!browser_extension/app/public/icon/
+!browser_extension/app/public/icon/*.png

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -5,9 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:fluent_ui/fluent_ui.dart' as fluent;
 import 'package:flutter/services.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/popup_download_dialog.dart';
+import 'client_config_service.dart';
 import 'kernel/kernel_manager.dart';
 import 'logger_service.dart';
+import 'window_effect_service.dart';
 import '../main.dart';
 
 enum PopupWindowPreviewStage {
@@ -19,6 +24,7 @@ enum PopupWindowPreviewStage {
 // 弹窗管理服务 - 用于显示下载弹窗
 class PopupWindowService {
   static const platform = MethodChannel('com.hanabi.download/window');
+  static const _popupEffectCrashGuardWindow = Duration(seconds: 10);
   static final _logger = LoggerService();
 
   static Future<void> showPopupDownloadWindow({
@@ -101,6 +107,8 @@ class PopupWindowService {
       final windowTitle = previewStage == null
           ? 'Hanabi Download Pop ${DateTime.now().microsecondsSinceEpoch}'
           : 'Hanabi Popup Preview ${previewStage.name} ${DateTime.now().microsecondsSinceEpoch}';
+      final windowEffectPayload = await _currentWindowEffectPayload();
+      final guardNativeEffect = _shouldGuardNativeEffect(windowEffectPayload);
 
       final payload = <String, dynamic>{
         'url': url,
@@ -116,27 +124,163 @@ class PopupWindowService {
           'user_agent': userAgent!.trim(),
         if (cookies?.trim().isNotEmpty ?? false) 'cookies': cookies!.trim(),
         if (headers != null && headers.isNotEmpty) 'headers': headers,
+        if (windowEffectPayload != null) 'window_effect': windowEffectPayload,
         if (previewStage != null)
           'debug_preview': <String, dynamic>{'stage': previewStage.name},
       };
+
+      if (guardNativeEffect) {
+        await _setPopupEffectCrashGuard(true);
+      }
 
       final result = await platform.invokeMethod<bool>(
         'showPopupWindow',
         {
           'payload': jsonEncode(payload),
           'title': windowTitle,
+          if (windowEffectPayload != null) 'windowEffect': windowEffectPayload,
         },
       );
 
       final success = result == true;
+      if (guardNativeEffect) {
+        if (success) {
+          unawaited(_clearPopupEffectCrashGuardAfterLaunch());
+        } else {
+          unawaited(_setPopupEffectCrashGuard(false));
+        }
+      }
       if (!success) {
         _logger.warning('Runner declined popup window request');
       }
       return success;
     } catch (e) {
+      unawaited(_setPopupEffectCrashGuard(false));
       _logger.error('Failed to open native popup window: $e');
       return false;
     }
+  }
+
+  static bool _shouldGuardNativeEffect(Map<String, dynamic>? payload) {
+    if (!Platform.isWindows || payload == null) {
+      return false;
+    }
+    if (payload['enabled'] != true) {
+      return false;
+    }
+    final mode = payload['mode']?.toString();
+    return mode == 'acrylic' || mode == 'blur';
+  }
+
+  static Future<void> _setPopupEffectCrashGuard(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(
+      WindowEffectService.popupEffectCrashGuardPreferenceKey,
+      value,
+    );
+  }
+
+  static Future<void> _clearPopupEffectCrashGuardAfterLaunch() async {
+    await Future<void>.delayed(_popupEffectCrashGuardWindow);
+    await _setPopupEffectCrashGuard(false);
+  }
+
+  static Future<Map<String, dynamic>?> _currentWindowEffectPayload() async {
+    final context = navigatorKey.currentContext;
+
+    if (context != null && context.mounted) {
+      try {
+        final effect = Provider.of<WindowEffectService>(context, listen: false);
+        final config = Provider.of<ClientConfigService>(context, listen: false);
+        final popupMode = config.getPopupWindowEffectMode();
+        final resolvedMode = _resolvePopupEffectMode(
+          popupMode: popupMode,
+          mainEffectMode: effect.effectMode,
+          mainEffectEnabled: effect.effectEnabled,
+          isWindows11: effect.isWindows11,
+        );
+        final effectEnabled = resolvedMode != 'none';
+        return <String, dynamic>{
+          'enabled': effectEnabled,
+          'mode': resolvedMode,
+          'alpha': effectEnabled ? effect.alpha : 255,
+          'is_windows11': effect.isWindows11,
+          'rounded_corners_enabled': effect.roundedCornersEnabled,
+          'corner_radius': effect.windowCornerRadius.round(),
+          'dark_mode': effect.darkMode,
+          'drag_suspend': effect.dragSuspend,
+        };
+      } catch (e) {
+        _logger.warning('Unable to snapshot window effect from context: $e');
+      }
+    }
+
+    try {
+      final config = ClientConfigService();
+      final popupMode = config.getPopupWindowEffectMode();
+      if (popupMode == ClientConfigService.popupWindowEffectFollowMain) {
+        return null;
+      }
+      final isWindows11 = await _detectWindows11();
+      final resolvedMode = _resolvePopupEffectMode(
+        popupMode: popupMode,
+        mainEffectMode: 'none',
+        mainEffectEnabled: false,
+        isWindows11: isWindows11,
+      );
+      final effectEnabled = resolvedMode != 'none';
+      final darkMode =
+          WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+              Brightness.dark;
+      return <String, dynamic>{
+        'enabled': effectEnabled,
+        'mode': resolvedMode,
+        'alpha': effectEnabled ? config.getWindowEffectAlpha() : 255,
+        'is_windows11': isWindows11,
+        'rounded_corners_enabled': true,
+        'corner_radius': isWindows11 ? 8 : 6,
+        'dark_mode': darkMode,
+        'drag_suspend': true,
+      };
+    } catch (e) {
+      _logger.warning('Unable to snapshot window effect from config: $e');
+    }
+    return null;
+  }
+
+  static Future<bool> _detectWindows11() async {
+    if (!Platform.isWindows) return false;
+    try {
+      final result = await Process.run('cmd', ['/c', 'ver']);
+      final match =
+          RegExp(r'10\.0\.(\d+)').firstMatch(result.stdout.toString());
+      final build = int.tryParse(match?.group(1) ?? '') ?? 0;
+      return build >= 22000;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static String _resolvePopupEffectMode({
+    required String popupMode,
+    required String mainEffectMode,
+    required bool mainEffectEnabled,
+    required bool isWindows11,
+  }) {
+    final normalized =
+        ClientConfigService.normalizePopupWindowEffectMode(popupMode);
+    if (normalized == ClientConfigService.popupWindowEffectFollowMain) {
+      return mainEffectEnabled ? mainEffectMode : 'none';
+    }
+    if (normalized == ClientConfigService.popupWindowEffectSolid) {
+      return 'none';
+    }
+    if (!isWindows11 &&
+        (normalized == ClientConfigService.popupWindowEffectMicaMain ||
+            normalized == ClientConfigService.popupWindowEffectMicaTransient)) {
+      return 'none';
+    }
+    return normalized;
   }
 
   // 显示弹窗下载对话框（旧方式，需要拉起主窗口）

@@ -16,6 +16,7 @@ import '../../services/clipboard_listener_service.dart';
 import '../../services/font_service.dart';
 import '../../services/performance_monitor_service.dart';
 import '../../services/app_logger_service.dart';
+import '../../services/window_effect_service.dart';
 import '../../widgets/folder_picker_dialog.dart';
 import '../../widgets/settings_components.dart';
 import '../../widgets/temp_files_dialog.dart';
@@ -188,6 +189,8 @@ class _SettingsPageState extends State<SettingsPage> {
   String _closeButtonBehavior = 'minimize_to_tray';
   bool _showTrayRunningStatus = false;
   bool _enablePopupWindow = true;
+  String _popupWindowEffectMode =
+      ClientConfigService.popupWindowEffectFollowMain;
   bool _enableClipboardListener = true;
   int _browserExtensionPort = ClientConfigService.defaultBrowserExtensionPort;
 
@@ -259,6 +262,7 @@ class _SettingsPageState extends State<SettingsPage> {
       final closeButtonBehavior = config.getCloseButtonBehavior();
       final showTrayRunningStatus = config.getShowTrayRunningStatus();
       final enablePopupWindow = config.getEnablePopupWindow();
+      final popupWindowEffectMode = config.getPopupWindowEffectMode();
       final enableClipboardListener = config.getEnableClipboardListener();
       final browserExtensionPort = config.getBrowserExtensionPort();
 
@@ -267,6 +271,7 @@ class _SettingsPageState extends State<SettingsPage> {
           _closeButtonBehavior = closeButtonBehavior;
           _showTrayRunningStatus = showTrayRunningStatus;
           _enablePopupWindow = enablePopupWindow;
+          _popupWindowEffectMode = popupWindowEffectMode;
           _enableClipboardListener = enableClipboardListener;
           _browserExtensionPort = browserExtensionPort;
         });
@@ -381,6 +386,66 @@ class _SettingsPageState extends State<SettingsPage> {
         NotificationManager.of(context)?.showError(
           t.settingsSaveFailedTitle,
           message: t.settingsPopupSaveFailedMessage(e.toString()),
+        );
+      }
+    }
+  }
+
+  Future<void> _savePopupWindowEffectMode(String value) async {
+    try {
+      final config = Provider.of<ClientConfigService>(context, listen: false);
+      final windowEffect =
+          Provider.of<WindowEffectService>(context, listen: false);
+      final normalized =
+          ClientConfigService.normalizePopupWindowEffectMode(value);
+
+      if (windowEffect.isWindows11 &&
+          (normalized == ClientConfigService.popupWindowEffectAcrylic ||
+              normalized == ClientConfigService.popupWindowEffectBlur)) {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => ContentDialog(
+            title: Text(_isChineseLocale ? '警告' : 'Warning'),
+            content: Text(
+              _isChineseLocale
+                  ? '在 Windows 11 上给 popup 单独开启亚克力或模糊效果，可能在部分设备上触发底层 DWM 崩溃。\n\n是否继续？'
+                  : 'Enabling Acrylic or Blur only for popup windows on Windows 11 may trigger native DWM crashes on some devices.\n\nContinue?',
+            ),
+            actions: [
+              Button(
+                child: Text(_isChineseLocale ? '取消' : 'Cancel'),
+                onPressed: () => Navigator.pop(context, false),
+              ),
+              FilledButton(
+                child: Text(_isChineseLocale ? '继续' : 'Continue'),
+                onPressed: () => Navigator.pop(context, true),
+              ),
+            ],
+          ),
+        );
+        if (confirmed != true) {
+          return;
+        }
+      }
+
+      await config.setPopupWindowEffectMode(normalized);
+
+      if (mounted) {
+        setState(() {
+          _popupWindowEffectMode = normalized;
+        });
+
+        NotificationManager.of(context)?.showSuccess(
+          _popupWindowEffectSavedTitle,
+          message: _popupWindowEffectDescription(normalized, windowEffect),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final t = AppLocalizations.of(context)!;
+        NotificationManager.of(context)?.showError(
+          t.settingsSaveFailedTitle,
+          message: t.settingsSaveFailedMessage(e.toString()),
         );
       }
     }
@@ -530,6 +595,8 @@ class _SettingsPageState extends State<SettingsPage> {
     final config = Provider.of<ClientConfigService>(context, listen: false);
     final kernelManager = Provider.of<KernelManager>(context, listen: false);
     final currentPort = config.getBrowserExtensionPort();
+    final notifications = NotificationManager.of(context);
+    final localizations = t;
 
     if (normalized == currentPort) {
       if (mounted) {
@@ -555,24 +622,25 @@ class _SettingsPageState extends State<SettingsPage> {
 
       await config.setBrowserExtensionPort(normalized);
 
-      if (mounted) {
-        setState(() {
-          _browserExtensionPort = normalized;
-        });
+      if (!context.mounted) {
+        return;
       }
 
-      NotificationManager.of(context)?.showSuccess(
-        t.settingsSaveSuccessTitle,
-        message: t.settingsBrowserExtensionPortSavedMessage(normalized),
+      setState(() {
+        _browserExtensionPort = normalized;
+      });
+
+      notifications?.showSuccess(
+        localizations.settingsSaveSuccessTitle,
+        message:
+            localizations.settingsBrowserExtensionPortSavedMessage(normalized),
       );
     } catch (e) {
-      if (mounted) {
-        NotificationManager.of(context)?.showError(
-          t.settingsSaveFailedTitle,
-          message:
-              t.settingsBrowserExtensionPortSaveFailedMessage(e.toString()),
-        );
-      }
+      notifications?.showError(
+        localizations.settingsSaveFailedTitle,
+        message: localizations
+            .settingsBrowserExtensionPortSaveFailedMessage(e.toString()),
+      );
     }
   }
 
@@ -1877,6 +1945,14 @@ class _SettingsPageState extends State<SettingsPage> {
   // 通用设置
   List<Widget> _buildGeneralTab(BuildContext context) {
     final t = AppLocalizations.of(context)!;
+    final windowEffect = context.watch<WindowEffectService>();
+    final popupEffectModeForUi = !windowEffect.isWindows11 &&
+            (_popupWindowEffectMode ==
+                    ClientConfigService.popupWindowEffectMicaMain ||
+                _popupWindowEffectMode ==
+                    ClientConfigService.popupWindowEffectMicaTransient)
+        ? ClientConfigService.popupWindowEffectSolid
+        : _popupWindowEffectMode;
     return [
       _buildStatusSection(context),
       const SizedBox(height: 24),
@@ -1936,6 +2012,33 @@ class _SettingsPageState extends State<SettingsPage> {
             trailing: ToggleSwitch(
               checked: _enablePopupWindow,
               onChanged: _saveEnablePopupWindow,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Opacity(
+            opacity: _enablePopupWindow ? 1.0 : 0.5,
+            child: IgnorePointer(
+              ignoring: !_enablePopupWindow,
+              child: _buildSettingItem(
+                context,
+                title: _popupWindowEffectTitle,
+                subtitle: _popupWindowEffectDescription(
+                  popupEffectModeForUi,
+                  windowEffect,
+                ),
+                trailing: SizedBox(
+                  width: 220,
+                  child: ComboBox<String>(
+                    value: popupEffectModeForUi,
+                    items: _popupWindowEffectItems(windowEffect),
+                    onChanged: (value) {
+                      if (value != null) {
+                        _savePopupWindowEffectMode(value);
+                      }
+                    },
+                  ),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -3041,12 +3144,14 @@ class _SettingsPageState extends State<SettingsPage> {
     logger.clear();
     await logger.deleteAllLogFiles();
 
-    if (mounted) {
-      NotificationManager.of(context)?.showSuccess(
-        t.settingsLogClearSuccessTitle,
-        message: t.settingsLogClearSuccessMessage,
-      );
+    if (!context.mounted) {
+      return;
     }
+
+    NotificationManager.of(context)?.showSuccess(
+      t.settingsLogClearSuccessTitle,
+      message: t.settingsLogClearSuccessMessage,
+    );
   }
 
   Future<void> _openLogDirectory(BuildContext context) async {
@@ -3061,14 +3166,14 @@ class _SettingsPageState extends State<SettingsPage> {
           mode: ProcessStartMode.detached,
         );
       } else {
-        if (mounted) {
+        if (context.mounted) {
           NotificationManager.of(context)?.showError(
             t.settingsLogOpenDirNotFound,
           );
         }
       }
     } catch (e) {
-      if (mounted) {
+      if (context.mounted) {
         NotificationManager.of(context)?.showError(
           t.settingsLogOpenDirError,
           message: e.toString(),
@@ -3342,6 +3447,86 @@ class _SettingsPageState extends State<SettingsPage> {
       default:
         return t.settingsModeDescriptionUnknown;
     }
+  }
+
+  String get _popupWindowEffectTitle =>
+      _isChineseLocale ? '弹窗窗口样式' : 'Popup window style';
+
+  String get _popupWindowEffectSavedTitle =>
+      _isChineseLocale ? '弹窗窗口样式已更新' : 'Popup window style updated';
+
+  String _popupWindowEffectLabel(String mode) {
+    return switch (ClientConfigService.normalizePopupWindowEffectMode(mode)) {
+      ClientConfigService.popupWindowEffectSolid =>
+        _isChineseLocale ? '纯色背景' : 'Solid background',
+      ClientConfigService.popupWindowEffectBlur =>
+        _isChineseLocale ? '模糊 Blur' : 'Blur',
+      ClientConfigService.popupWindowEffectAcrylic =>
+        _isChineseLocale ? '亚克力 Acrylic' : 'Acrylic',
+      ClientConfigService.popupWindowEffectMicaMain =>
+        _isChineseLocale ? 'Mica 云母' : 'Mica',
+      ClientConfigService.popupWindowEffectMicaTransient =>
+        _isChineseLocale ? 'Mica Alt 云母' : 'Mica Alt',
+      _ => _isChineseLocale ? '跟随主窗口' : 'Follow main window',
+    };
+  }
+
+  String _popupWindowEffectDescription(
+    String mode,
+    WindowEffectService windowEffect,
+  ) {
+    return switch (ClientConfigService.normalizePopupWindowEffectMode(mode)) {
+      ClientConfigService.popupWindowEffectSolid => _isChineseLocale
+          ? 'popup 使用纯色背景，不启用系统窗口特效'
+          : 'Popup windows use a solid background without system effects.',
+      ClientConfigService.popupWindowEffectBlur => _isChineseLocale
+          ? 'popup 单独使用 Blur 模糊效果'
+          : 'Popup windows use Blur independently.',
+      ClientConfigService.popupWindowEffectAcrylic => _isChineseLocale
+          ? 'popup 单独使用 Acrylic 亚克力效果'
+          : 'Popup windows use Acrylic independently.',
+      ClientConfigService.popupWindowEffectMicaMain => windowEffect.isWindows11
+          ? (_isChineseLocale
+              ? 'popup 单独使用 Windows 11 Mica 效果'
+              : 'Popup windows use Windows 11 Mica independently.')
+          : (_isChineseLocale
+              ? '当前系统不支持 Mica，popup 会回退为纯色'
+              : 'Mica is unavailable on this system; popup windows fall back to solid.'),
+      ClientConfigService.popupWindowEffectMicaTransient => windowEffect
+              .isWindows11
+          ? (_isChineseLocale
+              ? 'popup 单独使用 Windows 11 Mica Alt 效果'
+              : 'Popup windows use Windows 11 Mica Alt independently.')
+          : (_isChineseLocale
+              ? '当前系统不支持 Mica Alt，popup 会回退为纯色'
+              : 'Mica Alt is unavailable on this system; popup windows fall back to solid.'),
+      _ => _isChineseLocale
+          ? 'popup 复用主窗口当前窗口效果；Win11 默认 Mica，Win10 默认关闭'
+          : 'Popup windows reuse the main window effect; Windows 11 defaults to Mica, Windows 10 defaults to off.',
+    };
+  }
+
+  List<ComboBoxItem<String>> _popupWindowEffectItems(
+    WindowEffectService windowEffect,
+  ) {
+    final values = <String>[
+      ClientConfigService.popupWindowEffectFollowMain,
+      ClientConfigService.popupWindowEffectSolid,
+      ClientConfigService.popupWindowEffectAcrylic,
+      ClientConfigService.popupWindowEffectBlur,
+      if (windowEffect.isWindows11) ...[
+        ClientConfigService.popupWindowEffectMicaMain,
+        ClientConfigService.popupWindowEffectMicaTransient,
+      ],
+    ];
+
+    return [
+      for (final value in values)
+        ComboBoxItem<String>(
+          value: value,
+          child: Text(_popupWindowEffectLabel(value)),
+        ),
+    ];
   }
 
   Widget _buildSettingItem(

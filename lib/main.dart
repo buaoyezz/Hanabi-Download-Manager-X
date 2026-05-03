@@ -34,6 +34,7 @@ import 'services/window_effect_service.dart';
 import 'services/user_profile_service.dart';
 import 'services/notification_settings_service.dart';
 import 'services/notice_service.dart';
+import 'services/crash_report_service.dart';
 import 'services/download_failure_stats_service.dart';
 import 'services/localization_service.dart';
 import 'services/popup_bridge_service.dart';
@@ -257,6 +258,7 @@ void main(List<String> args) async {
     final userProfileService = UserProfileService();
     final notificationSettings = NotificationSettingsService();
     final noticeService = NoticeService(logger: appLogger);
+    final crashReportService = CrashReportService(logger: appLogger);
     final localizationService = LocalizationService();
     final pluginLifecycleService = PluginLifecycleService();
     final pluginStoreService = PluginStoreService();
@@ -277,6 +279,7 @@ void main(List<String> args) async {
     );
     await updateService.initialize();
     await notificationSettings.init(); // 初始化通知设置
+    await crashReportService.initialize();
     await NsfxProxyRuntime.ensureSystemProxyObserverStarted();
 
     // 初始化 FluentIcons（从 JSON 加载图标映射）
@@ -337,6 +340,7 @@ void main(List<String> args) async {
           ChangeNotifierProvider.value(value: windowEffectService),
           ChangeNotifierProvider.value(value: userProfileService),
           ChangeNotifierProvider.value(value: noticeService),
+          ChangeNotifierProvider.value(value: crashReportService),
           ChangeNotifierProvider.value(value: localizationService),
           ChangeNotifierProvider.value(value: pluginLifecycleService),
           ChangeNotifierProvider.value(value: pluginStoreService),

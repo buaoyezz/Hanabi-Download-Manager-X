@@ -25,9 +25,15 @@ class ClientConfigService extends ChangeNotifier {
   factory ClientConfigService() => _instance;
   ClientConfigService._internal();
 
-  static const int defaultBrowserExtensionPort = 9710;
+  static const int defaultBrowserExtensionPort = 9701;
   static const int minBrowserExtensionPort = 1024;
   static const int maxBrowserExtensionPort = 65535;
+  static const String popupWindowEffectFollowMain = 'follow_main';
+  static const String popupWindowEffectSolid = 'solid';
+  static const String popupWindowEffectBlur = 'blur';
+  static const String popupWindowEffectAcrylic = 'acrylic';
+  static const String popupWindowEffectMicaMain = 'mica_main';
+  static const String popupWindowEffectMicaTransient = 'mica_transient';
 
   final _logger = AppLoggerService();
 
@@ -169,6 +175,7 @@ class ClientConfigService extends ChangeNotifier {
       'window': {
         'effect_mode': 'acrylic',
         'effect_alpha': 160,
+        'popup_effect_mode': popupWindowEffectFollowMain,
         'width': 889.0, // 上次保存的窗口宽度
         'height': 586.0, // 上次保存的窗口高度
         'remember_size': false, // 默认不记忆窗口大小，使用默认值
@@ -359,6 +366,36 @@ class ClientConfigService extends ChangeNotifier {
 
   Future<void> setWindowEffectAlpha(int alpha) async {
     await _setToConfig(_uiConfig, _uiConfigPath, 'window.effect_alpha', alpha);
+  }
+
+  static String normalizePopupWindowEffectMode(String? mode) {
+    return switch (mode?.trim().toLowerCase()) {
+      popupWindowEffectSolid => popupWindowEffectSolid,
+      popupWindowEffectBlur => popupWindowEffectBlur,
+      popupWindowEffectAcrylic => popupWindowEffectAcrylic,
+      popupWindowEffectMicaMain => popupWindowEffectMicaMain,
+      popupWindowEffectMicaTransient => popupWindowEffectMicaTransient,
+      _ => popupWindowEffectFollowMain,
+    };
+  }
+
+  String getPopupWindowEffectMode() {
+    return normalizePopupWindowEffectMode(
+      _getFromConfig<String>(
+        _uiConfig,
+        'window.popup_effect_mode',
+        defaultValue: popupWindowEffectFollowMain,
+      ),
+    );
+  }
+
+  Future<void> setPopupWindowEffectMode(String mode) async {
+    await _setToConfig(
+      _uiConfig,
+      _uiConfigPath,
+      'window.popup_effect_mode',
+      normalizePopupWindowEffectMode(mode),
+    );
   }
 
   double getWindowWidth() {

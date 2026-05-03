@@ -13,6 +13,7 @@ import '../services/app_logger_service.dart';
 import '../services/kernel/kernel_manager.dart';
 import '../services/plugin_diagnostic_logger.dart';
 import '../services/window_effect_service.dart';
+import '../services/crash_report_service.dart';
 import '../services/client_config_service.dart';
 import '../services/update_service.dart';
 import '../services/performance_monitor_service.dart';
@@ -320,6 +321,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkWindowEffectCrashRecovery();
+      unawaited(_showPendingCrashReportIfNeeded());
     });
 
     // 侧边栏动画控制器 - 快速响应的展开/收缩
@@ -454,6 +456,127 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             : 'Detected a crash when trying to enable Acrylic effect last time. Automatically reverted to Mica effect to ensure stability.',
       );
       windowEffect.clearCrashRecoveryFlag();
+    }
+  }
+
+  Future<void> _showPendingCrashReportIfNeeded() async {
+    if (!mounted || !Platform.isWindows) return;
+
+    final crashReportService = context.read<CrashReportService>();
+    final report = crashReportService.pendingReport;
+    if (report == null) return;
+
+    final isZh =
+        Localizations.localeOf(context).languageCode.toLowerCase().startsWith(
+              'zh',
+            );
+    final title = isZh ? '检测到上次系统层崩溃' : 'Native Crash Detected';
+    final description = isZh
+        ? 'Hanabi 上次不是正常退出，而是在 Windows/native 层被终止。下面是启动器在崩溃瞬间保存的报告，能帮助判断是窗口特效、Flutter 引擎、插件还是系统 DLL 触发的问题。'
+        : 'Hanabi did not exit normally last time. It was terminated in the Windows/native layer. The report below was written at crash time and can help identify whether window effects, the Flutter engine, plugins, or system DLLs were involved.';
+    final openFolderLabel = isZh ? '打开报告目录' : 'Open Report Folder';
+    final closeLabel = isZh ? '我知道了' : 'OK';
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => ContentDialog(
+        constraints: const BoxConstraints(maxWidth: 620),
+        title: Text(title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(description),
+            const SizedBox(height: 14),
+            Text(
+              report.userFacingReason(isChinese: isZh),
+              style: FluentTheme.of(dialogContext).typography.bodyStrong,
+            ),
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.bgLayer2.withValues(alpha: 0.72),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: AppTheme.borderSubtle),
+              ),
+              child: SelectableText(
+                _formatCrashReportDetails(report, isZh: isZh),
+                style: const TextStyle(
+                  fontFamily: 'Consolas',
+                  fontSize: 12,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          Button(
+            onPressed: () => unawaited(_openCrashReportDirectory(report)),
+            child: Text(openFolderLabel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(closeLabel),
+          ),
+        ],
+      ),
+    );
+
+    await crashReportService.acknowledgePendingReport();
+  }
+
+  String _formatCrashReportDetails(
+    CrashReport report, {
+    required bool isZh,
+  }) {
+    final lines = <String>[
+      '${isZh ? '类型' : 'Type'}: ${report.kindLabel(isChinese: isZh)}',
+      if (report.timestampLocal.isNotEmpty)
+        '${isZh ? '时间' : 'Time'}: ${report.timestampLocal}',
+      if (report.exceptionCode != null)
+        '${isZh ? '异常代码' : 'Exception code'}: ${report.exceptionCode}',
+      if (report.exceptionAddress != null)
+        '${isZh ? '异常地址' : 'Exception address'}: ${report.exceptionAddress}',
+      if (report.processId != null)
+        '${isZh ? '进程 ID' : 'Process ID'}: ${report.processId}',
+      if (report.threadId != null)
+        '${isZh ? '线程 ID' : 'Thread ID'}: ${report.threadId}',
+      if (report.modulePath != null)
+        '${isZh ? '程序路径' : 'Module'}: ${report.modulePath}',
+      if (report.reportPath.isNotEmpty)
+        '${isZh ? '报告文件' : 'Report'}: ${report.reportPath}',
+    ];
+    return lines.join('\n');
+  }
+
+  Future<void> _openCrashReportDirectory(CrashReport report) async {
+    final directoryPath = report.crashDirectory.isNotEmpty
+        ? report.crashDirectory
+        : context.read<CrashReportService>().crashDirectory.path;
+    try {
+      final directory = Directory(directoryPath);
+      if (!await directory.exists()) {
+        await directory.create(recursive: true);
+      }
+      await Process.start(
+        'explorer',
+        [directory.path.replaceAll('/', '\\')],
+        mode: ProcessStartMode.detached,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final isZh =
+          Localizations.localeOf(context).languageCode.toLowerCase().startsWith(
+                'zh',
+              );
+      NotificationManager.of(context)?.showError(
+        isZh ? '无法打开崩溃报告目录' : 'Unable to open crash report folder',
+        message: e.toString(),
+      );
     }
   }
 
@@ -710,7 +833,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       }
       // 检查索引越界情况
       if (_currentIndex >= navItems.length) {
-        _currentIndex = navItems.length > 0 ? navItems.length - 1 : 0;
+        _currentIndex = navItems.isNotEmpty ? navItems.length - 1 : 0;
       }
       // 更新当前页面标识
       if (navItems.isNotEmpty) {
@@ -831,7 +954,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final logoSize = isMicroWidth ? 16.0 : 20.0;
     final logoSpacing = isMicroWidth ? 4.0 : 6.0;
 
-    final titleBarContent = Container(
+    final titleBarContent = SizedBox(
       height: 48,
       // 不设独立背景色，由外层 shell 背景提供
       child: Row(
@@ -1233,38 +1356,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           final width = _widthAnimation.value;
           final isCompact = width < 100;
 
-          final sidebarContent = Container(
-            // 不设独立背景色，与标题栏一体
-            child: Column(
-              children: [
-                const SizedBox(height: 8),
+          final sidebarContent = Column(
+            children: [
+              const SizedBox(height: 8),
 
-                // 主导航项
-                ...navItems
-                    .asMap()
-                    .entries
-                    .where((entry) => !_isBottomNavItem(entry.value))
-                    .map((entry) => _buildNavItemWidget(
-                        context, entry.key, entry.value, isCompact)),
+              // 主导航项
+              ...navItems
+                  .asMap()
+                  .entries
+                  .where((entry) => !_isBottomNavItem(entry.value))
+                  .map((entry) => _buildNavItemWidget(
+                      context, entry.key, entry.value, isCompact)),
 
-                const Spacer(),
+              const Spacer(),
 
-                // 分隔线
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                      horizontal: isCompact ? 8 : 16, vertical: 8),
-                  child: Container(
-                    height: 1,
-                    color: AppTheme.borderSubtle.withValues(alpha: 0.3),
-                  ),
+              // 分隔线
+              Padding(
+                padding: EdgeInsets.symmetric(
+                    horizontal: isCompact ? 8 : 16, vertical: 8),
+                child: Container(
+                  height: 1,
+                  color: AppTheme.borderSubtle.withValues(alpha: 0.3),
                 ),
+              ),
 
-                // 底部导航项
-                ..._buildBottomNavItems(context, navItems, isCompact),
+              // 底部导航项
+              ..._buildBottomNavItems(context, navItems, isCompact),
 
-                const SizedBox(height: 8),
-              ],
-            ),
+              const SizedBox(height: 8),
+            ],
           );
 
           return Stack(
@@ -1362,22 +1482,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         );
       },
       child: shouldShowTrayButton
-          ? Container(
+          ? SizedBox(
               key: const ValueKey('tray_button'),
-              child: SizedBox(
-                height: 28,
-                width: 28,
-                child: Button(
-                  style: ButtonStyle(
-                    padding: WidgetStateProperty.all(EdgeInsets.zero),
-                  ),
-                  onPressed: () => systemTrayService.hideMainWindow(),
-                  child:
-                      Icon(CustomIcons.FluentIcons.chrome_minimize, size: 12),
+              height: 28,
+              width: 28,
+              child: Button(
+                style: ButtonStyle(
+                  padding: WidgetStateProperty.all(EdgeInsets.zero),
                 ),
+                onPressed: () => systemTrayService.hideMainWindow(),
+                child: Icon(CustomIcons.FluentIcons.chrome_minimize, size: 12),
               ),
             )
-          : Container(
+          : SizedBox(
               key: const ValueKey('empty_tray'),
               width: 0,
               height: 28,
