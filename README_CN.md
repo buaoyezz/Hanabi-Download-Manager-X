@@ -82,6 +82,11 @@ flutter build windows --release
 
 ## 许可证
 
-[GNU General Public License v3.0](https://github.com/buaoyezz/Hanabi-Download-Manager-X?tab=GPL-3.0-1-ov-file)
+本项目采用双重授权协议：
+
+- **核心应用**：[GNU General Public License v3.0](LICENSE)。
+- **插件和 SDK（`plugins/` 目录）**：[MIT License](plugins/LICENSE)。
+
+这意味着，只要您使用的是提供的采用 MIT 协议的插件 API，您就可以自由地为 Hanabi Download Manager X 开发开源或闭源（商业）插件，而不会受制于 GPLv3 的传染性要求。
 
 Copyright © 2026 [ZZBuAoYe](https://github.com/buaoyezz/)

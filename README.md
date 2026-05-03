@@ -75,7 +75,12 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
-GNU General Public License v3.0.
+This project is dual-licensed:
+
+- **Core Application**: [GNU General Public License v3.0](LICENSE).
+- **Plugins and SDK (`plugins/` directory)**: [MIT License](plugins/LICENSE).
+
+This means you are free to develop both open-source and closed-source (commercial) plugins for Hanabi Download Manager X without being subject to the GPLv3 viral requirements, as long as you use the provided MIT-licensed plugin APIs.
 
 Copyright © 2026 ZZBuAoYe
 
