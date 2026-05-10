@@ -161,20 +161,24 @@ class _DownloadListState extends State<DownloadList> {
               // 搜索和筛选栏（展开时显示）
               _buildSearchBar(context, downloadService),
               // 下载统计栏
-              Selector<IntegratedDownloadService, ({int count, double speed, int segments})>(
+              Selector<IntegratedDownloadService,
+                  ({int count, double speed, int segments})>(
                 selector: (_, service) {
                   final downloadingTasks = service.tasks
                       .where((t) => t.status == DownloadStatus.downloading)
                       .toList();
                   return (
                     count: downloadingTasks.length,
-                    speed: downloadingTasks.fold<double>(0, (sum, t) => sum + (t.speed ?? 0)),
-                    segments: downloadingTasks.fold<int>(0, (sum, t) => sum + (t.segments?.length ?? 0)),
+                    speed: downloadingTasks.fold<double>(
+                        0, (sum, t) => sum + (t.speed ?? 0)),
+                    segments: downloadingTasks.fold<int>(
+                        0, (sum, t) => sum + (t.segments?.length ?? 0)),
                   );
                 },
                 builder: (context, stats, child) {
                   if (stats.count == 0) return const SizedBox.shrink();
-                  return _buildStatsBar(context, stats.count, stats.speed, stats.segments);
+                  return _buildStatsBar(
+                      context, stats.count, stats.speed, stats.segments);
                 },
               ),
               // 任务列表
@@ -196,11 +200,13 @@ class _DownloadListState extends State<DownloadList> {
                       padding: const EdgeInsets.only(bottom: 12),
                       // 使用 RepaintBoundary 隔离每个卡片的重绘
                       child: RepaintBoundary(
-                        child: Selector<IntegratedDownloadService, DownloadTask?>(
+                        child:
+                            Selector<IntegratedDownloadService, DownloadTask?>(
                           key: ValueKey(taskId),
                           selector: (_, service) {
                             try {
-                              return service.tasks.firstWhere((t) => t.id == taskId);
+                              return service.tasks
+                                  .firstWhere((t) => t.id == taskId);
                             } catch (_) {
                               return null;
                             }
@@ -988,7 +994,7 @@ class _DownloadListState extends State<DownloadList> {
 class _DownloadTaskCard extends StatefulWidget {
   final DownloadTask task;
 
-  const _DownloadTaskCard({super.key, required this.task});
+  const _DownloadTaskCard({required this.task});
 
   @override
   State<_DownloadTaskCard> createState() => _DownloadTaskCardState();

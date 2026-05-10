@@ -1,16 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ffi' hide Size;
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:ffi/ffi.dart';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:http/http.dart' as http;
-import 'package:win32/win32.dart';
 
 import '../l10n/app_localizations.dart';
 import '../l10n/fallback_localizations_delegate.dart';
@@ -22,9 +19,6 @@ import '../utils/fluent_icons.dart' as CustomIcons;
 const MethodChannel _popupWindowChannel =
     MethodChannel('com.hanabi.download/window');
 const String _popupBridgeBaseUrl = 'http://127.0.0.1:19998';
-const int _popupCloseMessage = WM_APP + 2;
-const int _popupMinimizeMessage = WM_APP + 3;
-const int _popupStartDragMessage = WM_APP + 4;
 bool get _disableWindowsSemanticsWorkaround =>
     !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
 
@@ -2865,12 +2859,7 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
       await _popupWindowChannel.invokeMethod<void>('closeWindow');
       return;
     } catch (e) {
-      _logToMain('warning',
-          'closeWindow channel failed, fallback to HWND message: $e');
-    }
-
-    if (_invokeNativeWindowClose()) {
-      return;
+      _logToMain('warning', 'closeWindow channel failed: $e');
     }
 
     if (mounted) {
@@ -2888,99 +2877,21 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
   Future<void> _minimizeWindow() async {
     _logToMain('debug', 'Minimize requested');
     await _logChannelWindowDebugInfo('minimize');
-    if (_invokeNativeWindowMinimize()) {
-      return;
-    }
-
     try {
       await _popupWindowChannel.invokeMethod<void>('minimizeWindow');
     } catch (e) {
-      _logToMain('warning', 'minimizeWindow channel fallback failed: $e');
+      _logToMain('warning', 'minimizeWindow channel failed: $e');
     }
   }
 
   Future<void> _startWindowDrag() async {
     _logToMain('debug', 'Start drag requested');
     await _logChannelWindowDebugInfo('drag');
-    if (_invokeNativeWindowDrag()) {
-      return;
-    }
-
     try {
       await _popupWindowChannel.invokeMethod<void>('startWindowDrag');
     } catch (e) {
-      _logToMain('warning', 'startWindowDrag channel fallback failed: $e');
+      _logToMain('warning', 'startWindowDrag channel failed: $e');
     }
-  }
-
-  int _resolvePopupWindowHandle() {
-    final title = widget.launchData.windowTitle.toNativeUtf16();
-    try {
-      final hwnd = FindWindow(nullptr, title);
-      if (hwnd != 0) {
-        _logToMain(
-          'debug',
-          'FindWindow matched title=${widget.launchData.windowTitle} hwnd=$hwnd',
-        );
-        return hwnd;
-      }
-    } finally {
-      calloc.free(title);
-    }
-
-    _logToMain(
-      'warning',
-      'FindWindow missed title=${widget.launchData.windowTitle}; skip native HWND fallback to avoid closing the main window',
-    );
-    return 0;
-  }
-
-  bool _invokeNativeWindowClose() {
-    if (!Platform.isWindows) {
-      return false;
-    }
-
-    final hwnd = _resolvePopupWindowHandle();
-    if (hwnd == 0) {
-      _logToMain('warning', 'Close requested but popup HWND was not found');
-      return false;
-    }
-
-    final result = PostMessage(hwnd, _popupCloseMessage, 0, 0);
-    _logToMain('debug', 'Close message posted hwnd=$hwnd result=$result');
-    return true;
-  }
-
-  bool _invokeNativeWindowMinimize() {
-    if (!Platform.isWindows) {
-      return false;
-    }
-
-    final hwnd = _resolvePopupWindowHandle();
-    if (hwnd == 0) {
-      _logToMain('warning', 'Minimize requested but popup HWND was not found');
-      return false;
-    }
-
-    final result = PostMessage(hwnd, _popupMinimizeMessage, 0, 0);
-    _logToMain('debug', 'Minimize message posted hwnd=$hwnd result=$result');
-    return true;
-  }
-
-  bool _invokeNativeWindowDrag() {
-    if (!Platform.isWindows) {
-      return false;
-    }
-
-    final hwnd = _resolvePopupWindowHandle();
-    if (hwnd == 0) {
-      _logToMain('warning', 'Drag requested but popup HWND was not found');
-      return false;
-    }
-
-    final result = SendMessage(hwnd, _popupStartDragMessage, 0, 0);
-    _logToMain('debug', 'Drag message sent hwnd=$hwnd result=$result');
-    return true;
   }
 
   Future<void> _logChannelWindowDebugInfo(String reason) async {

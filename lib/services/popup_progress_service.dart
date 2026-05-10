@@ -88,7 +88,14 @@ class PopupProgressService {
       _server = await HttpServer.bind(InternetAddress.loopbackIPv4, _port);
       _logger.info('PopupProgressService started on port $_port');
 
-      _server!.listen(_handleRequest);
+      _server!.listen(
+        (request) => unawaited(_handleRequest(request)),
+        onError: (Object error, StackTrace stackTrace) {
+          _logger.error(
+            'PopupProgressService server error: $error\n$stackTrace',
+          );
+        },
+      );
 
       // 定时广播进度 (200ms 间隔)
       _broadcastTimer = Timer.periodic(const Duration(milliseconds: 200), (_) {
@@ -104,8 +111,12 @@ class PopupProgressService {
     _broadcastTimer?.cancel();
     _broadcastTimer = null;
 
-    for (final client in _clients) {
-      await client.close();
+    for (final client in _clients.toList(growable: false)) {
+      try {
+        await client.close();
+      } catch (e) {
+        _logger.warning('Failed to close popup WebSocket client: $e');
+      }
     }
     _clients.clear();
 
@@ -120,7 +131,29 @@ class PopupProgressService {
     _logger.debug('Active task set to: $taskId');
   }
 
-  void _handleRequest(HttpRequest request) async {
+  Future<void> _handleRequest(HttpRequest request) async {
+    try {
+      await _handleRequestUnsafe(request);
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Unhandled PopupProgressService request failure: $e\n$stackTrace',
+      );
+      try {
+        request.response.statusCode = HttpStatus.internalServerError;
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(jsonEncode({'error': e.toString()}));
+      } catch (_) {
+        // Response may already be closed by the client.
+      }
+      try {
+        await request.response.close();
+      } catch (_) {
+        // Ignore broken client connections.
+      }
+    }
+  }
+
+  Future<void> _handleRequestUnsafe(HttpRequest request) async {
     _logger.debug('PopupProgressService request: ${request.uri.path}');
 
     // CORS headers for standalone popup clients
@@ -382,22 +415,26 @@ class PopupProgressService {
   }
 
   void _broadcastProgress() {
-    if (_clients.isEmpty) return;
+    try {
+      if (_clients.isEmpty) return;
 
-    final progress = _getProgressData(_activeTaskId);
-    if (progress == null) return;
+      final progress = _getProgressData(_activeTaskId);
+      if (progress == null) return;
 
-    final json = jsonEncode({
-      'type': 'progress',
-      'data': progress.toJson(),
-    });
+      final json = jsonEncode({
+        'type': 'progress',
+        'data': progress.toJson(),
+      });
 
-    for (final client in _clients.toList()) {
-      try {
-        client.add(json);
-      } catch (e) {
-        _clients.remove(client);
+      for (final client in _clients.toList()) {
+        try {
+          client.add(json);
+        } catch (e) {
+          _clients.remove(client);
+        }
       }
+    } catch (e, stackTrace) {
+      _logger.error('Popup progress broadcast failed: $e\n$stackTrace');
     }
   }
 

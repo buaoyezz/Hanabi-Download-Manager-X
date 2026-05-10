@@ -14,6 +14,7 @@ namespace {
 
 LPTOP_LEVEL_EXCEPTION_FILTER g_previous_exception_filter = nullptr;
 std::terminate_handler g_previous_terminate_handler = nullptr;
+PVOID g_vectored_exception_handler = nullptr;
 volatile LONG g_is_writing_report = 0;
 volatile LONG g_runtime_handlers_installed = 0;
 
@@ -208,6 +209,8 @@ std::string DescribeExceptionCode(DWORD code) {
       return "Privileged instruction";
     case EXCEPTION_STACK_OVERFLOW:
       return "Stack overflow";
+    case 0xC0000409:
+      return "Stack buffer overrun / fast fail";
     case 0xE06D7363:
       return "Unhandled C++ exception";
     default:
@@ -232,6 +235,13 @@ std::string DescribeSignal(int signal_number) {
     default:
       return "Native signal";
   }
+}
+
+bool ShouldWriteVectoredReport(DWORD code) {
+  // Fast-fail exceptions can bypass the unhandled-exception filter. Keep the
+  // vectored handler narrowly scoped so normal first-chance exceptions do not
+  // create false crash reports.
+  return code == 0xC0000409 || code == EXCEPTION_STACK_OVERFLOW;
 }
 
 bool WriteUtf8File(const std::wstring& path, const std::string& content) {
@@ -316,6 +326,26 @@ LONG WINAPI UnhandledExceptionHandler(EXCEPTION_POINTERS* exception_pointers) {
   return EXCEPTION_EXECUTE_HANDLER;
 }
 
+LONG WINAPI VectoredExceptionHandler(EXCEPTION_POINTERS* exception_pointers) {
+  DWORD code = 0;
+  void* address = nullptr;
+  std::string reason = "Vectored native exception";
+
+  if (exception_pointers != nullptr &&
+      exception_pointers->ExceptionRecord != nullptr) {
+    code = exception_pointers->ExceptionRecord->ExceptionCode;
+    address = exception_pointers->ExceptionRecord->ExceptionAddress;
+    reason = DescribeExceptionCode(code) + " (" + HexValue(code) + ")";
+  }
+
+  if (!ShouldWriteVectoredReport(code)) {
+    return EXCEPTION_CONTINUE_SEARCH;
+  }
+
+  WriteCrashReport("veh", reason, code, address);
+  return EXCEPTION_CONTINUE_SEARCH;
+}
+
 void SignalHandler(int signal_number) {
   std::signal(signal_number, SIG_DFL);
   WriteCrashReport("signal", DescribeSignal(signal_number), 0, nullptr);
@@ -352,6 +382,10 @@ void TerminateHandler() {
 namespace crash_reporter {
 
 void Install() {
+  if (g_vectored_exception_handler == nullptr) {
+    g_vectored_exception_handler =
+        AddVectoredExceptionHandler(1, VectoredExceptionHandler);
+  }
   g_previous_exception_filter =
       SetUnhandledExceptionFilter(UnhandledExceptionHandler);
   if (InterlockedExchange(&g_runtime_handlers_installed, 1) == 0) {

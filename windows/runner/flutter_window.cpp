@@ -811,8 +811,11 @@ void FlutterWindow::SetupMethodChannel() {
           return;
         } else if (call.method_name() == "startWindowDrag") {
           const HWND hwnd = GetHandle();
-          result->Success(flutter::EncodableValue(hwnd != nullptr));
-          StartWindowDrag();
+          const bool can_drag = hwnd != nullptr && kind_ == WindowKind::kPopup;
+          result->Success(flutter::EncodableValue(can_drag));
+          if (can_drag) {
+            PostMessage(hwnd, kPopupStartDragMessage, 0, 0);
+          }
           return;
         } else if (call.method_name() == "resizeWindow") {
           const auto* arguments =

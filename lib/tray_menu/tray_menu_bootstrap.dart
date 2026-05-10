@@ -367,7 +367,6 @@ class TrayMenuWindowPage extends StatefulWidget {
 
 class _TrayMenuWindowPageState extends State<TrayMenuWindowPage> {
   static const int _windowOuterPadding = 16;
-  static const String _updateTrayMenuPayloadMethod = 'updateTrayMenuPayload';
 
   final GlobalKey _contentKey = GlobalKey();
   bool _isClosing = false;
@@ -769,7 +768,6 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
   int? _hoveredIndex;
   _TraySubmenuGroup? _activeSubmenu;
   Size? _lastReportedMeasuredSize;
-  String? _lastReportedRegionSignature;
   Timer? _submenuCloseTimer;
 
   @override
@@ -817,15 +815,6 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     final isDark = FluentTheme.of(context).brightness == Brightness.dark;
-    final blueColor =
-        isDark ? const Color(0xFF78C4FF) : const Color(0xFF0078D4);
-    final yellowColor =
-        isDark ? const Color(0xFFF2C879) : const Color(0xFFD29200);
-    final greenColor =
-        isDark ? const Color(0xFF8FD8A9) : const Color(0xFF107C41);
-    final grayColor =
-        isDark ? const Color(0xFF9B9B9B) : const Color(0xFF6B6B6B);
-
     final resolvedLabelStyle =
         DefaultTextStyle.of(context).style.merge(_menuLabelBaseStyle);
     final mainMenuWidth = _resolveMenuWidth(
