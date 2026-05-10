@@ -178,4 +178,4 @@ git push origin feature/your-feature-name
 ## 联系方式
 
 - GitHub Issues: [提交问题](https://github.com/buaoyezz/hanabi-download-manager-x/issues)
-- Email: [联系作者](mailto:support@zzbuaoye.top)
+- Email: [联系作者](mailto:support@zzbuaoye.net)

@@ -84,5 +84,5 @@ This means you are free to develop both open-source and closed-source (commercia
 
 Copyright © 2026 ZZBuAoYe
 
-- [Privacy Policy](https://x.zzbuaoye.top/privacy)
-- [Terms of Service](https://x.zzbuaoye.top/terms)
+- [Privacy Policy](https://x.zzbuaoye.net/privacy)
+- [Terms of Service](https://x.zzbuaoye.net/terms)

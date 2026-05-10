@@ -178,4 +178,4 @@ By submitting code, you agree to license it under GPL-3.0.
 ## Contact
 
 - GitHub Issues: [Submit Issue](https://github.com/buaoyezz/hanabi-download-manager-x/issues)
-- Email: [Contact Author](mailto:support@zzbuaoye.top)
+- Email: [Contact Author](mailto:support@zzbuaoye.net)

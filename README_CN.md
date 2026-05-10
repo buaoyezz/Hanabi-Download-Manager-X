@@ -12,7 +12,7 @@
 > - 若存在比较好笑的质量问题也请见谅
 >  本README是人写的XD
 > + `不建议`给本项目`提交PR`，有问题建议提交`ISSUE`，因为生活繁忙我没空合并
-> + [官网地址](https://x.zzbuaoye.top) | [NOTICE](https://x.zzbuaoye.top/web-notices.html) | [RELEASE](https://github.com/buaoyezz/Hanabi-Download-Manager-X/releases) | [开发文档](docs/Menu.md)
+> + [官网地址](https://x.zzbuaoye.net) | [NOTICE](https://x.zzbuaoye.net/web-notices.html) | [RELEASE](https://github.com/buaoyezz/Hanabi-Download-Manager-X/releases) | [开发文档](docs/Menu.md)
 
 ![Preview](readme_assets/image1.png)
 
@@ -75,9 +75,9 @@ flutter build windows --release
 ## LINK
 - [报告 Bug](https://github.com/buaoyezz/hanabi-download-manager-x/issues)
 - [功能建议](https://github.com/buaoyezz/hanabi-download-manager-x/issues)
-- [隐私政策](https://x.zzbuaoye.top/privacy)
-- [服务条款](https://x.zzbuaoye.top/terms)
-- [官方网站](https://x.zzbuaoye.top)
+- [隐私政策](https://x.zzbuaoye.net/privacy)
+- [服务条款](https://x.zzbuaoye.net/terms)
+- [官方网站](https://x.zzbuaoye.net)
 ---
 
 ## 许可证

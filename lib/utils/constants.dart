@@ -32,12 +32,12 @@ class AppConstants {
   static const String newKernelFullName = 'NSFX (Next Speed Force X)';
 
   // // API Endpoints
-  // static const String apiUrlMain = 'https://x.zzbuaoye.top/api/v1.json';
+  // static const String apiUrlMain = 'https://x.zzbuaoye.net/api/v1.json';
   // static const String apiUrlBack =
   //     'https://buaoyezz.github.io/hdmx_api_list/';
 
   // Contact & Links
-  static const String officialUrl = 'https://x.zzbuaoye.top';
+  static const String officialUrl = 'https://x.zzbuaoye.net';
   static const String githubUrl =
       'https://github.com/buaoyezz/Hanabi-Download-Manager-X';
   static const String contactEmail = 'zzbuaoye@gmail.com';
