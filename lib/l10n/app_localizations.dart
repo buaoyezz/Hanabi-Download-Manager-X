@@ -995,7 +995,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsOnlineStatsSubtitle.
   ///
   /// In zh, this message translates to:
-  /// **'参与在线用户统计'**
+  /// **'参与匿名在线人数和活跃统计，不上传 UA、指纹、下载内容或原始本地标识'**
   String get settingsOnlineStatsSubtitle;
 
   /// No description provided for @settingsOnlineStatsEnabledTitle.
@@ -1007,7 +1007,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsOnlineStatsEnabledMessage.
   ///
   /// In zh, this message translates to:
-  /// **'您的设备将参与在线用户统计，帮助我们了解软件使用情况'**
+  /// **'将发送匿名在线心跳和按周期派生的匿名统计 token，仅用于聚合在线人数和活跃去重'**
   String get settingsOnlineStatsEnabledMessage;
 
   /// No description provided for @settingsOnlineStatsDisabledTitle.
@@ -1019,7 +1019,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsOnlineStatsDisabledMessage.
   ///
   /// In zh, this message translates to:
-  /// **'您的设备将不再发送统计信息'**
+  /// **'将停止发送在线心跳，在线状态会在短时间内自动过期'**
   String get settingsOnlineStatsDisabledMessage;
 
   /// No description provided for @settingsTrayHintTitle.

@@ -495,19 +495,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsOnlineStatsTitle => '参与在线统计';
 
   @override
-  String get settingsOnlineStatsSubtitle => '参与在线用户统计';
+  String get settingsOnlineStatsSubtitle =>
+      '参与匿名在线人数和活跃统计，不上传 UA、指纹、下载内容或原始本地标识';
 
   @override
   String get settingsOnlineStatsEnabledTitle => '在线统计已启用';
 
   @override
-  String get settingsOnlineStatsEnabledMessage => '您的设备将参与在线用户统计，帮助我们了解软件使用情况';
+  String get settingsOnlineStatsEnabledMessage =>
+      '将发送匿名在线心跳和按周期派生的匿名统计 token，仅用于聚合在线人数和活跃去重';
 
   @override
   String get settingsOnlineStatsDisabledTitle => '在线统计已禁用';
 
   @override
-  String get settingsOnlineStatsDisabledMessage => '您的设备将不再发送统计信息';
+  String get settingsOnlineStatsDisabledMessage => '将停止发送在线心跳，在线状态会在短时间内自动过期';
 
   @override
   String get settingsTrayHintTitle => '托盘提示';

@@ -521,21 +521,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsOnlineStatsSubtitle =>
-      'Participate in online user statistics';
+      'Participates in anonymous online and active-user stats, without UA, fingerprints, downloads, or the local source identifier';
 
   @override
   String get settingsOnlineStatsEnabledTitle => 'Online statistics is enabled';
 
   @override
   String get settingsOnlineStatsEnabledMessage =>
-      'Your device will participate in online user statistics to help us understand software usage';
+      'An anonymous online heartbeat and period-based stats token will be sent for aggregated online and active-user dedupe';
 
   @override
   String get settingsOnlineStatsDisabledTitle => 'Online statistics disabled';
 
   @override
   String get settingsOnlineStatsDisabledMessage =>
-      'Your device will no longer send statistics';
+      'Online heartbeats will stop, and the server-side online state will expire shortly';
 
   @override
   String get settingsTrayHintTitle => 'Tray tip';

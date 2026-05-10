@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 import 'app_logger_service.dart';
@@ -34,8 +35,10 @@ class ClientConfigService extends ChangeNotifier {
   static const String popupWindowEffectAcrylic = 'acrylic';
   static const String popupWindowEffectMicaMain = 'mica_main';
   static const String popupWindowEffectMicaTransient = 'mica_transient';
+  static const String currentOobeVersion = '2026-05-initial-setup';
 
   final _logger = AppLoggerService();
+  final _secureRandom = Random.secure();
 
   // 目录路径
   late String _baseDir;
@@ -149,6 +152,14 @@ class ClientConfigService extends ChangeNotifier {
     return {
       'version': AppConstants.version,
       'last_updated': DateTime.now().toIso8601String(),
+      'onboarding': {
+        'completed_version': '',
+        'completed_at': '',
+      },
+      'privacy': {
+        'software_activity_day': '',
+        'software_activity_daily_id': '',
+      },
       'task_tags': <String, dynamic>{},
       'behavior': {
         'auto_start_download': true,
@@ -157,6 +168,7 @@ class ClientConfigService extends ChangeNotifier {
         'show_tray_running_status': false, // 默认不显示“正在后台运行”提示
         'enable_popup_window': true, // 默认启用浏览器下载弹窗
         'enable_clipboard_listener': true, // 默认启用剪贴板监听
+        'enable_online_stats': true, // 默认参与实时在线人数统计
         'browser_extension_port': defaultBrowserExtensionPort,
         'browser_extension_previous_port': defaultBrowserExtensionPort,
       },
@@ -660,6 +672,79 @@ class ClientConfigService extends ChangeNotifier {
     await _setToConfig(_appConfig, _appConfigPath, key, value);
   }
 
+  bool shouldShowOobe() {
+    final completedVersion = _getFromConfig<String>(
+          _appConfig,
+          'onboarding.completed_version',
+          defaultValue: '',
+        ) ??
+        '';
+    return completedVersion != currentOobeVersion;
+  }
+
+  Future<void> markOobeCompleted() async {
+    _appConfig['onboarding'] = Map<String, dynamic>.from(
+      (_appConfig['onboarding'] as Map?)?.cast<String, dynamic>() ??
+          const <String, dynamic>{},
+    )
+      ..['completed_version'] = currentOobeVersion
+      ..['completed_at'] = DateTime.now().toIso8601String();
+    _appConfig['last_updated'] = DateTime.now().toIso8601String();
+
+    await _saveConfigFile(_appConfigPath, _appConfig);
+    notifyListeners();
+  }
+
+  Future<String> getSoftwareActivityDailyId() async {
+    final today = _localDayKey(DateTime.now());
+    final storedDay = _getFromConfig<String>(
+          _appConfig,
+          'privacy.software_activity_day',
+          defaultValue: '',
+        ) ??
+        '';
+    final storedId = _getFromConfig<String>(
+          _appConfig,
+          'privacy.software_activity_daily_id',
+          defaultValue: '',
+        ) ??
+        '';
+
+    if (storedDay == today && _isValidSoftwareActivityDailyId(storedId)) {
+      return storedId;
+    }
+
+    final nextId = _generateSoftwareActivityDailyId();
+    _appConfig['privacy'] = Map<String, dynamic>.from(
+      (_appConfig['privacy'] as Map?)?.cast<String, dynamic>() ??
+          const <String, dynamic>{},
+    )
+      ..['software_activity_day'] = today
+      ..['software_activity_daily_id'] = nextId;
+    _appConfig['last_updated'] = DateTime.now().toIso8601String();
+
+    await _saveConfigFile(_appConfigPath, _appConfig);
+    notifyListeners();
+    return nextId;
+  }
+
+  String _generateSoftwareActivityDailyId() {
+    final bytes = List<int>.generate(24, (_) => _secureRandom.nextInt(256));
+    return base64Url.encode(bytes).replaceAll('=', '');
+  }
+
+  bool _isValidSoftwareActivityDailyId(String value) {
+    return RegExp(r'^[A-Za-z0-9_-]{16,128}$').hasMatch(value);
+  }
+
+  String _localDayKey(DateTime value) {
+    final local = value.toLocal();
+    final year = local.year.toString().padLeft(4, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final day = local.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
+  }
+
   bool getAutoStartDownload() {
     return _getFromConfig<bool>(_appConfig, 'behavior.auto_start_download',
             defaultValue: true) ??
@@ -714,6 +799,17 @@ class ClientConfigService extends ChangeNotifier {
   Future<void> setEnableClipboardListener(bool value) async {
     await _setToConfig(_appConfig, _appConfigPath,
         'behavior.enable_clipboard_listener', value);
+  }
+
+  bool getEnableOnlineStats() {
+    return _getFromConfig<bool>(_appConfig, 'behavior.enable_online_stats',
+            defaultValue: true) ??
+        true;
+  }
+
+  Future<void> setEnableOnlineStats(bool value) async {
+    await _setToConfig(
+        _appConfig, _appConfigPath, 'behavior.enable_online_stats', value);
   }
 
   static bool isValidBrowserExtensionPortValue(int value) {

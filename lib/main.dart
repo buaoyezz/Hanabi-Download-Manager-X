@@ -44,6 +44,7 @@ import 'services/plugin_lifecycle_service.dart';
 import 'services/plugin_store_service.dart';
 import 'services/plugin_process_runner.dart';
 import 'screens/home_screen.dart';
+import 'screens/widgets/oobe_dialog.dart';
 import 'popup/popup_window_bootstrap.dart';
 import 'tray_menu/tray_menu_bootstrap.dart'
     show
@@ -257,7 +258,8 @@ void main(List<String> args) async {
     final windowEffectService = WindowEffectService();
     final userProfileService = UserProfileService();
     final notificationSettings = NotificationSettingsService();
-    final noticeService = NoticeService(logger: appLogger);
+    final noticeService =
+        NoticeService(logger: appLogger, config: clientConfig);
     final crashReportService = CrashReportService(logger: appLogger);
     final localizationService = LocalizationService();
     final pluginLifecycleService = PluginLifecycleService();
@@ -301,6 +303,7 @@ void main(List<String> args) async {
     });
 
     appLogger.info('App', 'Services initialized');
+    noticeService.startOnlineHeartbeat();
 
     // 插件扫描和插件商店索引加载可能触发大量文件 IO / 网络请求，
     // 放到主服务初始化之后异步执行，避免阻塞首帧和主窗口显示。
@@ -468,6 +471,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   ClientConfigService? _clientConfig;
   bool _showClientUi = !Platform.isWindows;
   bool _syncingPopupBridge = false;
+  bool _oobeDialogShown = false;
 
   @override
   void initState() {
@@ -504,10 +508,30 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     await _syncPopupBridgeState();
     _initDownloadListener();
     _initClipboardListener();
+    await _showOobeIfNeeded();
   }
 
   void _handleClientConfigChanged() {
     unawaited(_syncPopupBridgeState());
+  }
+
+  Future<void> _showOobeIfNeeded() async {
+    if (_oobeDialogShown || !mounted) return;
+
+    final isAutoStart = context.read<bool>();
+    if (isAutoStart) return;
+
+    final clientConfig = _clientConfig ?? context.read<ClientConfigService>();
+    if (!clientConfig.shouldShowOobe()) return;
+
+    _oobeDialogShown = true;
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    if (!mounted || !clientConfig.shouldShowOobe()) return;
+
+    final dialogHostContext = _currentDialogHostContext();
+    if (dialogHostContext == null || !dialogHostContext.mounted) return;
+
+    await showHanabiOobeDialog(dialogHostContext);
   }
 
   void _configureTrayMenuTaskProvider() {
@@ -830,7 +854,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _downloadListener!.startListening();
 
     // 注意：在线统计功能已移至网页端
-    // 访问 https://online.zzbuaoye.top 查看统计数据
+    // 访问 https://online.zzbuaoye.net 查看统计数据
   }
 
   void _initClipboardListener() {

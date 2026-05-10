@@ -1,32 +1,165 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/notice_model.dart';
 import '../utils/constants.dart';
 import 'app_logger_service.dart';
+import 'client_config_service.dart';
 
 class NoticeService extends ChangeNotifier {
-  static const String _noticeApiBase = 'https://x.zzbuaoye.top/api/v1';
+  static const String _noticeApiBase = 'https://x.zzbuaoye.net/api/v1';
+  static const Duration _onlineHeartbeatInterval = Duration(seconds: 30);
 
   final AppLoggerService? _logger;
+  final ClientConfigService _config;
 
   List<Notice> _notices = [];
   bool _isLoading = false;
+  bool _onlineHeartbeatInFlight = false;
   String? _error;
   DateTime? _lastFetchTime;
+  Timer? _onlineHeartbeatTimer;
+  String? _onlineSessionId;
+  int? _onlineUserCount;
+  DateTime? _onlineLastSeenAt;
 
   List<Notice> get notices => _notices;
   bool get isLoading => _isLoading;
   String? get error => _error;
   DateTime? get lastFetchTime => _lastFetchTime;
+  int? get onlineUserCount => _onlineUserCount;
+  DateTime? get onlineLastSeenAt => _onlineLastSeenAt;
 
   List<Notice> get pinnedNotices =>
       _notices.where((n) => n.pinned && n.isActive).toList();
 
-  List<Notice> get activeNotices =>
-      _notices.where((n) => n.isActive).toList();
+  List<Notice> get activeNotices => _notices.where((n) => n.isActive).toList();
 
-  NoticeService({AppLoggerService? logger}) : _logger = logger;
+  NoticeService({
+    AppLoggerService? logger,
+    ClientConfigService? config,
+  })  : _logger = logger,
+        _config = config ?? ClientConfigService() {
+    _config.addListener(_handleConfigChanged);
+  }
+
+  void startOnlineHeartbeat() {
+    if (!_canSendOnlineHeartbeat()) {
+      stopOnlineHeartbeat();
+      return;
+    }
+
+    if (_onlineHeartbeatTimer != null) return;
+
+    unawaited(sendOnlineHeartbeat());
+    _onlineHeartbeatTimer = Timer.periodic(
+      _onlineHeartbeatInterval,
+      (_) => unawaited(sendOnlineHeartbeat()),
+    );
+  }
+
+  void stopOnlineHeartbeat() {
+    final hadOnlineState = _onlineHeartbeatTimer != null ||
+        _onlineSessionId != null ||
+        _onlineUserCount != null ||
+        _onlineLastSeenAt != null;
+
+    _onlineHeartbeatTimer?.cancel();
+    _onlineHeartbeatTimer = null;
+    _onlineSessionId = null;
+    _onlineUserCount = null;
+    _onlineLastSeenAt = null;
+
+    if (hadOnlineState) {
+      notifyListeners();
+    }
+  }
+
+  Future<void> sendOnlineHeartbeat() async {
+    if (!_canSendOnlineHeartbeat()) return;
+    if (_onlineHeartbeatInFlight) return;
+    _onlineHeartbeatInFlight = true;
+
+    try {
+      final activityId = await _config.getSoftwareActivityDailyId();
+      if (!_canSendOnlineHeartbeat()) return;
+
+      final uri = Uri.parse('$_noticeApiBase/activity/software/online');
+      final response = await http
+          .post(
+            uri,
+            headers: const {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: json.encode({
+              if (_onlineSessionId != null) 'sessionId': _onlineSessionId,
+              'activityId': activityId,
+              'surface': 'software',
+              'platform': 'windows',
+              'channel': AppConstants.channel,
+              'version': AppConstants.version,
+            }),
+          )
+          .timeout(const Duration(seconds: 8));
+
+      if (response.statusCode != 200 && response.statusCode != 202) {
+        _logger?.debug(
+          'Notice',
+          'Online heartbeat rejected: HTTP ${response.statusCode}',
+        );
+        return;
+      }
+
+      if (!_canSendOnlineHeartbeat()) return;
+
+      final payload = json.decode(response.body) as Map<String, dynamic>;
+      final sessionId = payload['sessionId'];
+      if (sessionId is String && sessionId.isNotEmpty) {
+        _onlineSessionId = sessionId;
+      }
+
+      final online = payload['online'];
+      if (online is Map<String, dynamic>) {
+        final total = online['total'];
+        if (total is num) {
+          _onlineUserCount = total.toInt();
+        }
+
+        final lastSeenAt = online['lastSeenAt'];
+        if (lastSeenAt is String) {
+          _onlineLastSeenAt = DateTime.tryParse(lastSeenAt);
+        }
+      }
+
+      notifyListeners();
+    } catch (e) {
+      _logger?.debug('Notice', 'Online heartbeat failed: $e');
+    } finally {
+      _onlineHeartbeatInFlight = false;
+    }
+  }
+
+  void _handleConfigChanged() {
+    if (_canSendOnlineHeartbeat()) {
+      startOnlineHeartbeat();
+    } else {
+      stopOnlineHeartbeat();
+    }
+  }
+
+  bool _canSendOnlineHeartbeat() {
+    return _config.getEnableOnlineStats() && !_config.shouldShowOobe();
+  }
+
+  @override
+  void dispose() {
+    _config.removeListener(_handleConfigChanged);
+    _onlineHeartbeatTimer?.cancel();
+    _onlineHeartbeatTimer = null;
+    super.dispose();
+  }
 
   Future<void> fetchNotices({bool force = false}) async {
     if (_isLoading) return;

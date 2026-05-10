@@ -789,7 +789,7 @@
     "x-auto-source-zh": "参与在线统计",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsOnlineStatsSubtitle": "Participate in online user statistics",
+  "settingsOnlineStatsSubtitle": "Participates in anonymous online and active-user stats, without UA, fingerprints, downloads, or the local source identifier",
   "@settingsOnlineStatsSubtitle": {
     "x-auto-source-zh": "参与在线用户统计",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -799,7 +799,7 @@
     "x-auto-source-zh": "在线统计已启用",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsOnlineStatsEnabledMessage": "Your device will participate in online user statistics to help us understand software usage",
+  "settingsOnlineStatsEnabledMessage": "An anonymous online heartbeat and period-based stats token will be sent for aggregated online and active-user dedupe",
   "@settingsOnlineStatsEnabledMessage": {
     "x-auto-source-zh": "您的设备将参与在线用户统计，帮助我们了解软件使用情况",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
@@ -809,7 +809,7 @@
     "x-auto-source-zh": "在线统计已禁用",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsOnlineStatsDisabledMessage": "Your device will no longer send statistics",
+  "settingsOnlineStatsDisabledMessage": "Online heartbeats will stop, and the server-side online state will expire shortly",
   "@settingsOnlineStatsDisabledMessage": {
     "x-auto-source-zh": "您的设备将不再发送统计信息",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"

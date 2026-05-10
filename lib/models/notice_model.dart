@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 enum NoticeLevel { info, success, warning, critical }
 
 enum NoticeStatus { draft, published, archived }

@@ -192,6 +192,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String _popupWindowEffectMode =
       ClientConfigService.popupWindowEffectFollowMain;
   bool _enableClipboardListener = true;
+  bool _onlineStatsEnabled = true;
   int _browserExtensionPort = ClientConfigService.defaultBrowserExtensionPort;
 
   // Status monitoring
@@ -264,6 +265,7 @@ class _SettingsPageState extends State<SettingsPage> {
       final enablePopupWindow = config.getEnablePopupWindow();
       final popupWindowEffectMode = config.getPopupWindowEffectMode();
       final enableClipboardListener = config.getEnableClipboardListener();
+      final onlineStatsEnabled = config.getEnableOnlineStats();
       final browserExtensionPort = config.getBrowserExtensionPort();
 
       if (mounted) {
@@ -273,6 +275,7 @@ class _SettingsPageState extends State<SettingsPage> {
           _enablePopupWindow = enablePopupWindow;
           _popupWindowEffectMode = popupWindowEffectMode;
           _enableClipboardListener = enableClipboardListener;
+          _onlineStatsEnabled = onlineStatsEnabled;
           _browserExtensionPort = browserExtensionPort;
         });
       }
@@ -477,6 +480,37 @@ class _SettingsPageState extends State<SettingsPage> {
                 ?.promptFromCurrentClipboard(),
           );
         }
+      }
+    } catch (e) {
+      if (mounted) {
+        final t = AppLocalizations.of(context)!;
+        NotificationManager.of(context)?.showError(
+          t.settingsSaveFailedTitle,
+          message: t.settingsSaveFailedMessage(e.toString()),
+        );
+      }
+    }
+  }
+
+  Future<void> _saveOnlineStatsEnabled(bool value) async {
+    try {
+      final t = AppLocalizations.of(context)!;
+      final config = Provider.of<ClientConfigService>(context, listen: false);
+      await config.setEnableOnlineStats(value);
+
+      if (mounted) {
+        setState(() {
+          _onlineStatsEnabled = value;
+        });
+
+        NotificationManager.of(context)?.showSuccess(
+          value
+              ? t.settingsOnlineStatsEnabledTitle
+              : t.settingsOnlineStatsDisabledTitle,
+          message: value
+              ? t.settingsOnlineStatsEnabledMessage
+              : t.settingsOnlineStatsDisabledMessage,
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -2049,6 +2083,16 @@ class _SettingsPageState extends State<SettingsPage> {
             trailing: ToggleSwitch(
               checked: _enableClipboardListener,
               onChanged: _saveEnableClipboardListener,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildSettingItem(
+            context,
+            title: t.settingsOnlineStatsTitle,
+            subtitle: t.settingsOnlineStatsSubtitle,
+            trailing: ToggleSwitch(
+              checked: _onlineStatsEnabled,
+              onChanged: _saveOnlineStatsEnabled,
             ),
           ),
           const SizedBox(height: 12),
