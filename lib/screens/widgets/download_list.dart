@@ -867,12 +867,15 @@ class _DownloadListState extends State<DownloadList> {
   }
 
   String _formatSpeed(double bytesPerSecond) {
-    if (bytesPerSecond < 1024)
+    if (bytesPerSecond < 1024) {
       return '${bytesPerSecond.toStringAsFixed(0)} B/s';
-    if (bytesPerSecond < 1024 * 1024)
+    }
+    if (bytesPerSecond < 1024 * 1024) {
       return '${(bytesPerSecond / 1024).toStringAsFixed(1)} KB/s';
-    if (bytesPerSecond < 1024 * 1024 * 1024)
+    }
+    if (bytesPerSecond < 1024 * 1024 * 1024) {
       return '${(bytesPerSecond / (1024 * 1024)).toStringAsFixed(1)} MB/s';
+    }
     return '${(bytesPerSecond / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB/s';
   }
 
@@ -2061,7 +2064,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
     return Row(
       children: [
         // 分段编号和状态指示器
-        Container(
+        SizedBox(
           width: 60,
           child: Row(
             children: [
@@ -2222,18 +2225,22 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
   String _formatBytes(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024)
+    if (bytes < 1024 * 1024 * 1024) {
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
   }
 
   String _formatSpeed(double bytesPerSecond) {
-    if (bytesPerSecond < 1024)
+    if (bytesPerSecond < 1024) {
       return '${bytesPerSecond.toStringAsFixed(0)} B/s';
-    if (bytesPerSecond < 1024 * 1024)
+    }
+    if (bytesPerSecond < 1024 * 1024) {
       return '${(bytesPerSecond / 1024).toStringAsFixed(1)} KB/s';
-    if (bytesPerSecond < 1024 * 1024 * 1024)
+    }
+    if (bytesPerSecond < 1024 * 1024 * 1024) {
       return '${(bytesPerSecond / (1024 * 1024)).toStringAsFixed(1)} MB/s';
+    }
     return '${(bytesPerSecond / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB/s';
   }
 
