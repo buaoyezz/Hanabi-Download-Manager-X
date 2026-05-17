@@ -51,6 +51,26 @@ void main() {
       );
     });
 
+    test('blocks persisted multipart resume with only weak validator state',
+        () {
+      final result = NsfxParallelDownloadPolicy.parallelBlockReason(
+        url: 'https://example.com/file.bin',
+        hasStrongValidator: false,
+        hasPartialProgress: true,
+        resumeDataOrigin: NsfxResumeDataOrigin.persisted,
+        resumeSafetyLevel: NsfxResumeSafetyLevel.strictValidator,
+        supportsRange: true,
+        storedTotalSize: 1024,
+        observedTotalSize: 1024,
+      );
+
+      expect(
+        result,
+        'cannot safely resume persisted multi-part download without '
+        'validator or verified stable range behavior',
+      );
+    });
+
     test('allows verified persisted resume without validator when size matches',
         () {
       final result = NsfxParallelDownloadPolicy.parallelBlockReason(

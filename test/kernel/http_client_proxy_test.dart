@@ -273,7 +273,7 @@ void main() {
       );
     });
 
-    test('keeps only strong validators for ranged resumes', () {
+    test('keeps strong validator separate from Last-Modified fallback', () {
       expect(
         NsfxHttpClient.extractStrongEtag('"etag-123"'),
         '"etag-123"',
@@ -296,6 +296,14 @@ void main() {
         ),
         'Wed, 21 Oct 2015 07:28:00 GMT',
       );
+
+      final fallbackInfo = FileInfo(
+        size: 1024,
+        supportsRange: true,
+        lastModified: 'Wed, 21 Oct 2015 07:28:00 GMT',
+      );
+      expect(fallbackInfo.ifRangeValidator, 'Wed, 21 Oct 2015 07:28:00 GMT');
+      expect(fallbackInfo.hasStrongValidator, isFalse);
     });
 
     test('file info marks parallel-safe connections conservatively', () {

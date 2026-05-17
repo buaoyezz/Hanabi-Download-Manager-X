@@ -150,6 +150,16 @@ class DownloadEngine {
     return task.segments.any((segment) => segment.downloadedBytes > 0);
   }
 
+  Future<int> _existingOutputLength(Task task) async {
+    try {
+      final file = File(task.filepath);
+      if (!await file.exists()) return 0;
+      return await file.length();
+    } catch (_) {
+      return 0;
+    }
+  }
+
   void _refreshResumeSafetyFromFileInfo(Task task, FileInfo fileInfo) {
     if (fileInfo.hasStrongValidator) {
       task.resumeSafetyLevel = NsfxResumeSafetyLevel.strictValidator;
@@ -395,6 +405,33 @@ class DownloadEngine {
 
     task.totalSize = fileInfo.size;
     onProgress(task);
+
+    final existingOutputLength = await _existingOutputLength(task);
+    final hasContiguousPartialOutput = task.segments.isEmpty &&
+        existingOutputLength > 0 &&
+        existingOutputLength < fileInfo.size;
+    if (hasContiguousPartialOutput) {
+      task.downloadedSize = existingOutputLength;
+      task.progress = (task.downloadedSize / task.totalSize) * 100;
+      _recordResumeDecision(
+        task,
+        label: 'Single Resume',
+        reason: 'Existing partial output is contiguous, so it will resume '
+            'with one connection.',
+      );
+      _logger.info(
+        'NSFX-Engine',
+        'Contiguous partial output detected for ${task.filename}; using '
+            'single-thread resume',
+      );
+      await _singleThreadDownload(
+        task,
+        headers,
+        supportsRange: fileInfo.supportsRange,
+        totalSizeHint: fileInfo.size,
+      );
+      return;
+    }
 
     if (!fileInfo.supportsRange) {
       _recordResumeDecision(
@@ -813,6 +850,7 @@ class DownloadEngine {
 
     final tempDir = await _getTempDir(task);
     await tempDir.create(recursive: true);
+    final directOutputFile = File(_directOutputFilePath(tempDir, task));
 
     if (task.segments.isEmpty) {
       final segmentSize = fileSize ~/ segmentCount;
@@ -826,68 +864,20 @@ class DownloadEngine {
           'Resuming download with ${task.segments.length} existing segments');
       for (final segment in task.segments) {
         if (segment.status != SegmentStatus.completed) {
-          segment.downloadedBytes = 0;
           segment.status = SegmentStatus.pending;
         }
       }
     }
 
-    int restoredBytes = 0;
-    for (final segment in task.segments) {
-      final partFile =
-          await _resolveSegmentPartFile(tempDir, task, segment.index);
-      final segmentSize = segment.endByte - segment.startByte;
-
-      if (await partFile.exists()) {
-        final fileSize = await partFile.length();
-
-        if (fileSize > segmentSize) {
-          _logger.warning('NSFX-Engine',
-              'Segment ${segment.index} temp file too large: $fileSize > $segmentSize, truncating');
-          try {
-            final raf = await partFile.open(mode: FileMode.writeOnlyAppend);
-            await raf.truncate(segmentSize);
-            await raf.close();
-            segment.downloadedBytes = segmentSize;
-            segment.status = SegmentStatus.completed;
-            restoredBytes += segmentSize;
-            _logger.info('NSFX-Engine',
-                'Segment ${segment.index} truncated and marked complete: $segmentSize bytes');
-          } catch (e) {
-            _logger.error('NSFX-Engine',
-                'Failed to truncate segment ${segment.index}: $e');
-            segment.downloadedBytes = 0;
-            segment.status = SegmentStatus.pending;
-          }
-        } else if (fileSize == segmentSize) {
-          segment.downloadedBytes = fileSize;
-          segment.status = SegmentStatus.completed;
-          restoredBytes += fileSize;
-          _logger.debug('NSFX-Engine',
-              'Segment ${segment.index} already completed ($fileSize bytes)');
-        } else if (fileSize > 0) {
-          segment.downloadedBytes = fileSize;
-          segment.status = SegmentStatus.pending;
-          restoredBytes += fileSize;
-          _logger.debug('NSFX-Engine',
-              'Segment ${segment.index} partial: $fileSize/$segmentSize bytes, will resume');
-        } else {
-          segment.downloadedBytes = 0;
-          segment.status = SegmentStatus.pending;
-        }
-      } else {
-        segment.downloadedBytes = 0;
-        if (segment.status == SegmentStatus.completed) {
-          _logger.warning('NSFX-Engine',
-              'Segment ${segment.index} marked complete but temp file missing, resetting');
-          segment.status = SegmentStatus.pending;
-        }
-      }
-    }
+    final restoredBytes = await _restoreSegmentProgressFromDirectOutput(
+      task,
+      tempDir,
+      directOutputFile,
+    );
 
     if (restoredBytes > 0) {
       _logger.info('NSFX-Engine',
-          'Restored ${(restoredBytes / 1024 / 1024).toStringAsFixed(2)} MB from temp files');
+          'Restored ${(restoredBytes / 1024 / 1024).toStringAsFixed(2)} MB from direct output');
     }
 
     task.downloadedSize = restoredBytes;
@@ -900,19 +890,13 @@ class DownloadEngine {
       final resumeProbe =
           await _probeResumeCompatibility(task, headers, fileSize);
       if (!resumeProbe.compatible) {
-        task.resumeSafetyLevel = NsfxResumeSafetyLevel.unknown;
-        _recordResumeDecision(
+        await _restartSegmentedResumeAsSingleThread(
           task,
-          label: 'Resume Blocked',
+          headers,
+          tempDir,
           reason: resumeProbe.failureReason ??
               'Resume compatibility probe failed after reload.',
-          blocked: true,
-        );
-        _failTaskPreservingSegments(
-          task,
-          resumeProbe.failureReason ??
-              'Server no longer honors range requests during resume; kept '
-                  'partial segments instead of discarding progress.',
+          totalSizeHint: fileSize,
         );
         return;
       }
@@ -1015,8 +999,6 @@ class DownloadEngine {
         final futures = <Future<bool>>[];
 
         for (final segment in pendingSegments) {
-          final tempFile = _segmentPartFilePath(tempDir, task, segment.index);
-
           futures.add(semaphore.run(() async {
             if (_cancelledTasks[task.id] == true) return false;
             if (_pausedTasks[task.id] == true) return false;
@@ -1029,7 +1011,7 @@ class DownloadEngine {
               task: task,
               segment: segment,
               headers: headers,
-              tempFilePath: tempFile,
+              outputFilePath: directOutputFile.path,
             );
           }));
         }
@@ -1088,9 +1070,12 @@ class DownloadEngine {
         if (_shouldAbortParallelResume(task)) {
           progressTimer.cancel();
           dynamicSegmentTimer.cancel();
-          _failTaskPreservingSegments(
+          await _restartSegmentedResumeAsSingleThread(
             task,
-            _parallelResumeFailureMessage(task),
+            headers,
+            tempDir,
+            reason: _parallelResumeFailureMessage(task),
+            totalSizeHint: fileSize,
           );
           return;
         }
@@ -1132,10 +1117,11 @@ class DownloadEngine {
 
       task.status = TaskStatus.merging;
       onProgress(task);
-      _logger.info(
-          'NSFX-Engine', 'Verifying and merging segments: ${task.filename}');
+      _logger.info('NSFX-Engine',
+          'Verifying and finalizing direct output: ${task.filename}');
 
-      final verifyResult = await _verifyAllSegmentsBeforeMerge(task, tempDir);
+      final verifyResult =
+          await _verifyDirectOutputBeforeFinalize(task, directOutputFile);
       if (!verifyResult) {
         final failedSegments = task.segments
             .where((s) => s.status == SegmentStatus.failed)
@@ -1143,12 +1129,12 @@ class DownloadEngine {
         task.status = TaskStatus.failed;
         task.errorMessage =
             '${failedSegments.length} segments incomplete or corrupted';
-        _logger.error('NSFX-Engine', 'Merge aborted: ${task.errorMessage}');
+        _logger.error('NSFX-Engine', 'Finalize aborted: ${task.errorMessage}');
         onError(task);
         return;
       }
 
-      await _mergeSegments(task, tempDir);
+      await _finalizeDirectOutput(task, tempDir, directOutputFile);
 
       _markTaskCompleted(task, client: client);
       _logger.info('NSFX-Engine', 'Download completed: ${task.filename}');
@@ -1232,7 +1218,6 @@ class DownloadEngine {
             'with maxConcurrent=$maxConcurrent',
       );
 
-      final tempDir = await _getTempDir(task);
       int splitCount = 0;
 
       for (final plan in splitPlans) {
@@ -1276,29 +1261,8 @@ class DownloadEngine {
         final oldEndByte = slowSeg.endByte;
         slowSeg.endByte = splitStart;
 
-        final partFile =
-            await _resolveSegmentPartFile(tempDir, task, slowSeg.index);
-        if (await partFile.exists()) {
-          final fileSize = await partFile.length();
-          final expectedSize = slowSeg.size;
-          if (fileSize > expectedSize) {
-            _logger.warning(
-                'NSFX-Engine',
-                'Segment ${slowSeg.index} temp file ($fileSize bytes) exceeds '
-                    'new size ($expectedSize bytes) after split, truncating');
-            try {
-              final raf = await partFile.open(mode: FileMode.writeOnlyAppend);
-              await raf.truncate(expectedSize);
-              await raf.close();
-              _logger.info('NSFX-Engine',
-                  'Segment ${slowSeg.index} truncated to $expectedSize bytes after dynamic split');
-            } catch (e) {
-              _logger.error('NSFX-Engine',
-                  'Failed to truncate segment ${slowSeg.index}: $e');
-              slowSeg.endByte = oldEndByte;
-              continue;
-            }
-          }
+        if (slowSeg.downloadedBytes > slowSeg.size) {
+          slowSeg.downloadedBytes = slowSeg.size;
         }
 
         task.segments.add(newSegment);
@@ -1346,7 +1310,7 @@ class DownloadEngine {
 
   void _startNewSegmentDownload(Task task, Segment segment) async {
     final tempDir = await _getTempDir(task);
-    final tempFile = _segmentPartFilePath(tempDir, task, segment.index);
+    final outputFile = _directOutputFilePath(tempDir, task);
     final headers = _buildRangeHeaders(task, _buildHeaders(task));
 
     segment.status = SegmentStatus.downloading;
@@ -1358,7 +1322,7 @@ class DownloadEngine {
         task: task,
         segment: segment,
         headers: headers,
-        tempFilePath: tempFile,
+        outputFilePath: outputFile,
       );
       return;
     }
@@ -1373,7 +1337,7 @@ class DownloadEngine {
         task: task,
         segment: segment,
         headers: headers,
-        tempFilePath: tempFile,
+        outputFilePath: outputFile,
       );
     });
   }
@@ -1382,7 +1346,7 @@ class DownloadEngine {
     required Task task,
     required Segment segment,
     required Map<String, String> headers,
-    required String tempFilePath,
+    required String outputFilePath,
     required int alreadyDownloaded,
   }) async {
     final client = _clientForTask(task);
@@ -1410,7 +1374,7 @@ class DownloadEngine {
         sendPort: receivePort.sendPort,
         progressPort: _progressPorts[task.id]?.sendPort,
         url: task.url,
-        tempFilePath: tempFilePath,
+        outputFilePath: outputFilePath,
         startByte: segment.startByte + alreadyDownloaded,
         endByte: segment.endByte,
         headers: headers,
@@ -1451,7 +1415,7 @@ class DownloadEngine {
     required Task task,
     required Segment segment,
     required Map<String, String> headers,
-    required String tempFilePath,
+    required String outputFilePath,
   }) async {
     final client = _clientForTask(task);
     int retryCount = 0;
@@ -1462,28 +1426,15 @@ class DownloadEngine {
       }
 
       try {
-        int alreadyDownloaded = 0;
-        final tempFile = File(tempFilePath);
-        if (await tempFile.exists()) {
-          alreadyDownloaded = await tempFile.length();
-          segment.downloadedBytes = alreadyDownloaded;
-        }
-
         final expectedSize = segment.endByte - segment.startByte;
+        var alreadyDownloaded = segment.downloadedBytes.clamp(0, expectedSize);
+        segment.downloadedBytes = alreadyDownloaded;
 
         if (alreadyDownloaded >= expectedSize) {
-          if (alreadyDownloaded > expectedSize) {
-            _logger.warning('NSFX-Engine',
-                'Segment ${segment.index} temp file too large, truncating');
-            final raf = await tempFile.open(mode: FileMode.writeOnlyAppend);
-            await raf.truncate(expectedSize);
-            await raf.close();
-            alreadyDownloaded = expectedSize;
-          }
           segment.downloadedBytes = expectedSize;
           segment.status = SegmentStatus.completed;
           _logger.debug('NSFX-Engine',
-              'Segment ${segment.index} already complete from temp file');
+              'Segment ${segment.index} already complete from direct output');
           return true;
         }
 
@@ -1491,7 +1442,7 @@ class DownloadEngine {
           task: task,
           segment: segment,
           headers: headers,
-          tempFilePath: tempFilePath,
+          outputFilePath: outputFilePath,
           alreadyDownloaded: alreadyDownloaded,
         );
 
@@ -1503,10 +1454,7 @@ class DownloadEngine {
 
         if (result.interrupted) {
           if (result.reason == 'split') {
-            if (result.downloadedBytes > expectedSize) {
-              await _truncateSegmentFileToSize(tempFilePath, expectedSize);
-              segment.downloadedBytes = expectedSize;
-            }
+            segment.downloadedBytes = min(result.downloadedBytes, expectedSize);
             if (segment.downloadedBytes >= expectedSize) {
               segment.status = SegmentStatus.completed;
               segment.speed = 0;
@@ -1527,15 +1475,6 @@ class DownloadEngine {
 
         if (result.success) {
           if (result.downloadedBytes >= expectedSize) {
-            if (result.downloadedBytes > expectedSize) {
-              await _truncateSegmentFileToSize(tempFilePath, expectedSize);
-              _logger.info(
-                'NSFX-Engine',
-                'Segment ${segment.index} completed after tail steal; '
-                    'truncated overlap ${result.downloadedBytes - expectedSize} '
-                    'bytes',
-              );
-            }
             segment.status = SegmentStatus.completed;
             segment.speed = 0;
             _logger.debug('NSFX-Engine',
@@ -1757,7 +1696,7 @@ class DownloadEngine {
     final segmentTotalSize = remainingSize + params.alreadyDownloaded;
     int downloadedBytes = 0;
     HttpClient? client;
-    IOSink? sink;
+    RandomAccessFile? output;
     final controlPort = ReceivePort();
     var stopRequested = false;
     String? stopReason;
@@ -1835,11 +1774,10 @@ class DownloadEngine {
         return;
       }
 
-      final file = File(params.tempFilePath);
-      sink = file.openWrite(
-          mode: params.alreadyDownloaded > 0
-              ? FileMode.append
-              : FileMode.writeOnly);
+      final file = File(params.outputFilePath);
+      await file.parent.create(recursive: true);
+      output = await file.open(mode: FileMode.append);
+      await output.setPosition(params.startByte);
 
       int bufferedBytes = 0;
       const int bufferThreshold = 64 * 1024; // 64KB
@@ -1860,7 +1798,7 @@ class DownloadEngine {
             : chunk;
         if (stopRequested) break;
 
-        sink.add(toWrite);
+        await output.writeFrom(toWrite);
         downloadedBytes += toWrite.length;
         bufferedBytes += toWrite.length;
 
@@ -1906,9 +1844,9 @@ class DownloadEngine {
       client.close(force: true);
       client = null;
 
-      await sink.flush();
-      await sink.close();
-      sink = null;
+      await output.flush();
+      await output.close();
+      output = null;
 
       final totalDownloaded = params.alreadyDownloaded + downloadedBytes;
 
@@ -1924,9 +1862,9 @@ class DownloadEngine {
     } catch (e) {
       try {
         client?.close(force: true);
-        if (sink != null) {
-          await sink.flush();
-          await sink.close();
+        if (output != null) {
+          await output.flush();
+          await output.close();
         }
       } catch (_) {}
 
@@ -2044,8 +1982,8 @@ class DownloadEngine {
           return const _ResumeCompatibilityProbe(
             compatible: false,
             failureReason:
-                'Stored file size no longer matches remote resource during '
-                'resume; kept partial segments instead of restarting.',
+                'Remote file size changed during resume; saved segments '
+                'cannot be reused safely.',
           );
         }
         return _ResumeCompatibilityProbe(
@@ -2057,8 +1995,8 @@ class DownloadEngine {
         return const _ResumeCompatibilityProbe(
           compatible: false,
           failureReason:
-              'Server no longer honors byte ranges for this resume; kept '
-              'partial segments instead of discarding progress.',
+              'Server returned a full response to the resume range request; '
+              'saved segments cannot be reused safely.',
         );
       }
       if (status == 416) {
@@ -2068,15 +2006,15 @@ class DownloadEngine {
           return const _ResumeCompatibilityProbe(
             compatible: false,
             failureReason:
-                'Stored file size no longer matches remote resource during '
-                'resume; kept partial segments instead of restarting.',
+                'Remote file size changed during resume; saved segments '
+                'cannot be reused safely.',
           );
         }
         return const _ResumeCompatibilityProbe(
           compatible: false,
           failureReason:
-              'Server reported an invalid byte range while resuming; kept '
-              'partial segments instead of restarting from zero.',
+              'Server rejected the saved byte range; saved segments cannot '
+              'be reused safely.',
         );
       }
     } catch (e) {
@@ -2099,18 +2037,89 @@ class DownloadEngine {
     final hasRangeMismatch = task.segments
         .any((segment) => segment.lastError == _rangeNotSatisfiableError);
     if (hasRangeMismatch) {
-      return 'Server reported an invalid byte range while resuming; kept '
-          'partial segments instead of restarting from zero.';
+      return 'Server rejected one or more saved byte ranges; saved segments '
+          'cannot be reused safely.';
     }
-    return 'Server stopped honoring byte ranges for this download; kept '
-        'partial segments instead of discarding progress.';
+    return 'Server ignored one or more saved byte range requests; saved '
+        'segments cannot be reused safely.';
   }
 
-  void _failTaskPreservingSegments(Task task, String message) {
-    task.status = TaskStatus.failed;
-    task.errorMessage = message;
-    _logger.error('NSFX-Engine', message);
-    onError(task);
+  Map<String, String> _headersForSingleThreadRestart(
+    Map<String, String> headers,
+  ) {
+    final cleanHeaders = Map<String, String>.from(headers);
+    cleanHeaders.removeWhere((key, _) {
+      final lowerKey = key.toLowerCase();
+      return lowerKey == 'range' || lowerKey == 'if-range';
+    });
+    return cleanHeaders;
+  }
+
+  Future<void> _discardSegmentedResumeState(
+    Task task,
+    Directory tempDir,
+  ) async {
+    await _deleteDirWithRetry(tempDir, maxRetries: 5);
+    if (await tempDir.exists()) {
+      throw FileSystemException(
+        'Unable to remove stale segment temp directory',
+        tempDir.path,
+      );
+    }
+
+    task.segments.clear();
+    _taskSemaphores.remove(task.id);
+    _segmentRuntimeStates.remove(task.id);
+    _clearConcurrencyDecision(task);
+  }
+
+  Future<void> _restartSegmentedResumeAsSingleThread(
+    Task task,
+    Map<String, String> headers,
+    Directory tempDir, {
+    required String reason,
+    int? totalSizeHint,
+  }) async {
+    if (_cancelledTasks[task.id] == true) {
+      task.status = TaskStatus.cancelled;
+      return;
+    }
+    if (_pausedTasks[task.id] == true) {
+      task.status = TaskStatus.paused;
+      return;
+    }
+
+    _logger.warning(
+      'NSFX-Engine',
+      'Segmented resume unavailable for ${task.filename}: $reason '
+          'Restarting with a single connection from zero.',
+    );
+
+    await _discardSegmentedResumeState(task, tempDir);
+
+    task.status = TaskStatus.downloading;
+    task.errorMessage = null;
+    task.downloadedSize = 0;
+    task.speed = 0;
+    task.progress = 0;
+    task.eta = 0;
+    task.resumeSafetyLevel = NsfxResumeSafetyLevel.unknown;
+    task.resumeDataOrigin = NsfxResumeDataOrigin.runtime;
+    task.ifRangeValidator = null;
+
+    _recordResumeDecision(
+      task,
+      label: 'Single Restart',
+      reason: '$reason Restarting from zero with one connection.',
+      blocked: true,
+    );
+
+    await _singleThreadDownload(
+      task,
+      _headersForSingleThreadRestart(headers),
+      supportsRange: false,
+      totalSizeHint: totalSizeHint,
+    );
   }
 
   void _markTaskCompleted(
@@ -2407,171 +2416,213 @@ class DownloadEngine {
     return int.tryParse(totalStr);
   }
 
-  Future<bool> _verifyAllSegmentsBeforeMerge(
-      Task task, Directory tempDir) async {
-    _logger.info('NSFX-Engine', 'Verifying all segments before merge...');
+  Future<int> _restoreSegmentProgressFromDirectOutput(
+    Task task,
+    Directory tempDir,
+    File directOutputFile,
+  ) async {
+    await _migrateLegacyPartFilesToDirectOutput(
+        task, tempDir, directOutputFile);
 
-    bool allValid = true;
-    int totalVerifiedBytes = 0;
-
-    for (final segment in task.segments) {
-      final partFile =
-          await _resolveSegmentPartFile(tempDir, task, segment.index);
-      final expectedSize = segment.endByte - segment.startByte;
-
-      if (!await partFile.exists()) {
-        _logger.error(
-            'NSFX-Engine', 'Segment ${segment.index} temp file missing!');
-        segment.status = SegmentStatus.failed;
-        segment.lastError = 'Temp file missing';
-        allValid = false;
-        continue;
-      }
-
-      final actualSize = await partFile.length();
-
-      if (actualSize > expectedSize) {
-        _logger.warning('NSFX-Engine',
-            'Segment ${segment.index} file too large: $actualSize > $expectedSize, truncating...');
-        try {
-          final raf = await partFile.open(mode: FileMode.writeOnlyAppend);
-          await raf.truncate(expectedSize);
-          await raf.close();
-          segment.downloadedBytes = expectedSize;
-          segment.status = SegmentStatus.completed;
-          totalVerifiedBytes += expectedSize;
-          _logger.info('NSFX-Engine',
-              'Segment ${segment.index} truncated and verified: $expectedSize bytes OK');
-          continue;
-        } catch (e) {
-          _logger.error(
-              'NSFX-Engine', 'Failed to truncate segment ${segment.index}: $e');
-          segment.status = SegmentStatus.failed;
-          segment.lastError = 'Truncate failed: $e';
-          allValid = false;
-          continue;
+    if (!await directOutputFile.exists()) {
+      for (final segment in task.segments) {
+        segment.downloadedBytes = 0;
+        if (segment.status == SegmentStatus.completed) {
+          _logger.warning(
+            'NSFX-Engine',
+            'Segment ${segment.index} marked complete but direct output '
+                'is missing, resetting',
+          );
+          segment.status = SegmentStatus.pending;
         }
-      } else if (actualSize < expectedSize) {
-        _logger.error('NSFX-Engine',
-            'Segment ${segment.index} file too small: $actualSize < $expectedSize');
-        segment.status = SegmentStatus.failed;
-        segment.lastError = 'Size mismatch: $actualSize/$expectedSize';
-        segment.downloadedBytes = actualSize;
-        allValid = false;
-        continue;
       }
-
-      segment.downloadedBytes = actualSize;
-      segment.status = SegmentStatus.completed;
-      totalVerifiedBytes += actualSize;
-      _logger.debug('NSFX-Engine',
-          'Segment ${segment.index} verified: $actualSize bytes OK');
+      return 0;
     }
 
-    if (allValid) {
-      _logger.info('NSFX-Engine',
-          'All ${task.segments.length} segments verified, total: ${(totalVerifiedBytes / 1024 / 1024).toStringAsFixed(2)} MB');
-    } else {
-      final failedCount =
-          task.segments.where((s) => s.status == SegmentStatus.failed).length;
-      _logger.error('NSFX-Engine',
-          'Verification failed: $failedCount segments have issues');
-    }
-
-    return allValid;
+    final outputLength = await directOutputFile.length();
+    return _restoreSegmentProgressFromOutputLength(
+      task,
+      outputLength,
+      trustContiguousLength: false,
+    );
   }
 
-  // 合并分段临时文件
-  Future<void> _mergeSegments(Task task, Directory tempDir) async {
+  int _restoreSegmentProgressFromOutputLength(
+    Task task,
+    int outputLength, {
+    required bool trustContiguousLength,
+  }) {
+    var restoredBytes = 0;
+    for (final segment in task.segments) {
+      final segmentSize = segment.endByte - segment.startByte;
+      final maxAvailable =
+          (outputLength - segment.startByte).clamp(0, segmentSize);
+      final savedDownloaded = segment.downloadedBytes.clamp(0, segmentSize);
+      final restored = trustContiguousLength
+          ? maxAvailable
+          : min(savedDownloaded, maxAvailable);
+      segment.downloadedBytes = restored;
+      if (restored >= segmentSize) {
+        segment.status = SegmentStatus.completed;
+      } else {
+        segment.status = SegmentStatus.pending;
+      }
+      restoredBytes += restored;
+    }
+
+    return restoredBytes;
+  }
+
+  Future<void> _migrateLegacyPartFilesToDirectOutput(
+    Task task,
+    Directory tempDir,
+    File directOutputFile,
+  ) async {
+    RandomAccessFile? output;
+    try {
+      for (final segment in task.segments) {
+        final partFile =
+            await _resolveSegmentPartFile(tempDir, task, segment.index);
+        if (!await partFile.exists()) continue;
+
+        final segmentSize = segment.endByte - segment.startByte;
+        final partSize = min(await partFile.length(), segmentSize);
+        if (partSize > 0) {
+          output ??= await _openDirectOutputForRandomWrite(directOutputFile);
+          await output.setPosition(segment.startByte);
+          await for (final chunk in partFile.openRead(0, partSize)) {
+            await output.writeFrom(chunk);
+          }
+          if (segment.downloadedBytes < partSize) {
+            segment.downloadedBytes = partSize;
+          }
+        }
+        await _deleteFileWithRetryStatic(partFile);
+      }
+    } finally {
+      if (output != null) {
+        await output.flush();
+        await output.close();
+      }
+    }
+  }
+
+  Future<bool> _verifyDirectOutputBeforeFinalize(
+    Task task,
+    File directOutputFile,
+  ) async {
+    _logger.info('NSFX-Engine', 'Verifying direct output before finalize...');
+
+    if (!await directOutputFile.exists()) {
+      for (final segment in task.segments) {
+        segment.status = SegmentStatus.failed;
+        segment.lastError = 'Direct output missing';
+      }
+      _logger.error('NSFX-Engine', 'Direct output file missing');
+      return false;
+    }
+
+    final outputLength = await directOutputFile.length();
+    if (task.totalSize > 0 && outputLength < task.totalSize) {
+      _logger.error(
+        'NSFX-Engine',
+        'Direct output too small: $outputLength < ${task.totalSize}',
+      );
+      for (final segment in task.segments) {
+        final segmentSize = segment.endByte - segment.startByte;
+        final available =
+            (outputLength - segment.startByte).clamp(0, segmentSize);
+        if (available < segmentSize) {
+          segment.downloadedBytes = available;
+          segment.status = SegmentStatus.failed;
+          segment.lastError = 'Size mismatch: $available/$segmentSize';
+        }
+      }
+      return false;
+    }
+
+    var allValid = true;
+    var totalVerifiedBytes = 0;
+    for (final segment in task.segments) {
+      final expectedSize = segment.endByte - segment.startByte;
+      if (segment.downloadedBytes < expectedSize) {
+        segment.status = SegmentStatus.failed;
+        segment.lastError =
+            'Size mismatch: ${segment.downloadedBytes}/$expectedSize';
+        allValid = false;
+        continue;
+      }
+
+      segment.downloadedBytes = expectedSize;
+      segment.status = SegmentStatus.completed;
+      segment.speed = 0;
+      totalVerifiedBytes += expectedSize;
+    }
+
+    if (!allValid) {
+      final failedCount =
+          task.segments.where((s) => s.status == SegmentStatus.failed).length;
+      _logger.error(
+        'NSFX-Engine',
+        'Direct output verification failed: $failedCount segments incomplete',
+      );
+      return false;
+    }
+
+    if (task.totalSize > 0 && totalVerifiedBytes != task.totalSize) {
+      _logger.error(
+        'NSFX-Engine',
+        'Segment map size mismatch: $totalVerifiedBytes != ${task.totalSize}',
+      );
+      return false;
+    }
+
+    _logger.info(
+      'NSFX-Engine',
+      'All ${task.segments.length} segments verified in direct output, '
+          'total: ${(totalVerifiedBytes / 1024 / 1024).toStringAsFixed(2)} MB',
+    );
+    return true;
+  }
+
+  Future<void> _finalizeDirectOutput(
+    Task task,
+    Directory tempDir,
+    File directOutputFile,
+  ) async {
     final outputFile = File(task.filepath);
     await outputFile.parent.create(recursive: true);
 
-    final sortedSegments = task.segments.toList()
-      ..sort((a, b) => a.startByte.compareTo(b.startByte));
-
-    final sink = outputFile.openWrite();
-    int totalMergedBytes = 0;
+    if (await outputFile.exists()) {
+      await _deleteFileWithRetryStatic(outputFile);
+    }
 
     try {
-      for (final segment in sortedSegments) {
-        final partFile =
-            await _resolveSegmentPartFile(tempDir, task, segment.index);
-        if (await partFile.exists()) {
-          final expectedSize = segment.endByte - segment.startByte;
+      await directOutputFile.rename(outputFile.path);
+    } catch (_) {
+      await directOutputFile.copy(outputFile.path);
+      await _deleteFileWithRetryStatic(directOutputFile);
+    }
 
-          await sink.addStream(partFile.openRead());
-          totalMergedBytes += expectedSize;
-
-          await _deleteFileWithRetry(partFile);
-        } else {
-          _logger.error('NSFX-Engine',
-              'Segment ${segment.index} temp file missing during merge');
-          throw Exception('Segment ${segment.index} temp file missing');
-        }
-      }
-
-      await sink.flush();
-      await sink.close();
-
-      if (totalMergedBytes != task.totalSize) {
-        _logger.warning('NSFX-Engine',
-            'Merged bytes mismatch: $totalMergedBytes != ${task.totalSize}');
-      }
-
+    if (task.totalSize > 0) {
       final finalSize = await outputFile.length();
       if (finalSize != task.totalSize) {
-        _logger.error('NSFX-Engine',
-            'Final file size mismatch: $finalSize != ${task.totalSize}');
-        await outputFile.delete();
+        await _deleteFileWithRetryStatic(outputFile);
         throw Exception(
-            'Final file corrupted: size $finalSize != ${task.totalSize}');
+          'Final file corrupted: size $finalSize, expected ${task.totalSize}',
+        );
       }
-
-      _logger.info('NSFX-Engine',
-          'Merge completed: ${task.filename}, size: ${(finalSize / 1024 / 1024).toStringAsFixed(2)} MB');
-
-      if (await tempDir.exists()) {
-        await _deleteDirWithRetry(tempDir);
-      }
-    } catch (e) {
-      await sink.close();
-      if (await outputFile.exists()) {
-        try {
-          await outputFile.delete();
-        } catch (_) {}
-      }
-      rethrow;
     }
+
+    await _deleteDirWithRetry(tempDir, maxRetries: 5);
   }
 
-  Future<void> _truncateSegmentFileToSize(String path, int expectedSize) async {
-    final file = File(path);
-    if (!await file.exists()) return;
-    final raf = await file.open(mode: FileMode.writeOnlyAppend);
-    try {
-      await raf.truncate(expectedSize);
-    } finally {
-      await raf.close();
+  Future<RandomAccessFile> _openDirectOutputForRandomWrite(File file) async {
+    await file.parent.create(recursive: true);
+    if (!await file.exists()) {
+      await file.create(recursive: true);
     }
-  }
-
-  // 带重试的文件删除
-  Future<void> _deleteFileWithRetry(File file, {int maxRetries = 3}) async {
-    for (int i = 0; i < maxRetries; i++) {
-      try {
-        if (await file.exists()) {
-          await file.delete();
-        }
-        return;
-      } catch (e) {
-        if (i == maxRetries - 1) {
-          _logger.warning('NSFX-Engine',
-              'Failed to delete file after $maxRetries attempts: ${file.path}');
-          return;
-        }
-        await Future.delayed(Duration(milliseconds: 100 * (i + 1)));
-      }
-    }
+    return file.open(mode: FileMode.append);
   }
 
   // 带重试的目录删除
@@ -2593,10 +2644,33 @@ class DownloadEngine {
     }
   }
 
+  static Future<void> _deleteFileWithRetryStatic(
+    File file, {
+    int maxRetries = 3,
+  }) async {
+    for (var i = 0; i < maxRetries; i++) {
+      try {
+        if (await file.exists()) {
+          await file.delete();
+        }
+        return;
+      } catch (_) {
+        if (i == maxRetries - 1) {
+          return;
+        }
+        await Future.delayed(Duration(milliseconds: 100 * (i + 1)));
+      }
+    }
+  }
+
   Future<Directory> _getTempDir(Task task) async {
     final parent = File(task.filepath).parent;
     final tempRoot = Directory('${parent.path}/.nsfx_temp');
     return Directory('${tempRoot.path}/${task.id}');
+  }
+
+  String _directOutputFilePath(Directory tempDir, Task task) {
+    return '${tempDir.path}/task_${task.id}.downloading';
   }
 
   void _normalizeTaskFilePathForCurrentPlatform(Task task) {
@@ -2783,7 +2857,7 @@ class _IsolateParams {
   final SendPort sendPort;
   final SendPort? progressPort;
   final String url;
-  final String tempFilePath;
+  final String outputFilePath;
   final int startByte;
   final int endByte;
   final Map<String, String> headers;
@@ -2804,7 +2878,7 @@ class _IsolateParams {
     required this.sendPort,
     this.progressPort,
     required this.url,
-    required this.tempFilePath,
+    required this.outputFilePath,
     required this.startByte,
     required this.endByte,
     required this.headers,

@@ -137,6 +137,10 @@ class NsfxHttpClient {
     NsfxProxyRuntime.clearBadProxies();
   }
 
+  static void compactSharedCaches() {
+    NsfxProxyRuntime.compactCaches();
+  }
+
   static HttpClient createRawHttpClient({
     required String httpVersionPolicy,
     Duration? connectionTimeout,
@@ -2275,7 +2279,7 @@ class FileInfo {
   final String? etag;
   final String? lastModified;
 
-  bool get hasStrongValidator => ifRangeValidator != null;
+  bool get hasStrongValidator => etag != null;
   bool get usesParallelSafeConnection =>
       negotiatedHttpVersion == 'http1_1' &&
       connectionType == NsfxHttpConnectionType.http1;
