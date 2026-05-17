@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:path/path.dart' as path;
 
 import 'package:flutter/foundation.dart';
 
@@ -140,6 +141,9 @@ class CrashReportService extends ChangeNotifier {
       return;
     }
 
+    // Launch the crash watchdog daemon in the background
+    _spawnWatchdogDaemon();
+
     final file = _lastCrashFile;
     try {
       if (!await file.exists()) {
@@ -161,9 +165,10 @@ class CrashReportService extends ChangeNotifier {
           (key, value) => MapEntry(key.toString(), value),
         ),
       );
+
       _logger.warning(
         'CrashReport',
-        'Pending native crash report detected: ${_pendingReport!.reportPath}',
+        'Pending native crash report detected: ${_pendingReport!.reportPath}. The download kernel might have caused an uncatchable native crash (e.g. within rhttp).',
       );
       notifyListeners();
     } catch (e, stack) {
@@ -171,6 +176,32 @@ class CrashReportService extends ChangeNotifier {
         'CrashReport',
         'Failed to load native crash report: $e\n$stack',
       );
+    }
+  }
+
+  void _spawnWatchdogDaemon() async {
+    try {
+      final exePath = path.join(path.dirname(Platform.resolvedExecutable), 'HanabiDaemon.exe');
+      if (File(exePath).existsSync()) {
+        final currentPid = pid.toString(); // from dart:io
+        final logDir = (await AppLoggerService().getLogDirectory()).path;
+        final crashDir = crashDirectory.path;
+
+        // Spawn completely detached so it doesn't block the main process exit
+        Process.start(
+          exePath,
+          [currentPid, logDir, crashDir],
+          mode: ProcessStartMode.detached,
+        ).then((process) {
+          _logger.info('CrashReport', 'Watchdog daemon spawned with PID: ${process.pid}');
+        }).catchError((e) {
+          _logger.warning('CrashReport', 'Failed to spawn watchdog daemon: $e');
+        });
+      } else {
+        _logger.debug('CrashReport', 'Watchdog daemon not found at $exePath');
+      }
+    } catch (e) {
+      _logger.warning('CrashReport', 'Error preparing watchdog daemon: $e');
     }
   }
 

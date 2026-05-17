@@ -238,10 +238,23 @@ std::string DescribeSignal(int signal_number) {
 }
 
 bool ShouldWriteVectoredReport(DWORD code) {
-  // Fast-fail exceptions can bypass the unhandled-exception filter. Keep the
-  // vectored handler narrowly scoped so normal first-chance exceptions do not
-  // create false crash reports.
-  return code == 0xC0000409 || code == EXCEPTION_STACK_OVERFLOW;
+  // Catch fatal exceptions before Dart's SEH swallows them and terminates the process.
+  // This ensures last_crash.json is written even if Dart forcefully exits later.
+  switch (code) {
+    case EXCEPTION_ACCESS_VIOLATION:
+    case EXCEPTION_ILLEGAL_INSTRUCTION:
+    case EXCEPTION_DATATYPE_MISALIGNMENT:
+    case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
+    case EXCEPTION_INT_DIVIDE_BY_ZERO:
+    case EXCEPTION_FLT_DIVIDE_BY_ZERO:
+    case EXCEPTION_PRIV_INSTRUCTION:
+    case EXCEPTION_STACK_OVERFLOW:
+    case EXCEPTION_NONCONTINUABLE_EXCEPTION:
+    case 0xC0000409: // Fast fail
+      return true;
+    default:
+      return false;
+  }
 }
 
 bool WriteUtf8File(const std::wstring& path, const std::string& content) {
@@ -382,10 +395,14 @@ void TerminateHandler() {
 namespace crash_reporter {
 
 void Install() {
-  if (g_vectored_exception_handler == nullptr) {
-    g_vectored_exception_handler =
-        AddVectoredExceptionHandler(1, VectoredExceptionHandler);
+  if (g_vectored_exception_handler != nullptr) {
+    RemoveVectoredExceptionHandler(g_vectored_exception_handler);
+    g_vectored_exception_handler = nullptr;
   }
+
+  g_vectored_exception_handler =
+      AddVectoredExceptionHandler(1, VectoredExceptionHandler);
+
   g_previous_exception_filter =
       SetUnhandledExceptionFilter(UnhandledExceptionHandler);
   if (InterlockedExchange(&g_runtime_handlers_installed, 1) == 0) {

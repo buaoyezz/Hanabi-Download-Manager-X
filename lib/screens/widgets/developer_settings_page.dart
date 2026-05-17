@@ -1,3 +1,4 @@
+import 'dart:ffi';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
 import '../../services/developer_mode_service.dart';
@@ -100,6 +101,15 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
             _buildSectionTitle(t.developerSectionTestTools),
             const SizedBox(height: 12),
             _buildTestToolsRow(),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _buildCrashTestCard()),
+                const SizedBox(width: 10),
+                const Expanded(child: SizedBox()),
+              ],
+            ),
           ],
         ],
       ),
@@ -713,6 +723,58 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage>
         });
       }
     }
+  }
+  Widget _buildCrashTestCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceCard,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.statusError.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                CustomIcons.FluentIcons.warning,
+                size: 16,
+                color: AppTheme.statusError,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '模拟硬崩溃 (Crash Test)',
+                style: FluentTheme.of(context).typography.body?.copyWith(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 13,
+                      color: AppTheme.statusError,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '用于测试 ProcessDaemonCore 拦截机制。点击后将通过 FFI 触发 0xC0000005 内存访问越界，主程序将瞬间闪退。',
+            style: FluentTheme.of(context).typography.caption?.copyWith(
+                  color: AppTheme.textSecondary,
+                  fontSize: 11,
+                ),
+          ),
+          const SizedBox(height: 12),
+          FilledButton(
+            style: ButtonStyle(
+              backgroundColor: WidgetStatePropertyAll(AppTheme.statusError),
+            ),
+            onPressed: () {
+              // Intentionally dereference a null pointer to trigger Access Violation
+              Pointer<Int32>.fromAddress(0).value = 1;
+            },
+            child: const Text('触发 Native 崩溃'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
