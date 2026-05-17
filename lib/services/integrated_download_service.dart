@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import '../models/download_intent.dart';
 import '../models/download_task.dart';
 import 'download_intent_dispatcher.dart';
@@ -9,8 +9,10 @@ import 'client_config_service.dart';
 import 'app_logger_service.dart';
 import 'download_failure_stats_service.dart';
 import 'plugin_task_service.dart';
+import 'process_memory_trim_service.dart';
 
-class IntegratedDownloadService extends ChangeNotifier {
+class IntegratedDownloadService extends ChangeNotifier
+    with WidgetsBindingObserver {
   final _kernelManager = KernelManager();
   late final DownloadIntentDispatcher _intentDispatcher =
       DownloadIntentDispatcher(kernelManager: _kernelManager);
@@ -18,12 +20,15 @@ class IntegratedDownloadService extends ChangeNotifier {
   final _clientConfig = ClientConfigService();
   final _appLogger = AppLoggerService();
   final List<DownloadTask> _tasks = [];
+  final Map<String, DownloadTask> _tasksById = {};
+  List<DownloadTask>? _tasksSnapshot;
   Timer? _pollTimer;
 
   // 节流控制，避免 Windows 消息队列溢出
   // override notifyListeners() 从根源拦截所有通知，强制走节流
   DateTime _lastNotify = DateTime.fromMillisecondsSinceEpoch(0);
-  static const _minNotifyInterval = Duration(milliseconds: 500);
+  static const _foregroundNotifyInterval = Duration(milliseconds: 250);
+  static const _backgroundNotifyInterval = Duration(seconds: 2);
   bool _pendingNotify = false;
   Timer? _notifyTimer;
   bool _immediate = false; // 标记本次通知是否需要立即发送
@@ -32,33 +37,66 @@ class IntegratedDownloadService extends ChangeNotifier {
   bool _hasActiveDownloads = false;
   bool _hasLoadedOnce = false;
   String? _lastAddTaskError;
-  static const _activePollingInterval = Duration(seconds: 1); // 有下载时1秒
-  static const _idlePollingInterval = Duration(seconds: 5); // 空闲时5秒
+  bool _isForegroundActive = true;
+  static const _foregroundActivePollingInterval = Duration(seconds: 3);
+  static const _backgroundActivePollingInterval = Duration(seconds: 10);
+  static const _foregroundIdlePollingInterval = Duration(seconds: 20);
+  static const _backgroundIdlePollingInterval = Duration(seconds: 60);
 
   // Stream 订阅
   StreamSubscription? _progressSubscription;
   StreamSubscription? _completeSubscription;
+  Timer? _backgroundMemoryMaintenanceTimer;
+  bool _backgroundMemoryMaintenanceBusy = false;
+  static const _backgroundMemoryMaintenanceInterval = Duration(minutes: 5);
+  static const _backgroundCompletedTaskKeepCount = 80;
+  bool _pluginTaskPollingEnabled = true;
+  Future<void>? _pluginTaskInitFuture;
 
-  IntegratedDownloadService() {
+  IntegratedDownloadService({
+    bool startPluginTaskPolling = true,
+  }) : _pluginTaskPollingEnabled = startPluginTaskPolling {
+    WidgetsBinding.instance.addObserver(this);
+    final lifecycleState = WidgetsBinding.instance.lifecycleState;
+    _isForegroundActive = lifecycleState != AppLifecycleState.hidden &&
+        lifecycleState != AppLifecycleState.paused &&
+        lifecycleState != AppLifecycleState.detached;
     _startPolling();
     _subscribeToKernelStreams();
-    unawaited(_pluginTaskService.initialize().then((_) async {
-      final (hasChanges, _) = await _syncPluginTasks(refresh: false);
-      if (hasChanges) {
-        notifyNow();
-      }
-    }).catchError((error) {
-      _appLogger.warning('PluginTask', 'Plugin task init failed: $error');
-    }));
+    if (_pluginTaskPollingEnabled) {
+      unawaited(enablePluginTaskPolling());
+    }
     // 立即尝试首次加载，不等待轮询间隔
     _immediateFirstLoad();
   }
 
   bool get isKernelRunning => _kernelManager.isRunning;
 
-  List<DownloadTask> get tasks => List.unmodifiable(_tasks);
+  List<DownloadTask> get tasks => _tasksSnapshot ??= List.unmodifiable(_tasks);
   bool get hasLoadedOnce => _hasLoadedOnce;
   String? get lastAddTaskError => _lastAddTaskError;
+  bool get isForegroundActive => _isForegroundActive;
+
+  DownloadTask? getTaskById(String id) => _tasksById[id];
+
+  Future<void> enablePluginTaskPolling() {
+    _pluginTaskPollingEnabled = true;
+    return _pluginTaskInitFuture ??= _initializePluginTaskPolling();
+  }
+
+  Future<void> _initializePluginTaskPolling() async {
+    try {
+      await _pluginTaskService.initialize();
+      final (hasChanges, _) = await _syncPluginTasks(refresh: false);
+      if (hasChanges) {
+        notifyNow();
+      }
+    } catch (error) {
+      _appLogger.warning('PluginTask', 'Plugin task init failed: $error');
+    } finally {
+      _pluginTaskInitFuture = null;
+    }
+  }
 
   DownloadTask? findDuplicateTask(String url) {
     final normalized = _normalizeUrl(url);
@@ -89,13 +127,78 @@ class IntegratedDownloadService extends ChangeNotifier {
     return trimmed;
   }
 
-  DownloadTask? _findTaskById(String id) {
-    for (final task in _tasks) {
-      if (task.id == id) {
-        return task;
-      }
+  DownloadTask? _findTaskById(String id) => getTaskById(id);
+
+  void _invalidateTaskSnapshot() {
+    _tasksSnapshot = null;
+  }
+
+  void _addTask(DownloadTask task) {
+    _tasks.add(task);
+    _tasksById[task.id] = task;
+    _invalidateTaskSnapshot();
+  }
+
+  void _setTaskAt(int index, DownloadTask task) {
+    final oldTask = _tasks[index];
+    if (oldTask.id != task.id) {
+      _tasksById.remove(oldTask.id);
     }
-    return null;
+    _tasks[index] = task;
+    _tasksById[task.id] = task;
+    _invalidateTaskSnapshot();
+  }
+
+  void _removeTaskById(String id) {
+    _tasks.removeWhere((task) => task.id == id);
+    _tasksById.remove(id);
+    _invalidateTaskSnapshot();
+  }
+
+  void _clearTasks() {
+    _tasks.clear();
+    _tasksById.clear();
+    _invalidateTaskSnapshot();
+  }
+
+  bool _computeHasActiveDownloads() {
+    return _tasks.any((t) =>
+        t.status == DownloadStatus.downloading ||
+        t.status == DownloadStatus.merging ||
+        t.status == DownloadStatus.pending);
+  }
+
+  void _setHasActiveDownloads(bool value) {
+    if (_hasActiveDownloads == value) return;
+    _hasActiveDownloads = value;
+    _scheduleNextPoll();
+  }
+
+  void setForegroundActive(bool active) {
+    if (_isForegroundActive == active) {
+      if (!active) {
+        _startBackgroundMemoryMaintenance();
+      }
+      return;
+    }
+    _isForegroundActive = active;
+    _notifyTimer?.cancel();
+    _notifyTimer = null;
+    _pendingNotify = false;
+    _scheduleNextPoll();
+    if (active) {
+      _stopBackgroundMemoryMaintenance();
+      notifyNow();
+    } else {
+      _startBackgroundMemoryMaintenance();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    setForegroundActive(state != AppLifecycleState.hidden &&
+        state != AppLifecycleState.paused &&
+        state != AppLifecycleState.detached);
   }
 
   void _startPolling() {
@@ -131,8 +234,6 @@ class IntegratedDownloadService extends ChangeNotifier {
       final progressStream = _kernelManager.onProgress;
       if (progressStream != null) {
         _progressSubscription = progressStream.listen((task) {
-          _appLogger.debug('App',
-              'Stream progress: ${task.filename} - ${task.progress.toStringAsFixed(1)}%');
           _handleStreamUpdate(task);
         });
         _appLogger.info('App', 'Subscribed to progress stream');
@@ -159,7 +260,7 @@ class IntegratedDownloadService extends ChangeNotifier {
 
     if (existingIndex != -1) {
       final oldTask = _tasks[existingIndex];
-      _tasks[existingIndex] = newTask;
+      _setTaskAt(existingIndex, newTask);
       _logDiagnosticDecisionChanges(oldTask, newTask);
 
       // 检查是否有关键变化
@@ -183,7 +284,7 @@ class IntegratedDownloadService extends ChangeNotifier {
       }
     } else {
       // 新任务
-      _tasks.add(newTask);
+      _addTask(newTask);
       if (newTask.status == DownloadStatus.failed) {
         DownloadFailureStatsService().recordFailure(newTask);
       }
@@ -191,10 +292,7 @@ class IntegratedDownloadService extends ChangeNotifier {
     }
 
     // 更新活跃下载状态
-    _hasActiveDownloads = _tasks.any((t) =>
-        t.status == DownloadStatus.downloading ||
-        t.status == DownloadStatus.merging ||
-        t.status == DownloadStatus.pending);
+    _setHasActiveDownloads(_computeHasActiveDownloads());
   }
 
   void _logDiagnosticDecisionChanges(
@@ -242,8 +340,13 @@ class IntegratedDownloadService extends ChangeNotifier {
   // 智能轮询：根据下载状态动态调整间隔
   void _scheduleNextPoll() {
     _pollTimer?.cancel();
-    final interval =
-        _hasActiveDownloads ? _activePollingInterval : _idlePollingInterval;
+    final interval = _hasActiveDownloads
+        ? (_isForegroundActive
+            ? _foregroundActivePollingInterval
+            : _backgroundActivePollingInterval)
+        : (_isForegroundActive
+            ? _foregroundIdlePollingInterval
+            : _backgroundIdlePollingInterval);
     _pollTimer = Timer(interval, () async {
       // 确保已订阅内核 Stream
       if ((_progressSubscription == null || _completeSubscription == null) &&
@@ -253,6 +356,52 @@ class IntegratedDownloadService extends ChangeNotifier {
       await _updateTasks();
       _scheduleNextPoll();
     });
+  }
+
+  void _startBackgroundMemoryMaintenance() {
+    if (_backgroundMemoryMaintenanceTimer != null) {
+      return;
+    }
+
+    unawaited(_runBackgroundMemoryMaintenance());
+    _backgroundMemoryMaintenanceTimer =
+        Timer.periodic(_backgroundMemoryMaintenanceInterval, (_) {
+      unawaited(_runBackgroundMemoryMaintenance());
+    });
+  }
+
+  void _stopBackgroundMemoryMaintenance() {
+    _backgroundMemoryMaintenanceTimer?.cancel();
+    _backgroundMemoryMaintenanceTimer = null;
+  }
+
+  Future<void> _runBackgroundMemoryMaintenance() async {
+    if (_backgroundMemoryMaintenanceBusy ||
+        _isForegroundActive ||
+        !isKernelRunning) {
+      return;
+    }
+
+    _backgroundMemoryMaintenanceBusy = true;
+    try {
+      final compacted = await _kernelManager.compactCompletedTaskHistory(
+        keepRecentFullDetails: _backgroundCompletedTaskKeepCount,
+      );
+      if (compacted > 0) {
+        _appLogger.info(
+          'App',
+          'Background memory maintenance compacted $compacted completed task histories',
+        );
+        await _updateTasks();
+        ProcessMemoryTrimService.trimCurrentProcessWorkingSet(
+          reason: 'background-task-history-compact',
+        );
+      }
+    } catch (error) {
+      _appLogger.warning('App', 'Background memory maintenance failed: $error');
+    } finally {
+      _backgroundMemoryMaintenanceBusy = false;
+    }
   }
 
   /// 从根源 override notifyListeners，所有通知强制走节流
@@ -265,16 +414,17 @@ class IntegratedDownloadService extends ChangeNotifier {
       _notifyTimer?.cancel();
       _pendingNotify = false;
       _lastNotify = DateTime.now();
-      _appLogger.debug('App', 'Notifying UI listeners (immediate)');
       super.notifyListeners();
       return;
     }
 
     // 节流模式
     final now = DateTime.now();
-    if (now.difference(_lastNotify) >= _minNotifyInterval) {
+    final minNotifyInterval = _isForegroundActive
+        ? _foregroundNotifyInterval
+        : _backgroundNotifyInterval;
+    if (now.difference(_lastNotify) >= minNotifyInterval) {
       _lastNotify = now;
-      _appLogger.debug('App', 'Notifying UI listeners (throttled-pass)');
       super.notifyListeners();
       return;
     }
@@ -284,10 +434,9 @@ class IntegratedDownloadService extends ChangeNotifier {
     _pendingNotify = true;
 
     _notifyTimer?.cancel();
-    _notifyTimer = Timer(_minNotifyInterval, () {
+    _notifyTimer = Timer(minNotifyInterval, () {
       _pendingNotify = false;
       _lastNotify = DateTime.now();
-      _appLogger.debug('App', 'Notifying UI listeners (throttled-deferred)');
       super.notifyListeners();
     });
   }
@@ -299,6 +448,9 @@ class IntegratedDownloadService extends ChangeNotifier {
   }
 
   Future<(bool, bool)> _syncPluginTasks({bool refresh = true}) async {
+    if (!_pluginTaskPollingEnabled) {
+      return (false, false);
+    }
     await _pluginTaskService.ensureInitialized();
     final records = refresh
         ? await _pluginTaskService.refreshActiveTasks()
@@ -315,7 +467,7 @@ class IntegratedDownloadService extends ChangeNotifier {
       final newTask = record.toDownloadTask();
       final existingIndex = taskIndices[newTask.id] ?? -1;
       if (existingIndex == -1) {
-        _tasks.add(newTask);
+        _addTask(newTask);
         taskIndices[newTask.id] = _tasks.length - 1;
         hasChanges = true;
         hasCriticalChange = true;
@@ -339,7 +491,7 @@ class IntegratedDownloadService extends ChangeNotifier {
           progressChanged ||
           speedChanged ||
           errorChanged) {
-        _tasks[existingIndex] = newTask;
+        _setTaskAt(existingIndex, newTask);
         hasChanges = true;
         hasCriticalChange = hasCriticalChange || statusChanged || sizeChanged;
         if (statusChanged && newTask.status == DownloadStatus.failed) {
@@ -366,10 +518,7 @@ class IntegratedDownloadService extends ChangeNotifier {
           _hasLoadedOnce = true;
           notifyNow();
         }
-        _hasActiveDownloads = _tasks.any((t) =>
-            t.status == DownloadStatus.downloading ||
-            t.status == DownloadStatus.merging ||
-            t.status == DownloadStatus.pending);
+        _setHasActiveDownloads(_computeHasActiveDownloads());
         return;
       }
 
@@ -449,16 +598,10 @@ class IntegratedDownloadService extends ChangeNotifier {
             }
           }
 
-          // Log progress updates for downloading tasks
-          if (newTask.status == DownloadStatus.downloading &&
-              oldTask.progress != newTask.progress) {
-            _appLogger.debug('App',
-                'Download progress: ${newTask.fileName} - ${(newTask.progress * 100).toStringAsFixed(1)}% @ ${newTask.formattedSpeed}');
-          }
           _logDiagnosticDecisionChanges(oldTask, newTask);
-          _tasks[existingIndex] = newTask;
+          _setTaskAt(existingIndex, newTask);
         } else {
-          _tasks.add(newTask);
+          _addTask(newTask);
           hasChanges = true;
           _appLogger.info(
               'App', 'New task added: ${newTask.fileName} (${newTask.status})');
@@ -482,12 +625,9 @@ class IntegratedDownloadService extends ChangeNotifier {
       }
 
       // 更新活跃下载状态，用于智能轮询
-      final newHasActiveDownloads = _tasks.any((t) =>
-          t.status == DownloadStatus.downloading ||
-          t.status == DownloadStatus.merging ||
-          t.status == DownloadStatus.pending);
+      final newHasActiveDownloads = _computeHasActiveDownloads();
       if (newHasActiveDownloads != _hasActiveDownloads) {
-        _hasActiveDownloads = newHasActiveDownloads;
+        _setHasActiveDownloads(newHasActiveDownloads);
         _appLogger.debug('App',
             'Active downloads: $_hasActiveDownloads, polling interval adjusted');
       }
@@ -521,6 +661,7 @@ class IntegratedDownloadService extends ChangeNotifier {
       'startTime': task.startTime?.toIso8601String(),
       'endTime': task.endTime?.toIso8601String(),
       'createdTime': task.createdTime.toIso8601String(), // 添加创建时间
+      'segmentCount': task.segmentCount ?? task.segments.length,
       'effectiveHttpVersionPolicy': task.effectiveHttpVersionPolicy,
       'negotiatedHttpVersion': task.negotiatedHttpVersion,
       'targetReachable': task.targetReachable,
@@ -624,7 +765,9 @@ class IntegratedDownloadService extends ChangeNotifier {
         ? (kernelTask['averageSpeed'] as num).toDouble()
         : null;
     final threadCount = kernelTask['threadCount'] as int?;
-    final segmentCount = segments?.length;
+    final segmentCount = (kernelTask['segmentCount'] as num?)?.toInt() ??
+        (kernelTask['segment_count'] as num?)?.toInt() ??
+        segments?.length;
     final downloadCore = kernelTask['downloadCore'] as String? ?? 'NSF-X';
     final effectiveHttpVersionPolicy =
         kernelTask['effectiveHttpVersionPolicy']?.toString();
@@ -670,12 +813,6 @@ class IntegratedDownloadService extends ChangeNotifier {
     final progressValue = (kernelTask['progress'] ?? 0.0).toDouble();
     final normalizedProgress =
         status == DownloadStatus.completed ? 1.0 : progressValue / 100.0;
-
-    // 调试日志：输出进度值
-    if (status == DownloadStatus.downloading) {
-      _appLogger.debug('App',
-          'Progress conversion: ${kernelTask['filename']} - raw: $progressValue%, normalized: ${(normalizedProgress * 100).toStringAsFixed(2)}%, downloaded: ${kernelTask['downloadedSize']}/${kernelTask['totalSize']}');
-    }
 
     return DownloadTask(
       id: kernelTask['id'],
@@ -801,11 +938,11 @@ class IntegratedDownloadService extends ChangeNotifier {
         final existingIndex = _tasks.indexWhere((task) => task.id == record.id);
         final pluginTask = record.toDownloadTask();
         if (existingIndex == -1) {
-          _tasks.add(pluginTask);
+          _addTask(pluginTask);
         } else {
-          _tasks[existingIndex] = pluginTask;
+          _setTaskAt(existingIndex, pluginTask);
         }
-        _hasActiveDownloads = true;
+        _setHasActiveDownloads(true);
         notifyNow();
       }
       _appLogger.info('App',
@@ -923,7 +1060,7 @@ class IntegratedDownloadService extends ChangeNotifier {
         return null;
     }
 
-    _tasks.add(testTask);
+    _addTask(testTask);
     _appLogger.info(
         'App', 'Test task added: ${testTask.fileName} (${testTask.status})');
     notifyNow();
@@ -1042,7 +1179,7 @@ class IntegratedDownloadService extends ChangeNotifier {
     await _pluginTaskService.ensureInitialized();
     if (_pluginTaskService.hasTask(id)) {
       await _pluginTaskService.removeTask(id);
-      _tasks.removeWhere((task) => task.id == id);
+      _removeTaskById(id);
       _clientConfig.setTaskTags(id, []);
       _appLogger.info('App', 'Plugin task removed successfully: $id');
       notifyNow();
@@ -1061,7 +1198,7 @@ class IntegratedDownloadService extends ChangeNotifier {
     final success = await _kernelManager.cancelDownload(id);
 
     if (success) {
-      _tasks.removeWhere((task) => task.id == id);
+      _removeTaskById(id);
       _clientConfig.setTaskTags(id, []);
       _appLogger.info('App', 'Task removed successfully: ${task.fileName}');
       notifyNow();
@@ -1121,7 +1258,7 @@ class IntegratedDownloadService extends ChangeNotifier {
 
   /// 重启内核后：清空任务缓存并重新拉取
   Future<void> resetTasksAndReload() async {
-    _tasks.clear();
+    _clearTasks();
     _hasActiveDownloads = false;
     _hasLoadedOnce = false;
     notifyNow();
@@ -1243,8 +1380,11 @@ class IntegratedDownloadService extends ChangeNotifier {
 
   /// 重试失败的分段
   Future<void> retryFailedSegments(String id) async {
-    final task =
-        _tasks.firstWhere((t) => t.id == id, orElse: () => _tasks.first);
+    final task = _findTaskById(id);
+    if (task == null) {
+      _appLogger.warning('App', 'Retry ignored: task not found (ID: $id)');
+      return;
+    }
     _appLogger.info(
         'App', 'Retrying failed segments for task: ${task.fileName} (ID: $id)');
 
@@ -1261,8 +1401,12 @@ class IntegratedDownloadService extends ChangeNotifier {
 
   /// 重试特定分段
   Future<void> retrySegment(String id, int segmentIndex) async {
-    final task =
-        _tasks.firstWhere((t) => t.id == id, orElse: () => _tasks.first);
+    final task = _findTaskById(id);
+    if (task == null) {
+      _appLogger.warning(
+          'App', 'Segment retry ignored: task not found (ID: $id)');
+      return;
+    }
     _appLogger.info('App',
         'Retrying segment $segmentIndex for task: ${task.fileName} (ID: $id)');
 
@@ -1280,8 +1424,10 @@ class IntegratedDownloadService extends ChangeNotifier {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pollTimer?.cancel();
     _notifyTimer?.cancel();
+    _stopBackgroundMemoryMaintenance();
     _progressSubscription?.cancel();
     _completeSubscription?.cancel();
     super.dispose();

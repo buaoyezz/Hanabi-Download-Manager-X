@@ -68,6 +68,7 @@ class SegmentProgressData {
 class PopupProgressService {
   static final _logger = LoggerService();
   static const int _port = 19998;
+  static const int _maxPopupProgressSegments = 16;
 
   HttpServer? _server;
   final Set<WebSocket> _clients = {};
@@ -97,10 +98,7 @@ class PopupProgressService {
         },
       );
 
-      // 定时广播进度 (200ms 间隔)
-      _broadcastTimer = Timer.periodic(const Duration(milliseconds: 200), (_) {
-        _broadcastProgress();
-      });
+      // WebSocket progress broadcast starts lazily when a client connects.
     } catch (e) {
       _logger.error('Failed to start PopupProgressService: $e');
     }
@@ -174,17 +172,20 @@ class PopupProgressService {
       try {
         final socket = await WebSocketTransformer.upgrade(request);
         _clients.add(socket);
+        _ensureBroadcastTimer();
         _logger.info('WebSocket client connected, total: ${_clients.length}');
 
         socket.listen(
           (data) => _handleMessage(socket, data),
           onDone: () {
             _clients.remove(socket);
+            _stopBroadcastTimerIfIdle();
             _logger.info(
                 'WebSocket client disconnected, total: ${_clients.length}');
           },
           onError: (e) {
             _clients.remove(socket);
+            _stopBroadcastTimerIfIdle();
             _logger.error('WebSocket error: $e');
           },
         );
@@ -438,6 +439,19 @@ class PopupProgressService {
     }
   }
 
+  void _ensureBroadcastTimer() {
+    if (_broadcastTimer != null || _clients.isEmpty) return;
+    _broadcastTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      _broadcastProgress();
+    });
+  }
+
+  void _stopBroadcastTimerIfIdle() {
+    if (_clients.isNotEmpty) return;
+    _broadcastTimer?.cancel();
+    _broadcastTimer = null;
+  }
+
   void _sendProgressToClient(WebSocket socket) {
     final progress = _getProgressData(_activeTaskId);
     if (progress == null) return;
@@ -470,12 +484,8 @@ class PopupProgressService {
     }
 
     // 查找指定任务
-    try {
-      final task = tasks.firstWhere((t) => t.id == taskId);
-      return _convertTask(task);
-    } catch (e) {
-      return null;
-    }
+    final task = _downloadService.getTaskById(taskId);
+    return task == null ? null : _convertTask(task);
   }
 
   DownloadProgressData _convertTask(DownloadTask task) {
@@ -492,16 +502,20 @@ class PopupProgressService {
     final remainingSeconds = speed > 0 ? (remainingBytes / speed).round() : 0;
 
     // 转换分段信息
-    final segments = task.segments
-            ?.asMap()
+    final taskSegments = task.segments ?? const [];
+    final segments = taskSegments.isEmpty
+        ? <SegmentProgressData>[]
+        : taskSegments
+            .take(_maxPopupProgressSegments)
+            .toList(growable: false)
+            .asMap()
             .entries
             .map((e) => SegmentProgressData(
                   index: e.key,
                   progress: e.value.progress,
                   status: e.value.status,
                 ))
-            .toList() ??
-        [];
+            .toList(growable: false);
 
     return DownloadProgressData(
       taskId: task.id,

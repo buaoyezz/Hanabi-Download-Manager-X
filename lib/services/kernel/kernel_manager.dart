@@ -117,6 +117,15 @@ class KernelManager extends ChangeNotifier {
     return await _kernel?.getStatistics();
   }
 
+  Future<int> compactCompletedTaskHistory({
+    int keepRecentFullDetails = 80,
+  }) async {
+    return await _kernel?.compactCompletedTaskHistory(
+          keepRecentFullDetails: keepRecentFullDetails,
+        ) ??
+        0;
+  }
+
   Future<bool> renameTask(String taskId, String newFileName) async {
     return await _kernel?.renameTask(taskId, newFileName) ?? false;
   }

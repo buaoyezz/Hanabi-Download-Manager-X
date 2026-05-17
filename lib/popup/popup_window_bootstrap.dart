@@ -12,6 +12,7 @@ import 'package:http/http.dart' as http;
 import '../l10n/app_localizations.dart';
 import '../l10n/fallback_localizations_delegate.dart';
 import '../models/download_intent.dart';
+import '../services/process_memory_trim_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/file_icon_widget.dart';
 import '../utils/fluent_icons.dart' as CustomIcons;
@@ -263,6 +264,7 @@ const int _popupProgressWindowHeight = 280;
 const int _popupProgressWindowHeightWithError = 404;
 const int _popupCompletedWindowHeight = 272;
 const double _popupMinimumContentWidth = 460;
+const int _maxPopupSegmentSnapshots = 16;
 
 class _PopupSegmentSnapshot {
   const _PopupSegmentSnapshot({
@@ -358,6 +360,7 @@ class _PopupTaskSnapshot {
       segments: segmentsRaw is List
           ? segmentsRaw
               .whereType<Map>()
+              .take(_maxPopupSegmentSnapshots)
               .map(
                 (entry) => _PopupSegmentSnapshot.fromJson(
                   entry.map(
@@ -404,6 +407,8 @@ class _PopupWindowAppState extends State<PopupWindowApp>
     with WidgetsBindingObserver {
   late PopupWindowLaunchData _launchData;
   late Locale _locale;
+  int _payloadGeneration = 0;
+  bool _renderPopupContent = true;
 
   @override
   void initState() {
@@ -454,6 +459,8 @@ class _PopupWindowAppState extends State<PopupWindowApp>
         setState(() {
           _launchData = launchData;
           _locale = locale;
+          _payloadGeneration++;
+          _renderPopupContent = true;
         });
       }
       return true;
@@ -554,11 +561,37 @@ class _PopupWindowAppState extends State<PopupWindowApp>
           child: content,
         );
       },
-      home: PopupWindowPage(
-        key: ValueKey(_launchData.windowTitle),
-        launchData: _launchData,
-      ),
+      home: _renderPopupContent
+          ? PopupWindowPage(
+              key: ValueKey(_payloadGeneration),
+              launchData: _launchData,
+              onHidden: _handlePopupHidden,
+            )
+          : const SizedBox.shrink(),
     );
+  }
+
+  void _handlePopupHidden() {
+    if (!mounted || !_renderPopupContent) {
+      return;
+    }
+    setState(() {
+      _launchData = PopupWindowLaunchData.empty();
+      _payloadGeneration++;
+      _renderPopupContent = false;
+    });
+    _releaseHiddenPopupMemory();
+  }
+
+  void _releaseHiddenPopupMemory() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final imageCache = PaintingBinding.instance.imageCache;
+      imageCache.clear();
+      imageCache.clearLiveImages();
+      ProcessMemoryTrimService.trimCurrentProcessWorkingSet(
+        reason: 'popup-hidden',
+      );
+    });
   }
 }
 
@@ -566,9 +599,11 @@ class PopupWindowPage extends StatefulWidget {
   const PopupWindowPage({
     super.key,
     required this.launchData,
+    required this.onHidden,
   });
 
   final PopupWindowLaunchData launchData;
+  final VoidCallback onHidden;
 
   @override
   State<PopupWindowPage> createState() => _PopupWindowPageState();
@@ -584,6 +619,7 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
   bool _isTransferActionBusy = false;
   bool _progressPollInFlight = false;
   bool _windowVisible = true;
+  bool _isPreparedForHiddenWindow = false;
   String? _errorText;
   String? _parsedFileName;
   String? _lastSuggestedFileName;
@@ -631,7 +667,7 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
     _fileNameController.addListener(_onFileNameChanged);
     _logToMain(
       'info',
-      'Popup window initialized for ${widget.launchData.url} title=${widget.launchData.windowTitle}',
+      'Popup window initialized for ${_shortLogText(widget.launchData.url)} title=${widget.launchData.windowTitle}',
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_logChannelWindowDebugInfo('init'));
@@ -776,6 +812,7 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
 
   @override
   void dispose() {
+    _prepareForHiddenWindow(notifyParent: false);
     _progressPollTimer?.cancel();
     _urlController.removeListener(_onUrlChanged);
     _fileNameController.removeListener(_onFileNameChanged);
@@ -2517,6 +2554,14 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
     _hasUserEditedFileName = false;
   }
 
+  String _shortLogText(String value, {int maxLength = 180}) {
+    final normalized = value.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (normalized.length <= maxLength) {
+      return normalized;
+    }
+    return '${normalized.substring(0, maxLength)}...';
+  }
+
   Future<void> _pickFolder() async {
     try {
       final selected =
@@ -2853,10 +2898,11 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
 
   Future<void> _closeWindow() async {
     _logToMain('debug', 'Close requested');
-    _prepareForHiddenWindow();
+    _prepareForHiddenWindow(notifyParent: false);
     await _logChannelWindowDebugInfo('close');
     try {
       await _popupWindowChannel.invokeMethod<void>('closeWindow');
+      widget.onHidden();
       return;
     } catch (e) {
       _logToMain('warning', 'closeWindow channel failed: $e');
@@ -2865,13 +2911,38 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
     if (mounted) {
       Navigator.of(context).maybePop();
     }
+    widget.onHidden();
   }
 
-  void _prepareForHiddenWindow() {
+  void _prepareForHiddenWindow({bool notifyParent = true}) {
+    if (_isPreparedForHiddenWindow) {
+      return;
+    }
+    _isPreparedForHiddenWindow = true;
     _windowVisible = false;
     _progressPollTimer?.cancel();
     _progressPollTimer = null;
     _progressPollInFlight = false;
+    _isSubmitting = false;
+    _isTransferActionBusy = false;
+    _errorText = null;
+    _parsedFileName = null;
+    _lastSuggestedFileName = null;
+    _activeTaskId = null;
+    _taskSnapshot = null;
+    _stage = _PopupWindowStage.compose;
+    _lastRequestedWindowHeight = null;
+    _windowHeightSyncScheduled = false;
+    _urlController.removeListener(_onUrlChanged);
+    _fileNameController.removeListener(_onFileNameChanged);
+    _urlController.clear();
+    _fileNameController.clear();
+    _savePathController.clear();
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
+    if (notifyParent) {
+      widget.onHidden();
+    }
   }
 
   Future<void> _minimizeWindow() async {

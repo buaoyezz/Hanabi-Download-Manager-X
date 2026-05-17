@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
 import 'package:system_tray/system_tray.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/services.dart';
@@ -16,9 +16,9 @@ class SystemTrayService {
   final SystemTray _systemTray = SystemTray();
   bool _isInitialized = false;
   bool _isExiting = false;
-  bool _trayMenuPrewarmed = false;
-  Timer? _trayMenuPrewarmTimer;
+  late final Menu _fallbackMenu = Menu();
   Future<bool> Function()? onExitRequested;
+  FutureOr<void> Function(bool visible)? onMainWindowVisibilityChanged;
   List<Map<String, dynamic>> Function()? activeTaskPayloadProvider;
   final _logger = LoggerService();
 
@@ -41,22 +41,19 @@ class SystemTrayService {
       _systemTray.registerSystemTrayEventHandler((eventName) {
         _logger.debug('Tray event: $eventName');
         if (eventName == kSystemTrayEventClick) {
-          showMainWindow();
+          unawaited(showMainWindow());
         } else if (eventName == kSystemTrayEventRightClick) {
-          _showCustomTrayMenu();
+          unawaited(_showCustomTrayMenu());
         }
       });
 
-      final Menu menu = Menu();
-      await menu.buildFrom([]);
-      await _systemTray.setContextMenu(menu);
-      _scheduleTrayMenuPrewarm();
+      await _installFallbackTrayMenu();
 
       _isInitialized = true;
-      _logger.info('System tray initialized with custom Fluent menu');
+      _logger.info('System tray initialized with on-demand Fluent menu');
 
       if (showWindow) {
-        showMainWindow();
+        await showMainWindow();
       } else {
         updateToolTip(false);
       }
@@ -65,14 +62,29 @@ class SystemTrayService {
     }
   }
 
-  void _scheduleTrayMenuPrewarm() {
-    _trayMenuPrewarmTimer?.cancel();
-    _trayMenuPrewarmTimer = Timer(const Duration(milliseconds: 450), () {
-      if (_isExiting || _trayMenuPrewarmed) {
-        return;
-      }
-      unawaited(_prepareCustomTrayMenu());
-    });
+  Future<void> _installFallbackTrayMenu() async {
+    await _fallbackMenu.buildFrom([
+      MenuItemLabel(
+        label: '显示主窗口',
+        onClicked: (_) => unawaited(showMainWindow()),
+      ),
+      MenuItemLabel(
+        label: '新建下载',
+        onClicked: (_) =>
+            unawaited(_requestMainWindowAction('open_add_download_dialog')),
+      ),
+      MenuItemLabel(
+        label: '下载中任务',
+        onClicked: (_) =>
+            unawaited(_requestMainWindowAction('show_downloading_page')),
+      ),
+      MenuSeparator(),
+      MenuItemLabel(
+        label: '退出应用',
+        onClicked: (_) => unawaited(requestExit()),
+      ),
+    ]);
+    await _systemTray.setContextMenu(_fallbackMenu);
   }
 
   Future<void> _showCustomTrayMenu() async {
@@ -87,28 +99,12 @@ class SystemTrayService {
         },
       );
     } catch (e) {
-      _logger.warning('Failed to show custom tray menu: $e');
-    }
-  }
-
-  Future<void> _prepareCustomTrayMenu() async {
-    if (_trayMenuPrewarmed || _isExiting) {
-      return;
-    }
-    try {
-      final prepared = await _windowChannel.invokeMethod<bool>(
-        'prepareTrayMenu',
-        {
-          'payload': jsonEncode(
-            _buildTrayMenuPayload(const {'x': 0.0, 'y': 0.0}),
-          ),
-          'title': 'Hanabi Tray Menu',
-        },
-      );
-      _trayMenuPrewarmed = prepared ?? true;
-    } catch (e) {
-      _trayMenuPrewarmed = false;
-      _logger.warning('Failed to prewarm custom tray menu: $e');
+      _logger.warning('Failed to show custom tray menu, fallback native: $e');
+      try {
+        await _systemTray.popUpContextMenu();
+      } catch (fallbackError) {
+        _logger.warning('Failed to show native tray fallback: $fallbackError');
+      }
     }
   }
 
@@ -149,26 +145,19 @@ class SystemTrayService {
       _logger.warning('Failed to get cursor pos via method channel: $e');
     }
 
-    try {
-      if (Platform.isWindows) {
-        final result = await Process.run('powershell', [
-          '-Command',
-          r'Add-Type -AssemblyName System.Windows.Forms; $pos = [System.Windows.Forms.Cursor]::Position; Write-Output "$($pos.X),$($pos.Y)"'
-        ]);
-        final output = (result.stdout as String).trim();
-        final parts = output.split(',');
-        if (parts.length == 2) {
-          return {
-            'x': double.parse(parts[0]),
-            'y': double.parse(parts[1]),
-          };
-        }
-      }
-    } catch (e) {
-      _logger.warning('Failed to get cursor pos via powershell: $e');
-    }
-
     return {'x': 0.0, 'y': 0.0};
+  }
+
+  Future<void> _requestMainWindowAction(String action) async {
+    await showMainWindow();
+    try {
+      await _windowChannel.invokeMethod<void>(
+        'showMainWindowWithAction',
+        {'action': action},
+      );
+    } catch (e) {
+      _logger.warning('Failed to dispatch tray action $action: $e');
+    }
   }
 
   void updateToolTip(bool isVisible) {
@@ -204,8 +193,12 @@ class SystemTrayService {
     return '';
   }
 
-  void showMainWindow() {
+  Future<void> showMainWindow() async {
     _logger.info('Show main window');
+    final visibilityHandler = onMainWindowVisibilityChanged;
+    if (visibilityHandler != null) {
+      await visibilityHandler(true);
+    }
     appWindow.show();
     appWindow.restore();
     updateToolTip(true);
@@ -215,6 +208,10 @@ class SystemTrayService {
     _logger.info('Hide main window to tray');
     appWindow.hide();
     updateToolTip(false);
+    final result = onMainWindowVisibilityChanged?.call(false);
+    if (result is Future<void>) {
+      unawaited(result);
+    }
   }
 
   Future<bool> _requestNativeQuit() async {
@@ -259,7 +256,6 @@ class SystemTrayService {
       return;
     }
     _isExiting = true;
-    _trayMenuPrewarmTimer?.cancel();
 
     _logger.info('Exit app from tray - beginning shutdown sequence...');
 

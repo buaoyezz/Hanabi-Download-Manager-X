@@ -734,22 +734,9 @@ void FlutterWindow::SetupMethodChannel() {
           }
           result->Error("INVALID_ARGUMENT", "Missing payload parameter");
         } else if (call.method_name() == "prepareTrayMenu") {
-          const auto* arguments =
-              std::get_if<flutter::EncodableMap>(call.arguments());
-          if (arguments) {
-            auto payload_it = arguments->find(flutter::EncodableValue("payload"));
-            if (payload_it != arguments->end()) {
-              if (const std::string* payload =
-                      std::get_if<std::string>(&payload_it->second)) {
-                std::wstring window_title = L"Hanabi Tray Menu";
-                result->Success(
-                    flutter::EncodableValue(
-                        CreateTrayMenuWindow(*payload, window_title, false)));
-                return;
-              }
-            }
-          }
-          result->Error("INVALID_ARGUMENT", "Missing payload parameter");
+          result->Error(
+              "TRAY_MENU_PREWARM_DISABLED",
+              "Tray menu prewarm is disabled in low-memory mode.");
         } else if (call.method_name() == "setAlwaysOnTop") {
           const auto* arguments = std::get_if<flutter::EncodableMap>(call.arguments());
           if (arguments) {
@@ -1134,11 +1121,6 @@ void FlutterWindow::SetupMethodChannel() {
             }
           }
 
-          if (g_main_window_handle && ::IsWindow(g_main_window_handle)) {
-            ::ShowWindow(g_main_window_handle, SW_RESTORE);
-            ::SetForegroundWindow(g_main_window_handle);
-          }
-
           if (!action.empty() && g_main_flutter_window != nullptr &&
               g_main_flutter_window->flutter_controller_ &&
               g_main_flutter_window->flutter_controller_->engine()) {
@@ -1152,6 +1134,9 @@ void FlutterWindow::SetupMethodChannel() {
             main_channel.InvokeMethod(
                 "handleMainWindowAction",
                 std::make_unique<flutter::EncodableValue>(payload));
+          } else if (g_main_window_handle && ::IsWindow(g_main_window_handle)) {
+            ::ShowWindow(g_main_window_handle, SW_RESTORE);
+            ::SetForegroundWindow(g_main_window_handle);
           }
 
           result->Success();

@@ -28,6 +28,7 @@ class DownloadTask {
   DateTime? startTime;
   DateTime? endTime;
   DateTime createdTime; // task creation time
+  int? segmentCount;
   String? effectiveHttpVersionPolicy;
   String? negotiatedHttpVersion;
   bool? targetReachable;
@@ -56,6 +57,7 @@ class DownloadTask {
     this.averageSpeed = 0,
     this.startTime,
     this.endTime,
+    this.segmentCount,
     this.effectiveHttpVersionPolicy,
     this.negotiatedHttpVersion,
     this.targetReachable,
@@ -88,6 +90,7 @@ class DownloadTask {
         'startTime': startTime?.toIso8601String(),
         'endTime': endTime?.toIso8601String(),
         'createdTime': createdTime.toIso8601String(), // serialize creation time
+        'segmentCount': segmentCount,
         'effectiveHttpVersionPolicy': effectiveHttpVersionPolicy,
         'negotiatedHttpVersion': negotiatedHttpVersion,
         'targetReachable': targetReachable,
@@ -132,6 +135,8 @@ class DownloadTask {
         endTime: json['endTime'] != null
             ? DateTime.tryParse(json['endTime'].toString())
             : null,
+        segmentCount: (json['segmentCount'] as num?)?.toInt() ??
+            (json['segment_count'] as num?)?.toInt(),
         effectiveHttpVersionPolicy:
             json['effectiveHttpVersionPolicy']?.toString(),
         negotiatedHttpVersion: json['negotiatedHttpVersion']?.toString(),
@@ -400,6 +405,9 @@ abstract class KernelInterface {
 
   Future<List<DownloadTask>> getTasks();
   Future<DownloadStatistics?> getStatistics();
+  Future<int> compactCompletedTaskHistory({
+    int keepRecentFullDetails = 80,
+  });
 
   Future<bool> renameTask(String taskId, String newFileName);
   Future<bool> moveTask(String taskId, String targetDir);

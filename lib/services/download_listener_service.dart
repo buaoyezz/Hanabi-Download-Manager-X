@@ -12,8 +12,9 @@ import 'logger_service.dart';
 class DownloadListenerService {
   final BuildContext context;
   final _logger = LoggerService();
-  Timer? _pollTimer;
+  bool _isListening = false;
   bool _isChecking = false;
+  bool _isForegroundActive = true;
   bool _isShowingPopup = false; // 防止独立 popup 创建期间重复触发
   String? _lastPopupSignature;
   DateTime? _lastPopupOpenedAt;
@@ -23,21 +24,40 @@ class DownloadListenerService {
 
   // 开始监听下载请求
   void startListening() {
+    if (_isListening) return;
+    _isListening = true;
     _logger.info('Download listener started');
-    _pollTimer = Timer.periodic(const Duration(milliseconds: 500), (_) async {
-      await _checkForNewDownloads();
-    });
+    unawaited(_pollLoop());
   }
 
   // 停止监听
   void stopListening() {
-    _pollTimer?.cancel();
-    _pollTimer = null;
+    _isListening = false;
     _isChecking = false;
     _isShowingPopup = false;
     _lastPopupSignature = null;
     _lastPopupOpenedAt = null;
     _logger.info('Download listener stopped');
+  }
+
+  void setForegroundActive(bool active) {
+    if (_isForegroundActive == active) return;
+    _isForegroundActive = active;
+    _logger.info(
+      'Download listener ${active ? 'foreground' : 'background'} mode',
+    );
+  }
+
+  Future<void> _pollLoop() async {
+    while (_isListening) {
+      await _checkForNewDownloads();
+      if (!_isListening) return;
+      if (_isShowingPopup) {
+        await Future.delayed(const Duration(milliseconds: 500));
+      } else if (!_isForegroundActive) {
+        await Future.delayed(const Duration(seconds: 30));
+      }
+    }
   }
 
   // 检查是否有新的下载请求
@@ -51,9 +71,16 @@ class DownloadListenerService {
       final baseUrl = config.getBrowserExtensionBaseUrl();
       final response = await http
           .get(
-            Uri.parse('$baseUrl/download/pending-popup'),
+            Uri.parse('$baseUrl/download/pending-popup')
+                .replace(queryParameters: {
+              'wait_ms': _isForegroundActive ? '15000' : '1000',
+            }),
           )
-          .timeout(const Duration(seconds: 2));
+          .timeout(
+            _isForegroundActive
+                ? const Duration(seconds: 20)
+                : const Duration(seconds: 4),
+          );
 
       if (response.statusCode == 200) {
         final result = jsonDecode(response.body);

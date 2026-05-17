@@ -455,7 +455,12 @@ class _TrayMenuWindowPageState extends State<TrayMenuWindowPage> {
   Future<void> _onShowWindow() async {
     await _runAction(() async {
       try {
-        await _windowChannel.invokeMethod('showMainWindow');
+        await _windowChannel.invokeMethod(
+          'showMainWindowWithAction',
+          const <String, Object>{
+            'action': 'show_main_window',
+          },
+        );
       } catch (e) {
         debugPrint('Failed to show main window: $e');
       }

@@ -26,15 +26,18 @@ class NsfxHttpServer {
       {}; // fingerprint -> device info
   final Map<String, String> _sessionToFingerprint =
       {}; // session_id -> fingerprint
+  final Map<String, DateTime> _knownDeviceFingerprints = {};
   final List<Map<String, dynamic>> _onlineHistory = [];
-  final List<Map<String, dynamic>> _allDevices = []; // 所有历史设备
   Timer? _cleanupTimer;
   Timer? _historyTimer;
   int? _lastLoggedUniqueDeviceCount;
   int? _lastLoggedSessionCount;
   int? _lastLoggedFingerprintMappingCount;
+  int _totalDevicesEver = 0;
   static const Duration _sessionTimeout = Duration(minutes: 2);
   static const Duration _historyInterval = Duration(seconds: 10);
+  static const int _maxKnownDeviceFingerprints = 4096;
+  static const int _maxDeviceFingerprintDetails = 512;
 
   bool get isRunning => _isRunning;
 
@@ -85,7 +88,7 @@ class NsfxHttpServer {
     _lastLoggedUniqueDeviceCount = null;
     _lastLoggedSessionCount = null;
     _lastLoggedFingerprintMappingCount = null;
-    // 不清空 _allDevices，保留历史记录
+    // Keep lightweight seen-device counters across server restarts in this instance.
 
     for (final server in _compatibilityServers) {
       await server.close(force: true);
@@ -289,6 +292,17 @@ class NsfxHttpServer {
 
   Future<void> _handlePendingPopup(HttpRequest request) async {
     _cleanupExpiredPopupSignatures();
+    final waitMs = int.tryParse(request.uri.queryParameters['wait_ms'] ?? '')
+            ?.clamp(0, 30000)
+            .toInt() ??
+        0;
+    if (_pendingPopups.isEmpty && waitMs > 0) {
+      final deadline = DateTime.now().add(Duration(milliseconds: waitMs));
+      while (_pendingPopups.isEmpty && DateTime.now().isBefore(deadline)) {
+        await Future.delayed(const Duration(milliseconds: 250));
+      }
+    }
+
     if (_pendingPopups.isEmpty) {
       _sendJson(request, {'success': true, 'data': null});
       return;
@@ -547,6 +561,7 @@ class NsfxHttpServer {
       _sessionToFingerprint.remove(sessionId); // 同时清理指纹映射
       _logger.debug('NSFX-HTTP', 'Session expired: $sessionId');
     }
+    _trimDeviceFingerprintDetails();
 
     if (expiredSessions.isNotEmpty) {
       _logger.info(
@@ -589,7 +604,12 @@ class NsfxHttpServer {
 
     // 处理设备指纹
     if (fingerprint != null) {
+      final now = DateTime.now();
       _sessionToFingerprint[sessionId] = fingerprint;
+      if (!_knownDeviceFingerprints.containsKey(fingerprint)) {
+        _totalDevicesEver++;
+      }
+      _knownDeviceFingerprints[fingerprint] = now;
       _logger.debug(
           'NSFX-HTTP', 'Mapped session $sessionId to fingerprint $fingerprint');
 
@@ -603,25 +623,21 @@ class NsfxHttpServer {
           'fingerprint_short': fingerprintShort,
           'device_info': deviceInfo,
           'device_summary': _getDeviceSummary(deviceInfo),
-          'first_seen': DateTime.now().toIso8601String(),
-          'last_seen': DateTime.now().toIso8601String(),
+          'first_seen': now.toIso8601String(),
+          'last_seen': now.toIso8601String(),
           'session_count': 1,
         };
-
-        // 添加到历史设备列表
-        _allDevices.add({
-          ..._deviceFingerprints[fingerprint]!,
-          'added_at': DateTime.now().toIso8601String(),
-        });
 
         _logger.info('NSFX-HTTP', 'New device registered: $fingerprintShort');
       } else {
         // 更新现有设备
-        _deviceFingerprints[fingerprint]!['last_seen'] =
-            DateTime.now().toIso8601String();
+        _deviceFingerprints[fingerprint]!['last_seen'] = now.toIso8601String();
         _deviceFingerprints[fingerprint]!['session_count'] =
             (_deviceFingerprints[fingerprint]!['session_count'] as int) + 1;
       }
+
+      _trimKnownDeviceFingerprints();
+      _trimDeviceFingerprintDetails();
     }
 
     if (isNewSession) {
@@ -654,6 +670,54 @@ class NsfxHttpServer {
     }
 
     return activeFingerprints.length;
+  }
+
+  Set<String> _activeFingerprintSet() {
+    return _sessionToFingerprint.values.toSet();
+  }
+
+  void _trimKnownDeviceFingerprints() {
+    if (_knownDeviceFingerprints.length <= _maxKnownDeviceFingerprints) {
+      return;
+    }
+
+    final activeFingerprints = _activeFingerprintSet();
+    final entries = _knownDeviceFingerprints.entries.toList(growable: false)
+      ..sort((a, b) => a.value.compareTo(b.value));
+    final overflow =
+        _knownDeviceFingerprints.length - _maxKnownDeviceFingerprints;
+    var removed = 0;
+    for (final entry in entries) {
+      if (removed >= overflow) return;
+      if (activeFingerprints.contains(entry.key)) continue;
+      _knownDeviceFingerprints.remove(entry.key);
+      removed++;
+    }
+  }
+
+  void _trimDeviceFingerprintDetails() {
+    if (_deviceFingerprints.length <= _maxDeviceFingerprintDetails) {
+      return;
+    }
+
+    final activeFingerprints = _activeFingerprintSet();
+    final candidates = _deviceFingerprints.entries
+        .where((entry) => !activeFingerprints.contains(entry.key))
+        .toList(growable: false)
+      ..sort((a, b) =>
+          _deviceLastSeen(a.value).compareTo(_deviceLastSeen(b.value)));
+
+    var overflow = _deviceFingerprints.length - _maxDeviceFingerprintDetails;
+    for (final entry in candidates) {
+      if (overflow <= 0) return;
+      _deviceFingerprints.remove(entry.key);
+      overflow--;
+    }
+  }
+
+  DateTime _deviceLastSeen(Map<String, dynamic> deviceData) {
+    return DateTime.tryParse(deviceData['last_seen']?.toString() ?? '') ??
+        DateTime.fromMillisecondsSinceEpoch(0);
   }
 
   void _logUniqueDeviceStatsIfChanged({int? uniqueDevices}) {
@@ -755,7 +819,7 @@ class NsfxHttpServer {
         'history': _onlineHistory,
         'active_sessions': _activeSessions.length,
         'devices': activeDevices,
-        'total_devices_ever': _allDevices.length,
+        'total_devices_ever': _totalDevicesEver,
       },
     });
   }
@@ -778,6 +842,7 @@ class NsfxHttpServer {
       'averageSpeed': task.averageSpeed,
       'startTime': task.startTime?.toIso8601String(),
       'endTime': task.endTime?.toIso8601String(),
+      'segmentCount': task.segmentCount ?? task.segments.length,
       'segments': task.segments
           .map((s) => {
                 'index': s.index,

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'package:path/path.dart' as path;
 import '../models/task.dart';
 import '../models/segment.dart';
@@ -136,7 +137,7 @@ class TaskStorage {
         json[entry.key] = _taskToJson(entry.value);
       }
 
-      await _writeJsonAtomic(_tasksFile, json);
+      await _writeJsonAtomicInBackground(_tasksFile, json);
     });
   }
 
@@ -217,6 +218,14 @@ class TaskStorage {
 
   Future<void> _writeJsonAtomic(File target, Map<String, dynamic> json) async {
     final content = jsonEncode(json);
+    await _writeFileAtomically(target, content);
+  }
+
+  Future<void> _writeJsonAtomicInBackground(
+    File target,
+    Map<String, dynamic> json,
+  ) async {
+    final content = await Isolate.run(() => jsonEncode(json));
     await _writeFileAtomically(target, content);
   }
 
@@ -363,6 +372,7 @@ class TaskStorage {
         'startTime': task.startTime?.toIso8601String(),
         'endTime': task.endTime?.toIso8601String(),
         'createdTime': task.createdTime.toIso8601String(),
+        'segmentCount': task.segmentCountHint ?? task.segments.length,
         'userAgent': task.userAgent,
         'referer': task.referer,
         'cookies': task.cookies,
@@ -417,6 +427,8 @@ class TaskStorage {
       createdTime: json['createdTime'] != null
           ? DateTime.parse(json['createdTime'])
           : DateTime.now(),
+      segmentCountHint: (json['segmentCount'] as num?)?.toInt() ??
+          (json['segment_count'] as num?)?.toInt(),
       userAgent: json['userAgent'],
       referer: json['referer'],
       cookies: json['cookies'],
@@ -454,6 +466,12 @@ class TaskStorage {
           retryCount: s['retryCount'] ?? 0,
         ));
       }
+    }
+
+    if ((task.segmentCountHint == null ||
+            task.segmentCountHint! < task.segments.length) &&
+        task.segments.isNotEmpty) {
+      task.segmentCountHint = task.segments.length;
     }
 
     return task;

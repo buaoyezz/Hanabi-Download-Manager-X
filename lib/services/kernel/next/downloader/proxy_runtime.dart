@@ -122,6 +122,7 @@ class NsfxProxyRuntime {
   static const Duration _windowsSystemProxyConfigTtl = Duration(minutes: 1);
   static const Duration _windowsSystemProxyResolutionTtl =
       Duration(seconds: 30);
+  static const int _maxWindowsSystemProxyCacheEntries = 256;
   static const String _windowsInternetSettingsSubKey =
       r'Software\Microsoft\Windows\CurrentVersion\Internet Settings';
   static const int _windowsSystemProxyObserverWaitTimeoutMs = 1000;
@@ -148,6 +149,11 @@ class NsfxProxyRuntime {
   static void clearBadProxies() {
     _badProxyCache.clear();
     _clearWindowsSystemCaches();
+  }
+
+  static void compactCaches() {
+    _purgeExpiredBadProxies();
+    _purgeExpiredWindowsSystemProxyCache();
   }
 
   static bool forceReloadSystemProxyConfig() {
@@ -485,6 +491,9 @@ class NsfxProxyRuntime {
 
     final cacheKey = '${config.cacheKey}|${uri.toString()}';
     final now = DateTime.now();
+    if (_windowsSystemProxyCache.length >= _maxWindowsSystemProxyCacheEntries) {
+      _purgeExpiredWindowsSystemProxyCache(now: now);
+    }
     final cachedResolution = _windowsSystemProxyCache[cacheKey];
     if (cachedResolution != null && !cachedResolution.isExpired(now)) {
       return _resolveWindowsProxyList(
@@ -961,6 +970,25 @@ class NsfxProxyRuntime {
   static void _purgeExpiredBadProxies() {
     final now = DateTime.now();
     _badProxyCache.removeWhere((_, entry) => !entry.expiresAt.isAfter(now));
+  }
+
+  static void _purgeExpiredWindowsSystemProxyCache({DateTime? now}) {
+    final effectiveNow = now ?? DateTime.now();
+    _windowsSystemProxyCache.removeWhere(
+      (_, entry) => entry.isExpired(effectiveNow),
+    );
+
+    final overflow =
+        _windowsSystemProxyCache.length - _maxWindowsSystemProxyCacheEntries;
+    if (overflow <= 0) {
+      return;
+    }
+
+    final entries = _windowsSystemProxyCache.entries.toList(growable: false)
+      ..sort((a, b) => a.value.expiresAt.compareTo(b.value.expiresAt));
+    for (var i = 0; i < overflow; i++) {
+      _windowsSystemProxyCache.remove(entries[i].key);
+    }
   }
 
   static Duration _ttlForBadProxyFailure(int failures) {

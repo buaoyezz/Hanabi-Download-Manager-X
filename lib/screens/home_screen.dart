@@ -69,6 +69,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+  static bool _sessionStartupHooksScheduled = false;
+  static bool _sessionUpdateCheckScheduled = false;
+
   static const String _pageDownloading = 'downloading';
   static const String _pageCompleted = 'completed';
   static const String _pagePlugins = 'plugins';
@@ -319,10 +322,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     systemTrayService.onExitRequested = _confirmExitRequest;
     mainWindowCommandService.addListener(_handleMainWindowCommand);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkWindowEffectCrashRecovery();
-      unawaited(_showPendingCrashReportIfNeeded());
-    });
+    if (!_sessionStartupHooksScheduled) {
+      _sessionStartupHooksScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkWindowEffectCrashRecovery();
+        unawaited(_showPendingCrashReportIfNeeded());
+      });
+    }
 
     // 侧边栏动画控制器 - 快速响应的展开/收缩
     _sidebarController = AnimationController(
@@ -343,7 +349,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadSidebarState();
       _startWindowSizeMonitoring();
-      _checkForUpdates();
+      if (!_sessionUpdateCheckScheduled) {
+        _sessionUpdateCheckScheduled = true;
+        _checkForUpdates();
+      }
       _handleMainWindowCommand();
     });
   }
@@ -725,8 +734,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     final wasVisible = appWindow.isVisible;
     if (!wasVisible) {
-      systemTrayService.showMainWindow();
-      await Future<void>.delayed(const Duration(milliseconds: 80));
+      await systemTrayService.showMainWindow();
     }
 
     if (!mounted) return true;
@@ -1506,12 +1514,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // 使用 Selector 只在任务数量变化时重建，而不是每次任务更新都重建
     return Selector<IntegratedDownloadService, (int, int)>(
       selector: (_, service) {
-        final downloading = service.tasks
-            .where((t) => t.status == DownloadStatus.downloading)
-            .length;
-        final completed = service.tasks
-            .where((t) => t.status == DownloadStatus.completed)
-            .length;
+        var downloading = 0;
+        var completed = 0;
+        for (final task in service.tasks) {
+          if (task.status == DownloadStatus.downloading) {
+            downloading++;
+          } else if (task.status == DownloadStatus.completed) {
+            completed++;
+          }
+        }
         return (downloading, completed);
       },
       builder: (context, counts, _) {

@@ -20,6 +20,7 @@ class Task {
   DateTime? endTime;
   DateTime createdTime;
   List<Segment> segments;
+  int? segmentCountHint;
 
   String? userAgent;
   String? referer;
@@ -58,6 +59,7 @@ class Task {
     this.endTime,
     DateTime? createdTime,
     List<Segment>? segments,
+    this.segmentCountHint,
     this.userAgent,
     this.referer,
     this.cookies,
@@ -114,6 +116,7 @@ class Task {
         'startTime': startTime?.toIso8601String(),
         'endTime': endTime?.toIso8601String(),
         'createdTime': createdTime.toIso8601String(),
+        'segmentCount': segmentCountHint ?? segments.length,
         'segments': segments.map((s) => s.toJson()).toList(),
         'effectiveHttpVersionPolicy': effectiveHttpVersionPolicy,
         'negotiatedHttpVersion': negotiatedHttpVersion,

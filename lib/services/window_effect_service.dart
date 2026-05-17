@@ -167,8 +167,14 @@ class WindowEffectService extends ChangeNotifier {
   }
 
   Future<void> setEffectMode(String mode) async {
-    if (_effectMode != mode) {
-      _effectMode = mode;
+    String effectiveMode = mode;
+    if (_isWindows11 && (mode == 'acrylic' || mode == 'blur')) {
+      // Prevent crash if user manually selects acrylic/blur in settings on Win11
+      effectiveMode = 'mica_main';
+    }
+
+    if (_effectMode != effectiveMode) {
+      _effectMode = effectiveMode;
       await _applyWindowEffect();
       await _saveSettings();
       notifyListeners();

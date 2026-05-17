@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'package:path/path.dart' as p;
@@ -31,6 +32,10 @@ class NsfxKernel implements KernelInterface {
 
   Timer? _statsTimer;
   Timer? _saveTimer;
+  int _tasksRevision = 0;
+  int _savedTasksRevision = 0;
+  String? _lastSavedHostStrategiesJson;
+  static const int _defaultCompletedTaskDetailKeepCount = 80;
 
   // 节流控制，避免 Windows 消息队列溢出
   DateTime _lastProgressEmit = DateTime.fromMillisecondsSinceEpoch(0);
@@ -87,6 +92,9 @@ class NsfxKernel implements KernelInterface {
       if (recoveredTaskStates) {
         await _storage.saveTasks(_tasks);
       }
+      _savedTasksRevision = _tasksRevision;
+      _lastSavedHostStrategiesJson =
+          jsonEncode(NsfxHttpClient.exportAdaptiveHostStrategies());
 
       // 设置默认下载目录
       final home = Platform.environment['USERPROFILE'] ??
@@ -94,16 +102,14 @@ class NsfxKernel implements KernelInterface {
           Directory.current.path;
       _downloadDir = p.join(home, 'Downloads');
 
-      // 启动统计定时器
-      _statsTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      // 启动统计定时器。无监听者时跳过计算，降低后台空转。
+      _statsTimer = Timer.periodic(const Duration(seconds: 2), (_) {
         _emitStatistics();
       });
 
-      // 启动自动保存
-      _saveTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-        _storage.saveTasks(_tasks);
-        _storage
-            .saveHostStrategies(NsfxHttpClient.exportAdaptiveHostStrategies());
+      // 启动脏数据自动保存。空闲时不再每 5 秒重复写盘。
+      _saveTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+        unawaited(_flushPeriodicState());
       });
 
       // 启动 HTTP 服务器（用于浏览器扩展通信）
@@ -129,9 +135,8 @@ class NsfxKernel implements KernelInterface {
     _saveTimer?.cancel();
 
     await _httpServer?.stop();
-    await _storage.saveTasks(_tasks);
-    await _storage
-        .saveHostStrategies(NsfxHttpClient.exportAdaptiveHostStrategies());
+    await _saveTasksNow('shutdown');
+    await _saveHostStrategiesIfChanged(force: true);
     _httpClient.close();
 
     _isRunning = false;
@@ -183,9 +188,10 @@ class NsfxKernel implements KernelInterface {
     );
 
     _tasks[id] = task;
+    _markTasksDirty();
 
     // 绔嬪嵆淇濆瓨浠诲姟鍒楄〃
-    await _storage.saveTasks(_tasks);
+    await _saveTasksNow('add');
 
     if (!startPaused) {
       _checkQueue();
@@ -350,9 +356,10 @@ class NsfxKernel implements KernelInterface {
     task.status = TaskStatus.paused;
     _engine.pauseDownload(taskId);
     _progressController.add(_toDownloadTask(task));
+    _markTasksDirty();
 
     // 绔嬪嵆淇濆瓨浠诲姟鍒楄〃
-    await _storage.saveTasks(_tasks);
+    await _saveTasksNow('pause');
 
     _checkQueue();
     return true;
@@ -367,6 +374,7 @@ class NsfxKernel implements KernelInterface {
     }
 
     task.status = TaskStatus.pending;
+    _markTasksDirty();
     _checkQueue();
     return true;
   }
@@ -379,9 +387,11 @@ class NsfxKernel implements KernelInterface {
     task.status = TaskStatus.cancelled;
     _engine.cancelDownload(taskId);
     _tasks.remove(taskId);
+    _dropTaskBookkeeping(taskId);
+    _markTasksDirty();
 
     // 绔嬪嵆淇濆瓨浠诲姟鍒楄〃
-    await _storage.saveTasks(_tasks);
+    await _saveTasksNow('cancel');
 
     // 娓呯悊鏂囦欢
     try {
@@ -441,7 +451,10 @@ class NsfxKernel implements KernelInterface {
 
     if (task.status == TaskStatus.failed) {
       task.status = TaskStatus.pending;
+      _markTasksDirty();
       _checkQueue();
+    } else {
+      _markTasksDirty();
     }
 
     return true;
@@ -462,7 +475,10 @@ class NsfxKernel implements KernelInterface {
 
     if (task.status == TaskStatus.failed) {
       task.status = TaskStatus.pending;
+      _markTasksDirty();
       _checkQueue();
+    } else {
+      _markTasksDirty();
     }
 
     return true;
@@ -476,6 +492,27 @@ class NsfxKernel implements KernelInterface {
   @override
   Future<DownloadStatistics?> getStatistics() async {
     return _calculateStatistics();
+  }
+
+  @override
+  Future<int> compactCompletedTaskHistory({
+    int keepRecentFullDetails = _defaultCompletedTaskDetailKeepCount,
+  }) async {
+    final compacted = _compactCompletedTaskHistoryInMemory(
+      keepRecentFullDetails: keepRecentFullDetails,
+    );
+    NsfxHttpClient.compactSharedCaches();
+    if (compacted == 0) {
+      return 0;
+    }
+
+    _markTasksDirty();
+    _logger.info(
+      'NSFX',
+      'Compacted $compacted completed task histories for background memory',
+    );
+    await _saveTasksNow('compact-history');
+    return compacted;
   }
 
   @override
@@ -557,8 +594,13 @@ class NsfxKernel implements KernelInterface {
   @override
   Future<bool> clearAllData() async {
     _tasks.clear();
+    _lastEmittedStatus.clear();
+    _lastEmittedTotalSize.clear();
     NsfxHttpClient.clearAdaptivePolicyHints();
+    _markTasksDirty();
     await _storage.clearAll();
+    _savedTasksRevision = _tasksRevision;
+    _lastSavedHostStrategiesJson = jsonEncode(<String, dynamic>{});
     return true;
   }
 
@@ -571,6 +613,7 @@ class NsfxKernel implements KernelInterface {
   Future<bool> clearAdaptiveHostStrategies() async {
     NsfxHttpClient.clearAdaptivePolicyHints();
     await _storage.saveHostStrategies(<String, dynamic>{});
+    _lastSavedHostStrategiesJson = jsonEncode(<String, dynamic>{});
     return true;
   }
 
@@ -598,7 +641,8 @@ class NsfxKernel implements KernelInterface {
 
     task.filepath = newPath;
     task.filename = p.basename(newPath);
-    await _storage.saveTasks(_tasks);
+    _markTasksDirty();
+    await _saveTasksNow('move');
 
     _progressController.add(_toDownloadTask(task));
     return true;
@@ -721,6 +765,7 @@ class NsfxKernel implements KernelInterface {
 
   void _onTaskProgress(Task task) {
     final now = DateTime.now();
+    _markTasksDirty();
 
     // 检查是否有关键变化（状态变化或文件大小变化）
     final lastStatus = _lastEmittedStatus[task.id];
@@ -746,6 +791,7 @@ class NsfxKernel implements KernelInterface {
 
   void _onTaskComplete(Task task) {
     _logger.info('NSFX', 'Download completed: ${task.filename}');
+    _markTasksDirty();
     final completedTask = _toDownloadTask(task);
     _lastEmittedStatus[task.id] = task.status;
     _lastEmittedTotalSize[task.id] = task.totalSize;
@@ -756,6 +802,7 @@ class NsfxKernel implements KernelInterface {
   }
 
   void _onTaskError(Task task) {
+    _markTasksDirty();
     final errorMessage = task.errorMessage?.trim();
     if (errorMessage == null || errorMessage.isEmpty) {
       _logger.error('NSFX', 'Download failed: ${task.filename}');
@@ -766,13 +813,142 @@ class NsfxKernel implements KernelInterface {
   }
 
   void _saveTasksInBackground(String reason) {
-    unawaited(_storage.saveTasks(_tasks).catchError((error) {
+    unawaited(_saveTasksNow(reason).catchError((error) {
       _logger.warning('NSFX', 'Failed to save tasks after $reason: $error');
     }));
   }
 
   void _emitStatistics() {
+    if (!_statsController.hasListener) {
+      return;
+    }
     _statsController.add(_calculateStatistics());
+  }
+
+  void _markTasksDirty() {
+    _tasksRevision++;
+  }
+
+  int _compactCompletedTaskHistoryInMemory({
+    required int keepRecentFullDetails,
+  }) {
+    final completedTasks = _tasks.values
+        .where((task) => task.status == TaskStatus.completed)
+        .toList(growable: false)
+      ..sort((a, b) {
+        final aTime = a.endTime ?? a.createdTime;
+        final bTime = b.endTime ?? b.createdTime;
+        return bTime.compareTo(aTime);
+      });
+
+    if (completedTasks.length <= keepRecentFullDetails) {
+      return 0;
+    }
+
+    var compacted = 0;
+    for (var i = keepRecentFullDetails; i < completedTasks.length; i++) {
+      if (_compactCompletedTask(completedTasks[i])) {
+        compacted++;
+      }
+    }
+    return compacted;
+  }
+
+  bool _compactCompletedTask(Task task) {
+    var changed = false;
+
+    final existingSegmentCount = task.segmentCountHint ?? task.segments.length;
+    if (existingSegmentCount > 0 &&
+        (task.segmentCountHint == null ||
+            task.segmentCountHint! < existingSegmentCount)) {
+      task.segmentCountHint = existingSegmentCount;
+      changed = true;
+    }
+
+    if (task.segments.isNotEmpty) {
+      task.segments.clear();
+      changed = true;
+    }
+    if (task.headers != null) {
+      task.headers = null;
+      changed = true;
+    }
+    if (task.cookies != null && task.cookies!.isNotEmpty) {
+      task.cookies = null;
+      changed = true;
+    }
+    if (task.userAgent != null && task.userAgent!.isNotEmpty) {
+      task.userAgent = null;
+      changed = true;
+    }
+    if (task.ifRangeValidator != null) {
+      task.ifRangeValidator = null;
+      changed = true;
+    }
+    if (task.startupStatusKey != null) {
+      task.startupStatusKey = null;
+      changed = true;
+    }
+    if (task.speed != 0) {
+      task.speed = 0;
+      changed = true;
+    }
+    if (task.eta != 0) {
+      task.eta = 0;
+      changed = true;
+    }
+    if (task.totalSize > 0 && task.downloadedSize != task.totalSize) {
+      task.downloadedSize = min(task.downloadedSize, task.totalSize);
+      changed = true;
+    }
+    if (task.progress != 100) {
+      task.progress = 100;
+      changed = true;
+    }
+
+    if (changed) {
+      _dropTaskBookkeeping(task.id);
+    }
+    return changed;
+  }
+
+  void _dropTaskBookkeeping(String taskId) {
+    _lastEmittedStatus.remove(taskId);
+    _lastEmittedTotalSize.remove(taskId);
+  }
+
+  Future<void> _saveTasksNow(String reason) async {
+    final revision = _tasksRevision;
+    await _storage.saveTasks(_tasks);
+    if (_savedTasksRevision < revision) {
+      _savedTasksRevision = revision;
+    }
+  }
+
+  Future<void> _flushPeriodicState() async {
+    NsfxHttpClient.compactSharedCaches();
+    if (_tasksRevision != _savedTasksRevision) {
+      try {
+        await _saveTasksNow('periodic');
+      } catch (error) {
+        _logger.warning('NSFX', 'Periodic task save failed: $error');
+      }
+    }
+    try {
+      await _saveHostStrategiesIfChanged();
+    } catch (error) {
+      _logger.warning('NSFX', 'Periodic host strategy save failed: $error');
+    }
+  }
+
+  Future<void> _saveHostStrategiesIfChanged({bool force = false}) async {
+    final strategies = NsfxHttpClient.exportAdaptiveHostStrategies();
+    final encoded = jsonEncode(strategies);
+    if (!force && encoded == _lastSavedHostStrategiesJson) {
+      return;
+    }
+    await _storage.saveHostStrategies(strategies);
+    _lastSavedHostStrategiesJson = encoded;
   }
 
   DownloadStatistics _calculateStatistics() {
@@ -815,6 +991,7 @@ class NsfxKernel implements KernelInterface {
       startTime: task.startTime,
       endTime: task.endTime,
       createdTime: task.createdTime, // preserve creation time
+      segmentCount: task.segmentCountHint ?? task.segments.length,
       effectiveHttpVersionPolicy: task.effectiveHttpVersionPolicy,
       negotiatedHttpVersion: task.negotiatedHttpVersion,
       targetReachable: task.targetReachable,

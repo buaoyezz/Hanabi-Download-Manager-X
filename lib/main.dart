@@ -27,8 +27,10 @@ import 'services/developer_mode_service.dart';
 import 'services/client_config_service.dart';
 import 'services/native_render_log_service.dart';
 import 'services/speed_history_service.dart';
+import 'services/speed_chart_settings_service.dart';
 import 'services/quick_path_service.dart';
 import 'services/font_service.dart';
+import 'services/process_memory_trim_service.dart';
 import 'services/update_service.dart';
 import 'services/window_effect_service.dart';
 import 'services/user_profile_service.dart';
@@ -258,17 +260,46 @@ void main(List<String> args) async {
     final windowEffectService = WindowEffectService();
     final userProfileService = UserProfileService();
     final notificationSettings = NotificationSettingsService();
+    final speedChartSettings = SpeedChartSettingsService();
     final noticeService =
         NoticeService(logger: appLogger, config: clientConfig);
     final crashReportService = CrashReportService(logger: appLogger);
     final localizationService = LocalizationService();
     final pluginLifecycleService = PluginLifecycleService();
     final pluginStoreService = PluginStoreService();
+    var foregroundServicesStarted = false;
+    var foregroundServicesStarting = false;
+
+    Future<void> ensureForegroundServicesStarted() async {
+      if (foregroundServicesStarted || foregroundServicesStarting) {
+        return;
+      }
+      foregroundServicesStarting = true;
+      try {
+        networkStatus.startMonitoring();
+        await FluentIcons.initialize();
+        appLogger.info('App', 'FluentIcons initialized');
+        noticeService.startOnlineHeartbeat();
+        await pluginLifecycleService.initialize();
+        await pluginStoreService.initialize();
+        appLogger.info('Plugin', 'Plugin services initialized');
+        foregroundServicesStarted = true;
+      } catch (e, stack) {
+        appLogger.warning(
+          'App',
+          'Foreground service initialization failed: $e\n$stack',
+        );
+      } finally {
+        foregroundServicesStarting = false;
+      }
+    }
 
     appLogger.info('App', 'Application starting...');
     await clientConfig.initialize();
     await quickPathService.initialize(clientConfig.configDir);
-    networkStatus.startMonitoring();
+    if (!isAutoStart) {
+      networkStatus.startMonitoring();
+    }
     await developerMode.loadSettings();
     await fontService.loadFont();
     final initialThemeBrightness = AppTheme.resolveBrightness(
@@ -281,12 +312,13 @@ void main(List<String> args) async {
     );
     await updateService.initialize();
     await notificationSettings.init(); // 初始化通知设置
+    await speedChartSettings.initialize();
     await crashReportService.initialize();
     await NsfxProxyRuntime.ensureSystemProxyObserverStarted();
 
-    // 初始化 FluentIcons（从 JSON 加载图标映射）
-    await FluentIcons.initialize();
-    appLogger.info('App', 'FluentIcons initialized');
+    if (!isAutoStart) {
+      await ensureForegroundServicesStarted();
+    }
 
     // 初始化用户配置并启动心跳
     await userProfileService.initialize();
@@ -303,22 +335,6 @@ void main(List<String> args) async {
     });
 
     appLogger.info('App', 'Services initialized');
-    noticeService.startOnlineHeartbeat();
-
-    // 插件扫描和插件商店索引加载可能触发大量文件 IO / 网络请求，
-    // 放到主服务初始化之后异步执行，避免阻塞首帧和主窗口显示。
-    unawaited(Future<void>(() async {
-      try {
-        await pluginLifecycleService.initialize();
-        await pluginStoreService.initialize();
-        appLogger.info('Plugin', 'Plugin services initialized asynchronously');
-      } catch (e, stack) {
-        appLogger.warning(
-          'Plugin',
-          'Async plugin service initialization failed: $e\n$stack',
-        );
-      }
-    }));
 
     // 加载速度历史（异步，不阻塞启动）
     SpeedHistoryService().load().catchError((e) {
@@ -330,7 +346,9 @@ void main(List<String> args) async {
         providers: [
           ChangeNotifierProvider.value(value: kernelManager),
           ChangeNotifierProvider(
-            create: (context) => IntegratedDownloadService(),
+            create: (context) => IntegratedDownloadService(
+              startPluginTaskPolling: !isAutoStart,
+            ),
           ),
           ChangeNotifierProvider.value(value: appLogger),
           ChangeNotifierProvider.value(value: DownloadFailureStatsService()),
@@ -342,6 +360,7 @@ void main(List<String> args) async {
           ChangeNotifierProvider.value(value: updateService),
           ChangeNotifierProvider.value(value: windowEffectService),
           ChangeNotifierProvider.value(value: userProfileService),
+          ChangeNotifierProvider.value(value: speedChartSettings),
           ChangeNotifierProvider.value(value: noticeService),
           ChangeNotifierProvider.value(value: crashReportService),
           ChangeNotifierProvider.value(value: localizationService),
@@ -349,6 +368,9 @@ void main(List<String> args) async {
           ChangeNotifierProvider.value(value: pluginStoreService),
           Provider<PluginProcessRunner>(create: (_) => PluginProcessRunner()),
           Provider<bool>.value(value: isAutoStart), // 传递启动模式
+          Provider<Future<void> Function()>.value(
+            value: ensureForegroundServicesStarted,
+          ),
         ],
         child: const MyApp(),
       ),
@@ -440,7 +462,17 @@ void main(List<String> args) async {
 
       if (isAutoStart) {
         win.hide();
+        final result =
+            systemTrayService.onMainWindowVisibilityChanged?.call(false);
+        if (result is Future<void>) {
+          unawaited(result);
+        }
       } else {
+        final result =
+            systemTrayService.onMainWindowVisibilityChanged?.call(true);
+        if (result is Future<void>) {
+          unawaited(result);
+        }
         win.show();
         win.restore();
       }
@@ -470,8 +502,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   PopupBridgeService? _popupBridgeService;
   ClientConfigService? _clientConfig;
   bool _showClientUi = !Platform.isWindows;
+  bool _renderClientUi = !Platform.isWindows;
   bool _syncingPopupBridge = false;
   bool _oobeDialogShown = false;
+  Timer? _clientUiSuspendTimer;
+  final List<Timer> _clientUiMemoryTrimTimers = <Timer>[];
+  int _clientUiTrimGeneration = 0;
+  int? _foregroundImageCacheMaximumSize;
+  int? _foregroundImageCacheMaximumSizeBytes;
 
   @override
   void initState() {
@@ -499,9 +537,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     if (!canContinue || !mounted) return;
 
     _configureTrayMenuTaskProvider();
+    _configureWindowVisibilityPerformanceMode();
+    final isAutoStart = context.read<bool>();
     setState(() {
       _showClientUi = true;
+      _renderClientUi = !Platform.isWindows || !isAutoStart;
     });
+    if (Platform.isWindows) {
+      _applyWindowVisibilityPerformanceMode(!isAutoStart);
+    }
 
     await _initSystemTray();
     await _initKernel();
@@ -534,6 +578,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     await showHanabiOobeDialog(dialogHostContext);
   }
 
+  void _configureWindowVisibilityPerformanceMode() {
+    systemTrayService.onMainWindowVisibilityChanged =
+        _applyWindowVisibilityPerformanceMode;
+  }
+
   void _configureTrayMenuTaskProvider() {
     systemTrayService.activeTaskPayloadProvider = () {
       final downloadService = context.read<IntegratedDownloadService>();
@@ -553,6 +602,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         });
 
       return activeTasks
+          .take(4)
           .map(
             (task) => <String, dynamic>{
               'id': task.id,
@@ -576,6 +626,130 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     };
   }
 
+  Future<void> _applyWindowVisibilityPerformanceMode(bool visible) async {
+    if (!mounted) {
+      return;
+    }
+    final downloadService = context.read<IntegratedDownloadService>();
+    final networkStatus = context.read<NetworkStatusService>();
+    if (visible) {
+      unawaited(context.read<Future<void> Function()>()());
+      unawaited(downloadService.enablePluginTaskPolling());
+    }
+    downloadService.setForegroundActive(visible);
+    networkStatus.setForegroundActive(visible);
+    _downloadListener?.setForegroundActive(visible);
+    _clipboardListener?.setForegroundActive(visible);
+    await _setClientRenderingActive(visible);
+  }
+
+  Future<void> _setClientRenderingActive(bool active) async {
+    if (!Platform.isWindows || !mounted) {
+      return;
+    }
+
+    if (active) {
+      _clientUiSuspendTimer?.cancel();
+      _clientUiSuspendTimer = null;
+      _cancelClientUiMemoryTrim();
+      if (!_renderClientUi) {
+        setState(() {
+          _renderClientUi = true;
+        });
+        await WidgetsBinding.instance.endOfFrame;
+        await Future<void>.delayed(const Duration(milliseconds: 16));
+      }
+      return;
+    }
+
+    _clientUiSuspendTimer?.cancel();
+    _clientUiSuspendTimer = Timer(const Duration(milliseconds: 350), () {
+      _clientUiSuspendTimer = null;
+      if (!mounted || _renderClientUi == false) {
+        return;
+      }
+      setState(() {
+        _renderClientUi = false;
+      });
+      _releaseClientUiMemoryForBackground();
+    });
+  }
+
+  void _releaseClientUiMemoryForBackground() {
+    if (!Platform.isWindows) {
+      return;
+    }
+
+    final generation = ++_clientUiTrimGeneration;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          _renderClientUi ||
+          generation != _clientUiTrimGeneration) {
+        return;
+      }
+
+      final imageCache = PaintingBinding.instance.imageCache;
+      _foregroundImageCacheMaximumSize ??= imageCache.maximumSize;
+      _foregroundImageCacheMaximumSizeBytes ??= imageCache.maximumSizeBytes;
+      imageCache.maximumSize = 16;
+      imageCache.maximumSizeBytes = 8 * 1024 * 1024;
+      imageCache.clear();
+      imageCache.clearLiveImages();
+
+      _scheduleClientUiMemoryTrimPass(
+        generation,
+        const Duration(milliseconds: 200),
+        'background-ui-unloaded',
+      );
+      _scheduleClientUiMemoryTrimPass(
+        generation,
+        const Duration(seconds: 3),
+        'background-settled',
+      );
+    });
+  }
+
+  void _scheduleClientUiMemoryTrimPass(
+    int generation,
+    Duration delay,
+    String reason,
+  ) {
+    late final Timer timer;
+    timer = Timer(delay, () {
+      _clientUiMemoryTrimTimers.remove(timer);
+      if (!mounted ||
+          _renderClientUi ||
+          generation != _clientUiTrimGeneration) {
+        return;
+      }
+      ProcessMemoryTrimService.trimCurrentProcessWorkingSet(reason: reason);
+    });
+    _clientUiMemoryTrimTimers.add(timer);
+  }
+
+  void _cancelClientUiMemoryTrim() {
+    _clientUiTrimGeneration++;
+    for (final timer in _clientUiMemoryTrimTimers) {
+      timer.cancel();
+    }
+    _clientUiMemoryTrimTimers.clear();
+    _restoreForegroundImageCacheBudget();
+  }
+
+  void _restoreForegroundImageCacheBudget() {
+    final maximumSize = _foregroundImageCacheMaximumSize;
+    final maximumSizeBytes = _foregroundImageCacheMaximumSizeBytes;
+    if (maximumSize == null || maximumSizeBytes == null) {
+      return;
+    }
+
+    final imageCache = PaintingBinding.instance.imageCache;
+    imageCache.maximumSize = maximumSize;
+    imageCache.maximumSizeBytes = maximumSizeBytes;
+    _foregroundImageCacheMaximumSize = null;
+    _foregroundImageCacheMaximumSizeBytes = null;
+  }
+
   Future<Object?> _handleWindowChannelCall(MethodCall call) async {
     if (call.method != 'handleMainWindowAction') {
       return null;
@@ -586,11 +760,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ? arguments.map((key, value) => MapEntry(key.toString(), value))
         : const <String, dynamic>{};
     final action = payload['action']?.toString().trim();
-    if (action == null || action.isEmpty) {
-      return false;
+    if (action == null || action.isEmpty || action == 'show_main_window') {
+      await systemTrayService.showMainWindow();
+      return action == 'show_main_window';
     }
 
-    systemTrayService.showMainWindow();
+    await systemTrayService.showMainWindow();
     switch (action) {
       case 'show_downloading_page':
         mainWindowCommandService.dispatch(
@@ -852,6 +1027,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void _initDownloadListener() {
     _downloadListener = DownloadListenerService(context);
     _downloadListener!.startListening();
+    if (Platform.isWindows) {
+      _downloadListener!.setForegroundActive(_renderClientUi);
+    }
 
     // 注意：在线统计功能已移至网页端
     // 访问 https://online.zzbuaoye.net 查看统计数据
@@ -860,13 +1038,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void _initClipboardListener() {
     _clipboardListener = ClipboardListenerService(context);
     _clipboardListener!.start();
+    if (Platform.isWindows) {
+      _clipboardListener!.setForegroundActive(_renderClientUi);
+    }
   }
 
   Future<void> _cleanup() async {
+    _clientUiSuspendTimer?.cancel();
+    _cancelClientUiMemoryTrim();
     // Cache dependencies before async gaps.
     final kernelManager = context.read<KernelManager>();
-    systemTrayService.activeTaskPayloadProvider = null;
-
     // 保存窗口状态
     try {
       final win = appWindow;
@@ -908,13 +1089,18 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
 
     systemTrayService.dispose();
+    systemTrayService.onMainWindowVisibilityChanged = null;
+    systemTrayService.activeTaskPayloadProvider = null;
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _clientUiSuspendTimer?.cancel();
+    _cancelClientUiMemoryTrim();
     _windowChannel.setMethodCallHandler(null);
     _clientConfig?.removeListener(_handleClientConfigChanged);
+    systemTrayService.onMainWindowVisibilityChanged = null;
     systemTrayService.activeTaskPayloadProvider = null;
     // 同步清理，不等待异步操作
     _downloadListener?.stopListening();
@@ -937,14 +1123,17 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final pluginService = context.watch<PluginLifecycleService>();
+    final shouldRenderClientUi = _showClientUi && _renderClientUi;
     Map<String, dynamic>? activeThemeOverrides;
-    for (final plugin in pluginService.plugins) {
-      if (plugin.enabled &&
-          plugin.manifest.supportsCapability('theme_provider') &&
-          plugin.manifest.themeOverrides != null) {
-        activeThemeOverrides = plugin.manifest.themeOverrides;
-        break;
+    if (shouldRenderClientUi) {
+      final pluginService = context.watch<PluginLifecycleService>();
+      for (final plugin in pluginService.plugins) {
+        if (plugin.enabled &&
+            plugin.manifest.supportsCapability('theme_provider') &&
+            plugin.manifest.themeOverrides != null) {
+          activeThemeOverrides = plugin.manifest.themeOverrides;
+          break;
+        }
       }
     }
     AppTheme.applyPluginOverrides(activeThemeOverrides);
@@ -1070,8 +1259,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               child: content,
             );
           },
-          home:
-              _showClientUi ? const HomeScreen() : const _StartupShellScreen(),
+          home: !_showClientUi
+              ? const _StartupShellScreen()
+              : shouldRenderClientUi
+                  ? const HomeScreen()
+                  : const _BackgroundShellScreen(),
         );
       },
     );
@@ -1080,6 +1272,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
 class _StartupShellScreen extends StatelessWidget {
   const _StartupShellScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox.expand();
+  }
+}
+
+class _BackgroundShellScreen extends StatelessWidget {
+  const _BackgroundShellScreen();
 
   @override
   Widget build(BuildContext context) {

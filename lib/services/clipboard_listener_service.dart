@@ -303,30 +303,35 @@ class ClipboardListenerService {
   final _logger = AppLoggerService();
 
   Timer? _pollTimer;
+  bool _isStarted = false;
+  bool _isForegroundActive = true;
   bool _isShowing = false;
   bool _isChecking = false;
   bool _isMutedForSession = false;
-  String? _lastObservedClipboardText;
+  String? _lastObservedClipboardSignature;
   DateTime? _globalDismissCooldownUntil;
   final Map<String, DateTime> _dismissedCandidateCooldowns = {};
 
   static const _pollInterval = Duration(milliseconds: 900);
   static const _dismissCooldown = Duration(minutes: 30);
   static const _globalDismissCooldown = Duration(minutes: 5);
+  static const _maxClipboardTextToInspect = 8192;
   static const _textPreviewLimit = 96;
   static const _urlPreviewLimit = 180;
 
   void start() {
     _pollTimer?.cancel();
+    _isStarted = true;
     _isChecking = false;
     _isShowing = false;
     activeInstance = this;
     _primeClipboardSnapshot();
-    _pollTimer = Timer.periodic(_pollInterval, (_) => _checkClipboard());
+    _restartPollTimerIfNeeded();
     _logger.info('Clipboard', 'Clipboard listener started');
   }
 
   void stop() {
+    _isStarted = false;
     _pollTimer?.cancel();
     _pollTimer = null;
     _isShowing = false;
@@ -335,6 +340,30 @@ class ClipboardListenerService {
       activeInstance = null;
     }
     _logger.info('Clipboard', 'Clipboard listener stopped');
+  }
+
+  void setForegroundActive(bool active) {
+    if (_isForegroundActive == active) return;
+    _isForegroundActive = active;
+
+    if (!_isStarted) return;
+    if (active) {
+      _primeClipboardSnapshot();
+      _restartPollTimerIfNeeded();
+      _logger.info('Clipboard', 'Clipboard listener resumed for foreground');
+      return;
+    }
+
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    _isChecking = false;
+    _logger.info('Clipboard', 'Clipboard listener suspended for background');
+  }
+
+  void _restartPollTimerIfNeeded() {
+    if (!_isStarted || !_isForegroundActive) return;
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(_pollInterval, (_) => _checkClipboard());
   }
 
   void muteForSession() {
@@ -353,9 +382,9 @@ class ClipboardListenerService {
   Future<void> _primeClipboardSnapshot() async {
     try {
       final data = await Clipboard.getData(Clipboard.kTextPlain);
-      _lastObservedClipboardText = data?.text?.trim();
+      _lastObservedClipboardSignature = _clipboardSignature(data?.text?.trim());
     } catch (_) {
-      _lastObservedClipboardText = null;
+      _lastObservedClipboardSignature = null;
     }
   }
 
@@ -364,6 +393,7 @@ class ClipboardListenerService {
     bool ignoreNavigatorState = false,
   }) async {
     if (!context.mounted) return;
+    if (!force && !_isForegroundActive) return;
     if (_isShowing || _isChecking) return;
     _isChecking = true;
 
@@ -373,10 +403,11 @@ class ClipboardListenerService {
 
       final rawText = data?.text?.trim();
       if (rawText == null || rawText.isEmpty) {
-        if (_lastObservedClipboardText == '') {
+        final emptySignature = _clipboardSignature('');
+        if (_lastObservedClipboardSignature == emptySignature) {
           return;
         }
-        _lastObservedClipboardText = '';
+        _lastObservedClipboardSignature = emptySignature;
         _logClipboardDecision(
           stage: 'skipped',
           reason: 'empty_clipboard',
@@ -384,10 +415,48 @@ class ClipboardListenerService {
         );
         return;
       }
-      if (!force && _lastObservedClipboardText == rawText) {
+      final textSignature = _clipboardSignature(rawText);
+      if (!force && _lastObservedClipboardSignature == textSignature) {
         return;
       }
-      _lastObservedClipboardText = rawText;
+      _lastObservedClipboardSignature = textSignature;
+
+      final config = Provider.of<ClientConfigService>(context, listen: false);
+      if (!config.getEnableClipboardListener()) {
+        _logClipboardDecision(
+          stage: 'skipped',
+          reason: 'listener_disabled',
+          force: force,
+        );
+        return;
+      }
+      if (_isMutedForSession) {
+        _logClipboardDecision(
+          stage: 'skipped',
+          reason: 'muted_for_session',
+          force: force,
+        );
+        return;
+      }
+
+      if (!appWindow.isVisible) {
+        _logClipboardDecision(
+          stage: 'skipped',
+          reason: 'window_hidden',
+          force: force,
+        );
+        return;
+      }
+
+      if (rawText.length > _maxClipboardTextToInspect) {
+        _logClipboardDecision(
+          stage: 'skipped',
+          reason: 'clipboard_text_too_large',
+          force: force,
+          extra: 'length=${rawText.length}',
+        );
+        return;
+      }
 
       final url = ClipboardDownloadUrlHeuristics.extractUrl(rawText);
       final looksLikeDownload = url != null &&
@@ -403,41 +472,6 @@ class ClipboardListenerService {
         looksLikeDownload: looksLikeDownload,
       );
 
-      final config = Provider.of<ClientConfigService>(context, listen: false);
-      if (!config.getEnableClipboardListener()) {
-        _logClipboardDecision(
-          stage: 'skipped',
-          reason: 'listener_disabled',
-          force: force,
-          rawText: rawText,
-          url: url,
-          looksLikeDownload: looksLikeDownload,
-        );
-        return;
-      }
-      if (_isMutedForSession) {
-        _logClipboardDecision(
-          stage: 'skipped',
-          reason: 'muted_for_session',
-          force: force,
-          rawText: rawText,
-          url: url,
-          looksLikeDownload: looksLikeDownload,
-        );
-        return;
-      }
-
-      if (!appWindow.isVisible) {
-        _logClipboardDecision(
-          stage: 'skipped',
-          reason: 'window_hidden',
-          force: force,
-          rawText: rawText,
-          url: url,
-          looksLikeDownload: looksLikeDownload,
-        );
-        return;
-      }
       final navigator = navigatorKey.currentState;
       if (!ignoreNavigatorState && navigator != null && navigator.canPop()) {
         _logClipboardDecision(
@@ -575,6 +609,11 @@ class ClipboardListenerService {
     _dismissedCandidateCooldowns.removeWhere(
       (_, expiresAt) => !expiresAt.isAfter(now),
     );
+  }
+
+  String _clipboardSignature(String? value) {
+    final text = value ?? '';
+    return '${text.length}:${text.hashCode}';
   }
 
   void _logClipboardDecision({

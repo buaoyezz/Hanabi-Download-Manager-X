@@ -28,24 +28,46 @@ class NetworkStatusService extends ChangeNotifier {
   NetworkInfo get networkInfo => _networkInfo;
 
   Timer? _checkTimer;
+  bool _isChecking = false;
+  bool _isForegroundActive = true;
+  static const _foregroundInterval = Duration(seconds: 30);
+  static const _backgroundInterval = Duration(minutes: 2);
 
   void startMonitoring() {
-    _checkNetworkStatus();
-    _checkTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      _checkNetworkStatus();
-    });
+    stopMonitoring();
+    unawaited(_checkNetworkStatus());
+    _scheduleNextCheck();
   }
 
   void stopMonitoring() {
     _checkTimer?.cancel();
+    _checkTimer = null;
+  }
+
+  void setForegroundActive(bool active) {
+    if (_isForegroundActive == active) return;
+    _isForegroundActive = active;
+    _scheduleNextCheck();
+  }
+
+  void _scheduleNextCheck() {
+    _checkTimer?.cancel();
+    final interval =
+        _isForegroundActive ? _foregroundInterval : _backgroundInterval;
+    _checkTimer = Timer(interval, () async {
+      await _checkNetworkStatus();
+      _scheduleNextCheck();
+    });
   }
 
   Future<void> _checkNetworkStatus() async {
+    if (_isChecking) return;
+    _isChecking = true;
     try {
       // 检查本地网络连接
       final interfaces = await NetworkInterface.list();
       final hasConnection = interfaces.isNotEmpty;
-      
+
       String? localIP;
       if (hasConnection) {
         for (var interface in interfaces) {
@@ -64,11 +86,13 @@ class NetworkStatusService extends ChangeNotifier {
       bool hasInternet = false;
       try {
         final stopwatch = Stopwatch()..start();
-        final response = await http.get(
-          Uri.parse('https://www.google.com'),
-        ).timeout(const Duration(seconds: 5));
+        final response = await http
+            .get(
+              Uri.parse('https://www.google.com'),
+            )
+            .timeout(const Duration(seconds: 5));
         stopwatch.stop();
-        
+
         if (response.statusCode == 200) {
           hasInternet = true;
           ping = stopwatch.elapsedMilliseconds;
@@ -77,11 +101,13 @@ class NetworkStatusService extends ChangeNotifier {
         // 尝试备用地址
         try {
           final stopwatch = Stopwatch()..start();
-          final response = await http.get(
-            Uri.parse('https://www.baidu.com'),
-          ).timeout(const Duration(seconds: 5));
+          final response = await http
+              .get(
+                Uri.parse('https://www.baidu.com'),
+              )
+              .timeout(const Duration(seconds: 5));
           stopwatch.stop();
-          
+
           if (response.statusCode == 200) {
             hasInternet = true;
             ping = stopwatch.elapsedMilliseconds;
@@ -91,7 +117,7 @@ class NetworkStatusService extends ChangeNotifier {
         }
       }
 
-      _networkInfo = NetworkInfo(
+      final nextInfo = NetworkInfo(
         isConnected: hasConnection,
         hasInternet: hasInternet,
         localIP: localIP,
@@ -99,12 +125,27 @@ class NetworkStatusService extends ChangeNotifier {
         connectionType: _getConnectionType(),
       );
 
-      notifyListeners();
+      if (_hasNetworkInfoChanged(_networkInfo, nextInfo)) {
+        _networkInfo = nextInfo;
+        notifyListeners();
+      } else {
+        _networkInfo = nextInfo;
+      }
     } catch (e) {
       if (kDebugMode) {
         print('Network status check error: $e');
       }
+    } finally {
+      _isChecking = false;
     }
+  }
+
+  bool _hasNetworkInfoChanged(NetworkInfo previous, NetworkInfo next) {
+    return previous.isConnected != next.isConnected ||
+        previous.hasInternet != next.hasInternet ||
+        previous.localIP != next.localIP ||
+        previous.connectionType != next.connectionType ||
+        (previous.ping ?? -1) != (next.ping ?? -1);
   }
 
   String _getConnectionType() {
