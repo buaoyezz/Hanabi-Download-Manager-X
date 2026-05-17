@@ -89,4 +89,4 @@ flutter build windows --release
 
 这意味着，只要您使用的是提供的采用 MIT 协议的插件 API，您就可以自由地为 Hanabi Download Manager X 开发开源或闭源（商业）插件，而不会受制于 GPLv3 的传染性要求。
 
-Copyright © 2026 [ZZBuAoYe](https://github.com/buaoyezz/)
+Copyright © 2026 [ZZBuAoYe](https://zzbuaoye.net)
