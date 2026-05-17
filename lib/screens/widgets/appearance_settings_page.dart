@@ -18,6 +18,7 @@ import '../../services/client_config_service.dart';
 import '../../services/notification_settings_service.dart';
 import '../../services/performance_monitor_service.dart';
 import '../../services/localization_service.dart';
+import '../../services/speed_chart_settings_service.dart';
 import '../../l10n/app_localizations.dart';
 import '../../widgets/animated_notifications.dart';
 import '../../theme/app_theme.dart';
@@ -450,6 +451,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     final notificationSettings = NotificationSettingsService();
+    final speedChartSettings = SpeedChartSettingsService();
+    await speedChartSettings.initialize();
 
     if (mounted) {
       setState(() {
@@ -458,10 +461,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         _segmentsMaxVisible = prefs.getInt('segments_max_visible') ?? 5;
         _segmentsDisplayMode =
             prefs.getString('segments_display_mode') ?? 'merged';
-        _showSpeedChart = prefs.getBool('show_speed_chart') ?? true;
-        _showChartFrost = prefs.getBool('show_chart_frost') ?? true;
-        _chartPosition = prefs.getString('chart_position') ?? 'mid';
-        _chartColor = prefs.getString('chart_color') ?? 'blue';
+        _showSpeedChart = speedChartSettings.showSpeedChart;
+        _showChartFrost = speedChartSettings.showChartFrost;
+        _chartPosition = speedChartSettings.chartPosition;
+        _chartColor = speedChartSettings.chartColor;
 
         // 加载通知设置
         _notificationEnabled = notificationSettings.enabled;
@@ -996,27 +999,25 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
   }
 
   Future<void> _saveShowSpeedChart(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('show_speed_chart', value);
+    await SpeedChartSettingsService().setShowSpeedChart(value);
     setState(() => _showSpeedChart = value);
   }
 
   Future<void> _saveShowChartFrost(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('show_chart_frost', value);
+    await SpeedChartSettingsService().setShowChartFrost(value);
     setState(() => _showChartFrost = value);
   }
 
   Future<void> _saveChartPosition(String value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('chart_position', value);
-    setState(() => _chartPosition = value);
+    final normalized = SpeedChartSettingsService.normalizePosition(value);
+    await SpeedChartSettingsService().setChartPosition(normalized);
+    setState(() => _chartPosition = normalized);
   }
 
   Future<void> _saveChartColor(String value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('chart_color', value);
-    setState(() => _chartColor = value);
+    final normalized = SpeedChartSettingsService.normalizeColor(value);
+    await SpeedChartSettingsService().setChartColor(normalized);
+    setState(() => _chartColor = normalized);
   }
 
   // 通知设置保存方法

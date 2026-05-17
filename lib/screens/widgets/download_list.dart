@@ -7,6 +7,7 @@ import '../../services/integrated_download_service.dart';
 import '../../services/performance_monitor_service.dart';
 import '../../services/download_failure_stats_service.dart';
 import '../../services/client_config_service.dart';
+import '../../services/speed_chart_settings_service.dart';
 import '../../models/download_task.dart'
     show DownloadTask, DownloadStatus, SegmentInfo;
 import '../../theme/app_theme.dart';
@@ -105,15 +106,14 @@ class _DownloadListState extends State<DownloadList> {
 
           var activeTasks =
               tasks.where((t) => t.status != DownloadStatus.completed).toList();
+          final normalizedSearchQuery = _searchQuery.toLowerCase();
 
           // 应用搜索过滤
-          if (_searchQuery.isNotEmpty) {
+          if (normalizedSearchQuery.isNotEmpty) {
             activeTasks = activeTasks
                 .where((t) =>
-                    t.fileName
-                        .toLowerCase()
-                        .contains(_searchQuery.toLowerCase()) ||
-                    t.url.toLowerCase().contains(_searchQuery.toLowerCase()))
+                    t.fileName.toLowerCase().contains(normalizedSearchQuery) ||
+                    t.url.toLowerCase().contains(normalizedSearchQuery))
                 .toList();
           }
 
@@ -164,15 +164,21 @@ class _DownloadListState extends State<DownloadList> {
               Selector<IntegratedDownloadService,
                   ({int count, double speed, int segments})>(
                 selector: (_, service) {
-                  final downloadingTasks = service.tasks
-                      .where((t) => t.status == DownloadStatus.downloading)
-                      .toList();
+                  var count = 0;
+                  var speed = 0.0;
+                  var segments = 0;
+                  for (final task in service.tasks) {
+                    if (task.status != DownloadStatus.downloading) {
+                      continue;
+                    }
+                    count++;
+                    speed += task.speed ?? 0;
+                    segments += task.segments?.length ?? 0;
+                  }
                   return (
-                    count: downloadingTasks.length,
-                    speed: downloadingTasks.fold<double>(
-                        0, (sum, t) => sum + (t.speed ?? 0)),
-                    segments: downloadingTasks.fold<int>(
-                        0, (sum, t) => sum + (t.segments?.length ?? 0)),
+                    count: count,
+                    speed: speed,
+                    segments: segments,
                   );
                 },
                 builder: (context, stats, child) {
@@ -204,12 +210,7 @@ class _DownloadListState extends State<DownloadList> {
                             Selector<IntegratedDownloadService, DownloadTask?>(
                           key: ValueKey(taskId),
                           selector: (_, service) {
-                            try {
-                              return service.tasks
-                                  .firstWhere((t) => t.id == taskId);
-                            } catch (_) {
-                              return null;
-                            }
+                            return service.getTaskById(taskId);
                           },
                           builder: (context, task, child) {
                             if (task == null) return const SizedBox.shrink();
@@ -1008,10 +1009,6 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
   bool _showAllSegments = false;
   int _maxVisibleSegments = 5;
   String _segmentsDisplayMode = 'merged'; // 'merged' (合并) 或 'list' (列表)
-  bool _showSpeedChart = true;
-  bool _showChartFrost = true;
-  String _chartPosition = 'mid'; // 'low' | 'mid' | 'high'
-  String _chartColor = 'blue';
 
   AppLocalizations get t => AppLocalizations.of(context)!;
 
@@ -1026,19 +1023,11 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
     final defaultExpanded = prefs.getBool('segments_default_expanded') ?? false;
     final maxVisible = prefs.getInt('segments_max_visible') ?? 5;
     final displayMode = prefs.getString('segments_display_mode') ?? 'merged';
-    final showChart = prefs.getBool('show_speed_chart') ?? true;
-    final showFrost = prefs.getBool('show_chart_frost') ?? true;
-    final chartPos = prefs.getString('chart_position') ?? 'mid';
-    final chartCol = prefs.getString('chart_color') ?? 'blue';
     if (mounted) {
       setState(() {
         _isSegmentsExpanded = defaultExpanded;
         _maxVisibleSegments = maxVisible;
         _segmentsDisplayMode = displayMode;
-        _showSpeedChart = showChart;
-        _showChartFrost = showFrost;
-        _chartPosition = chartPos;
-        _chartColor = chartCol;
       });
     }
   }
@@ -1049,6 +1038,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
     PerformanceMonitorService().trackRebuild('DownloadTaskCard');
 
     final downloadService = context.read<IntegratedDownloadService>();
+    final chartSettings = context.watch<SpeedChartSettingsService>();
     final showHttpConnectivityBadges =
         context.select<ClientConfigService, bool>(
       (config) => config.getBool(
@@ -1075,7 +1065,7 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
       child: Stack(
         children: [
           // 背景速度折线图（下载中/暂停/失败时显示）
-          if (_showSpeedChart &&
+          if (chartSettings.showSpeedChart &&
               (widget.task.status == DownloadStatus.downloading ||
                   widget.task.status == DownloadStatus.paused ||
                   widget.task.status == DownloadStatus.failed))
@@ -1085,24 +1075,18 @@ class _DownloadTaskCardState extends State<_DownloadTaskCard> {
                 child: SpeedChartWidget(
                   taskId: widget.task.id,
                   currentSpeed: widget.task.speed ?? 0,
-                  status: widget.task.status == DownloadStatus.paused
-                      ? 'paused'
-                      : widget.task.status == DownloadStatus.failed
-                          ? 'failed'
-                          : 'downloading',
-                  colorName: _chartColor,
-                  position: _chartPosition == 'low'
+                  colorName: chartSettings.chartColor,
+                  position: chartSettings.chartPosition == 'low'
                       ? ChartPosition.low
-                      : _chartPosition == 'high'
+                      : chartSettings.chartPosition == 'high'
                           ? ChartPosition.high
                           : ChartPosition.mid,
-                  progress: widget.task.progress.clamp(0.0, 1.0),
                 ),
               ),
             ),
           // 毛玻璃层（在曲线之上、内容之下）
-          if (_showSpeedChart &&
-              _showChartFrost &&
+          if (chartSettings.showSpeedChart &&
+              chartSettings.showChartFrost &&
               (widget.task.status == DownloadStatus.downloading ||
                   widget.task.status == DownloadStatus.paused ||
                   widget.task.status == DownloadStatus.failed))

@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../services/speed_history_service.dart';
+import '../services/speed_chart_settings_service.dart';
 
 /// 速度曲线颜色预设
 class SpeedChartColors {
@@ -13,7 +14,8 @@ class SpeedChartColors {
     'orange': Color(0xFFF97316),
   };
 
-  static Color fromName(String name) => presets[name] ?? presets['blue']!;
+  static Color fromName(String name) =>
+      presets[SpeedChartSettingsService.normalizeColor(name)]!;
 }
 
 /// 线条位置：低/中/高
@@ -24,41 +26,28 @@ class SpeedChartWidget extends StatelessWidget {
   final String taskId;
   final double currentSpeed;
   final double? height;
-  /// 'downloading' | 'paused' | 'failed'
-  final String status;
+
   /// 自定义线条颜色名称
   final String colorName;
+
   /// 线条位置
   final ChartPosition position;
-  /// 下载进度 0.0~1.0，曲线宽度与进度同步
-  final double progress;
 
   const SpeedChartWidget({
     super.key,
     required this.taskId,
     required this.currentSpeed,
     this.height,
-    this.status = 'downloading',
     this.colorName = 'blue',
     this.position = ChartPosition.mid,
-    this.progress = 1.0,
   });
 
-  Color _lineColor() {
-    switch (status) {
-      case 'paused':
-        return const Color(0xFFF59E0B);
-      case 'failed':
-        return const Color(0xFFEF4444);
-      default:
-        return SpeedChartColors.fromName(colorName);
-    }
-  }
+  Color _lineColor() => SpeedChartColors.fromName(colorName);
 
   @override
   Widget build(BuildContext context) {
-    final history = SpeedHistoryService().getHistory(taskId);
-    if (history.isEmpty || history.length < 2) return const SizedBox.shrink();
+    final history = _normalizeData(SpeedHistoryService().getHistory(taskId));
+    if (history.length < 2) return const SizedBox.shrink();
 
     final color = _lineColor();
 
@@ -68,7 +57,6 @@ class SpeedChartWidget extends StatelessWidget {
         color: color,
         maxDataPoints: SpeedHistoryService.maxDataPoints,
         position: position,
-        progress: progress,
       ),
       size: Size.infinite,
     );
@@ -78,8 +66,32 @@ class SpeedChartWidget extends StatelessWidget {
     }
     return chart;
   }
-}
 
+  List<double> _normalizeData(List<double> history) {
+    final data = history
+        .where((speed) => speed.isFinite && !speed.isNaN && speed >= 0)
+        .toList(growable: true);
+    final safeCurrentSpeed =
+        currentSpeed.isFinite && !currentSpeed.isNaN && currentSpeed > 0
+            ? currentSpeed
+            : 0.0;
+
+    if (data.isEmpty && safeCurrentSpeed > 0) {
+      data.addAll([0, safeCurrentSpeed]);
+    } else if (data.length == 1) {
+      if (data.single <= 0 && safeCurrentSpeed > 0) {
+        data[0] = 0;
+        data.add(safeCurrentSpeed);
+      } else {
+        data.insert(0, 0);
+      }
+    } else if (safeCurrentSpeed > 0 && data.every((speed) => speed <= 0)) {
+      data[data.length - 1] = safeCurrentSpeed;
+    }
+
+    return data;
+  }
+}
 
 /// 自定义画笔 — 用三次贝塞尔曲线绘制平滑速度曲线 + 渐变填充
 class _SpeedCurvePainter extends CustomPainter {
@@ -87,14 +99,12 @@ class _SpeedCurvePainter extends CustomPainter {
   final Color color;
   final int maxDataPoints;
   final ChartPosition position;
-  final double progress;
 
   _SpeedCurvePainter({
     required this.data,
     required this.color,
     required this.maxDataPoints,
     required this.position,
-    required this.progress,
   });
 
   /// 根据位置设置决定曲线占卡片高度的比例
@@ -125,10 +135,8 @@ class _SpeedCurvePainter extends CustomPainter {
 
     // 将数据点映射到画布坐标
     final points = <Offset>[];
-    // 曲线宽度与下载进度同步
-    final drawWidth = size.width * progress.clamp(0.0, 1.0);
+    final drawWidth = size.width;
     final xStep = data.length > 1 ? drawWidth / (data.length - 1) : 0.0;
-    // 数据左对齐（从左边开始画，宽度随进度增长）
 
     for (int i = 0; i < data.length; i++) {
       final x = i * xStep;
@@ -191,7 +199,8 @@ class _SpeedCurvePainter extends CustomPainter {
     return oldDelegate.data.length != data.length ||
         oldDelegate.color != color ||
         oldDelegate.position != position ||
-        oldDelegate.progress != progress ||
-        (data.isNotEmpty && oldDelegate.data.isNotEmpty && oldDelegate.data.last != data.last);
+        (data.isNotEmpty &&
+            oldDelegate.data.isNotEmpty &&
+            oldDelegate.data.last != data.last);
   }
 }
