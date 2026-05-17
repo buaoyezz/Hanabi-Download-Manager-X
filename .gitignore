@@ -114,6 +114,9 @@ pip-log.txt
 pip-delete-this-directory.txt
 generate_icons.py
 
+# TODO files
+TODO.md
+
 # Nuitka
 *.build/
 *.dist/
