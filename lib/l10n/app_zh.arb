@@ -965,7 +965,7 @@
   "popupDownloadStatusPending": "准备中",
   "popupDownloadStatusDownloading": "下载中",
   "popupDownloadStatusPaused": "已暂停",
-  "popupDownloadStatusMerging": "校验中",
+  "popupDownloadStatusMerging": "合并中",
   "popupDownloadStatusCompleted": "完成",
   "popupDownloadStatusFailed": "失败",
   "popupDownloadStatusUnknown": "等待中",

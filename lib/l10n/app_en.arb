@@ -789,30 +789,30 @@
     "x-auto-source-zh": "参与在线统计",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsOnlineStatsSubtitle": "Participates in anonymous online and active-user stats, without UA, fingerprints, downloads, or the local source identifier",
+  "settingsOnlineStatsSubtitle": "Participate in anonymous online population and activity statistics without uploading UA, fingerprints, downloaded content or original local identification",
   "@settingsOnlineStatsSubtitle": {
-    "x-auto-source-zh": "参与在线用户统计",
-    "x-auto-synced-at": "2026-04-17T16:57:46.639595"
+    "x-auto-source-zh": "参与匿名在线人数和活跃统计，不上传 UA、指纹、下载内容或原始本地标识",
+    "x-auto-synced-at": "2026-05-17T11:48:12.313602"
   },
   "settingsOnlineStatsEnabledTitle": "Online statistics is enabled",
   "@settingsOnlineStatsEnabledTitle": {
     "x-auto-source-zh": "在线统计已启用",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsOnlineStatsEnabledMessage": "An anonymous online heartbeat and period-based stats token will be sent for aggregated online and active-user dedupe",
+  "settingsOnlineStatsEnabledMessage": "Anonymous online heartbeats and anonymous statistical tokens derived by period will be sent, only used for aggregating the number of online people and active deduplication.",
   "@settingsOnlineStatsEnabledMessage": {
-    "x-auto-source-zh": "您的设备将参与在线用户统计，帮助我们了解软件使用情况",
-    "x-auto-synced-at": "2026-04-17T16:57:46.639595"
+    "x-auto-source-zh": "将发送匿名在线心跳和按周期派生的匿名统计 token，仅用于聚合在线人数和活跃去重",
+    "x-auto-synced-at": "2026-05-17T11:48:12.313602"
   },
   "settingsOnlineStatsDisabledTitle": "Online statistics disabled",
   "@settingsOnlineStatsDisabledTitle": {
     "x-auto-source-zh": "在线统计已禁用",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsOnlineStatsDisabledMessage": "Online heartbeats will stop, and the server-side online state will expire shortly",
+  "settingsOnlineStatsDisabledMessage": "Online heartbeats will stop being sent and the online status will automatically expire within a short period of time.",
   "@settingsOnlineStatsDisabledMessage": {
-    "x-auto-source-zh": "您的设备将不再发送统计信息",
-    "x-auto-synced-at": "2026-04-17T16:57:46.639595"
+    "x-auto-source-zh": "将停止发送在线心跳，在线状态会在短时间内自动过期",
+    "x-auto-synced-at": "2026-05-17T11:48:12.313602"
   },
   "settingsTrayHintTitle": "Tray tip",
   "@settingsTrayHintTitle": {
@@ -3252,8 +3252,8 @@
       "currentChannel": {},
       "targetChannel": {}
     },
-    "x-auto-source-zh": "新版本: {newVersion}\\n当前版本: {currentVersion}\\n变更: {change}\\n渠道: {currentChannel} -> {targetChannel}\\n准备更新？",
-    "x-auto-synced-at": "2026-04-17T16:57:46.639595"
+    "x-auto-source-zh": "新版本: {newVersion}\n当前版本: {currentVersion}\n变更: {change}\n渠道: {currentChannel} -> {targetChannel}\n准备更新？",
+    "x-auto-synced-at": "2026-05-17T11:48:12.313602"
   },
   "updateConfirmCancelButton": "Cancel",
   "@updateConfirmCancelButton": {
@@ -3582,9 +3582,9 @@
     "x-auto-source-zh": "已暂停",
     "x-auto-synced-at": "2026-04-25T15:16:49.094588"
   },
-  "popupDownloadStatusMerging": "Verifying",
+  "popupDownloadStatusMerging": "Merging",
   "@popupDownloadStatusMerging": {
-    "x-auto-source-zh": "校验中",
+    "x-auto-source-zh": "合并中",
     "x-auto-synced-at": "2026-04-25T15:16:49.094588"
   },
   "popupDownloadStatusCompleted": "Done",

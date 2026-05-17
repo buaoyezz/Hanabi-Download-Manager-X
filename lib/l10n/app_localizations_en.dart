@@ -521,21 +521,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsOnlineStatsSubtitle =>
-      'Participates in anonymous online and active-user stats, without UA, fingerprints, downloads, or the local source identifier';
+      'Participate in anonymous online population and activity statistics without uploading UA, fingerprints, downloaded content or original local identification';
 
   @override
   String get settingsOnlineStatsEnabledTitle => 'Online statistics is enabled';
 
   @override
   String get settingsOnlineStatsEnabledMessage =>
-      'An anonymous online heartbeat and period-based stats token will be sent for aggregated online and active-user dedupe';
+      'Anonymous online heartbeats and anonymous statistical tokens derived by period will be sent, only used for aggregating the number of online people and active deduplication.';
 
   @override
   String get settingsOnlineStatsDisabledTitle => 'Online statistics disabled';
 
   @override
   String get settingsOnlineStatsDisabledMessage =>
-      'Online heartbeats will stop, and the server-side online state will expire shortly';
+      'Online heartbeats will stop being sent and the online status will automatically expire within a short period of time.';
 
   @override
   String get settingsTrayHintTitle => 'Tray tip';
@@ -2362,7 +2362,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get popupDownloadStatusPaused => 'Paused';
 
   @override
-  String get popupDownloadStatusMerging => 'Verifying';
+  String get popupDownloadStatusMerging => 'Merging';
 
   @override
   String get popupDownloadStatusCompleted => 'Done';

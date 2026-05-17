@@ -4200,7 +4200,7 @@ abstract class AppLocalizations {
   /// No description provided for @popupDownloadStatusMerging.
   ///
   /// In zh, this message translates to:
-  /// **'校验中'**
+  /// **'合并中'**
   String get popupDownloadStatusMerging;
 
   /// No description provided for @popupDownloadStatusCompleted.

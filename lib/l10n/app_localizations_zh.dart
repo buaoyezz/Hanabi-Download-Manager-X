@@ -2193,7 +2193,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get popupDownloadStatusPaused => '已暂停';
 
   @override
-  String get popupDownloadStatusMerging => '校验中';
+  String get popupDownloadStatusMerging => '合并中';
 
   @override
   String get popupDownloadStatusCompleted => '完成';
