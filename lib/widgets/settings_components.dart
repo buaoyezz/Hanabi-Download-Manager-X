@@ -75,6 +75,7 @@ class SettingsItem extends StatefulWidget {
   final bool stackOnNarrow;
   final double narrowBreakpoint;
   final AlignmentGeometry stackedTrailingAlignment;
+  final bool showBetaBadge;
 
   const SettingsItem({
     super.key,
@@ -84,6 +85,7 @@ class SettingsItem extends StatefulWidget {
     this.stackOnNarrow = false,
     this.narrowBreakpoint = 760,
     this.stackedTrailingAlignment = Alignment.centerLeft,
+    this.showBetaBadge = false,
   });
 
   @override
@@ -97,15 +99,43 @@ class _SettingsItemState extends State<SettingsItem> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          widget.title,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: FluentTheme.of(context).typography.body?.copyWith(
-                fontWeight: FontWeight.w400,
-                color: AppTheme.textPrimary,
-                fontSize: 13,
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                widget.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: FluentTheme.of(context).typography.body?.copyWith(
+                      fontWeight: FontWeight.w400,
+                      color: AppTheme.textPrimary,
+                      fontSize: 13,
+                    ),
               ),
+            ),
+            if (widget.showBetaBadge) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentPrimary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: AppTheme.accentPrimary.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Text(
+                  'Beta',
+                  style: FluentTheme.of(context).typography.caption?.copyWith(
+                        color: AppTheme.accentPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 10,
+                      ),
+                ),
+              ),
+            ],
+          ],
         ),
         if (widget.subtitle != null) ...[
           const SizedBox(height: 2),

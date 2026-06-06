@@ -7,6 +7,9 @@
 #include <memory>
 #include <string>
 
+void SetNativeRenderLoggingEnabled(bool enabled);
+bool IsNativeRenderLoggingEnabled();
+
 // A class abstraction for a high DPI-aware Win32 Window. Intended to be
 // inherited from by classes that wish to specialize with custom
 // rendering and input handling

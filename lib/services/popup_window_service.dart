@@ -5,7 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:fluent_ui/fluent_ui.dart' as fluent;
 import 'package:flutter/services.dart';
-import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'package:window_manager/window_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/popup_download_dialog.dart';
@@ -333,9 +333,9 @@ class PopupWindowService {
 
     try {
       _logger.debug('Restore window');
-      appWindow.restore();
+      windowManager.restore();
       _logger.debug('Show window');
-      appWindow.show();
+      windowManager.show();
 
       _logger.debug('Delay before bringToFront');
       await Future.delayed(const Duration(milliseconds: 50));

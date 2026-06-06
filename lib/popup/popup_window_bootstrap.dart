@@ -1975,7 +1975,7 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
 
   Widget _buildComposeActionBar() {
     return Container(
-      padding: const EdgeInsets.only(top: 4, bottom: 4),
+      padding: const EdgeInsets.only(top: 12, bottom: 0),
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(
@@ -2072,7 +2072,7 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
     final canToggle = canPause || canResume;
 
     return Container(
-      padding: const EdgeInsets.only(top: 2, bottom: 2),
+      padding: const EdgeInsets.only(top: 12, bottom: 0),
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(
@@ -2140,9 +2140,9 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
                   snapshot?.isDownloading == true ||
                           snapshot?.isPending == true ||
                           snapshot?.isMerging == true
-                      ? CustomIcons.FluentIcons.subtract_20
-                      : CustomIcons.FluentIcons.dismiss_20,
-                  size: 13,
+                      ? CustomIcons.FluentIcons.arrow_download_24
+                      : CustomIcons.FluentIcons.dismiss_24,
+                  size: 16,
                 ),
                 const SizedBox(width: 6),
                 Text(
@@ -2162,7 +2162,7 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
 
   Widget _buildCompletedActionBar() {
     return Container(
-      padding: const EdgeInsets.only(top: 5, bottom: 3),
+      padding: const EdgeInsets.only(top: 12, bottom: 0),
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(

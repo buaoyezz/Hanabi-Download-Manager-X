@@ -1,5 +1,5 @@
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'package:window_manager/window_manager.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
 import '../utils/constants.dart';
@@ -75,7 +75,7 @@ class _TrayMenuWindowState extends State<TrayMenuWindow> {
                     subtitle: t.trayMenuShowWindowSubtitle,
                     onTap: () {
                       widget.onShowWindow();
-                      appWindow.hide(); // 隐藏托盘菜单窗口
+                      windowManager.hide(); // 隐藏托盘菜单窗口
                     },
                   ),
                   _buildMenuItem(

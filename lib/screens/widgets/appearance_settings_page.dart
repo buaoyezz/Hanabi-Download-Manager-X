@@ -5,7 +5,7 @@ import 'dart:ffi' hide Size;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'package:window_manager/window_manager.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 import 'package:win32/win32.dart';
 import 'package:ffi/ffi.dart';
@@ -1349,7 +1349,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
   Future<void> _importCustomFont() async {
     try {
       final t = AppLocalizations.of(context)!;
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['ttf', 'otf'],
         dialogTitle: t.appearanceFontImportDialogTitle,
@@ -2678,8 +2678,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     final defaultWidth = config.getWindowDefaultWidth();
     final defaultHeight = config.getWindowDefaultHeight();
     // 直接获取当前窗口大小（每次构建时都获取最新值）
-    final currentWidth = appWindow.size.width;
-    final currentHeight = appWindow.size.height;
+    final currentWidth = MediaQuery.of(context).size.width;
+    final currentHeight = MediaQuery.of(context).size.height;
 
     // 使用缓存的屏幕尺寸
     final maxWidth = _screenWidth;
@@ -2870,7 +2870,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                           safeDefaultWidth.clamp(600.0, maxWidth);
                       final targetHeight =
                           safeDefaultHeight.clamp(400.0, maxHeight);
-                      appWindow.size = Size(targetWidth, targetHeight);
+                      windowManager.setSize(Size(targetWidth, targetHeight));
                       NotificationManager.of(context)?.showSuccess(
                         t.appearanceWindowApplyTitle,
                         message: t.appearanceWindowApplyMessage(

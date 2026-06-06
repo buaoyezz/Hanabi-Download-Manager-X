@@ -63,6 +63,7 @@ class _StatusPageState extends State<StatusPage> {
   @override
   void initState() {
     super.initState();
+    context.read<NetworkStatusService>().startMonitoring();
     _loadSystemInfo();
     _checkKernelHealth();
     _loadKernelStats();
@@ -346,6 +347,7 @@ class _StatusPageState extends State<StatusPage> {
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    context.read<NetworkStatusService>().stopMonitoring();
     super.dispose();
   }
 
@@ -500,7 +502,7 @@ class _StatusPageState extends State<StatusPage> {
                 _checkKernelHealth();
                 _loadKernelStats();
                 _loadSystemInfo();
-                networkService.startMonitoring();
+                networkService.refreshNow();
               },
             ),
             SafeCommandBarButton(

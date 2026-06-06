@@ -19,6 +19,8 @@ export type PopupMessages = {
   extensionState: string;
   extensionStateHint: string;
   settings: string;
+  automaticHandoff: string;
+  automaticHandoffHint: string;
   contextMenus: string;
   contextMenusHint: string;
   notifications: string;
@@ -60,6 +62,9 @@ const MESSAGES: Record<PopupLocale, PopupMessages> = {
     extensionStateHint:
       'Keep the bridge enabled so Hanabi can intercept or relay browser downloads.',
     settings: 'Settings',
+    automaticHandoff: 'Automatic takeover',
+    automaticHandoffHint:
+      'Let Hanabi automatically receive supported browser downloads. Turn this off to keep only manual actions.',
     contextMenus: 'Context menus',
     contextMenusHint: 'Show right-click send-to-Hanabi entries for links, media, and pages.',
     notifications: 'Desktop notifications',
@@ -100,6 +105,9 @@ const MESSAGES: Record<PopupLocale, PopupMessages> = {
     extensionState: '扩展状态',
     extensionStateHint: '保持桥接启用，让 Hanabi 可以接管或转发浏览器下载任务。',
     settings: '扩展设置',
+    automaticHandoff: '自动接管',
+    automaticHandoffHint:
+      '让 Hanabi 自动接收支持的浏览器下载。关闭后仅保留手动发送操作。',
     contextMenus: '右键菜单',
     contextMenusHint: '为链接、媒体和页面显示“发送到 Hanabi”的右键操作。',
     notifications: '桌面通知',

@@ -28,8 +28,13 @@ class NetworkStatusService extends ChangeNotifier {
   NetworkInfo get networkInfo => _networkInfo;
 
   Timer? _checkTimer;
+  bool _isMonitoring = false;
 
   void startMonitoring() {
+    if (_isMonitoring) {
+      return;
+    }
+    _isMonitoring = true;
     _checkNetworkStatus();
     _checkTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       _checkNetworkStatus();
@@ -38,6 +43,12 @@ class NetworkStatusService extends ChangeNotifier {
 
   void stopMonitoring() {
     _checkTimer?.cancel();
+    _checkTimer = null;
+    _isMonitoring = false;
+  }
+
+  Future<void> refreshNow() {
+    return _checkNetworkStatus();
   }
 
   Future<void> _checkNetworkStatus() async {

@@ -97,12 +97,20 @@ class PopupProgressService {
         },
       );
 
-      // 定时广播进度 (200ms 间隔)
+      // 定时广播进度改由 _updateBroadcastTimer 按需启动
+    } catch (e) {
+      _logger.error('Failed to start PopupProgressService: $e');
+    }
+  }
+
+  void _updateBroadcastTimer() {
+    if (_clients.isEmpty) {
+      _broadcastTimer?.cancel();
+      _broadcastTimer = null;
+    } else if (_broadcastTimer == null) {
       _broadcastTimer = Timer.periodic(const Duration(milliseconds: 200), (_) {
         _broadcastProgress();
       });
-    } catch (e) {
-      _logger.error('Failed to start PopupProgressService: $e');
     }
   }
 
@@ -174,17 +182,20 @@ class PopupProgressService {
       try {
         final socket = await WebSocketTransformer.upgrade(request);
         _clients.add(socket);
+        _updateBroadcastTimer();
         _logger.info('WebSocket client connected, total: ${_clients.length}');
 
         socket.listen(
           (data) => _handleMessage(socket, data),
           onDone: () {
             _clients.remove(socket);
+            _updateBroadcastTimer();
             _logger.info(
                 'WebSocket client disconnected, total: ${_clients.length}');
           },
           onError: (e) {
             _clients.remove(socket);
+            _updateBroadcastTimer();
             _logger.error('WebSocket error: $e');
           },
         );

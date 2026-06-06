@@ -4,7 +4,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'package:provider/provider.dart';
-import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'package:window_manager/window_manager.dart';
 import '../main.dart' show systemTrayService;
 import '../utils/fluent_icons.dart' as CustomIcons;
 import '../services/integrated_download_service.dart';
@@ -633,15 +633,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   /// 启动窗口大小监听
   void _startWindowSizeMonitoring() {
     // 初始化上次保存的大小
-    _lastSavedWidth = appWindow.size.width;
-    _lastSavedHeight = appWindow.size.height;
+    windowManager.getSize().then((s) {
+      if (mounted) {
+        _lastSavedWidth = s.width;
+        _lastSavedHeight = s.height;
+      }
+    });
+    
 
     // 优化：从 3 秒提升到 10 秒，窗口大小变化极少发生，不需要频繁检查
     _windowSizeCheckTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (!mounted) return;
 
-      final currentWidth = appWindow.size.width;
-      final currentHeight = appWindow.size.height;
+      final currentWidth = MediaQuery.of(context).size.width;
+      final currentHeight = MediaQuery.of(context).size.height;
 
       // 快速判断：大小没变就跳过，避免不必要的 Provider 查询
       if ((currentWidth - _lastSavedWidth).abs() <= 1 &&
@@ -664,8 +669,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       // 只有在启用记忆大小时才保存
       if (!rememberSize) return;
 
-      final currentWidth = appWindow.size.width;
-      final currentHeight = appWindow.size.height;
+      final currentWidth = MediaQuery.of(context).size.width;
+      final currentHeight = MediaQuery.of(context).size.height;
 
       // 验证窗口大小是否合理（防止保存异常值）
       // 最小尺寸 600x400，最大尺寸 4096x2160
@@ -723,7 +728,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       return true;
     }
 
-    final wasVisible = appWindow.isVisible;
+    final wasVisible = await windowManager.isVisible();
     if (!wasVisible) {
       systemTrayService.showMainWindow();
       await Future<void>.delayed(const Duration(milliseconds: 80));
@@ -882,10 +887,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       );
     }
 
-    return WindowBorder(
-      color: Colors.transparent,
-      width: 0,
-      child: shellContent,
+    return Container(child: shellContent,
     );
   }
 
@@ -996,7 +998,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           // 中间：Logo + 标题 + 可拖动区域
           Expanded(
-            child: MoveWindow(
+            child: DragToMoveArea(
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final showLogo = constraints.maxWidth >= 140;
@@ -1662,7 +1664,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       width: width,
       height: height,
       iconSize: iconSize,
-      onPressed: () => appWindow.minimize(),
+      onPressed: () => windowManager.minimize(),
     );
   }
 
@@ -2056,4 +2058,21 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
       ),
     );
   }
+}
+
+class WindowButtonColors {
+  final Color normal;
+  final Color mouseOver;
+  final Color mouseDown;
+  final Color iconNormal;
+  final Color iconMouseOver;
+  final Color iconMouseDown;
+  const WindowButtonColors({
+    required this.normal,
+    required this.mouseOver,
+    required this.mouseDown,
+    required this.iconNormal,
+    required this.iconMouseOver,
+    required this.iconMouseDown,
+  });
 }

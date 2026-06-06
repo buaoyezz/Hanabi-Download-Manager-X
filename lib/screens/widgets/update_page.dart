@@ -1014,6 +1014,34 @@ class _UpdatePageState extends State<UpdatePage> {
                 ),
               ),
               const SizedBox(height: 12),
+              // 下载镜像源
+              _buildSettingRow(
+                context,
+                title: _isChineseLocale(context) ? '更新加速节点' : 'Update Mirror Source',
+                subtitle: _isChineseLocale(context) ? '当检查更新失败或下载缓慢时，可尝试切换第三方镜像站以加速访问，本APP内置了gh-proxy镜像站，感谢镜像站' : 'Try switching the mirror if updates fail to check or download slowly.',
+                trailing: SizedBox(
+                  width: 220,
+                  child: ComboBox<String>(
+                    value: updateService.currentMirrorSource.id,
+                    items: const [
+                      ComboBoxItem(
+                        value: 'github',
+                        child: Text('Default (GitHub)'),
+                      ),
+                      ComboBoxItem(
+                        value: 'ghproxy',
+                        child: Text('ghproxy (gh-proxy.com)'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        updateService.setMirrorSource(value);
+                      }
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               // 自动检查间隔
               _buildSettingRow(
                 context,

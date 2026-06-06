@@ -4,7 +4,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:bitsdojo_window/bitsdojo_window.dart'; // Import appWindow
+import 'package:window_manager/window_manager.dart'; // Import appWindow
 
 import 'package:provider/provider.dart';
 import '../../main.dart'; // Import systemTrayService
@@ -188,7 +188,8 @@ class _SettingsPageState extends State<SettingsPage> {
   String _downloadPath = '';
   String _closeButtonBehavior = 'minimize_to_tray';
   bool _showTrayRunningStatus = false;
-  bool _enablePopupWindow = true;
+  String _browserDownloadHandlingMode =
+      ClientConfigService.browserDownloadModeSmart;
   String _popupWindowEffectMode =
       ClientConfigService.popupWindowEffectFollowMain;
   bool _enableClipboardListener = true;
@@ -262,7 +263,8 @@ class _SettingsPageState extends State<SettingsPage> {
       final config = Provider.of<ClientConfigService>(context, listen: false);
       final closeButtonBehavior = config.getCloseButtonBehavior();
       final showTrayRunningStatus = config.getShowTrayRunningStatus();
-      final enablePopupWindow = config.getEnablePopupWindow();
+      final browserDownloadHandlingMode =
+          config.getBrowserDownloadHandlingMode();
       final popupWindowEffectMode = config.getPopupWindowEffectMode();
       final enableClipboardListener = config.getEnableClipboardListener();
       final onlineStatsEnabled = config.getEnableOnlineStats();
@@ -272,7 +274,7 @@ class _SettingsPageState extends State<SettingsPage> {
         setState(() {
           _closeButtonBehavior = closeButtonBehavior;
           _showTrayRunningStatus = showTrayRunningStatus;
-          _enablePopupWindow = enablePopupWindow;
+          _browserDownloadHandlingMode = browserDownloadHandlingMode;
           _popupWindowEffectMode = popupWindowEffectMode;
           _enableClipboardListener = enableClipboardListener;
           _onlineStatsEnabled = onlineStatsEnabled;
@@ -343,7 +345,7 @@ class _SettingsPageState extends State<SettingsPage> {
           _showTrayRunningStatus = value;
         });
 
-        systemTrayService.updateToolTip(!appWindow.isVisible);
+        systemTrayService.updateToolTip(!await windowManager.isVisible());
 
         NotificationManager.of(context)?.showSuccess(
           value
@@ -365,22 +367,22 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  Future<void> _saveEnablePopupWindow(bool value) async {
+  Future<void> _saveBrowserDownloadHandlingMode(String value) async {
     try {
       final t = AppLocalizations.of(context)!;
       final config = Provider.of<ClientConfigService>(context, listen: false);
-      await config.setEnablePopupWindow(value);
+      final normalized =
+          ClientConfigService.normalizeBrowserDownloadHandlingMode(value);
+      await config.setBrowserDownloadHandlingMode(normalized);
 
       if (mounted) {
         setState(() {
-          _enablePopupWindow = value;
+          _browserDownloadHandlingMode = normalized;
         });
 
         NotificationManager.of(context)?.showSuccess(
-          value ? t.settingsPopupEnabledTitle : t.settingsPopupDisabledTitle,
-          message: value
-              ? t.settingsPopupEnabledMessage
-              : t.settingsPopupDisabledMessage,
+          t.settingsSaveSuccessTitle,
+          message: _browserDownloadHandlingSavedMessage(normalized),
         );
       }
     } catch (e) {
@@ -388,7 +390,7 @@ class _SettingsPageState extends State<SettingsPage> {
         final t = AppLocalizations.of(context)!;
         NotificationManager.of(context)?.showError(
           t.settingsSaveFailedTitle,
-          message: t.settingsPopupSaveFailedMessage(e.toString()),
+          message: t.settingsSaveFailedMessage(e.toString()),
         );
       }
     }
@@ -1987,6 +1989,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     ClientConfigService.popupWindowEffectMicaTransient)
         ? ClientConfigService.popupWindowEffectSolid
         : _popupWindowEffectMode;
+    final popupMayShow = ClientConfigService.browserDownloadModeMayShowPopup(
+      _browserDownloadHandlingMode,
+    );
     return [
       _buildStatusSection(context),
       const SizedBox(height: 24),
@@ -2041,18 +2046,29 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 12),
           _buildSettingItem(
             context,
-            title: t.settingsPopupWindowTitle,
-            subtitle: t.settingsPopupWindowSubtitle,
-            trailing: ToggleSwitch(
-              checked: _enablePopupWindow,
-              onChanged: _saveEnablePopupWindow,
+            title: _browserDownloadHandlingTitle,
+            subtitle: _browserDownloadHandlingDescription(
+              _browserDownloadHandlingMode,
+            ),
+            showBetaBadge: true,
+            trailing: SizedBox(
+              width: 240,
+              child: ComboBox<String>(
+                value: _browserDownloadHandlingMode,
+                items: _browserDownloadHandlingItems(),
+                onChanged: (value) {
+                  if (value != null) {
+                    _saveBrowserDownloadHandlingMode(value);
+                  }
+                },
+              ),
             ),
           ),
           const SizedBox(height: 12),
           Opacity(
-            opacity: _enablePopupWindow ? 1.0 : 0.5,
+            opacity: popupMayShow ? 1.0 : 0.5,
             child: IgnorePointer(
-              ignoring: !_enablePopupWindow,
+              ignoring: !popupMayShow,
               child: _buildSettingItem(
                 context,
                 title: _popupWindowEffectTitle,
@@ -3493,6 +3509,81 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  String get _browserDownloadHandlingTitle => _isChineseLocale
+      ? '\u6d4f\u89c8\u5668\u4e0b\u8f7d\u5904\u7406\u6a21\u5f0f'
+      : 'Browser download handling';
+
+  String get _browserSmallFileThresholdLabel {
+    final threshold = ClientConfigService()
+        .getBrowserDownloadSmallFileThreshold()
+        .clamp(1024 * 1024, 512 * 1024 * 1024);
+    final mb = threshold / 1024 / 1024;
+    return '${mb.toStringAsFixed(mb.truncateToDouble() == mb ? 0 : 1)} MB';
+  }
+
+  String _browserDownloadHandlingLabel(String mode) {
+    return switch (
+        ClientConfigService.normalizeBrowserDownloadHandlingMode(mode)) {
+      ClientConfigService.browserDownloadModeAlwaysAsk => _isChineseLocale
+          ? '\u603b\u662f\u8be2\u95ee'
+          : 'Always ask',
+      ClientConfigService.browserDownloadModeSilentTakeover => _isChineseLocale
+          ? '\u9759\u9ed8\u63a5\u7ba1'
+          : 'Silent takeover',
+      ClientConfigService.browserDownloadModeSmallFilesToBrowser =>
+        _isChineseLocale
+            ? '\u5c0f\u6587\u4ef6\u4ea4\u7ed9\u6d4f\u89c8\u5668'
+            : 'Small files stay in browser',
+      _ => _isChineseLocale
+          ? '\u667a\u80fd\uff08\u63a8\u8350\uff09'
+          : 'Smart (recommended)',
+    };
+  }
+
+  String _browserDownloadHandlingDescription(String mode) {
+    final threshold = _browserSmallFileThresholdLabel;
+    return switch (
+        ClientConfigService.normalizeBrowserDownloadHandlingMode(mode)) {
+      ClientConfigService.browserDownloadModeAlwaysAsk => _isChineseLocale
+          ? '\u6240\u6709\u6d4f\u89c8\u5668\u4e0b\u8f7d\u90fd\u4f1a\u5f39\u51fa\u786e\u8ba4\u7a97\u53e3\u3002'
+          : 'Every browser download opens the confirmation popup.',
+      ClientConfigService.browserDownloadModeSilentTakeover => _isChineseLocale
+          ? '\u652f\u6301\u7684\u6d4f\u89c8\u5668\u4e0b\u8f7d\u76f4\u63a5\u52a0\u5165\u4efb\u52a1\uff0c\u4e0d\u6253\u5f00 Popup\u3002'
+          : 'Supported browser downloads are added directly without opening a popup.',
+      ClientConfigService.browserDownloadModeSmallFilesToBrowser =>
+        _isChineseLocale
+            ? '\u5df2\u77e5\u5c0f\u4e8e $threshold \u7684\u5c0f\u6587\u4ef6\u4fdd\u7559\u6d4f\u89c8\u5668\u4e0b\u8f7d\uff0c\u5176\u4ed6\u4e0b\u8f7d\u4ea4\u7ed9 Hanabi \u786e\u8ba4\u3002'
+            : 'Known files under $threshold stay in the browser; other downloads are confirmed in Hanabi.',
+      _ => _isChineseLocale
+          ? '\u5df2\u77e5\u5b89\u5168\u4e14\u5c0f\u4e8e $threshold \u7684\u6587\u4ef6\u9759\u9ed8\u63a5\u7ba1\uff0c\u5176\u4ed6\u4e0b\u8f7d\u5f39\u51fa\u786e\u8ba4\u3002'
+          : 'Known safe files under $threshold are accepted silently; other downloads open the confirmation popup.',
+    };
+  }
+
+  String _browserDownloadHandlingSavedMessage(String mode) {
+    final label = _browserDownloadHandlingLabel(mode);
+    return _isChineseLocale
+        ? '\u6d4f\u89c8\u5668\u4e0b\u8f7d\u5904\u7406\u6a21\u5f0f\u5df2\u5207\u6362\u4e3a\uff1a$label'
+        : 'Browser download handling changed to: $label';
+  }
+
+  List<ComboBoxItem<String>> _browserDownloadHandlingItems() {
+    const values = <String>[
+      ClientConfigService.browserDownloadModeSmart,
+      ClientConfigService.browserDownloadModeAlwaysAsk,
+      ClientConfigService.browserDownloadModeSilentTakeover,
+      ClientConfigService.browserDownloadModeSmallFilesToBrowser,
+    ];
+
+    return [
+      for (final value in values)
+        ComboBoxItem<String>(
+          value: value,
+          child: Text(_browserDownloadHandlingLabel(value)),
+        ),
+    ];
+  }
+
   String get _popupWindowEffectTitle =>
       _isChineseLocale ? '弹窗窗口样式' : 'Popup window style';
 
@@ -3578,11 +3669,13 @@ class _SettingsPageState extends State<SettingsPage> {
     required String title,
     required String subtitle,
     required Widget trailing,
+    bool showBetaBadge = false,
   }) {
     return SettingsItem(
       title: title,
       subtitle: subtitle,
       trailing: trailing,
+      showBetaBadge: showBetaBadge,
     );
   }
 

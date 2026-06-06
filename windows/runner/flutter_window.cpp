@@ -92,6 +92,10 @@ typedef struct WINDOWCOMPOSITIONATTRIBUTEDATA {
 static BOOL (WINAPI* pSetWindowCompositionAttribute)(HWND, WINDOWCOMPOSITIONATTRIBUTEDATA*) = nullptr;
 
 static void LogA(const char* s) {
+  if (!IsNativeRenderLoggingEnabled()) {
+    return;
+  }
+
   SYSTEMTIME local_time;
   GetLocalTime(&local_time);
 
@@ -390,6 +394,10 @@ void FlutterWindow::OnDestroy() {
   if (kind_ == WindowKind::kPopup) {
     RestorePreviousForegroundWindow();
   }
+  if (clipboard_listener_registered_) {
+    RemoveClipboardFormatListener(GetHandle());
+    clipboard_listener_registered_ = false;
+  }
   if (kind_ == WindowKind::kMain && g_main_flutter_window == this) {
     g_main_flutter_window = nullptr;
     g_main_window_handle = nullptr;
@@ -507,6 +515,13 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
         ApplyWindowEffect(hwnd);
       }
       break;
+    }
+    case WM_CLIPBOARDUPDATE:
+    {
+      if (clipboard_listener_registered_) {
+        DispatchClipboardChanged();
+      }
+      return 0;
     }
     case kCloseExistingInstanceCompleteMessage:
     {
@@ -1162,9 +1177,41 @@ void FlutterWindow::SetupMethodChannel() {
           }
           result->Success();
           return;
-        } else {
-          result->NotImplemented();
+          } else {
+            result->NotImplemented();
+          }
+      });
+
+  flutter::MethodChannel<> clipboard_channel(
+      flutter_controller_->engine()->messenger(),
+      "com.hanabi.download/clipboard",
+      &flutter::StandardMethodCodec::GetInstance());
+
+  clipboard_channel.SetMethodCallHandler(
+      [this](const flutter::MethodCall<>& call,
+             std::unique_ptr<flutter::MethodResult<>> result) {
+        if (call.method_name() == "setListenerEnabled") {
+          const auto* arguments =
+              std::get_if<flutter::EncodableMap>(call.arguments());
+          bool enabled = false;
+          if (arguments) {
+            auto enabled_it =
+                arguments->find(flutter::EncodableValue("enabled"));
+            if (enabled_it != arguments->end()) {
+              if (const bool* parsed =
+                      std::get_if<bool>(&enabled_it->second)) {
+                enabled = *parsed;
+              }
+            }
+          }
+
+          SetClipboardListenerEnabled(enabled);
+          result->Success(
+              flutter::EncodableValue(clipboard_listener_registered_));
+          return;
         }
+
+        result->NotImplemented();
       });
 }
 
@@ -1943,4 +1990,28 @@ std::string FlutterWindow::PickFolder() {
   }
 
   return result;
+}
+
+void FlutterWindow::SetClipboardListenerEnabled(bool enabled) {
+  if (clipboard_listener_registered_ == enabled) {
+    return;
+  }
+  
+  clipboard_listener_registered_ = enabled;
+  if (enabled) {
+    AddClipboardFormatListener(GetHandle());
+  } else {
+    RemoveClipboardFormatListener(GetHandle());
+  }
+}
+
+void FlutterWindow::DispatchClipboardChanged() {
+  if (!flutter_controller_ || !flutter_controller_->engine()) {
+    return;
+  }
+  flutter::MethodChannel<> clipboard_channel(
+      flutter_controller_->engine()->messenger(),
+      "com.hanabi.download/clipboard",
+      &flutter::StandardMethodCodec::GetInstance());
+  clipboard_channel.InvokeMethod("onClipboardChanged", nullptr);
 }

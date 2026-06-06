@@ -136,6 +136,7 @@ class _LogPageState extends State<LogPage> {
   bool _useRegexSearch = false;
   bool _showStats = true;
   bool _showFailureStats = true;
+  bool _isFailureStatsExpanded = true;
   bool _showRenderLogs = false;
   final ScrollController _scrollController =
       createSmoothScrollController(config: SmoothScrollConfig.fast);
@@ -2101,33 +2102,47 @@ class _LogPageState extends State<LogPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
-              child: Row(
-                children: [
-                  Icon(FluentIcons.warning,
-                      size: 14, color: AppTheme.statusWarning),
-                  const SizedBox(width: 8),
-                  Text(
-                    t.logFailureStatsTitle,
-                    style: TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+            GestureDetector(
+              onTap: () => setState(() {
+                _isFailureStatsExpanded = !_isFailureStatsExpanded;
+              }),
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(14, 12, 14, _isFailureStatsExpanded ? 8 : 12),
+                child: Row(
+                  children: [
+                    Icon(FluentIcons.warning,
+                        size: 14, color: AppTheme.statusWarning),
+                    const SizedBox(width: 8),
+                    Text(
+                      t.logFailureStatsTitle,
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    t.logFailureStatsTotal(stats.totalFailures),
-                    style: TextStyle(
+                    const Spacer(),
+                    Text(
+                      t.logFailureStatsTotal(stats.totalFailures),
+                      style: TextStyle(
+                        color: AppTheme.textTertiary,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      _isFailureStatsExpanded
+                          ? FluentIcons.chevron_up
+                          : FluentIcons.chevron_down,
+                      size: 10,
                       color: AppTheme.textTertiary,
-                      fontSize: 11,
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-            if (counts.isNotEmpty)
+            if (_isFailureStatsExpanded && counts.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
                 child: Wrap(
@@ -2157,24 +2172,25 @@ class _LogPageState extends State<LogPage> {
                   }).toList(),
                 ),
               ),
-            if (recent.isEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-                child: Text(
-                  t.logFailureStatsEmpty,
-                  style: TextStyle(
-                    color: AppTheme.textTertiary,
-                    fontSize: 11,
+            if (_isFailureStatsExpanded)
+              if (recent.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                  child: Text(
+                    t.logFailureStatsEmpty,
+                    style: TextStyle(
+                      color: AppTheme.textTertiary,
+                      fontSize: 11,
+                    ),
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                  child: Column(
+                    children: recent.map(_buildFailureRow).toList(),
                   ),
                 ),
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-                child: Column(
-                  children: recent.map(_buildFailureRow).toList(),
-                ),
-              ),
           ],
         ),
       ),

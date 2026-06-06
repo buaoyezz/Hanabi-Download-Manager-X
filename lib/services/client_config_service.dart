@@ -35,6 +35,12 @@ class ClientConfigService extends ChangeNotifier {
   static const String popupWindowEffectAcrylic = 'acrylic';
   static const String popupWindowEffectMicaMain = 'mica_main';
   static const String popupWindowEffectMicaTransient = 'mica_transient';
+  static const String browserDownloadModeSmart = 'smart';
+  static const String browserDownloadModeAlwaysAsk = 'always_ask';
+  static const String browserDownloadModeSilentTakeover = 'silent_takeover';
+  static const String browserDownloadModeSmallFilesToBrowser =
+      'small_files_to_browser';
+  static const int defaultBrowserSmallFileThreshold = 8 * 1024 * 1024;
   static const String currentOobeVersion = '2026-05-initial-setup';
 
   final _logger = AppLoggerService();
@@ -169,6 +175,9 @@ class ClientConfigService extends ChangeNotifier {
         'enable_popup_window': true, // 默认启用浏览器下载弹窗
         'enable_clipboard_listener': true, // 默认启用剪贴板监听
         'enable_online_stats': true, // 默认参与实时在线人数统计
+        'browser_download_handling_mode': browserDownloadModeSmart,
+        'browser_download_small_file_threshold':
+            defaultBrowserSmallFileThreshold,
         'browser_extension_port': defaultBrowserExtensionPort,
         'browser_extension_previous_port': defaultBrowserExtensionPort,
       },
@@ -204,6 +213,9 @@ class ClientConfigService extends ChangeNotifier {
       },
       'completed_list': {
         'custom_categories': [], // 自定义分类列表
+      },
+      'notice': {
+        'use_split_view': true, // 默认使用分栏视图
       },
     };
   }
@@ -614,6 +626,18 @@ class ClientConfigService extends ChangeNotifier {
     }
   }
 
+  // ========== 通知配置 ==========
+
+  bool getNoticeUseSplitView() {
+    return _getFromConfig<bool>(_uiConfig, 'notice.use_split_view',
+            defaultValue: true) ??
+        true;
+  }
+
+  Future<void> setNoticeUseSplitView(bool value) async {
+    await _setToConfig(_uiConfig, _uiConfigPath, 'notice.use_split_view', value);
+  }
+
   /// 根据屏幕分辨率自动设置缩放比例（仅在首次启动或缩放为默认值时）
   Future<void> autoSetScaleFactorByResolution(
       double screenWidth, double screenHeight) async {
@@ -778,15 +802,117 @@ class ClientConfigService extends ChangeNotifier {
         _appConfig, _appConfigPath, 'behavior.show_tray_running_status', value);
   }
 
+  static bool isSupportedBrowserDownloadHandlingMode(String? value) {
+    return value == browserDownloadModeSmart ||
+        value == browserDownloadModeAlwaysAsk ||
+        value == browserDownloadModeSilentTakeover ||
+        value == browserDownloadModeSmallFilesToBrowser;
+  }
+
+  static String normalizeBrowserDownloadHandlingMode(String? value) {
+    final normalized = value?.trim().toLowerCase();
+    if (isSupportedBrowserDownloadHandlingMode(normalized)) {
+      return normalized!;
+    }
+    return browserDownloadModeSmart;
+  }
+
+  static int normalizeBrowserSmallFileThresholdValue(dynamic value) {
+    final parsed = value is int ? value : int.tryParse(value?.toString() ?? '');
+    if (parsed == null || parsed <= 0) {
+      return defaultBrowserSmallFileThreshold;
+    }
+    return parsed.clamp(1024 * 1024, 512 * 1024 * 1024).toInt();
+  }
+
+  static bool browserDownloadModeMayShowPopup(String? mode) {
+    return normalizeBrowserDownloadHandlingMode(mode) !=
+        browserDownloadModeSilentTakeover;
+  }
+
+  static bool shouldSilentlyAcceptBrowserDownload({
+    required String mode,
+    required int? fileSizeBytes,
+    int smallFileThresholdBytes = defaultBrowserSmallFileThreshold,
+    bool hasUnsafeBrowserDanger = false,
+  }) {
+    if (hasUnsafeBrowserDanger) {
+      return false;
+    }
+
+    final normalizedMode = normalizeBrowserDownloadHandlingMode(mode);
+    if (normalizedMode == browserDownloadModeSilentTakeover) {
+      return true;
+    }
+
+    if (normalizedMode != browserDownloadModeSmart) {
+      return false;
+    }
+
+    final threshold =
+        normalizeBrowserSmallFileThresholdValue(smallFileThresholdBytes);
+    final size = fileSizeBytes ?? 0;
+    return size > 0 && size <= threshold;
+  }
+
+  String getBrowserDownloadHandlingMode() {
+    final configured = _getFromConfig<String>(
+      _appConfig,
+      'behavior.browser_download_handling_mode',
+    );
+    if (configured == null) {
+      final legacyPopup = _getFromConfig<bool>(
+            _appConfig,
+            'behavior.enable_popup_window',
+            defaultValue: true,
+          ) ??
+          true;
+      return legacyPopup
+          ? browserDownloadModeSmart
+          : browserDownloadModeSilentTakeover;
+    }
+
+    return normalizeBrowserDownloadHandlingMode(configured);
+  }
+
+  Future<void> setBrowserDownloadHandlingMode(String mode) async {
+    await _setToConfig(
+      _appConfig,
+      _appConfigPath,
+      'behavior.browser_download_handling_mode',
+      normalizeBrowserDownloadHandlingMode(mode),
+    );
+  }
+
+  int getBrowserDownloadSmallFileThreshold() {
+    return normalizeBrowserSmallFileThresholdValue(
+      _getFromConfig<dynamic>(
+        _appConfig,
+        'behavior.browser_download_small_file_threshold',
+        defaultValue: defaultBrowserSmallFileThreshold,
+      ),
+    );
+  }
+
+  Future<void> setBrowserDownloadSmallFileThreshold(int value) async {
+    await _setToConfig(
+      _appConfig,
+      _appConfigPath,
+      'behavior.browser_download_small_file_threshold',
+      normalizeBrowserSmallFileThresholdValue(value),
+    );
+  }
+
   bool getEnablePopupWindow() {
-    return _getFromConfig<bool>(_appConfig, 'behavior.enable_popup_window',
-            defaultValue: true) ??
-        true;
+    return browserDownloadModeMayShowPopup(getBrowserDownloadHandlingMode());
   }
 
   Future<void> setEnablePopupWindow(bool value) async {
-    await _setToConfig(
-        _appConfig, _appConfigPath, 'behavior.enable_popup_window', value);
+    await setBrowserDownloadHandlingMode(
+      value
+          ? browserDownloadModeAlwaysAsk
+          : browserDownloadModeSilentTakeover,
+    );
   }
 
   bool getEnableClipboardListener() {

@@ -9,8 +9,30 @@
 #include "single_instance_manager.h"
 #include "utils.h"
 
+namespace {
+
+DWORD g_main_thread_id = 0;
+
+BOOL WINAPI ConsoleControlHandler(DWORD control_type) {
+  switch (control_type) {
+    case CTRL_C_EVENT:
+    case CTRL_BREAK_EVENT:
+    case CTRL_CLOSE_EVENT:
+      if (g_main_thread_id != 0) {
+        ::PostThreadMessageW(g_main_thread_id, WM_QUIT, 0, 0);
+        return TRUE;
+      }
+      return FALSE;
+    default:
+      return FALSE;
+  }
+}
+
+}  // namespace
+
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
+  g_main_thread_id = ::GetCurrentThreadId();
   crash_reporter::Install();
 
   // Check if another instance is already running
@@ -26,6 +48,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   }
 
   ::AttachConsole(ATTACH_PARENT_PROCESS);
+  ::SetConsoleCtrlHandler(ConsoleControlHandler, TRUE);
+  MSG queue_init_msg = {};
+  ::PeekMessageW(&queue_init_msg, nullptr, WM_USER, WM_USER, PM_NOREMOVE);
 
   const HRESULT com_init_hr =
       ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
@@ -54,6 +79,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     ::TranslateMessage(&msg);
     ::DispatchMessage(&msg);
   }
+
+  ::SetConsoleCtrlHandler(ConsoleControlHandler, FALSE);
 
   // Release mutex
   single_instance::ReleaseMutexHandle();

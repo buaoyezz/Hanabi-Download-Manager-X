@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
 import 'package:system_tray/system_tray.dart';
-import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'package:window_manager/window_manager.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:path/path.dart' as path;
@@ -206,14 +206,14 @@ class SystemTrayService {
 
   void showMainWindow() {
     _logger.info('Show main window');
-    appWindow.show();
-    appWindow.restore();
+    windowManager.show();
+    windowManager.restore();
     updateToolTip(true);
   }
 
   void hideMainWindow() {
     _logger.info('Hide main window to tray');
-    appWindow.hide();
+    windowManager.hide();
     updateToolTip(false);
   }
 
@@ -287,7 +287,7 @@ class SystemTrayService {
     final nativeQuitRequested = await _requestNativeQuit();
     if (!nativeQuitRequested) {
       try {
-        appWindow.close();
+        windowManager.close();
       } catch (e) {
         _logger.warning('Window close failed during exit: $e');
       }

@@ -201,7 +201,8 @@ class NsfxHttpServer {
   }
 
   Future<void> _handleHealth(HttpRequest request) async {
-    final languagePreference = ClientConfigService().getLanguagePreference();
+    final clientConfig = ClientConfigService();
+    final languagePreference = clientConfig.getLanguagePreference();
     final localeTag = _resolveExtensionLocaleTag(languagePreference);
 
     _sendJson(request, {
@@ -211,6 +212,10 @@ class NsfxHttpServer {
       'running': _kernel.isRunning,
       'language_preference': languagePreference,
       'locale': localeTag,
+      'browser_download_handling_mode':
+          clientConfig.getBrowserDownloadHandlingMode(),
+      'browser_download_small_file_threshold':
+          clientConfig.getBrowserDownloadSmallFileThreshold(),
     });
   }
 
@@ -251,6 +256,15 @@ class NsfxHttpServer {
       'user_agent': body['userAgent'] ?? body['user_agent'],
       'cookies': body['cookies'],
       'headers': body['headers'],
+      'save_dir': body['save_dir'] ?? body['saveDir'],
+      'file_size': _readPositiveInt(
+        body,
+        const ['file_size', 'fileSize', 'total_bytes', 'totalBytes'],
+      ),
+      'mime': body['mime'],
+      'danger': body['danger'],
+      'browser': body['browser'],
+      'from_browser': body['from_browser'],
       'timestamp': DateTime.now().toIso8601String(),
     };
     final popupSignature = _popupSignatureFor(popupRequest);
@@ -265,12 +279,37 @@ class NsfxHttpServer {
             recentDuplicateUntil.isAfter(DateTime.now()))) {
       _logger.warning(
         'NSFX-HTTP',
-        'Suppress duplicate popup queue request: $filename',
+        'Suppress duplicate browser download request: $filename',
       );
       _sendJson(request, {
         'success': true,
-        'message': 'Duplicate popup request suppressed',
+        'message': 'Duplicate browser download request suppressed',
+        'handoff_action': 'duplicate_suppressed',
       });
+      return;
+    }
+
+    final clientConfig = ClientConfigService();
+    final handlingMode = clientConfig.getBrowserDownloadHandlingMode();
+    final fileSize = popupRequest['file_size'] as int?;
+    final unsafeBrowserDanger = _hasUnsafeBrowserDanger(body['danger']);
+    final shouldAcceptSilently =
+        ClientConfigService.shouldSilentlyAcceptBrowserDownload(
+      mode: handlingMode,
+      fileSizeBytes: fileSize,
+      smallFileThresholdBytes:
+          clientConfig.getBrowserDownloadSmallFileThreshold(),
+      hasUnsafeBrowserDanger: unsafeBrowserDanger,
+    );
+
+    if (shouldAcceptSilently) {
+      _recentPopupSignatures[popupSignature] =
+          DateTime.now().add(_popupDedupWindow);
+      await _acceptDownloadDirectly(
+        request,
+        popupRequest,
+        mode: handlingMode,
+      );
       return;
     }
 
@@ -284,6 +323,7 @@ class NsfxHttpServer {
     _sendJson(request, {
       'success': true,
       'message': 'Queued for main-window confirmation',
+      'handoff_action': 'show_popup',
     });
   }
 
@@ -299,6 +339,56 @@ class NsfxHttpServer {
     _logger.info('NSFX-HTTP',
         'Dispatching queued browser download: ${popup['filename']}');
     _sendJson(request, {'success': true, 'data': popup});
+  }
+
+  Future<void> _acceptDownloadDirectly(
+    HttpRequest request,
+    Map<String, dynamic> downloadData, {
+    required String mode,
+  }) async {
+    final url = downloadData['url']?.toString() ?? '';
+    final filename = downloadData['filename']?.toString() ?? '';
+    if (url.isEmpty || filename.isEmpty) {
+      _sendError(request, 400, 'Missing url or filename');
+      return;
+    }
+
+    final headersRaw = downloadData['headers'];
+    final headers = headersRaw is Map
+        ? headersRaw.map(
+            (key, value) => MapEntry(key.toString(), value?.toString() ?? ''),
+          )
+        : null;
+    final clientConfig = ClientConfigService();
+    final saveDir =
+        (downloadData['save_dir'] ?? downloadData['saveDir'])?.toString();
+    final taskId = await _kernel.addDownload(
+      url,
+      filename,
+      referer: downloadData['referer']?.toString(),
+      userAgent:
+          (downloadData['user_agent'] ?? downloadData['userAgent'])?.toString(),
+      cookies: downloadData['cookies']?.toString(),
+      headers: headers,
+      saveDir: (saveDir?.trim().isNotEmpty ?? false) ? saveDir!.trim() : null,
+      startPaused: !clientConfig.getAutoStartDownload(),
+    );
+
+    if (taskId == null) {
+      _sendError(request, 500, 'Failed to add download task');
+      return;
+    }
+
+    _logger.info(
+      'NSFX-HTTP',
+      'Download accepted without popup: $filename (mode=$mode, task=$taskId)',
+    );
+    _sendJson(request, {
+      'success': true,
+      'message': 'Download accepted without popup',
+      'handoff_action': 'silent_add',
+      'task_id': taskId,
+    });
   }
 
   void _cleanupExpiredPopupSignatures() {
@@ -330,6 +420,31 @@ class NsfxHttpServer {
     } catch (_) {
       return text;
     }
+  }
+
+  int? _readPositiveInt(
+    Map<String, dynamic> data,
+    Iterable<String> keys,
+  ) {
+    for (final key in keys) {
+      final value = data[key];
+      final parsed = value is num ? value.toInt() : int.tryParse('$value');
+      if (parsed != null && parsed > 0) {
+        return parsed;
+      }
+    }
+    return null;
+  }
+
+  bool _hasUnsafeBrowserDanger(Object? value) {
+    final text = value?.toString().trim().toLowerCase() ?? '';
+    if (text.isEmpty ||
+        text == 'safe' ||
+        text == 'accepted' ||
+        text == 'allowlistedbypolicy') {
+      return false;
+    }
+    return true;
   }
 
   Future<void> _handleGetTasks(HttpRequest request) async {

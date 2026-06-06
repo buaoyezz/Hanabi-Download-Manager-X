@@ -2,10 +2,13 @@ import 'dart:async';
 
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
+
 import '../../models/plugin_manifest.dart';
 import '../../services/plugin_diagnostic_logger.dart';
 import '../../services/plugin_lifecycle_service.dart';
 import '../../services/plugin_process_runner.dart';
+import '../../theme/app_theme.dart';
+import '../../utils/fluent_icons.dart' as custom_icons;
 import '../../widgets/plugin_ui_renderer.dart';
 
 class PluginSettingsDialog extends StatefulWidget {
@@ -41,12 +44,12 @@ class _PluginSettingsDialogState extends State<PluginSettingsDialog> {
         'enabled': widget.plugin.enabled,
       },
     );
-    // Try to load default values from schema
+
     final settings = widget.plugin.manifest.uiExtensions?['settings'];
     if (settings != null) {
-      for (final el in settings) {
-        if (el.defaultValue != null) {
-          _state[el.id] = el.defaultValue;
+      for (final element in settings) {
+        if (element.defaultValue != null) {
+          _state[element.id] = element.defaultValue;
         }
       }
     }
@@ -92,13 +95,18 @@ class _PluginSettingsDialogState extends State<PluginSettingsDialog> {
       _state = newState;
     });
     final pluginService = context.read<PluginLifecycleService>();
-    unawaited(pluginService
-        .savePluginSettings(widget.plugin.id, newState)
-        .catchError((e) {
-      _diag.error('settingsDialog.saveState.error', e,
-          pluginId: widget.plugin.id);
-      debugPrint('Failed to save plugin settings: $e');
-    }));
+    unawaited(
+      pluginService.savePluginSettings(widget.plugin.id, newState).catchError(
+        (e) {
+          _diag.error(
+            'settingsDialog.saveState.error',
+            e,
+            pluginId: widget.plugin.id,
+          );
+          debugPrint('Failed to save plugin settings: $e');
+        },
+      ),
+    );
 
     final runner = context.read<PluginProcessRunner>();
     _diag.mark(
@@ -189,23 +197,69 @@ class _PluginSettingsDialogState extends State<PluginSettingsDialog> {
     }
 
     return ContentDialog(
-      title: Text(widget.isChinese
-          ? '${widget.plugin.name} 设置'
-          : '${widget.plugin.name} Settings'),
+      constraints: const BoxConstraints(maxWidth: 680, maxHeight: 720),
+      title: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: AppTheme.accentPrimary.withValues(alpha: 0.13),
+              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              border: Border.all(
+                color: AppTheme.accentPrimary.withValues(alpha: 0.18),
+              ),
+            ),
+            child: Icon(
+              custom_icons.FluentIcons.settings,
+              size: 17,
+              color: AppTheme.accentPrimary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.isChinese
+                      ? '${widget.plugin.name} 设置'
+                      : '${widget.plugin.name} Settings',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${widget.plugin.id} - v${widget.plugin.version}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: FluentTheme.of(context).typography.caption?.copyWith(
+                        color: AppTheme.textTertiary,
+                        fontSize: 12,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
       content: SizedBox(
-        width: 400,
-        height: 400,
-        child: ListView.builder(
-          itemCount: settings.length,
-          itemBuilder: (context, index) {
-            return PluginUIRenderer.renderElement(
-              element: settings[index],
-              state: _state,
-              onStateChanged: _handleStateChanged,
-              onAction: _handleAction,
-            );
-          },
-        ),
+        width: 620,
+        height: 500,
+        child: settings.isEmpty
+            ? _emptyState()
+            : ListView.builder(
+                padding: EdgeInsets.zero,
+                itemCount: settings.length,
+                itemBuilder: (context, index) {
+                  return PluginUIRenderer.renderElement(
+                    element: settings[index],
+                    state: _state,
+                    onStateChanged: _handleStateChanged,
+                    onAction: _handleAction,
+                  );
+                },
+              ),
       ),
       actions: [
         FilledButton(
@@ -213,6 +267,40 @@ class _PluginSettingsDialogState extends State<PluginSettingsDialog> {
           child: Text(widget.isChinese ? '关闭' : 'Close'),
         ),
       ],
+    );
+  }
+
+  Widget _emptyState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.bgLayer2.withValues(alpha: 0.44),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            custom_icons.FluentIcons.info,
+            size: 18,
+            color: AppTheme.textTertiary,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              widget.isChinese
+                  ? '这个插件没有声明可配置项。'
+                  : 'This plugin did not declare configurable settings.',
+              style: FluentTheme.of(context).typography.caption?.copyWith(
+                    color: AppTheme.textTertiary,
+                    fontSize: 12,
+                  ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -8,6 +8,27 @@ import 'package:path/path.dart' as path;
 import '../utils/constants.dart';
 import 'app_logger_service.dart';
 
+class UpdateMirrorSource {
+  final String id;
+  final String label;
+  final String proxyPrefix;
+
+  const UpdateMirrorSource({
+    required this.id,
+    required this.label,
+    this.proxyPrefix = '',
+  });
+}
+
+class UpdateCheckException implements Exception {
+  final String message;
+
+  const UpdateCheckException(this.message);
+
+  @override
+  String toString() => message;
+}
+
 /// 版本通道枚举
 /// alpha < release
 enum VersionChannel {
@@ -428,6 +449,14 @@ class UpdateService extends ChangeNotifier {
   static const String _repoName = 'Hanabi-Download-Manager-X';
   static const String _apiUrl =
       'https://api.github.com/repos/$_repoOwner/$_repoName/releases';
+  static const List<UpdateMirrorSource> _mirrorSources = [
+    UpdateMirrorSource(id: 'github', label: 'Default (GitHub)'),
+    UpdateMirrorSource(
+      id: 'ghproxy',
+      label: 'ghproxy (gh-proxy.com)',
+      proxyPrefix: 'https://gh-proxy.com/',
+    ),
+  ];
 
   // 缓存相关的 SharedPreferences keys
   static const String _keyLastCheckTime = 'update_last_check_time';
@@ -435,6 +464,7 @@ class UpdateService extends ChangeNotifier {
   static const String _keyCachedVersion = 'update_cached_version';
   static const String _keyCheckInterval = 'update_check_interval';
   static const String _keyAllowAlpha = 'update_allow_alpha';
+  static const String _keyMirrorSource = 'update_mirror_source';
 
   final AppLoggerService? _logger;
 
@@ -456,6 +486,7 @@ class UpdateService extends ChangeNotifier {
   DateTime? _lastCheckTime;
   String? _cachedChangelog;
   Timer? _autoCheckTimer;
+  UpdateMirrorSource _currentMirrorSource = _mirrorSources.first;
 
   // 更新下载相关
   bool _isDownloading = false;
@@ -473,6 +504,7 @@ class UpdateService extends ChangeNotifier {
   bool get allowAlpha => _allowAlpha;
   UpdateCheckInterval get checkInterval => _checkInterval;
   DateTime? get lastCheckTime => _lastCheckTime;
+  UpdateMirrorSource get currentMirrorSource => _currentMirrorSource;
   bool get isVersionNewer => _isCurrentVersionNewer();
   bool get isDownloading => _isDownloading;
   double get downloadProgress => _downloadProgress;
@@ -524,8 +556,16 @@ class UpdateService extends ChangeNotifier {
         _lastCheckTime = DateTime.fromMillisecondsSinceEpoch(lastCheckMs);
       }
 
+      final mirrorId = prefs.getString(_keyMirrorSource);
+      if (mirrorId != null) {
+        _currentMirrorSource = _mirrorSources.firstWhere(
+          (s) => s.id == mirrorId,
+          orElse: () => _mirrorSources.first,
+        );
+      }
+
       _logger?.info('Update',
-          '设置已加载: allowAlpha=$_allowAlpha, interval=${_checkInterval.name}');
+          '设置已加载: allowAlpha=$_allowAlpha, interval=${_checkInterval.name}, mirror=${_currentMirrorSource.id}');
     } catch (e) {
       _logger?.error('Update', '加载设置失败: $e');
     }
@@ -572,6 +612,20 @@ class UpdateService extends ChangeNotifier {
     await prefs.setBool(_keyAllowAlpha, value);
     _filterAvailableUpdate();
     notifyListeners();
+  }
+
+  /// 设置镜像源
+  Future<void> setMirrorSource(String id) async {
+    final source = _mirrorSources.firstWhere(
+      (s) => s.id == id,
+      orElse: () => _mirrorSources.first,
+    );
+    if (_currentMirrorSource.id != source.id) {
+      _currentMirrorSource = source;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyMirrorSource, id);
+      notifyListeners();
+    }
   }
 
   /// 设置检查间隔
@@ -667,6 +721,12 @@ class UpdateService extends ChangeNotifier {
       notifyListeners();
 
       return _availableUpdate != null;
+    } on UpdateCheckException catch (e) {
+      _error = e.message;
+      _logger?.error('Update', '检查更新失败: $e');
+      _isChecking = false;
+      notifyListeners();
+      return false;
     } catch (e) {
       _error = '检查更新失败: $e';
       _logger?.error('Update', _error!);
@@ -679,9 +739,12 @@ class UpdateService extends ChangeNotifier {
   /// 获取所有发布版本
   Future<List<UpdateInfo>> _fetchAllReleases() async {
     try {
-      _logger?.info('Update', '请求 GitHub API: $_apiUrl');
+      final requestUrl = _currentMirrorSource.proxyPrefix.isNotEmpty
+          ? '${_currentMirrorSource.proxyPrefix}$_apiUrl'
+          : _apiUrl;
+      _logger?.info('Update', '请求 GitHub API: $requestUrl');
       final response = await http.get(
-        Uri.parse(_apiUrl),
+        Uri.parse(requestUrl),
         headers: {'Accept': 'application/vnd.github.v3+json'},
       ).timeout(const Duration(seconds: 15));
 
@@ -695,11 +758,15 @@ class UpdateService extends ChangeNotifier {
         return releases;
       } else {
         _logger?.error('Update', 'API 响应错误: ${response.statusCode}');
-        return [];
+        throw UpdateCheckException('网络请求异常 (HTTP ${response.statusCode})');
       }
+    } on TimeoutException catch (_) {
+      _logger?.error('Update', '获取发布版本超时');
+      throw const UpdateCheckException('连接超时，请检查网络，或在设置中尝试切换至公益加速镜像站。');
     } catch (e) {
+      if (e is UpdateCheckException) rethrow;
       _logger?.error('Update', '获取发布版本失败: $e');
-      return [];
+      throw UpdateCheckException('连接失败，请检查网络或代理设置: $e');
     }
   }
 
@@ -983,9 +1050,14 @@ class UpdateService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final downloadUrl = _availableUpdate!.downloadUrl;
+      var downloadUrl = _availableUpdate!.downloadUrl;
       if (downloadUrl.isEmpty) {
         throw Exception('下载链接为空');
+      }
+
+      if (_currentMirrorSource.proxyPrefix.isNotEmpty &&
+          !downloadUrl.startsWith(_currentMirrorSource.proxyPrefix)) {
+        downloadUrl = '${_currentMirrorSource.proxyPrefix}$downloadUrl';
       }
 
       _logger?.info('Update', '开始下载更新包: $downloadUrl');

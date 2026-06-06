@@ -12,18 +12,42 @@ import {
   getHanabiDesktopServiceUrl,
   normalizeDesktopServicePort,
 } from '@/lib/extension-meta';
-import { STORAGE_DEFAULTS, STORAGE_KEYS, normalizePortMode } from '@/lib/storage';
+import {
+  DEFAULT_BROWSER_SMALL_FILE_THRESHOLD,
+  STORAGE_DEFAULTS,
+  STORAGE_KEYS,
+  normalizeBrowserDownloadHandlingMode,
+  normalizePortMode,
+  type BrowserDownloadHandlingMode,
+} from '@/lib/storage';
 
 const HEARTBEAT_ALARM = 'hanabi-connection-heartbeat';
 const DESKTOP_REQUEST_TIMEOUT = 3000;
-const CONNECTED_CHECK_CACHE_TTL = 15 * 1000;
-const DISCONNECTED_CHECK_CACHE_TTL = 5 * 1000;
-const HEARTBEAT_MIN_INTERVAL = 60 * 1000;
-const HEADER_SNAPSHOT_TTL = 2 * 60 * 1000;
-const HEADER_SNAPSHOT_LIMIT = 200;
+const DESKTOP_HEALTH_REQUEST_TIMEOUT = 750;
+const CONNECTED_CHECK_CACHE_TTL = 30 * 1000;
+const DISCONNECTED_CHECK_CACHE_TTL = 30 * 1000;
+const HEARTBEAT_MIN_INTERVAL = 3 * 60 * 1000;
+const HEARTBEAT_ALARM_INTERVAL_MINUTES = 3;
+const HEADER_SNAPSHOT_TTL = 45 * 1000;
+const HEADER_SNAPSHOT_LIMIT = 80;
+const MAX_HEADER_VALUE_LENGTH = 8192;
+const MAX_HEADER_TOTAL_CHARS = 24 * 1024;
 const NOTIFICATION_DEDUP_TTL = 4000;
 const AUTO_HANDOFF_DEDUP_TTL = 4000;
 const AUTO_HANDOFF_ID_DEDUP_TTL = 6000;
+const CAPTURED_HEADER_NAMES = new Set([
+  'accept',
+  'accept-language',
+  'authorization',
+  'cookie',
+  'referer',
+  'user-agent',
+]);
+const HEADER_CAPTURE_FILTER = {
+  urls: ['http://*/*', 'https://*/*'],
+  types: ['main_frame', 'sub_frame', 'object', 'other'],
+};
+type PortScanMode = 'primary' | 'nearby' | 'full';
 const MENU_IDS = {
   link: 'hanabi-send-link',
   image: 'hanabi-send-image',
@@ -43,6 +67,11 @@ let lastConnectionCheck:
 let lastHeartbeatAt = 0;
 let lastPersistedConnectionStatus: boolean | null = null;
 let lastPersistedPopupLocale: string | null = null;
+let lastDesktopHandoffPolicy: DesktopHandoffPolicy = {
+  mode: 'smart',
+  smallFileThreshold: DEFAULT_BROWSER_SMALL_FILE_THRESHOLD,
+};
+let headerCaptureEnabled = false;
 
 type HeaderRecord = Record<string, string>;
 type HeaderSnapshot = {
@@ -61,6 +90,8 @@ type DesktopBridgeResponse = {
 type DesktopHealthResponse = DesktopBridgeResponse & {
   status?: string;
   locale?: string;
+  browser_download_handling_mode?: string;
+  browser_download_small_file_threshold?: number;
 };
 
 type HeartbeatResponse = DesktopBridgeResponse & {
@@ -74,6 +105,10 @@ type DownloadPayload = {
   user_agent: string;
   cookies: string;
   headers: HeaderRecord;
+  file_size?: number;
+  total_bytes?: number;
+  mime?: string;
+  danger?: string;
   from_browser: boolean;
   browser: string;
 };
@@ -81,6 +116,12 @@ type DownloadPayload = {
 type ConnectionCheckOptions = {
   force?: boolean;
   sendHeartbeat?: boolean;
+  portScan?: PortScanMode;
+};
+
+type DesktopHandoffPolicy = {
+  mode: BrowserDownloadHandlingMode;
+  smallFileThreshold: number;
 };
 
 const browserKind = isFirefoxBrowser() ? 'firefox' : 'chromium';
@@ -89,8 +130,8 @@ const sessionId = `${browserKind}-${browser.runtime.id}-${Date.now()}-${Math.ran
   .toString(36)
   .slice(2)}`;
 
-const requestHeadersByRequestId = new Map<string, HeaderSnapshot>();
 const headerSnapshotsByUrl = new Map<string, HeaderSnapshot>();
+const requestHeadersByRequestId = new Map<string, HeaderSnapshot>();
 const recentNotifications = new Map<string, number>();
 const recentAutomaticHandoffs = new Map<string, number>();
 const recentAutomaticDownloadIds = new Map<string, number>();
@@ -369,6 +410,15 @@ async function getDisableState() {
   return values[STORAGE_KEYS.shouldDisableExtension] === true;
 }
 
+async function getAutomaticHandoffState() {
+  const values = await browser.storage.local.get({
+    [STORAGE_KEYS.enableAutomaticHandoff]:
+      STORAGE_DEFAULTS[STORAGE_KEYS.enableAutomaticHandoff],
+  });
+
+  return values[STORAGE_KEYS.enableAutomaticHandoff] !== false;
+}
+
 async function shouldShowNotifications() {
   const values = await browser.storage.local.get({
     [STORAGE_KEYS.showNotifications]: STORAGE_DEFAULTS[STORAGE_KEYS.showNotifications],
@@ -417,6 +467,28 @@ async function persistPopupLocale(locale: string | undefined) {
   await browser.storage.local.set({
     [STORAGE_KEYS.popupLocale]: locale,
   });
+}
+
+function normalizeSmallFileThreshold(value: unknown) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_BROWSER_SMALL_FILE_THRESHOLD;
+  }
+  return Math.min(
+    Math.max(Math.trunc(parsed), 1024 * 1024),
+    512 * 1024 * 1024,
+  );
+}
+
+function rememberDesktopHandoffPolicy(data: DesktopHealthResponse | undefined) {
+  lastDesktopHandoffPolicy = {
+    mode: normalizeBrowserDownloadHandlingMode(
+      data?.browser_download_handling_mode,
+    ),
+    smallFileThreshold: normalizeSmallFileThreshold(
+      data?.browser_download_small_file_threshold,
+    ),
+  };
 }
 
 function getDeviceInfo() {
@@ -477,6 +549,9 @@ async function checkConnection(options: ConnectionCheckOptions = {}) {
       const { data } = await fetchDesktopJson<DesktopHealthResponse>('/health');
       const connected = data.status === 'ok';
       lastConnectionCheck = { checkedAt, connected };
+      if (connected) {
+        rememberDesktopHandoffPolicy(data);
+      }
       if (connected && options.sendHeartbeat) {
         await maybeSendDesktopHeartbeat();
       }
@@ -506,6 +581,9 @@ async function getConnectionSnapshot() {
     status: connected ? 'connected' : 'disconnected',
     apiPort: desktopServicePort,
     locale: String(values[STORAGE_KEYS.popupLocale] ?? 'en'),
+    browserDownloadHandlingMode: lastDesktopHandoffPolicy.mode,
+    browserDownloadSmallFileThreshold:
+      lastDesktopHandoffPolicy.smallFileThreshold,
   };
 }
 
@@ -559,6 +637,75 @@ function buildPayloadFromHeaders(
   };
 }
 
+function readPositiveNumber(value: unknown) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return undefined;
+  }
+  return Math.trunc(parsed);
+}
+
+function readDownloadItemSize(downloadItem: Record<string, any>) {
+  const fileSize = readPositiveNumber(downloadItem.fileSize);
+  const totalBytes = readPositiveNumber(downloadItem.totalBytes);
+  return {
+    fileSize,
+    totalBytes,
+    bestSize: fileSize ?? totalBytes,
+  };
+}
+
+function isBrowserDangerSafe(downloadItem: Record<string, any>) {
+  const danger = String(downloadItem.danger ?? '').trim().toLowerCase();
+  return (
+    danger === '' ||
+    danger === 'safe' ||
+    danger === 'accepted' ||
+    danger === 'allowlistedbypolicy'
+  );
+}
+
+function shouldLetBrowserKeepDownload(
+  downloadItem: Record<string, any>,
+  policy: DesktopHandoffPolicy,
+) {
+  if (!isBrowserDangerSafe(downloadItem)) {
+    return true;
+  }
+
+  if (policy.mode !== 'small_files_to_browser') {
+    return false;
+  }
+
+  const { bestSize } = readDownloadItemSize(downloadItem);
+  return bestSize !== undefined && bestSize <= policy.smallFileThreshold;
+}
+
+function attachDownloadMetadata(
+  payload: DownloadPayload,
+  downloadItem: Record<string, any>,
+) {
+  const { fileSize, totalBytes } = readDownloadItemSize(downloadItem);
+  if (fileSize !== undefined) {
+    payload.file_size = fileSize;
+  }
+  if (totalBytes !== undefined) {
+    payload.total_bytes = totalBytes;
+  }
+
+  const mime = String(downloadItem.mime ?? '').trim();
+  if (mime) {
+    payload.mime = mime;
+  }
+
+  const danger = String(downloadItem.danger ?? '').trim();
+  if (danger) {
+    payload.danger = danger;
+  }
+
+  return payload;
+}
+
 async function sendDownloadToHanabi(
   payload: DownloadPayload,
   options: { notifyOnSuccess?: boolean; skipConnectionCheck?: boolean } = {},
@@ -603,10 +750,16 @@ function shouldHandleAutomaticDownload(
   downloadItem: Record<string, any>,
   disabled: boolean,
   connected: boolean,
+  automaticHandoffEnabled: boolean,
 ) {
   const downloadUrl = String(downloadItem.finalUrl || downloadItem.url || '');
 
-  if (disabled || !connected || !isSupportedUrl(downloadUrl)) {
+  if (
+    disabled ||
+    !connected ||
+    !automaticHandoffEnabled ||
+    !isSupportedUrl(downloadUrl)
+  ) {
     return false;
   }
 
@@ -642,8 +795,22 @@ async function handoffAutomaticDownload(
   recentAutomaticHandoffs.set(handoffSignature, now + AUTO_HANDOFF_DEDUP_TTL);
 
   const disabled = await getDisableState();
-  const connected = await checkConnection();
-  if (!shouldHandleAutomaticDownload(downloadItem, disabled, connected)) {
+  const connected = await checkConnection({
+    force: lastConnectionCheck?.connected === true,
+  });
+  const automaticHandoffEnabled = await getAutomaticHandoffState();
+  if (
+    !shouldHandleAutomaticDownload(
+      downloadItem,
+      disabled,
+      connected,
+      automaticHandoffEnabled,
+    )
+  ) {
+    return;
+  }
+
+  if (shouldLetBrowserKeepDownload(downloadItem, lastDesktopHandoffPolicy)) {
     return;
   }
 
@@ -677,7 +844,15 @@ async function handoffAutomaticDownload(
   }
 
   await sendDownloadToHanabi(
-    buildPayloadFromHeaders(downloadUrl, filename, headers, downloadItem.referrer ?? ''),
+    attachDownloadMetadata(
+      buildPayloadFromHeaders(
+        downloadUrl,
+        filename,
+        headers,
+        downloadItem.referrer ?? '',
+      ),
+      downloadItem,
+    ),
     { skipConnectionCheck: true },
   );
 }
@@ -830,6 +1005,16 @@ function handleRequestHeaders(details: Record<string, any>) {
     supportsRange,
   };
 
+  // Prune requestHeadersByRequestId to prevent memory leaks
+  const now = Date.now();
+  if (now % 10 === 0) { // Prune roughly 10% of the time to save CPU
+    for (const [id, snap] of requestHeadersByRequestId) {
+      if (now - snap.capturedAt > 5 * 60 * 1000) { // 5 minutes TTL
+        requestHeadersByRequestId.delete(id);
+      }
+    }
+  }
+
   requestHeadersByRequestId.set(details.requestId, snapshot);
   rememberHeaderSnapshot(details.url, headers, supportsRange);
 }
@@ -855,7 +1040,7 @@ async function initialize() {
   await scheduleContextMenuSync();
   await syncConnectionBadge();
   await checkConnection({ force: true, sendHeartbeat: true });
-  await browser.alarms.create(HEARTBEAT_ALARM, { periodInMinutes: 1 });
+  await browser.alarms.create(HEARTBEAT_ALARM, { periodInMinutes: HEARTBEAT_ALARM_INTERVAL_MINUTES });
 }
 
 function scheduleInitialize() {
@@ -885,7 +1070,7 @@ export default defineBackground(() => {
     (details) => {
       handleRequestHeaders(details as Record<string, any>);
     },
-    { urls: ['<all_urls>'] },
+    HEADER_CAPTURE_FILTER,
     getOnSendHeadersExtraInfoSpec(),
   );
 
@@ -893,14 +1078,14 @@ export default defineBackground(() => {
     (details) => {
       clearRequestHeaders(String((details as Record<string, any>).requestId ?? ''));
     },
-    { urls: ['<all_urls>'] },
+    HEADER_CAPTURE_FILTER,
   );
 
   browser.webRequest.onErrorOccurred.addListener(
     (details) => {
       clearRequestHeaders(String((details as Record<string, any>).requestId ?? ''));
     },
-    { urls: ['<all_urls>'] },
+    HEADER_CAPTURE_FILTER,
   );
 
   if (supportsDownloadDeterminingFilename()) {

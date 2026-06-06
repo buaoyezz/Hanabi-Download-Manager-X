@@ -72,6 +72,11 @@ constexpr const wchar_t kGetPreferredBrightnessRegValue[] = L"AppsUseLightTheme"
 
 // The number of Win32Window objects that currently exist.
 static int g_active_window_count = 0;
+#ifdef _DEBUG
+static bool g_native_render_logging_enabled = true;
+#else
+static bool g_native_render_logging_enabled = false;
+#endif
 
 using EnableNonClientDpiScaling = BOOL __stdcall(HWND hwnd);
 
@@ -82,6 +87,10 @@ int Scale(int source, double scale_factor) {
 }
 
 void LogRenderA(const char* s) {
+  if (!g_native_render_logging_enabled) {
+    return;
+  }
+
   SYSTEMTIME local_time;
   GetLocalTime(&local_time);
 
@@ -149,6 +158,14 @@ void EnableFullDpiSupportIfAvailable(HWND hwnd) {
 }
 
 }  // namespace
+
+void SetNativeRenderLoggingEnabled(bool enabled) {
+  g_native_render_logging_enabled = enabled;
+}
+
+bool IsNativeRenderLoggingEnabled() {
+  return g_native_render_logging_enabled;
+}
 
 // Manages the Win32Window's window class registration.
 class WindowClassRegistrar {
@@ -402,7 +419,10 @@ Win32Window::MessageHandler(HWND hwnd,
         sprintf_s(buffer, sizeof(buffer), "Win32Window WM_NCACTIVATE active=%d",
                   wparam != FALSE);
         LogRenderA(buffer);
-        return DefWindowProc(hwnd, message, wparam, -1);
+        // The Flutter content owns the full frame. Letting DefWindowProc handle
+        // activation paints the native caption for a frame, causing a brief
+        // classic title bar flash when focus changes.
+        return TRUE;
       }
       break;
 

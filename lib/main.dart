@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:fluent_ui/fluent_ui.dart' as fluent;
 import 'package:provider/provider.dart';
-import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'package:window_manager/window_manager.dart';
 import 'package:flutter_acrylic/flutter_acrylic.dart';
 import 'l10n/app_localizations.dart';
 import 'l10n/app_localizations_delegate.dart';
@@ -354,102 +354,72 @@ void main(List<String> args) async {
       ),
     );
 
-    doWhenWindowReady(() async {
-      final win = appWindow;
-      // 使用已经初始化的 ClientConfigService 实例
-      // 注意：不能创建新实例，因为配置还没有加载
+    await windowManager.ensureInitialized();
+    
+    // 获取屏幕大小（使用 screen_retriever）
+    double screenWidth = 1920.0;
+    double screenHeight = 1080.0;
+    try {
+      final primaryDisplay = await screenRetriever.getPrimaryDisplay();
+      screenWidth = primaryDisplay.size.width;
+      screenHeight = primaryDisplay.size.height;
+      debugPrint('Screen size: $screenWidth x $screenHeight');
 
-      // 获取屏幕大小（使用 screen_retriever）
-      double screenWidth = 1920.0;
-      double screenHeight = 1080.0;
-      try {
-        final primaryDisplay = await screenRetriever.getPrimaryDisplay();
-        screenWidth = primaryDisplay.size.width;
-        screenHeight = primaryDisplay.size.height;
-        debugPrint('Screen size: $screenWidth x $screenHeight');
+      // 根据屏幕分辨率自动设置缩放比例
+      await clientConfig.autoSetScaleFactorByResolution(
+          screenWidth, screenHeight);
+    } catch (e) {
+      debugPrint('Failed to get screen size: $e');
+    }
 
-        // 根据屏幕分辨率自动设置缩放比例
-        await clientConfig.autoSetScaleFactorByResolution(
-            screenWidth, screenHeight);
-      } catch (e) {
-        debugPrint('Failed to get screen size: $e');
+    // 根据是否记忆大小来决定使用哪个尺寸
+    Size initialSize;
+    final rememberSize = clientConfig.getWindowRememberSize();
+    final defaultWidth = clientConfig.getWindowDefaultWidth();
+    final defaultHeight = clientConfig.getWindowDefaultHeight();
+
+    if (rememberSize) {
+      final savedWidth = clientConfig.getWindowWidth();
+      final savedHeight = clientConfig.getWindowHeight();
+      
+      bool isOldConfig = false;
+      if ((savedWidth == 1280.0 && savedHeight == 800.0) ||
+          (savedWidth == 1200.0 && savedHeight == 800.0)) {
+        isOldConfig = true;
       }
 
-      // 根据是否记忆大小来决定使用哪个尺寸
-      // 使用已初始化的 clientConfig 实例
-      Size initialSize;
-      final rememberSize = clientConfig.getWindowRememberSize();
-      final defaultWidth = clientConfig.getWindowDefaultWidth();
-      final defaultHeight = clientConfig.getWindowDefaultHeight();
+      double targetWidth = savedWidth;
+      double targetHeight = savedHeight;
 
-      debugPrint('Remember size: $rememberSize');
-      debugPrint('Default size: $defaultWidth x $defaultHeight');
-
-      if (rememberSize) {
-        // 使用上次保存的大小，但不超过屏幕大小
-        final savedWidth = clientConfig.getWindowWidth();
-        final savedHeight = clientConfig.getWindowHeight();
-        debugPrint('Saved size: $savedWidth x $savedHeight');
-
-        // 检查是否是旧配置（width/height 是旧的默认值 1280x800 或其他不合理的值）
-        // 如果 saved size 明显不合理（比如是旧的硬编码值），使用 default size
-        bool isOldConfig = false;
-
-        // 检测常见的旧默认值
-        if ((savedWidth == 1280.0 && savedHeight == 800.0) ||
-            (savedWidth == 1200.0 && savedHeight == 800.0)) {
-          isOldConfig = true;
-          debugPrint(
-              'Detected old config with hardcoded size, migrating to default size');
-        }
-
-        double targetWidth = savedWidth;
-        double targetHeight = savedHeight;
-
-        if (isOldConfig) {
-          // 使用默认大小并更新配置
-          targetWidth = defaultWidth;
-          targetHeight = defaultHeight;
-          await clientConfig.setWindowWidth(defaultWidth);
-          await clientConfig.setWindowHeight(defaultHeight);
-          debugPrint(
-              'Migrated to default size: $defaultWidth x $defaultHeight');
-        }
-
-        final safeWidth = targetWidth.clamp(600.0, screenWidth);
-        final safeHeight = targetHeight.clamp(400.0, screenHeight);
-        initialSize = Size(safeWidth, safeHeight);
-        debugPrint('Using saved size (clamped): $safeWidth x $safeHeight');
-      } else {
-        // 使用默认大小，但不超过屏幕大小
-        final safeWidth = defaultWidth.clamp(600.0, screenWidth);
-        final safeHeight = defaultHeight.clamp(400.0, screenHeight);
-        initialSize = Size(safeWidth, safeHeight);
-        debugPrint('Using default size (clamped): $safeWidth x $safeHeight');
+      if (isOldConfig) {
+        targetWidth = defaultWidth;
+        targetHeight = defaultHeight;
+        await clientConfig.setWindowWidth(defaultWidth);
+        await clientConfig.setWindowHeight(defaultHeight);
       }
 
-      // 设置窗口属性
-      win.minSize = const Size(600, 400);
-      win.alignment = Alignment.center;
-      win.title = "Hanabi Download ManagerX";
+      final safeWidth = targetWidth.clamp(600.0, screenWidth);
+      final safeHeight = targetHeight.clamp(400.0, screenHeight);
+      initialSize = Size(safeWidth, safeHeight);
+    } else {
+      final safeWidth = defaultWidth.clamp(600.0, screenWidth);
+      final safeHeight = defaultHeight.clamp(400.0, screenHeight);
+      initialSize = Size(safeWidth, safeHeight);
+    }
 
-      // 设置窗口大小（需要在 show 之前设置）
-      win.size = initialSize;
-      debugPrint(
-          'Window size requested: ${initialSize.width} x ${initialSize.height}');
+    WindowOptions windowOptions = WindowOptions(
+      size: initialSize,
+      minimumSize: const Size(600, 400),
+      center: true,
+      title: "Hanabi Download ManagerX",
+      titleBarStyle: TitleBarStyle.hidden,
+    );
 
-      if (isAutoStart) {
-        win.hide();
-      } else {
-        win.show();
-        win.restore();
+    windowManager.waitUntilReadyToShow(windowOptions, () async {
+      if (!isAutoStart) {
+        await windowManager.show();
+        await windowManager.focus();
       }
-
-      // 显示后再次确认窗口大小（bitsdojo_window 的 bug workaround）
-      await Future.delayed(const Duration(milliseconds: 100));
-      win.size = initialSize;
-      debugPrint(
-          'Window size confirmed: ${initialSize.width} x ${initialSize.height}');
     });
   });
 }
@@ -869,12 +839,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
     // 保存窗口状态
     try {
-      final win = appWindow;
       final config = context.read<ClientConfigService>();
 
       if (config.getWindowRememberSize()) {
-        final currentWidth = win.size.width;
-        final currentHeight = win.size.height;
+        final size = await windowManager.getSize();
+        final currentWidth = size.width;
+        final currentHeight = size.height;
 
         // 验证窗口大小是否合理（防止保存异常值）
         // 窗口最小化时，size 可能会变成很小的值（如 160x28），需要过滤掉

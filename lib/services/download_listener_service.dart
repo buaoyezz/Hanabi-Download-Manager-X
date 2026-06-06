@@ -15,22 +15,41 @@ class DownloadListenerService {
   Timer? _pollTimer;
   bool _isChecking = false;
   bool _isShowingPopup = false; // 防止独立 popup 创建期间重复触发
+
   String? _lastPopupSignature;
   DateTime? _lastPopupOpenedAt;
   static const Duration _popupDedupWindow = Duration(seconds: 4);
 
   DownloadListenerService(this.context);
 
+  bool _isStopped = false;
+
   // 开始监听下载请求
   void startListening() {
+    _isStopped = false;
     _logger.info('Download listener started');
-    _pollTimer = Timer.periodic(const Duration(milliseconds: 500), (_) async {
-      await _checkForNewDownloads();
+    _scheduleNextCheck(const Duration(milliseconds: 500));
+  }
+
+  void _scheduleNextCheck(Duration delay) {
+    if (_isStopped) return;
+    _pollTimer?.cancel();
+    _pollTimer = Timer(delay, () async {
+      if (_isStopped) return;
+      final found = await _checkForNewDownloads();
+      
+      Duration nextDelay = const Duration(seconds: 2);
+      if (found || _isShowingPopup) {
+        nextDelay = const Duration(milliseconds: 500);
+      }
+      
+      _scheduleNextCheck(nextDelay);
     });
   }
 
   // 停止监听
   void stopListening() {
+    _isStopped = true;
     _pollTimer?.cancel();
     _pollTimer = null;
     _isChecking = false;
@@ -41,10 +60,11 @@ class DownloadListenerService {
   }
 
   // 检查是否有新的下载请求
-  Future<void> _checkForNewDownloads() async {
+  Future<bool> _checkForNewDownloads() async {
     // 如果正在检查或正在显示弹窗，跳过本次检查
-    if (_isChecking || _isShowingPopup) return;
+    if (_isChecking || _isShowingPopup) return false;
     _isChecking = true;
+    bool foundNewDownload = false;
 
     try {
       final config = Provider.of<ClientConfigService>(context, listen: false);
@@ -62,6 +82,7 @@ class DownloadListenerService {
           final downloadData = result['data'] as Map<String, dynamic>;
           _logger
               .info('New download from browser: ${downloadData['filename']}');
+          foundNewDownload = true;
           await _handleDownloadRequest(downloadData);
         }
       }
@@ -70,13 +91,18 @@ class DownloadListenerService {
     } finally {
       _isChecking = false;
     }
+    
+    return foundNewDownload;
   }
 
   Future<void> _handleDownloadRequest(Map<String, dynamic> downloadData) async {
     final config = Provider.of<ClientConfigService>(context, listen: false);
-    final enablePopup = config.getEnablePopupWindow();
+    final handlingMode = config.getBrowserDownloadHandlingMode();
+    final shouldShowPopup =
+        ClientConfigService.browserDownloadModeMayShowPopup(handlingMode) ||
+            _hasUnsafeBrowserDanger(downloadData['danger']);
 
-    if (enablePopup) {
+    if (shouldShowPopup) {
       await _showPopupForDownload(downloadData);
       return;
     }
@@ -174,5 +200,16 @@ class DownloadListenerService {
     } catch (_) {
       return text;
     }
+  }
+
+  bool _hasUnsafeBrowserDanger(Object? value) {
+    final text = value?.toString().trim().toLowerCase() ?? '';
+    if (text.isEmpty ||
+        text == 'safe' ||
+        text == 'accepted' ||
+        text == 'allowlistedbypolicy') {
+      return false;
+    }
+    return true;
   }
 }

@@ -11,9 +11,9 @@ import '../../services/plugin_store_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/fluent_icons.dart' as custom_icons;
 import '../../widgets/animated_notifications.dart';
+import '../../widgets/folder_picker_dialog.dart';
 import '../../widgets/settings_components.dart';
 import '../../widgets/smooth_scroll_wrapper.dart';
-import '../../widgets/folder_picker_dialog.dart';
 import 'plugin_settings_dialog.dart';
 
 class PluginStorePage extends StatefulWidget {
@@ -58,50 +58,102 @@ class _PluginStorePageState extends State<PluginStorePage> {
       ),
       content: SmoothSingleChildScrollView(
         config: SmoothScrollConfig.fast,
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSummary(pluginService, storeService),
-            const SizedBox(height: 16),
-            _buildInstalledSection(pluginService),
-            const SizedBox(height: 16),
-            _buildStoreSection(pluginService, storeService),
-          ],
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1280),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildOverview(pluginService, storeService),
+                const SizedBox(height: 16),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 980;
+                    if (compact) {
+                      return Column(
+                        children: [
+                          _buildInstalledPanel(pluginService),
+                          const SizedBox(height: 16),
+                          _buildStorePanel(pluginService, storeService),
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 9,
+                          child: _buildInstalledPanel(pluginService),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          flex: 11,
+                          child: _buildStorePanel(pluginService, storeService),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildSummary(
+  Widget _buildOverview(
     PluginLifecycleService pluginService,
     PluginStoreService storeService,
   ) {
     final enabled = pluginService.plugins.where((p) => p.enabled).length;
-    final disabled = pluginService.plugins.length - enabled;
+    final invalid = pluginService.plugins
+        .where(
+          (p) =>
+              p.state == PluginInstallState.invalid ||
+              p.state == PluginInstallState.incompatible,
+        )
+        .length;
     final updates = storeService.availableUpdates();
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
+
+    return _surface(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.bgLayer1.withValues(alpha: 0.56),
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border:
-            Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.55)),
-      ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 760;
+          final compact = constraints.maxWidth < 820;
           final stats = [
-            _statChip(_isChinese ? '已启用' : 'Enabled', enabled),
-            _statChip(_isChinese ? '已禁用' : 'Disabled', disabled),
-            _statChip(_isChinese ? '商店条目' : 'Store entries',
-                storeService.index.entries.length),
-            _statChip(_isChinese ? '可更新' : 'Updates', updates.length),
+            _metricTile(
+              icon: custom_icons.FluentIcons.app_icon_default,
+              label: _isChinese ? '已安装' : 'Installed',
+              value: pluginService.plugins.length.toString(),
+              color: AppTheme.accentPrimary,
+            ),
+            _metricTile(
+              icon: custom_icons.FluentIcons.checkmark_circle_24,
+              label: _isChinese ? '已启用' : 'Enabled',
+              value: enabled.toString(),
+              color: AppTheme.statusSuccess,
+            ),
+            _metricTile(
+              icon: custom_icons.FluentIcons.update_restore,
+              label: _isChinese ? '可更新' : 'Updates',
+              value: updates.length.toString(),
+              color: AppTheme.statusWarning,
+            ),
+            _metricTile(
+              icon: custom_icons.FluentIcons.warning,
+              label: _isChinese ? '需处理' : 'Needs review',
+              value: invalid.toString(),
+              color:
+                  invalid == 0 ? AppTheme.textTertiary : AppTheme.statusError,
+            ),
           ];
-          final actions = Wrap(
+          final commands = Wrap(
             spacing: 8,
             runSpacing: 8,
+            alignment: compact ? WrapAlignment.start : WrapAlignment.end,
             children: [
               _actionButton(
                 icon: custom_icons.FluentIcons.folder_open,
@@ -115,7 +167,7 @@ class _PluginStorePageState extends State<PluginStorePage> {
               ),
               _actionButton(
                 icon: custom_icons.FluentIcons.refresh,
-                label: _isChinese ? '刷新' : 'Refresh',
+                label: _isChinese ? '扫描本地' : 'Scan local',
                 onPressed: _busy
                     ? null
                     : () => context
@@ -125,6 +177,7 @@ class _PluginStorePageState extends State<PluginStorePage> {
               _actionButton(
                 icon: custom_icons.FluentIcons.update_restore,
                 label: _isChinese ? '全部更新' : 'Update all',
+                filled: updates.isNotEmpty,
                 onPressed: _busy || updates.isEmpty
                     ? null
                     : () => _updateAllPlugins(context),
@@ -136,19 +189,21 @@ class _PluginStorePageState extends State<PluginStorePage> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Wrap(spacing: 8, runSpacing: 8, children: stats),
-                const SizedBox(height: 12),
-                actions,
+                Wrap(spacing: 10, runSpacing: 10, children: stats),
+                const SizedBox(height: 14),
+                commands,
               ],
             );
           }
 
           return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
-                child: Wrap(spacing: 8, runSpacing: 8, children: stats),
+                child: Wrap(spacing: 10, runSpacing: 10, children: stats),
               ),
-              actions,
+              const SizedBox(width: 18),
+              commands,
             ],
           );
         },
@@ -156,191 +211,196 @@ class _PluginStorePageState extends State<PluginStorePage> {
     );
   }
 
-  Widget _statChip(String label, int value) {
+  Widget _metricTile({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
     return Container(
-      height: 30,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+      width: 136,
+      constraints: const BoxConstraints(minHeight: 58),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppTheme.bgLayer2.withValues(alpha: 0.62),
-        borderRadius: BorderRadius.circular(AppTheme.radiusRound),
+        color: AppTheme.bgLayer2.withValues(alpha: 0.48),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.5)),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            label,
-            style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: AppTheme.textTertiary,
-                  fontSize: 12,
-                ),
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.13),
+              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+            ),
+            child: Icon(icon, size: 16, color: color),
           ),
-          const SizedBox(width: 8),
-          Text(
-            value.toString(),
-            style: FluentTheme.of(context).typography.body?.copyWith(
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: FluentTheme.of(context).typography.body?.copyWith(
+                        color: AppTheme.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
                 ),
+                const SizedBox(height: 1),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: FluentTheme.of(context).typography.caption?.copyWith(
+                        color: AppTheme.textTertiary,
+                        fontSize: 11,
+                      ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  String _getCategoryName(String category) {
-    if (category == 'all') return _isChinese ? '全部类型' : 'All';
-    if (!_isChinese) {
-      if (category.isEmpty) return 'Other';
-      return category[0].toUpperCase() + category.substring(1);
-    }
-
-    switch (category.toLowerCase()) {
-      case 'feature':
-        return '功能类';
-      case 'visual':
-        return '视觉类';
-      case 'protocol':
-        return '协议类';
-      case 'tool':
-        return '工具类';
-      case 'other':
-      default:
-        return '其他';
-    }
-  }
-
-  List<ComboBoxItem<String>> _buildCategoryItems() {
-    return [
-      'all',
-      'feature',
-      'visual',
-      'protocol',
-      'tool',
-      'other',
-    ]
-        .map((cat) => ComboBoxItem(
-              value: cat,
-              child: Text(_getCategoryName(cat)),
-            ))
-        .toList();
-  }
-
-  Widget _buildInstalledSection(PluginLifecycleService service) {
-    final plugins = service.plugins.where((p) {
-      if (_installedCategory == 'all') return true;
-      return p.manifest.category.toLowerCase() == _installedCategory;
-    }).toList();
-
-    final groupedPlugins = <String, List<InstalledPlugin>>{};
-    for (final plugin in plugins) {
-      final category = plugin.manifest.category;
-      groupedPlugins.putIfAbsent(category, () => []).add(plugin);
-    }
-
-    final children = <Widget>[
-      Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const SizedBox.shrink(),
-          SizedBox(
-            width: 150,
-            child: ComboBox<String>(
-              value: _installedCategory,
-              items: _buildCategoryItems(),
-              onChanged: (v) {
-                if (v != null) setState(() => _installedCategory = v);
-              },
-            ),
-          )
-        ],
-      ),
-      const SizedBox(height: 12),
-    ];
-
-    if (plugins.isEmpty) {
-      children.add(_emptyState(
-        _isChinese ? '还没有安装本地插件' : 'No local plugins installed',
-        _isChinese
-            ? '可以从本地目录或 .hanabi-plugin.zip 包安装。'
-            : 'Install from a local folder or a .hanabi-plugin.zip package.',
-      ));
-    } else {
-      final sortedCategories = groupedPlugins.keys.toList()..sort();
-      for (final category in sortedCategories) {
-        children.add(Padding(
-          padding: const EdgeInsets.only(bottom: 8, top: 8),
-          child: Text(
-            _getCategoryName(category),
-            style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
-          ),
-        ));
-        for (final plugin in groupedPlugins[category]!) {
-          children.add(_installedPluginTile(service, plugin));
+  Widget _buildInstalledPanel(PluginLifecycleService service) {
+    final plugins = service.plugins.where((plugin) {
+      if (_installedCategory == 'all') {
+        return true;
+      }
+      return plugin.manifest.category.toLowerCase() == _installedCategory;
+    }).toList()
+      ..sort((a, b) {
+        final category = a.manifest.category.compareTo(b.manifest.category);
+        if (category != 0) {
+          return category;
         }
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+
+    final enabled = plugins.where((plugin) => plugin.enabled).length;
+
+    return _panel(
+      title: _installedTitle,
+      subtitle: _isChinese
+          ? '$enabled 个启用，${plugins.length} 个当前筛选结果'
+          : '$enabled enabled, ${plugins.length} in this view',
+      icon: custom_icons.FluentIcons.app_icon_default,
+      trailing: SizedBox(
+        width: 160,
+        child: ComboBox<String>(
+          value: _installedCategory,
+          items: _buildCategoryItems(),
+          onChanged: (value) {
+            if (value != null) {
+              setState(() => _installedCategory = value);
+            }
+          },
+        ),
+      ),
+      child: plugins.isEmpty
+          ? _emptyState(
+              icon: custom_icons.FluentIcons.folder_open,
+              title: _isChinese ? '还没有本地插件' : 'No local plugins',
+              subtitle: _isChinese
+                  ? '可以从插件目录或 .hanabi-plugin.zip 安装。'
+                  : 'Install from a plugin folder or a .hanabi-plugin.zip package.',
+            )
+          : Column(
+              children: _groupedInstalledPlugins(service, plugins),
+            ),
+    );
+  }
+
+  List<Widget> _groupedInstalledPlugins(
+    PluginLifecycleService service,
+    List<InstalledPlugin> plugins,
+  ) {
+    final grouped = <String, List<InstalledPlugin>>{};
+    for (final plugin in plugins) {
+      final category = plugin.manifest.category.trim().isEmpty
+          ? 'other'
+          : plugin.manifest.category.trim();
+      grouped.putIfAbsent(category, () => []).add(plugin);
+    }
+
+    final widgets = <Widget>[];
+    final categories = grouped.keys.toList()..sort();
+    for (final category in categories) {
+      if (widgets.isNotEmpty) {
+        widgets.add(const SizedBox(height: 14));
+      }
+      widgets.add(_groupLabel(_getCategoryName(category)));
+      widgets.add(const SizedBox(height: 8));
+      for (final plugin in grouped[category]!) {
+        widgets.add(_installedPluginCard(service, plugin));
       }
     }
-
-    return SettingsSection(
-      title: _installedTitle,
-      icon: custom_icons.FluentIcons.app_icon_default,
-      children: children,
-    );
+    return widgets;
   }
 
-  Widget _installedPluginTile(
+  Widget _installedPluginCard(
     PluginLifecycleService service,
     InstalledPlugin plugin,
   ) {
     final stateColor = _stateColor(plugin);
+    final hasSettings =
+        plugin.manifest.uiExtensions?['settings']?.isNotEmpty == true;
+    final permissionLabels = plugin.manifest.permissions.toList();
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.bgLayer2.withValues(alpha: 0.54),
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border:
-            Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.48)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      decoration: _itemDecoration(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 520;
+          final titleBlock = Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: stateColor.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                ),
-                child: Icon(
-                  custom_icons.FluentIcons.app_icon_default,
-                  size: 18,
-                  color: stateColor,
-                ),
+              _pluginIcon(
+                icon: custom_icons.FluentIcons.app_icon_default,
+                color: stateColor,
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      plugin.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: FluentTheme.of(context).typography.body?.copyWith(
-                            color: AppTheme.textPrimary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            plugin.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: FluentTheme.of(context)
+                                .typography
+                                .body
+                                ?.copyWith(
+                                  color: AppTheme.textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
                           ),
+                        ),
+                        if (!compact) ...[
+                          const SizedBox(width: 10),
+                          _statusPill(_stateLabel(plugin), stateColor),
+                        ],
+                      ],
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
-                      '${plugin.id} · v${plugin.version} · ${plugin.manifest.author}',
+                      '${plugin.id} - v${plugin.version} - ${plugin.manifest.author}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style:
@@ -352,82 +412,103 @@ class _PluginStorePageState extends State<PluginStorePage> {
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
-              ToggleSwitch(
-                checked: plugin.enabled,
-                onChanged: plugin.state == PluginInstallState.invalid ||
-                        plugin.state == PluginInstallState.incompatible
-                    ? null
-                    : (value) => _setPluginEnabled(service, plugin, value),
-              ),
             ],
-          ),
-          if (plugin.manifest.description.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(
-              plugin.manifest.description,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                  ),
-            ),
-          ],
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
+          );
+
+          final toggle = ToggleSwitch(
+            checked: plugin.enabled,
+            onChanged: plugin.state == PluginInstallState.invalid ||
+                    plugin.state == PluginInstallState.incompatible
+                ? null
+                : (value) => _setPluginEnabled(service, plugin, value),
+          );
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _statusPill(_stateLabel(plugin), stateColor),
-              ...plugin.manifest.capabilities.map(
-                (capability) => _plainPill(capability),
-              ),
-            ],
-          ),
-          if (plugin.lastError != null && plugin.lastError!.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(
-              plugin.lastError!,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: AppTheme.statusError,
-                    fontSize: 12,
-                  ),
-            ),
-          ],
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _actionButton(
-                icon: custom_icons.FluentIcons.folder_open,
-                label: _isChinese ? '日志' : 'Logs',
-                onPressed: () =>
-                    _openDirectory(service.pluginLogDir(plugin.id)),
-              ),
-              _actionButton(
-                icon: custom_icons.FluentIcons.delete,
-                label: _isChinese ? '卸载' : 'Uninstall',
-                onPressed:
-                    _busy ? null : () => _uninstallPlugin(service, plugin),
-              ),
-              if (plugin.manifest.uiExtensions?['settings']?.isNotEmpty == true)
-                _actionButton(
-                  icon: custom_icons.FluentIcons.settings,
-                  label: _isChinese ? '设置' : 'Settings',
-                  onPressed: () => _openPluginSettings(context, plugin),
+              if (compact) ...[
+                titleBlock,
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    _statusPill(_stateLabel(plugin), stateColor),
+                    const Spacer(),
+                    toggle,
+                  ],
                 ),
+              ] else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: titleBlock),
+                    const SizedBox(width: 14),
+                    toggle,
+                  ],
+                ),
+              if (plugin.manifest.description.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(
+                  plugin.manifest.description,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: FluentTheme.of(context).typography.caption?.copyWith(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                      ),
+                ),
+              ],
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  _plainPill(_getCategoryName(plugin.manifest.category)),
+                  ...plugin.manifest.capabilities.map(_plainPill),
+                  ...permissionLabels.map(_permissionPill),
+                ],
+              ),
+              if (plugin.lastError != null && plugin.lastError!.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _messageStrip(
+                  icon: custom_icons.FluentIcons.warning,
+                  text: plugin.lastError!,
+                  color: AppTheme.statusError,
+                ),
+              ],
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _actionButton(
+                    icon: custom_icons.FluentIcons.folder_open,
+                    label: _isChinese ? '日志' : 'Logs',
+                    onPressed: () =>
+                        _openDirectory(service.pluginLogDir(plugin.id)),
+                  ),
+                  if (hasSettings)
+                    _actionButton(
+                      icon: custom_icons.FluentIcons.settings,
+                      label: _isChinese ? '设置' : 'Settings',
+                      onPressed: () => _openPluginSettings(context, plugin),
+                    ),
+                  _actionButton(
+                    icon: custom_icons.FluentIcons.delete,
+                    label: _isChinese ? '卸载' : 'Uninstall',
+                    danger: true,
+                    onPressed:
+                        _busy ? null : () => _uninstallPlugin(service, plugin),
+                  ),
+                ],
+              ),
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildStoreSection(
+  Widget _buildStorePanel(
     PluginLifecycleService pluginService,
     PluginStoreService storeService,
   ) {
@@ -442,75 +523,120 @@ class _PluginStorePageState extends State<PluginStorePage> {
       }
       return entry.name.toLowerCase().contains(query) ||
           entry.id.toLowerCase().contains(query) ||
-          entry.description.toLowerCase().contains(query);
-    }).toList(growable: false);
+          entry.description.toLowerCase().contains(query) ||
+          entry.author.toLowerCase().contains(query);
+    }).toList()
+      ..sort((a, b) {
+        final category = a.category.compareTo(b.category);
+        if (category != 0) {
+          return category;
+        }
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
 
-    final groupedEntries = <String, List<PluginStoreEntry>>{};
-    for (final entry in entries) {
-      final category = entry.category;
-      groupedEntries.putIfAbsent(category, () => []).add(entry);
-    }
-
-    final children = <Widget>[
-      _buildStoreSourcePanel(storeService),
-      const SizedBox(height: 10),
-      Row(
+    return _panel(
+      title: _storeTitle,
+      subtitle: _isChinese
+          ? '${entries.length} 个当前筛选结果，${storeService.index.entries.length} 个商店条目'
+          : '${entries.length} in this view, ${storeService.index.entries.length} store entries',
+      icon: custom_icons.FluentIcons.globe,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: TextBox(
-              controller: _searchController,
-              placeholder: _isChinese ? '搜索插件' : 'Search plugins',
-              onChanged: (_) => setState(() {}),
-            ),
-          ),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 150,
-            child: ComboBox<String>(
-              value: _storeCategory,
-              items: _buildCategoryItems(),
-              onChanged: (v) {
-                if (v != null) setState(() => _storeCategory = v);
-              },
-            ),
-          ),
+          _buildStoreSourcePanel(storeService),
+          const SizedBox(height: 12),
+          _buildStoreFilters(),
+          const SizedBox(height: 12),
+          if (storeService.lastError != null)
+            _messageStrip(
+              icon: custom_icons.FluentIcons.warning,
+              text: storeService.lastError!,
+              color: AppTheme.statusError,
+            )
+          else if (entries.isEmpty)
+            _emptyState(
+              icon: custom_icons.FluentIcons.searchIcon,
+              title: _isChinese ? '没有匹配的插件' : 'No matching plugins',
+              subtitle: _isChinese
+                  ? '刷新插件源，或调整搜索关键词和分类。'
+                  : 'Refresh the source, or adjust the search and category filters.',
+            )
+          else
+            Column(children: _groupedStoreEntries(pluginService, entries)),
         ],
       ),
-      const SizedBox(height: 12),
-    ];
+    );
+  }
 
-    if (storeService.lastError != null) {
-      children.add(_errorText(storeService.lastError!));
-    } else if (entries.isEmpty) {
-      children.add(_emptyState(
-        _isChinese ? '商店索引为空' : 'Store index is empty',
-        _isChinese
-            ? '加载一个索引 JSON 后，会在这里显示可安装插件。'
-            : 'Load an index JSON to show installable plugins here.',
-      ));
-    } else {
-      final sortedCategories = groupedEntries.keys.toList()..sort();
-      for (final category in sortedCategories) {
-        children.add(Padding(
-          padding: const EdgeInsets.only(bottom: 8, top: 8),
-          child: Text(
-            _getCategoryName(category),
-            style: FluentTheme.of(context).typography.bodyStrong?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
+  Widget _buildStoreFilters() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 520;
+        final search = TextBox(
+          controller: _searchController,
+          placeholder: _isChinese
+              ? '搜索插件、作者或说明'
+              : 'Search plugins, authors, or descriptions',
+          onChanged: (_) => setState(() {}),
+        );
+        final category = SizedBox(
+          width: compact ? double.infinity : 160,
+          child: ComboBox<String>(
+            value: _storeCategory,
+            items: _buildCategoryItems(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() => _storeCategory = value);
+              }
+            },
           ),
-        ));
-        for (final entry in groupedEntries[category]!) {
-          children.add(_storeEntryTile(pluginService, entry));
+        );
+
+        if (compact) {
+          return Column(
+            children: [
+              search,
+              const SizedBox(height: 8),
+              category,
+            ],
+          );
         }
-      }
+
+        return Row(
+          children: [
+            Expanded(child: search),
+            const SizedBox(width: 8),
+            category,
+          ],
+        );
+      },
+    );
+  }
+
+  List<Widget> _groupedStoreEntries(
+    PluginLifecycleService pluginService,
+    List<PluginStoreEntry> entries,
+  ) {
+    final grouped = <String, List<PluginStoreEntry>>{};
+    for (final entry in entries) {
+      final category =
+          entry.category.trim().isEmpty ? 'other' : entry.category.trim();
+      grouped.putIfAbsent(category, () => []).add(entry);
     }
 
-    return SettingsSection(
-      title: _storeTitle,
-      icon: custom_icons.FluentIcons.app_icon_default,
-      children: children,
-    );
+    final widgets = <Widget>[];
+    final categories = grouped.keys.toList()..sort();
+    for (final category in categories) {
+      if (widgets.isNotEmpty) {
+        widgets.add(const SizedBox(height: 14));
+      }
+      widgets.add(_groupLabel(_getCategoryName(category)));
+      widgets.add(const SizedBox(height: 8));
+      for (final entry in grouped[category]!) {
+        widgets.add(_storeEntryCard(pluginService, entry));
+      }
+    }
+    return widgets;
   }
 
   Widget _buildStoreSourcePanel(PluginStoreService storeService) {
@@ -524,121 +650,165 @@ class _PluginStorePageState extends State<PluginStorePage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.bgLayer2.withValues(alpha: 0.45),
+        color: AppTheme.bgLayer2.withValues(alpha: 0.42),
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.5)),
+        border:
+            Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.45)),
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 620;
-          final titleBlock = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 560;
+              final title = Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    _isChinese ? '官方插件源' : 'Official plugin source',
-                    style: FluentTheme.of(context).typography.body?.copyWith(
-                          color: AppTheme.textPrimary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                  const SizedBox(width: 8),
-                  _statusPill(
-                    _isChinese ? '当前：$activeLabel' : 'Current: $activeLabel',
-                    activeIsCache
+                  _pluginIcon(
+                    icon: activeIsCache
+                        ? custom_icons.FluentIcons.hard_drive
+                        : custom_icons.FluentIcons.globe,
+                    color: activeIsCache
                         ? AppTheme.statusWarning
                         : AppTheme.accentPrimary,
+                    size: 32,
                   ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Tooltip(
-                message: activeUrl,
-                child: Text(
-                  activeUrl,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: AppTheme.textTertiary,
-                        fontSize: 12,
-                      ),
-                ),
-              ),
-            ],
-          );
-          final actions = Wrap(
-            alignment: compact ? WrapAlignment.start : WrapAlignment.end,
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              FilledButton(
-                onPressed: disabled
-                    ? null
-                    : (activeIsCache
-                        ? () => storeService.loadLocalIndex()
-                        : () => _refreshStoreIndex(storeService)),
-                child: Text(_isChinese ? '刷新当前源' : 'Refresh source'),
-              ),
-              Button(
-                onPressed:
-                    disabled ? null : () => storeService.loadLocalIndex(),
-                child: Text(_isChinese ? '加载缓存' : 'Load cache'),
-              ),
-            ],
-          );
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (compact) ...[
-                titleBlock,
-                const SizedBox(height: 12),
-                actions,
-              ] else
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: titleBlock),
-                    const SizedBox(width: 16),
-                    actions,
-                  ],
-                ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _sourceSwitchButton(
-                    label: _isChinese ? '自动' : 'Auto',
-                    selected: selectedAuto,
-                    onPressed: disabled
-                        ? null
-                        : () => storeService.refreshOfficialIndex(),
-                  ),
-                  ...storeService.officialMirrors.map(
-                    (source) => _sourceSwitchButton(
-                      label: source.label,
-                      selected: storeService.selectedSourceId == source.id,
-                      onPressed: disabled
-                          ? null
-                          : () => _refreshStoreMirror(storeService, source),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                _isChinese ? '插件源' : 'Plugin source',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: FluentTheme.of(context)
+                                    .typography
+                                    .body
+                                    ?.copyWith(
+                                      color: AppTheme.textPrimary,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _statusPill(
+                              activeLabel,
+                              activeIsCache
+                                  ? AppTheme.statusWarning
+                                  : AppTheme.accentPrimary,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 5),
+                        Tooltip(
+                          message: activeUrl,
+                          child: Text(
+                            activeUrl,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: FluentTheme.of(context)
+                                .typography
+                                .caption
+                                ?.copyWith(
+                                  color: AppTheme.textTertiary,
+                                  fontSize: 12,
+                                ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
+              );
+
+              final commands = Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: compact ? WrapAlignment.start : WrapAlignment.end,
+                children: [
+                  _actionButton(
+                    icon: custom_icons.FluentIcons.refresh,
+                    label: _isChinese ? '刷新源' : 'Refresh source',
+                    filled: true,
+                    onPressed: disabled
+                        ? null
+                        : (activeIsCache
+                            ? () => storeService.loadLocalIndex()
+                            : () => _refreshStoreIndex(storeService)),
+                  ),
+                  _actionButton(
+                    icon: custom_icons.FluentIcons.hard_drive,
+                    label: _isChinese ? '加载缓存' : 'Load cache',
+                    onPressed:
+                        disabled ? null : () => storeService.loadLocalIndex(),
+                  ),
+                ],
+              );
+
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    title,
+                    const SizedBox(height: 12),
+                    commands,
+                  ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: title),
+                  const SizedBox(width: 14),
+                  commands,
+                ],
+              );
+            },
+          ),
+          if (storeService.loading) ...[
+            const SizedBox(height: 10),
+            _messageStrip(
+              icon: custom_icons.FluentIcons.refresh,
+              text: _isChinese ? '正在刷新插件源...' : 'Refreshing plugin source...',
+              color: AppTheme.accentPrimary,
+            ),
+          ],
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _sourceSwitchButton(
+                label: _isChinese ? '自动' : 'Auto',
+                selected: selectedAuto,
+                onPressed:
+                    disabled ? null : () => storeService.refreshOfficialIndex(),
+              ),
+              ...storeService.officialMirrors.map(
+                (source) => _sourceSwitchButton(
+                  label: source.label,
+                  selected: storeService.selectedSourceId == source.id,
+                  onPressed: disabled
+                      ? null
+                      : () => _refreshStoreMirror(storeService, source),
+                ),
               ),
             ],
-          );
-        },
+          ),
+        ],
       ),
     );
   }
 
-  Widget _storeEntryTile(
+  Widget _storeEntryCard(
     PluginLifecycleService pluginService,
     PluginStoreEntry entry,
   ) {
@@ -649,96 +819,435 @@ class _PluginStorePageState extends State<PluginStorePage> {
         : (installedVersion == entry.version
             ? (_isChinese ? '重装' : 'Reinstall')
             : (_isChinese ? '更新' : 'Update'));
+    final actionIcon = installed == null
+        ? custom_icons.FluentIcons.download
+        : custom_icons.FluentIcons.update_restore;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.bgLayer2.withValues(alpha: 0.54),
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border:
-            Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.48)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${entry.name} · v${entry.version}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: FluentTheme.of(context).typography.body?.copyWith(
-                        color: AppTheme.textPrimary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-                const SizedBox(height: 4),
+      decoration: _itemDecoration(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 540;
+          final details = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _pluginIcon(
+                    icon: custom_icons.FluentIcons.app_icon_default,
+                    color: entry.isInstallable
+                        ? AppTheme.accentPrimary
+                        : AppTheme.textTertiary,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${entry.name} - v${entry.version}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              FluentTheme.of(context).typography.body?.copyWith(
+                                    color: AppTheme.textPrimary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          entry.author.isEmpty
+                              ? entry.id
+                              : '${entry.author} - ${entry.id}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: FluentTheme.of(context)
+                              .typography
+                              .caption
+                              ?.copyWith(
+                                color: AppTheme.textTertiary,
+                                fontSize: 12,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (entry.description.isNotEmpty) ...[
+                const SizedBox(height: 10),
                 Text(
                   entry.description,
-                  maxLines: 2,
+                  maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: FluentTheme.of(context).typography.caption?.copyWith(
                         color: AppTheme.textSecondary,
                         fontSize: 12,
                       ),
                 ),
-                const SizedBox(height: 8),
-                if (entry.changelog.isNotEmpty) ...[
-                  Text(
-                    entry.changelog,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: FluentTheme.of(context).typography.caption?.copyWith(
-                          color: AppTheme.textTertiary,
-                          fontSize: 12,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    _plainPill(entry.channel),
-                    _statusPill(
-                      _reviewStatusLabel(entry.reviewStatus),
-                      entry.isPublished
-                          ? AppTheme.statusSuccess
-                          : AppTheme.statusError,
-                    ),
-                    if (entry.hasSignature)
-                      _statusPill(
-                        _isChinese ? '已签名' : 'Signed',
-                        AppTheme.statusSuccess,
-                      ),
-                    _plainPill(entry.author),
-                    if (installedVersion != null)
-                      _statusPill(
-                        _isChinese
-                            ? '已安装 $installedVersion'
-                            : 'Installed $installedVersion',
-                        AppTheme.statusSuccess,
-                      ),
-                    ...entry.capabilities.map(_plainPill),
-                  ],
+              ],
+              if (entry.changelog.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _messageStrip(
+                  icon: custom_icons.FluentIcons.info,
+                  text: entry.changelog,
+                  color: AppTheme.statusInfo,
+                  maxLines: 2,
                 ),
               ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          FilledButton(
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  _plainPill(_getCategoryName(entry.category)),
+                  _plainPill(entry.channel),
+                  _statusPill(
+                    _reviewStatusLabel(entry.reviewStatus),
+                    entry.isPublished
+                        ? AppTheme.statusSuccess
+                        : AppTheme.statusError,
+                  ),
+                  if (entry.hasSignature)
+                    _statusPill(
+                      _isChinese ? '已签名' : 'Signed',
+                      AppTheme.statusSuccess,
+                    ),
+                  if (installedVersion != null)
+                    _statusPill(
+                      _isChinese
+                          ? '已安装 $installedVersion'
+                          : 'Installed $installedVersion',
+                      AppTheme.statusSuccess,
+                    ),
+                  ...entry.capabilities.map(_plainPill),
+                ],
+              ),
+            ],
+          );
+
+          final action = _actionButton(
+            icon: actionIcon,
+            label: actionLabel,
+            filled: true,
             onPressed: _busy || !entry.isInstallable
                 ? null
                 : () => _installStoreEntry(context, entry),
-            child: Text(actionLabel),
+          );
+
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                details,
+                const SizedBox(height: 12),
+                action,
+              ],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: details),
+              const SizedBox(width: 14),
+              action,
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _panel({
+    required String title,
+    required IconData icon,
+    required Widget child,
+    String? subtitle,
+    Widget? trailing,
+  }) {
+    return _surface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 520;
+              final titleBlock = Row(
+                children: [
+                  _pluginIcon(icon: icon, color: AppTheme.accentPrimary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              FluentTheme.of(context).typography.body?.copyWith(
+                                    color: AppTheme.textPrimary,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                        ),
+                        if (subtitle != null && subtitle.isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            subtitle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: FluentTheme.of(context)
+                                .typography
+                                .caption
+                                ?.copyWith(
+                                  color: AppTheme.textTertiary,
+                                  fontSize: 12,
+                                ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              );
+
+              if (trailing == null) {
+                return titleBlock;
+              }
+
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    titleBlock,
+                    const SizedBox(height: 12),
+                    trailing,
+                  ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: titleBlock),
+                  const SizedBox(width: 12),
+                  trailing,
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _surface({
+    required Widget child,
+    EdgeInsetsGeometry padding = const EdgeInsets.all(16),
+  }) {
+    final isDark = AppTheme.isDarkContext(context);
+    return Container(
+      width: double.infinity,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: AppTheme.cardBackground(darkAlpha: 0.74, lightAlpha: 0.88),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(
+          color: isDark
+              ? AppTheme.borderSubtle.withValues(alpha: 0.60)
+              : AppTheme.borderSubtle.withValues(alpha: 0.32),
+        ),
+        boxShadow: isDark ? null : AppTheme.shadowSm,
+      ),
+      child: child,
+    );
+  }
+
+  BoxDecoration _itemDecoration() {
+    return BoxDecoration(
+      color: AppTheme.bgLayer2.withValues(alpha: 0.48),
+      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      border: Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.46)),
+    );
+  }
+
+  Widget _pluginIcon({
+    required IconData icon,
+    required Color color,
+    double size = 36,
+  }) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Icon(icon, size: size * 0.48, color: color),
+    );
+  }
+
+  Widget _groupLabel(String label) {
+    return Row(
+      children: [
+        Container(
+          width: 3,
+          height: 14,
+          decoration: BoxDecoration(
+            color: AppTheme.accentPrimary.withValues(alpha: 0.78),
+            borderRadius: BorderRadius.circular(AppTheme.radiusRound),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: FluentTheme.of(context).typography.caption?.copyWith(
+                color: AppTheme.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+      ],
+    );
+  }
+
+  Widget _messageStrip({
+    required IconData icon,
+    required String text,
+    required Color color,
+    int maxLines = 3,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              maxLines: maxLines,
+              overflow: TextOverflow.ellipsis,
+              style: FluentTheme.of(context).typography.caption?.copyWith(
+                    color: color,
+                    fontSize: 12,
+                  ),
+            ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _emptyState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.bgLayer2.withValues(alpha: 0.42),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border:
+            Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.38)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _pluginIcon(icon: icon, color: AppTheme.textTertiary, size: 34),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: FluentTheme.of(context).typography.body?.copyWith(
+                        color: AppTheme.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: FluentTheme.of(context).typography.caption?.copyWith(
+                        color: AppTheme.textTertiary,
+                        fontSize: 12,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getCategoryName(String category) {
+    final normalized = category.trim().toLowerCase();
+    if (normalized == 'all') {
+      return _isChinese ? '全部类型' : 'All';
+    }
+
+    if (_isChinese) {
+      switch (normalized) {
+        case 'feature':
+          return '功能类';
+        case 'visual':
+          return '视觉类';
+        case 'protocol':
+          return '协议类';
+        case 'tool':
+          return '工具类';
+        case 'other':
+        case '':
+          return '其他';
+        default:
+          return category;
+      }
+    }
+
+    if (normalized.isEmpty) {
+      return 'Other';
+    }
+    return normalized[0].toUpperCase() + normalized.substring(1);
+  }
+
+  List<ComboBoxItem<String>> _buildCategoryItems() {
+    return [
+      'all',
+      'feature',
+      'visual',
+      'protocol',
+      'tool',
+      'other',
+    ]
+        .map(
+          (category) => ComboBoxItem(
+            value: category,
+            child: Text(_getCategoryName(category)),
+          ),
+        )
+        .toList();
   }
 
   Widget _sourceSwitchButton({
@@ -746,7 +1255,16 @@ class _PluginStorePageState extends State<PluginStorePage> {
     required bool selected,
     required VoidCallback? onPressed,
   }) {
-    final child = Text(label);
+    final child = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (selected) ...[
+          Icon(custom_icons.FluentIcons.checkmark, size: 13),
+          const SizedBox(width: 5),
+        ],
+        Text(label),
+      ],
+    );
     if (selected) {
       return FilledButton(onPressed: onPressed, child: child);
     }
@@ -757,26 +1275,47 @@ class _PluginStorePageState extends State<PluginStorePage> {
     required IconData icon,
     required String label,
     required VoidCallback? onPressed,
+    bool filled = false,
+    bool danger = false,
   }) {
-    return Button(
-      onPressed: onPressed,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14),
-          const SizedBox(width: 6),
-          Text(label),
-        ],
-      ),
+    final color = danger ? AppTheme.statusError : null;
+    final child = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: color == null ? null : TextStyle(color: color),
+        ),
+      ],
     );
+
+    if (filled) {
+      return FilledButton(onPressed: onPressed, child: child);
+    }
+    return Button(onPressed: onPressed, child: child);
   }
 
   Widget _plainPill(String label) {
+    final value = label.trim();
+    if (value.isEmpty) {
+      return const SizedBox.shrink();
+    }
     return _pill(
-      label,
+      value,
       AppTheme.bgLayer3.withValues(alpha: 0.58),
       AppTheme.textSecondary,
       AppTheme.borderSubtle.withValues(alpha: 0.5),
+    );
+  }
+
+  Widget _permissionPill(String label) {
+    return _pill(
+      label,
+      AppTheme.statusWarning.withValues(alpha: 0.10),
+      AppTheme.statusWarning,
+      AppTheme.statusWarning.withValues(alpha: 0.28),
     );
   }
 
@@ -799,62 +1338,11 @@ class _PluginStorePageState extends State<PluginStorePage> {
       ),
       child: Text(
         label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: FluentTheme.of(context).typography.caption?.copyWith(
               color: textColor,
               fontSize: 11,
-            ),
-      ),
-    );
-  }
-
-  Widget _emptyState(String title, String subtitle) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppTheme.bgLayer2.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.4)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: FluentTheme.of(context).typography.body?.copyWith(
-                  color: AppTheme.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: FluentTheme.of(context).typography.caption?.copyWith(
-                  color: AppTheme.textTertiary,
-                  fontSize: 12,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _errorText(String text) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.statusError.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: AppTheme.statusError.withValues(alpha: 0.25)),
-      ),
-      child: Text(
-        text,
-        softWrap: true,
-        style: FluentTheme.of(context).typography.caption?.copyWith(
-              color: AppTheme.statusError,
-              fontSize: 12,
             ),
       ),
     );
@@ -879,7 +1367,7 @@ class _PluginStorePageState extends State<PluginStorePage> {
       case PluginInstallState.enabled:
         return _isChinese ? '已启用' : 'Enabled';
       case PluginInstallState.disabled:
-        return _isChinese ? '已禁用' : 'Disabled';
+        return _isChinese ? '已停用' : 'Disabled';
       case PluginInstallState.incompatible:
         return _isChinese ? '不兼容' : 'Incompatible';
       case PluginInstallState.invalid:
@@ -915,6 +1403,8 @@ class _PluginStorePageState extends State<PluginStorePage> {
         return '本地缓存';
       case 'Custom':
         return '自定义';
+      case 'Remote':
+        return '远程源';
       default:
         return value;
     }
@@ -933,7 +1423,7 @@ class _PluginStorePageState extends State<PluginStorePage> {
         builder: (dialogContext) => ContentDialog(
           title: Text(title),
           content: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
+            constraints: const BoxConstraints(maxWidth: 540),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -941,7 +1431,9 @@ class _PluginStorePageState extends State<PluginStorePage> {
                 if (description != null && description.isNotEmpty) ...[
                   Text(
                     description,
-                    style: FluentTheme.of(context).typography.caption,
+                    style: FluentTheme.of(context).typography.caption?.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
                   ),
                   const SizedBox(height: 10),
                 ],
@@ -956,7 +1448,9 @@ class _PluginStorePageState extends State<PluginStorePage> {
                     ),
                     if (isDirectory) ...[
                       const SizedBox(width: 8),
-                      Button(
+                      _actionButton(
+                        icon: custom_icons.FluentIcons.folder_open,
+                        label: _isChinese ? '浏览' : 'Browse',
                         onPressed: () async {
                           final selectedPath = await showDialog<String>(
                             context: context,
@@ -968,7 +1462,6 @@ class _PluginStorePageState extends State<PluginStorePage> {
                             controller.text = selectedPath;
                           }
                         },
-                        child: Text(_isChinese ? '浏览' : 'Browse'),
                       ),
                     ],
                   ],
@@ -1016,11 +1509,13 @@ class _PluginStorePageState extends State<PluginStorePage> {
           : 'Enter or paste the plugin folder path that contains plugin.json.',
       isDirectory: true,
     );
-    _diag.mark('storePage.installDirectory.pathDialog.result',
-        data: <String, Object?>{
-          'selected': selected,
-          'mounted': mounted,
-        });
+    _diag.mark(
+      'storePage.installDirectory.pathDialog.result',
+      data: <String, Object?>{
+        'selected': selected,
+        'mounted': mounted,
+      },
+    );
     if (selected == null || selected.trim().isEmpty) {
       _diag.mark('storePage.installDirectory.cancelled');
       return;
@@ -1043,11 +1538,13 @@ class _PluginStorePageState extends State<PluginStorePage> {
           ? '输入或粘贴 .zip 或 .hanabi-plugin 插件包路径。'
           : 'Enter or paste a .zip or .hanabi-plugin package path.',
     );
-    _diag.mark('storePage.installPackage.pathDialog.result',
-        data: <String, Object?>{
-          'packagePath': packagePath,
-          'mounted': mounted,
-        });
+    _diag.mark(
+      'storePage.installPackage.pathDialog.result',
+      data: <String, Object?>{
+        'packagePath': packagePath,
+        'mounted': mounted,
+      },
+    );
     if (packagePath == null || packagePath.trim().isEmpty) {
       _diag.mark('storePage.installPackage.cancelled');
       return;
@@ -1106,7 +1603,7 @@ class _PluginStorePageState extends State<PluginStorePage> {
       () => service.setPluginEnabled(plugin.id, enabled),
       successTitle: enabled
           ? (_isChinese ? '插件已启用' : 'Plugin enabled')
-          : (_isChinese ? '插件已禁用' : 'Plugin disabled'),
+          : (_isChinese ? '插件已停用' : 'Plugin disabled'),
       diagnosticName: 'storePage.setPluginEnabled',
       diagnosticPluginId: plugin.id,
       diagnosticData: <String, Object?>{'enabled': enabled},
@@ -1129,7 +1626,9 @@ class _PluginStorePageState extends State<PluginStorePage> {
       context: context,
       builder: (context) => ContentDialog(
         title: Text(_isChinese ? '卸载插件' : 'Uninstall plugin'),
-        content: Text(plugin.name),
+        content: Text(
+          _isChinese ? '确定要卸载 ${plugin.name} 吗？' : 'Uninstall ${plugin.name}?',
+        ),
         actions: [
           Button(
             onPressed: () => Navigator.pop(context, false),
@@ -1228,7 +1727,9 @@ class _PluginStorePageState extends State<PluginStorePage> {
   }
 
   Future<void> _openPluginSettings(
-      BuildContext context, InstalledPlugin plugin) async {
+    BuildContext context,
+    InstalledPlugin plugin,
+  ) async {
     _diag.mark(
       'storePage.settings.open',
       pluginId: plugin.id,
@@ -1248,9 +1749,12 @@ class _PluginStorePageState extends State<PluginStorePage> {
   }
 
   Future<void> _openDirectory(String directoryPath) async {
-    _diag.mark('storePage.openDirectory.start', data: <String, Object?>{
-      'directoryPath': directoryPath,
-    });
+    _diag.mark(
+      'storePage.openDirectory.start',
+      data: <String, Object?>{
+        'directoryPath': directoryPath,
+      },
+    );
     final directory = Directory(directoryPath);
     if (!await directory.exists()) {
       await directory.create(recursive: true);
@@ -1260,8 +1764,11 @@ class _PluginStorePageState extends State<PluginStorePage> {
       [directory.path],
       mode: ProcessStartMode.detached,
     );
-    _diag.mark('storePage.openDirectory.done', data: <String, Object?>{
-      'directoryPath': directory.path,
-    });
+    _diag.mark(
+      'storePage.openDirectory.done',
+      data: <String, Object?>{
+        'directoryPath': directory.path,
+      },
+    );
   }
 }

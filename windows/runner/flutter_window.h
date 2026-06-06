@@ -52,6 +52,8 @@ class FlutterWindow : public Win32Window {
   void DestroyPopupWindow();
   void MinimizeCurrentWindow();
   void StartWindowDrag();
+  void SetClipboardListenerEnabled(bool enabled);
+  void DispatchClipboardChanged();
   void RestorePreviousForegroundWindow();
   const char* WindowKindName() const;
   void ApplyWindowEffect(HWND hwnd);
@@ -104,6 +106,7 @@ class FlutterWindow : public Win32Window {
   bool drag_suspend_ = true;
   bool is_suspended_ = false;
   bool launch_hidden_ = false;
+  bool clipboard_listener_registered_ = false;
   WindowKind kind_ = WindowKind::kMain;
   HWND previous_foreground_window_ = nullptr;
 };

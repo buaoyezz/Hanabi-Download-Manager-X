@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
+
 import 'app_logger_service.dart';
 
 class NativeRenderLogService {
@@ -25,6 +27,8 @@ class NativeRenderLogService {
   static const Duration _noisyRenderDedupWindow = Duration(milliseconds: 1500);
 
   final AppLoggerService _appLogger = AppLoggerService();
+  static const MethodChannel _windowChannel =
+      MethodChannel('com.hanabi.download/window');
   final Map<String, DateTime> _recentNoisyRenderEntries = {};
 
   Timer? _pollTimer;
@@ -33,13 +37,18 @@ class NativeRenderLogService {
   String _pendingLine = '';
   bool _started = false;
   bool _polling = false;
+  bool _nativeLoggingEnabled = false;
 
   Future<void> start() async {
     if (_started || !Platform.isWindows) {
+      if (Platform.isWindows && !_nativeLoggingEnabled) {
+        await _setNativeRenderLoggingEnabled(true);
+      }
       return;
     }
 
     _started = true;
+    await _setNativeRenderLoggingEnabled(true);
     _rawLogFile = await getRawLogFile();
     if (await _rawLogFile!.exists()) {
       _offset = await _rawLogFile!.length();
@@ -56,6 +65,27 @@ class NativeRenderLogService {
     _pollTimer = null;
     _started = false;
     _recentNoisyRenderEntries.clear();
+    await _setNativeRenderLoggingEnabled(false);
+  }
+
+  Future<void> _setNativeRenderLoggingEnabled(bool enabled) async {
+    if (!Platform.isWindows || _nativeLoggingEnabled == enabled) {
+      return;
+    }
+
+    try {
+      await _windowChannel.invokeMethod<bool>(
+        'setNativeRenderLoggingEnabled',
+        {'enabled': enabled},
+      );
+      _nativeLoggingEnabled = enabled;
+    } catch (e) {
+      _appLogger.debug(
+        'Render',
+        'Native render logging toggle unavailable: $e',
+        toConsole: false,
+      );
+    }
   }
 
   Future<File> getRawLogFile() async {

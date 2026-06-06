@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'package:window_manager/window_manager.dart';
 import '../models/download_intent.dart';
 import '../screens/widgets/add_download_dialog.dart';
 import 'client_config_service.dart';
@@ -302,6 +302,8 @@ class ClipboardListenerService {
   final BuildContext context;
   final _logger = AppLoggerService();
 
+  static const MethodChannel _clipboardChannel = MethodChannel('com.hanabi.download/clipboard');
+
   Timer? _pollTimer;
   bool _isShowing = false;
   bool _isChecking = false;
@@ -310,7 +312,6 @@ class ClipboardListenerService {
   DateTime? _globalDismissCooldownUntil;
   final Map<String, DateTime> _dismissedCandidateCooldowns = {};
 
-  static const _pollInterval = Duration(milliseconds: 900);
   static const _dismissCooldown = Duration(minutes: 30);
   static const _globalDismissCooldown = Duration(minutes: 5);
   static const _textPreviewLimit = 96;
@@ -322,13 +323,30 @@ class ClipboardListenerService {
     _isShowing = false;
     activeInstance = this;
     _primeClipboardSnapshot();
-    _pollTimer = Timer.periodic(_pollInterval, (_) => _checkClipboard());
-    _logger.info('Clipboard', 'Clipboard listener started');
+    
+    // Set up method channel handler for clipboard events
+    _clipboardChannel.setMethodCallHandler((call) async {
+      if (call.method == 'onClipboardChanged') {
+        _checkClipboard();
+      }
+    });
+    
+    // Enable C++ side clipboard listener
+    _clipboardChannel.invokeMethod('setListenerEnabled', {'enabled': true}).catchError((e) {
+      _logger.warning('Clipboard', 'Failed to enable native clipboard listener: $e');
+    });
+    
+    _logger.info('Clipboard', 'Clipboard listener started via MethodChannel');
   }
 
   void stop() {
     _pollTimer?.cancel();
     _pollTimer = null;
+    
+    // Disable C++ side clipboard listener
+    _clipboardChannel.invokeMethod('setListenerEnabled', {'enabled': false}).catchError((_) {});
+    _clipboardChannel.setMethodCallHandler(null);
+    
     _isShowing = false;
     _isChecking = false;
     if (identical(activeInstance, this)) {
@@ -427,7 +445,7 @@ class ClipboardListenerService {
         return;
       }
 
-      if (!appWindow.isVisible) {
+      if (!await windowManager.isVisible()) {
         _logClipboardDecision(
           stage: 'skipped',
           reason: 'window_hidden',

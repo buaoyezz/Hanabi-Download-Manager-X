@@ -9,18 +9,27 @@ import {
   getPopupMessages,
   normalizePopupLocale,
 } from '@/lib/i18n';
-import { type PortMode, readPopupStorageState, STORAGE_KEYS } from '@/lib/storage';
+import {
+  type BrowserDownloadHandlingMode,
+  type PortMode,
+  normalizeBrowserDownloadHandlingMode,
+  readPopupStorageState,
+  STORAGE_KEYS,
+} from '@/lib/storage';
 import './style.css';
 
 type PopupState = {
   isConnected: boolean;
   isEnabled: boolean;
+  enableAutomaticHandoff: boolean;
   enableContextMenus: boolean;
   showNotifications: boolean;
   showConnectionBadge: boolean;
   desktopServicePort: number;
   portMode: PortMode;
   locale: string;
+  browserDownloadHandlingMode: BrowserDownloadHandlingMode;
+  browserDownloadSmallFileThreshold: number;
   refreshing: boolean;
 };
 
@@ -30,6 +39,8 @@ type ConnectionCheckResponse = {
   status?: 'connected' | 'disconnected';
   apiPort?: number;
   locale?: string;
+  browserDownloadHandlingMode?: string;
+  browserDownloadSmallFileThreshold?: number;
 };
 
 type Child = Node | string | null | undefined;
@@ -50,12 +61,15 @@ let portInputValue = String(DEFAULT_DESKTOP_SERVICE_PORT);
 let state: PopupState = {
   isConnected: false,
   isEnabled: true,
+  enableAutomaticHandoff: true,
   enableContextMenus: true,
   showNotifications: true,
   showConnectionBadge: true,
   desktopServicePort: DEFAULT_DESKTOP_SERVICE_PORT,
   portMode: 'auto',
   locale: getFallbackPopupLocale(),
+  browserDownloadHandlingMode: 'smart',
+  browserDownloadSmallFileThreshold: 8 * 1024 * 1024,
   refreshing: false,
 };
 
@@ -212,6 +226,27 @@ function getMessages() {
   return getPopupMessages(normalizePopupLocale(state.locale));
 }
 
+function formatThreshold(bytes: number) {
+  const mb = bytes / 1024 / 1024;
+  return `${Number.isInteger(mb) ? mb.toFixed(0) : mb.toFixed(1)} MB`;
+}
+
+function getHandlingModeLabel() {
+  const zh = normalizePopupLocale(state.locale) === 'zh';
+  switch (state.browserDownloadHandlingMode) {
+    case 'always_ask':
+      return zh ? '\u603b\u662f\u8be2\u95ee' : 'Always ask';
+    case 'silent_takeover':
+      return zh ? '\u9759\u9ed8\u63a5\u7ba1' : 'Silent';
+    case 'small_files_to_browser':
+      return zh ? '\u5c0f\u6587\u4ef6\u6d4f\u89c8\u5668' : 'Small files browser';
+    default:
+      return zh
+        ? `\u667a\u80fd < ${formatThreshold(state.browserDownloadSmallFileThreshold)}`
+        : `Smart < ${formatThreshold(state.browserDownloadSmallFileThreshold)}`;
+  }
+}
+
 function setView(nextView: PopupView) {
   view = nextView;
   render();
@@ -238,6 +273,7 @@ async function syncState() {
     ...state,
     isConnected: values.isConnected,
     isEnabled: !values.shouldDisableExtension,
+    enableAutomaticHandoff: values.enableAutomaticHandoff,
     enableContextMenus: values.enableContextMenus,
     showNotifications: values.showNotifications,
     showConnectionBadge: values.showConnectionBadge,
@@ -264,6 +300,13 @@ async function refreshConnection() {
             ? response.apiPort
             : state.desktopServicePort,
         locale: response.locale ?? state.locale,
+        browserDownloadHandlingMode: normalizeBrowserDownloadHandlingMode(
+          response.browserDownloadHandlingMode,
+        ),
+        browserDownloadSmallFileThreshold:
+          typeof response.browserDownloadSmallFileThreshold === 'number'
+            ? response.browserDownloadSmallFileThreshold
+            : state.browserDownloadSmallFileThreshold,
       });
     }
 
@@ -378,6 +421,8 @@ function renderMainView() {
         checked: state.isEnabled,
         label: t.extensionState,
         onChange: (checked) => {
+          state.isEnabled = checked;
+          render();
           void toggleExtension(checked);
         },
       }),
@@ -388,7 +433,7 @@ function renderMainView() {
     createStatCard(t.browser, browserLabel),
     createStatCard(
       t.mode,
-      firefox ? t.observedRelayMenu : t.automaticIntercept,
+      firefox ? t.observedRelayMenu : getHandlingModeLabel(),
     ),
     createStatCard(t.port, getHanabiDesktopServiceHost(state.desktopServicePort)),
     createStatCard(t.version, `v${browser.runtime.getManifest().version}`),
@@ -482,6 +527,19 @@ function renderSettingsView() {
     ]);
   }
 
+  settingsCard.appendChild(
+    createSettingRow(
+      t.automaticHandoff,
+      t.automaticHandoffHint,
+      state.enableAutomaticHandoff,
+      (checked) => {
+        state.enableAutomaticHandoff = checked;
+        render();
+        void updateSetting(STORAGE_KEYS.enableAutomaticHandoff, checked);
+      },
+    ),
+  );
+  settingsCard.appendChild(createDivider());
   settingsCard.appendChild(
     createSettingRow(
       t.contextMenus,
@@ -610,6 +668,7 @@ function handleStorageChange(changes: Record<string, unknown>, areaName: string)
     STORAGE_KEYS.isConnected in changes ||
     STORAGE_KEYS.popupLocale in changes ||
     STORAGE_KEYS.shouldDisableExtension in changes ||
+    STORAGE_KEYS.enableAutomaticHandoff in changes ||
     STORAGE_KEYS.enableContextMenus in changes ||
     STORAGE_KEYS.showNotifications in changes ||
     STORAGE_KEYS.showConnectionBadge in changes ||
