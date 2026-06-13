@@ -68,7 +68,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with TickerProviderStateMixin, WindowListener {
   static const String _pageDownloading = 'downloading';
   static const String _pageCompleted = 'completed';
   static const String _pagePlugins = 'plugins';
@@ -106,6 +107,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _isSidebarExpanded = true;
   late AnimationController _sidebarController;
   late Animation<double> _widthAnimation;
+  bool _isMaximized = false;
 
   // 当前选中的页面标识符
   String _currentPageId = _pageDownloading;
@@ -346,6 +348,35 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _checkForUpdates();
       _handleMainWindowCommand();
     });
+    windowManager.addListener(this);
+    _initIsMaximized();
+  }
+
+  Future<void> _initIsMaximized() async {
+    bool isMaximized = await windowManager.isMaximized();
+    if (mounted) {
+      setState(() {
+        _isMaximized = isMaximized;
+      });
+    }
+  }
+
+  @override
+  void onWindowMaximize() {
+    if (mounted) {
+      setState(() {
+        _isMaximized = true;
+      });
+    }
+  }
+
+  @override
+  void onWindowUnmaximize() {
+    if (mounted) {
+      setState(() {
+        _isMaximized = false;
+      });
+    }
   }
 
   /// 检查更新并显示通知
@@ -582,6 +613,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    windowManager.removeListener(this);
     if (identical(systemTrayService.onExitRequested, _confirmExitRequest)) {
       systemTrayService.onExitRequested = null;
     }
@@ -639,7 +671,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _lastSavedHeight = s.height;
       }
     });
-    
 
     // 优化：从 3 秒提升到 10 秒，窗口大小变化极少发生，不需要频繁检查
     _windowSizeCheckTimer = Timer.periodic(const Duration(seconds: 10), (_) {
@@ -785,38 +816,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // 合并 WindowEffectService 的多个 select 为单次读取
     final windowEffect = context.watch<WindowEffectService>();
     final isTransparent = windowEffect.isTransparentBackground;
-    final isWin11Effect =
-        windowEffect.isWindows11 && windowEffect.effectEnabled;
+    final effectEnabled = windowEffect.effectEnabled;
+    final isWin11Effect = windowEffect.isWindows11 && effectEnabled;
     final isMica = windowEffect.isMicaEffect;
     final isAcrylic = windowEffect.effectMode == 'acrylic';
     final isBlur = windowEffect.effectMode == 'blur';
     final effectOpacity = (windowEffect.alpha / 255.0).clamp(0.0, 1.0);
 
     // 根据窗口效果调整背景透明度
-    final sidebarOpacity = isTransparent
-        ? (isWin11Effect
-            ? (isMica
-                ? 0.08 + effectOpacity * 0.34
-                : isAcrylic
-                    ? 0.12 + effectOpacity * 0.44
-                    : isBlur
-                        ? 0.10 + effectOpacity * 0.30
-                        : 0.34)
-            : isBlur
-                ? 0.12 + effectOpacity * 0.28
-                : 0.2)
+    final isWindowBackdrop = isTransparent && effectEnabled;
+    final shellMaterialAlpha = isWindowBackdrop
+        ? (isMica
+            ? (isWin11Effect ? 0.05 : 0.22)
+            : isAcrylic
+                ? (isWin11Effect ? 0.035 : 0.12 + effectOpacity * 0.18)
+                : isBlur
+                    ? (isWin11Effect ? 0.04 : 0.10 + effectOpacity * 0.18)
+                    : 0.18)
         : 0.65;
+    final sidebarOpacity = shellMaterialAlpha;
 
     // 计算统一的 shell 背景色（标题栏+侧边栏共用）
-    final effectEnabled = windowEffect.effectEnabled;
-    final transparentShellBgAlpha = isMica
-        ? (isWin11Effect ? 0.12 + effectOpacity * 0.32 : 0.4)
-        : (effectEnabled ? sidebarOpacity : 1.0);
-    final shellBgAlpha = lerpDouble(
-      transparentShellBgAlpha,
-      0.98,
-      AppTheme.lightProgress,
-    )!;
+    final shellBgAlpha = isWindowBackdrop
+        ? shellMaterialAlpha
+        : lerpDouble(1.0, 0.98, AppTheme.lightProgress)!;
 
     // 核心修复逻辑：确保 _currentIndex 与 _currentPageId 同步
     // 这解决了列表项动态增减（如在线统计出现/消失）导致的索引错位
@@ -846,28 +869,36 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       }
     }
 
-    Widget shellContent = Container(
-      // 统一的 shell 背景色（标题栏 + 侧边栏一体）
-      color: AppTheme.shellBackground.withValues(alpha: shellBgAlpha),
-      child: Column(
-        children: [
-          // 顶部标题栏（横跨整个窗口）
-          _buildUnifiedTitleBar(context, sidebarOpacity),
-          // 下方：侧边栏 + 内容区
-          Expanded(
-            child: Row(
-              children: [
-                // 左侧：侧边栏（无独立背景，继承 shell 背景）
-                _buildEdgeSidebar(context, navItems, sidebarOpacity),
-                // 右侧：内容区（左上角圆角，覆盖在 shell 背景上）
-                Expanded(
-                  child: _buildContentArea(
-                      context, isTransparent, kernelManagerIsRunning, navItems),
-                ),
-              ],
+    final shellCornerRadius = windowEffect.usesCustomWindowClip &&
+            windowEffect.roundedCornersEnabled &&
+            !_isMaximized
+        ? windowEffect.windowCornerRadius
+        : 0.0;
+    Widget shellContent = ClipRRect(
+      borderRadius: BorderRadius.circular(shellCornerRadius),
+      child: Container(
+        // 统一的 shell 背景色（标题栏 + 侧边栏一体）
+        color: AppTheme.shellBackground.withValues(alpha: shellBgAlpha),
+        child: Column(
+          children: [
+            // 顶部标题栏（横跨整个窗口）
+            _buildUnifiedTitleBar(context, sidebarOpacity),
+            // 下方：侧边栏 + 内容区
+            Expanded(
+              child: Row(
+                children: [
+                  // 左侧：侧边栏（无独立背景，继承 shell 背景）
+                  _buildEdgeSidebar(context, navItems, sidebarOpacity),
+                  // 右侧：内容区（左上角圆角，覆盖在 shell 背景上）
+                  Expanded(
+                    child: _buildContentArea(context, isTransparent,
+                        kernelManagerIsRunning, navItems),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
 
@@ -875,7 +906,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // 优化：降低 BackdropFilter 的 sigma 值，从 4 降到 2
     // BackdropFilter 是 GPU 最昂贵的操作之一，sigma 越大开销越大
     // sigma=2 在视觉上仍有模糊效果，但 GPU 开销降低约 75%
-    if (effectEnabled && isTransparent) {
+    if (effectEnabled && isTransparent && !isWin11Effect) {
       shellContent = RepaintBoundary(
         child: BackdropFilter(
           filter: ImageFilter.blur(
@@ -887,8 +918,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       );
     }
 
-    return Container(child: shellContent,
-    );
+    return Container(child: shellContent);
   }
 
   /// 内容区域 - 根据窗口效果设置决定是否使用模糊
@@ -907,23 +937,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     // Mica 效果需要更透明的背景
     final transparentBgAlpha = isMica
-        ? (isWin11Effect ? 0.18 + effectOpacity * 0.50 : 0.5)
+        ? (isWin11Effect ? 0.08 : 0.34)
         : (useBlur
-            ? (isWin11Effect && isAcrylic
-                ? 0.22 + effectOpacity * 0.56
+            ? (isAcrylic
+                ? (isWin11Effect ? 0.045 : 0.18 + effectOpacity * 0.22)
                 : isBlur
-                    ? (isWin11Effect
-                        ? 0.26 + effectOpacity * 0.46
-                        : 0.32 + effectOpacity * 0.40)
-                    : isWin11Effect
-                        ? 0.68
-                        : 0.75)
+                    ? (isWin11Effect ? 0.055 : 0.20 + effectOpacity * 0.24)
+                    : 0.24)
             : 0.95);
-    final bgAlpha = lerpDouble(
-      transparentBgAlpha,
-      0.98,
-      AppTheme.lightProgress,
-    )!;
+    final bgAlpha = isWin11Effect && useBlur
+        ? transparentBgAlpha
+        : lerpDouble(transparentBgAlpha, 0.98, AppTheme.lightProgress)!;
 
     final contentContainer = Container(
       decoration: BoxDecoration(
@@ -1644,6 +1668,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           children: [
             _buildCustomMinimizeButton(
                 buttonColors, buttonWidth, buttonHeight, iconSize),
+            _buildCustomMaximizeButton(
+                buttonColors, buttonWidth, buttonHeight, iconSize),
             _buildCustomCloseButton(
                 closeButtonColors, buttonWidth, buttonHeight, iconSize),
           ],
@@ -1665,6 +1691,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       height: height,
       iconSize: iconSize,
       onPressed: () => windowManager.minimize(),
+    );
+  }
+
+  Widget _buildCustomMaximizeButton(
+    WindowButtonColors colors,
+    double width,
+    double height,
+    double iconSize,
+  ) {
+    return _buildWindowButton(
+      colors: colors,
+      icon: _isMaximized ? FluentIcons.copy : FluentIcons.square_shape,
+      width: width,
+      height: height,
+      iconSize: _isMaximized ? iconSize - 2 : iconSize - 3,
+      onPressed: () async {
+        bool isMaximized = await windowManager.isMaximized();
+        if (isMaximized) {
+          await windowManager.unmaximize();
+        } else {
+          await windowManager.maximize();
+        }
+      },
     );
   }
 

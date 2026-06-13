@@ -103,6 +103,20 @@ class _UaPack {
   });
 }
 
+class _SettingsTabInfo {
+  final int index;
+  final IconData icon;
+  final String title;
+  final String description;
+
+  const _SettingsTabInfo({
+    required this.index,
+    required this.icon,
+    required this.title,
+    required this.description,
+  });
+}
+
 class _SettingsPageState extends State<SettingsPage> {
   AppLocalizations get t => AppLocalizations.of(context)!;
 
@@ -111,6 +125,10 @@ class _SettingsPageState extends State<SettingsPage> {
   int _tabAnimationDirection = 1;
   final ScrollController _tabScrollController =
       createSmoothScrollController(config: SmoothScrollConfig.fast);
+
+  // Search state
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   // Download configuration state
   int _threads = 8;
@@ -226,9 +244,9 @@ class _SettingsPageState extends State<SettingsPage> {
   void _onDeveloperModeChanged() {
     if (_devModeService != null &&
         !_devModeService!.developerMode &&
-        _currentTabIndex == 5) {
+        _currentTabIndex == 6) {
       setState(() {
-        _currentTabIndex = 4;
+        _currentTabIndex = 5;
       });
     }
   }
@@ -339,23 +357,24 @@ class _SettingsPageState extends State<SettingsPage> {
       final t = AppLocalizations.of(context)!;
       final config = Provider.of<ClientConfigService>(context, listen: false);
       await config.setShowTrayRunningStatus(value);
+      final shouldShowTrayRunningStatus = !await windowManager.isVisible();
 
-      if (mounted) {
-        setState(() {
-          _showTrayRunningStatus = value;
-        });
+      if (!mounted) return;
 
-        systemTrayService.updateToolTip(!await windowManager.isVisible());
+      setState(() {
+        _showTrayRunningStatus = value;
+      });
 
-        NotificationManager.of(context)?.showSuccess(
-          value
-              ? t.settingsTrayHintEnabledTitle
-              : t.settingsTrayHintDisabledTitle,
-          message: value
-              ? t.settingsTrayHintEnabledMessage
-              : t.settingsTrayHintDisabledMessage,
-        );
-      }
+      systemTrayService.updateToolTip(shouldShowTrayRunningStatus);
+
+      NotificationManager.of(context)?.showSuccess(
+        value
+            ? t.settingsTrayHintEnabledTitle
+            : t.settingsTrayHintDisabledTitle,
+        message: value
+            ? t.settingsTrayHintEnabledMessage
+            : t.settingsTrayHintDisabledMessage,
+      );
     } catch (e) {
       if (mounted) {
         final t = AppLocalizations.of(context)!;
@@ -698,6 +717,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
     _devModeService?.removeListener(_onDeveloperModeChanged);
     _tabScrollController.dispose();
+    _searchController.dispose();
     _defaultUserAgentController.dispose();
     _uaPackNameController.dispose();
     _uaPackValueController.dispose();
@@ -1694,143 +1714,415 @@ class _SettingsPageState extends State<SettingsPage> {
         fontService.resolveFontStack(Localizations.localeOf(context));
     final t = AppLocalizations.of(context)!;
 
+    final tabItems = _settingsTabItems(t, isDeveloperMode);
+
     return ScaffoldPage(
-      header: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SettingsPageHeader(
-              title: t.settingsTitle, icon: custom_icons.FluentIcons.settings),
-          const SizedBox(height: 12),
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20),
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: AppTheme.bgLayer1.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-              border: Border.all(
-                color: AppTheme.borderSubtle.withValues(alpha: 0.5),
-                width: 1,
+      header: SettingsPageHeader(
+        title: t.settingsTitle,
+        icon: custom_icons.FluentIcons.settings,
+        commandBar: Padding(
+          padding: const EdgeInsets.only(right: 20.0),
+          child: SizedBox(
+            width: 260,
+            child: TextBox(
+              controller: _searchController,
+              placeholder: t.settingsSearchPlaceholder,
+              prefix: const Padding(
+                padding: EdgeInsets.only(left: 8.0),
+                child: Icon(FluentIcons.search),
               ),
-            ),
-            child: Listener(
-              onPointerSignal: (signal) {
-                if (signal is PointerScrollEvent) {
-                  if (!_tabScrollController.hasClients) return;
-                  final maxExtent =
-                      _tabScrollController.position.maxScrollExtent;
-                  if (maxExtent <= 0) return;
-                  final next =
-                      (_tabScrollController.offset + signal.scrollDelta.dy)
-                          .clamp(0.0, maxExtent);
-                  if (next != _tabScrollController.offset) {
-                    _tabScrollController.jumpTo(next);
-                  }
-                }
-              },
-              child: ScrollConfiguration(
-                behavior: ScrollConfiguration.of(context).copyWith(
-                  scrollbars: false,
-                  dragDevices: {
-                    PointerDeviceKind.mouse,
-                    PointerDeviceKind.touch,
-                    PointerDeviceKind.trackpad,
-                  },
-                ),
-                child: SmoothSingleChildScrollView(
-                  config: SmoothScrollConfig.fast,
-                  controller: _tabScrollController,
-                  scrollDirection: Axis.horizontal,
-                  physics: const ClampingScrollPhysics(),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildTabButton(
-                        context,
-                        icon: custom_icons.FluentIcons.settings,
-                        title: t.settingsTabGeneral,
-                        index: 0,
-                        fontFamily: fontStack.primaryFamily,
-                        fontFamilyFallback: fontStack.fallbackFamilies,
-                      ),
-                      const SizedBox(width: 4),
-                      _buildTabButton(
-                        context,
-                        icon: custom_icons.FluentIcons.download,
-                        title: t.settingsTabDownload,
-                        index: 1,
-                        fontFamily: fontStack.primaryFamily,
-                        fontFamilyFallback: fontStack.fallbackFamilies,
-                      ),
-                      const SizedBox(width: 4),
-                      _buildTabButton(
-                        context,
-                        icon: custom_icons.FluentIcons.color,
-                        title: t.settingsTabAppearance,
-                        index: 2,
-                        fontFamily: fontStack.primaryFamily,
-                        fontFamilyFallback: fontStack.fallbackFamilies,
-                      ),
-                      const SizedBox(width: 4),
-                      _buildTabButton(
-                        context,
-                        icon: custom_icons.FluentIcons.update_restore,
-                        title: t.settingsTabUpdate,
-                        index: 3,
-                        fontFamily: fontStack.primaryFamily,
-                        fontFamilyFallback: fontStack.fallbackFamilies,
-                      ),
-                      const SizedBox(width: 4),
-                      _buildTabButton(
-                        context,
-                        icon: custom_icons.FluentIcons.developer_tools,
-                        title: t.settingsTabAdvanced,
-                        index: 4,
-                        fontFamily: fontStack.primaryFamily,
-                        fontFamilyFallback: fontStack.fallbackFamilies,
-                      ),
-                      if (isDeveloperMode) ...[
-                        const SizedBox(width: 4),
-                        _buildTabButton(
-                          context,
-                          icon: custom_icons.FluentIcons.code,
-                          title: t.settingsTabDeveloper,
-                          index: 5,
-                          fontFamily: fontStack.primaryFamily,
-                          fontFamilyFallback: fontStack.fallbackFamilies,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
+              suffixMode: OverlayVisibilityMode.editing,
+              suffix: IconButton(
+                icon: const Icon(FluentIcons.clear),
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() => _searchQuery = '');
+                },
               ),
+              onChanged: (v) => setState(() => _searchQuery = v),
             ),
-          ),
-          const SizedBox(height: 20),
-        ],
-      ),
-      content: SmoothSingleChildScrollView(
-        config: SmoothScrollConfig.fast,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: ClipRect(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 240),
-            reverseDuration: const Duration(milliseconds: 180),
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInCubic,
-            transitionBuilder: _buildTabContentTransition,
-            layoutBuilder: (currentChild, previousChildren) {
-              return Stack(
-                alignment: AlignmentDirectional.topStart,
-                children: [
-                  ...previousChildren,
-                  if (currentChild != null) currentChild,
-                ],
-              );
-            },
-            child: _buildCurrentTabContent(context, isDeveloperMode),
           ),
         ),
       ),
+      content: LayoutBuilder(
+        builder: (context, constraints) {
+          if (_searchQuery.isNotEmpty) {
+            return SmoothSingleChildScrollView(
+              config: SmoothScrollConfig.fast,
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              child: _buildSearchResults(context, isDeveloperMode),
+            );
+          }
+
+          final useSideNavigation = constraints.maxWidth >= 900;
+          if (useSideNavigation) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(22, 4, 22, 0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 232,
+                    child: SmoothSingleChildScrollView(
+                      config: SmoothScrollConfig.fast,
+                      child: _buildSidebarNavigation(context, tabItems),
+                    ),
+                  ),
+                  const SizedBox(width: 22),
+                  Expanded(
+                    child: SmoothSingleChildScrollView(
+                      config: SmoothScrollConfig.fast,
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 920),
+                          child: _buildAnimatedSettingsContent(
+                            context,
+                            isDeveloperMode,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return SmoothSingleChildScrollView(
+            config: SmoothScrollConfig.fast,
+            padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildCompactNavigation(
+                  context,
+                  tabItems,
+                  fontFamily: fontStack.primaryFamily,
+                  fontFamilyFallback: fontStack.fallbackFamilies,
+                ),
+                const SizedBox(height: 16),
+                _buildAnimatedSettingsContent(context, isDeveloperMode),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  List<_SettingsTabInfo> _settingsTabItems(
+    AppLocalizations t,
+    bool isDeveloperMode,
+  ) {
+    return [
+      _SettingsTabInfo(
+        index: 0,
+        icon: custom_icons.FluentIcons.settings,
+        title: t.settingsTabGeneral,
+        description: _isChineseLocale
+            ? '启动、通知、托盘与窗口行为'
+            : 'Startup, notifications, tray, and window behavior',
+      ),
+      _SettingsTabInfo(
+        index: 1,
+        icon: custom_icons.FluentIcons.download,
+        title: t.settingsTabDownload,
+        description: _isChineseLocale
+            ? '保存位置、接管策略、线程与限速'
+            : 'Save location, capture behavior, threads, and speed limits',
+      ),
+      _SettingsTabInfo(
+        index: 2,
+        icon: custom_icons.FluentIcons.globe,
+        title: t.settingsTabNetwork,
+        description: _isChineseLocale
+            ? '代理、连接方式与 User-Agent'
+            : 'Proxy, connection behavior, and User-Agent',
+      ),
+      _SettingsTabInfo(
+        index: 3,
+        icon: custom_icons.FluentIcons.color,
+        title: t.settingsTabAppearance,
+        description: _isChineseLocale
+            ? '主题、语言、窗口效果与视觉细节'
+            : 'Theme, language, window effects, and visual details',
+      ),
+      _SettingsTabInfo(
+        index: 4,
+        icon: custom_icons.FluentIcons.update_restore,
+        title: t.settingsTabUpdate,
+        description: _isChineseLocale
+            ? '版本检查、更新通道与安装行为'
+            : 'Version checks, update channel, and install behavior',
+      ),
+      _SettingsTabInfo(
+        index: 5,
+        icon: custom_icons.FluentIcons.developer_tools,
+        title: t.settingsTabAdvanced,
+        description: _isChineseLocale
+            ? '状态、内核、日志、维护与危险操作'
+            : 'Status, engine, logs, maintenance, and destructive actions',
+      ),
+      if (isDeveloperMode)
+        _SettingsTabInfo(
+          index: 6,
+          icon: custom_icons.FluentIcons.code,
+          title: t.settingsTabDeveloper,
+          description: _isChineseLocale
+              ? '调试开关与实验性选项'
+              : 'Debug switches and experiments',
+        ),
+    ];
+  }
+
+  Widget _buildAnimatedSettingsContent(
+    BuildContext context,
+    bool isDeveloperMode,
+  ) {
+    return ClipRect(
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 240),
+        reverseDuration: const Duration(milliseconds: 180),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: _buildTabContentTransition,
+        layoutBuilder: (currentChild, previousChildren) {
+          return Stack(
+            alignment: AlignmentDirectional.topStart,
+            children: [
+              ...previousChildren,
+              if (currentChild != null) currentChild,
+            ],
+          );
+        },
+        child: _buildCurrentTabContent(context, isDeveloperMode),
+      ),
+    );
+  }
+
+  Widget _buildSidebarNavigation(
+    BuildContext context,
+    List<_SettingsTabInfo> items,
+  ) {
+    final isDark = AppTheme.isDarkContext(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
+      decoration: BoxDecoration(
+        color: AppTheme.bgLayer1.withValues(alpha: isDark ? 0.22 : 0.42),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(
+          color: AppTheme.borderSubtle.withValues(alpha: isDark ? 0.34 : 0.18),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+            child: Text(
+              _isChineseLocale ? '设置分类' : 'Settings',
+              style: FluentTheme.of(context).typography.caption?.copyWith(
+                    color: AppTheme.textTertiary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+          for (final item in items) ...[
+            _buildSidebarNavigationItem(context, item),
+            if (item != items.last) const SizedBox(height: 3),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebarNavigationItem(
+    BuildContext context,
+    _SettingsTabInfo item,
+  ) {
+    final isDark = AppTheme.isDarkContext(context);
+    final selected = _currentTabIndex == item.index;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => _selectTab(item.index),
+        child: TweenAnimationBuilder<double>(
+          tween: Tween<double>(end: selected ? 1 : 0),
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          builder: (context, selectedValue, child) {
+            final background = Color.lerp(
+              Colors.transparent,
+              AppTheme.accentPrimary.withValues(alpha: isDark ? 0.14 : 0.10),
+              selectedValue,
+            )!;
+            final iconColor = Color.lerp(
+              AppTheme.textSecondary,
+              AppTheme.accentLight,
+              selectedValue,
+            )!;
+
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
+              padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
+              decoration: BoxDecoration(
+                color: background,
+                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              ),
+              child: Row(
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: 3,
+                    height: selected ? 34 : 18,
+                    decoration: BoxDecoration(
+                      color:
+                          selected ? AppTheme.accentLight : Colors.transparent,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                  const SizedBox(width: 9),
+                  Icon(item.icon, size: 15, color: iconColor),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              FluentTheme.of(context).typography.body?.copyWith(
+                                    color: selected
+                                        ? AppTheme.textPrimary
+                                        : AppTheme.textSecondary,
+                                    fontWeight: selected
+                                        ? FontWeight.w600
+                                        : FontWeight.w500,
+                                    fontSize: 13,
+                                  ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          item.description,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: FluentTheme.of(context)
+                              .typography
+                              .caption
+                              ?.copyWith(
+                                color: AppTheme.textTertiary,
+                                fontSize: 11,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactNavigation(
+    BuildContext context,
+    List<_SettingsTabInfo> items, {
+    required String? fontFamily,
+    required List<String> fontFamilyFallback,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppTheme.bgLayer1.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(
+          color: AppTheme.borderSubtle.withValues(alpha: 0.5),
+          width: 1,
+        ),
+      ),
+      child: Listener(
+        onPointerSignal: (signal) {
+          if (signal is PointerScrollEvent) {
+            if (!_tabScrollController.hasClients) return;
+            final maxExtent = _tabScrollController.position.maxScrollExtent;
+            if (maxExtent <= 0) return;
+            final next = (_tabScrollController.offset + signal.scrollDelta.dy)
+                .clamp(0.0, maxExtent);
+            if (next != _tabScrollController.offset) {
+              _tabScrollController.jumpTo(next);
+            }
+          }
+        },
+        child: ScrollConfiguration(
+          behavior: ScrollConfiguration.of(context).copyWith(
+            scrollbars: false,
+            dragDevices: {
+              PointerDeviceKind.mouse,
+              PointerDeviceKind.touch,
+              PointerDeviceKind.trackpad,
+            },
+          ),
+          child: SmoothSingleChildScrollView(
+            config: SmoothScrollConfig.fast,
+            controller: _tabScrollController,
+            scrollDirection: Axis.horizontal,
+            physics: const ClampingScrollPhysics(),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final item in items) ...[
+                  _buildTabButton(
+                    context,
+                    icon: item.icon,
+                    title: item.title,
+                    index: item.index,
+                    fontFamily: fontFamily,
+                    fontFamilyFallback: fontFamilyFallback,
+                  ),
+                  if (item != items.last) const SizedBox(width: 4),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchResults(BuildContext context, bool isDeveloperMode) {
+    final results = [
+      ..._buildGeneralTab(context),
+      ..._buildDownloadTab(context),
+      ..._buildNetworkTab(context),
+      ..._buildAdvancedTab(context),
+    ].whereType<Widget>().toList();
+
+    if (results.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 40.0),
+        child: Center(
+          child: Text(
+            'No results found', // Fallback, could be localized
+            style: FluentTheme.of(context).typography.subtitle,
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ...results,
+        const SizedBox(height: 40),
+      ],
     );
   }
 
@@ -1852,10 +2144,11 @@ class _SettingsPageState extends State<SettingsPage> {
       children: [
         if (_currentTabIndex == 0) ..._buildGeneralTab(context),
         if (_currentTabIndex == 1) ..._buildDownloadTab(context),
-        if (_currentTabIndex == 2) const AppearanceSettingsPage(),
-        if (_currentTabIndex == 3) const UpdatePage(),
-        if (_currentTabIndex == 4) ..._buildAdvancedTab(context),
-        if (_currentTabIndex == 5 && isDeveloperMode)
+        if (_currentTabIndex == 2) ..._buildNetworkTab(context),
+        if (_currentTabIndex == 3) const AppearanceSettingsPage(),
+        if (_currentTabIndex == 4) const UpdatePage(),
+        if (_currentTabIndex == 5) ..._buildAdvancedTab(context),
+        if (_currentTabIndex == 6 && isDeveloperMode)
           const DeveloperSettingsPage(),
         const SizedBox(height: 40),
       ],
@@ -1981,21 +2274,7 @@ class _SettingsPageState extends State<SettingsPage> {
   // 通用设置
   List<Widget> _buildGeneralTab(BuildContext context) {
     final t = AppLocalizations.of(context)!;
-    final windowEffect = context.watch<WindowEffectService>();
-    final popupEffectModeForUi = !windowEffect.isWindows11 &&
-            (_popupWindowEffectMode ==
-                    ClientConfigService.popupWindowEffectMicaMain ||
-                _popupWindowEffectMode ==
-                    ClientConfigService.popupWindowEffectMicaTransient)
-        ? ClientConfigService.popupWindowEffectSolid
-        : _popupWindowEffectMode;
-    final popupMayShow = ClientConfigService.browserDownloadModeMayShowPopup(
-      _browserDownloadHandlingMode,
-    );
     return [
-      _buildStatusSection(context),
-      const SizedBox(height: 24),
-
       if (Platform.isWindows) ...[
         _buildSection(
           context,
@@ -2015,12 +2294,142 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         const SizedBox(height: 24),
       ],
-
-      // 鐞涘奔璐熺拋鍓х枂
       _buildSection(
         context,
         title: t.settingsSectionBehavior,
         icon: custom_icons.FluentIcons.processing,
+        children: [
+          _buildSettingItem(
+            context,
+            title: t.settingsCloseBehaviorTitle,
+            subtitle:
+                _getCloseButtonBehaviorDescription(_closeButtonBehavior, t),
+            trailing: ComboBox<String>(
+              value: _closeButtonBehavior,
+              items: [
+                ComboBoxItem(
+                    value: 'minimize_to_tray',
+                    child: Text(t.settingsCloseBehaviorMinimizeLabel)),
+                ComboBoxItem(
+                    value: 'exit_app',
+                    child: Text(t.settingsCloseBehaviorExitLabel)),
+              ],
+              onChanged: (value) {
+                if (value != null) _saveCloseButtonBehavior(value);
+              },
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 24),
+      _buildSection(
+        context,
+        title: _isChineseLocale ? '通知与托盘' : 'Notifications and tray',
+        icon: custom_icons.FluentIcons.info,
+        children: [
+          _buildSettingItem(
+            context,
+            title: t.settingsCompleteNotifyTitle,
+            subtitle: t.settingsCompleteNotifySubtitle,
+            trailing: ToggleSwitch(
+              checked: _notifyOnComplete,
+              onChanged: (value) {
+                setState(() => _notifyOnComplete = value);
+                if (mounted) {
+                  NotificationManager.of(context)?.showSuccess(
+                    value
+                        ? t.settingsCompleteNotifyEnabledTitle
+                        : t.settingsCompleteNotifyDisabledTitle,
+                    message: value
+                        ? t.settingsCompleteNotifyEnabledMessage
+                        : t.settingsCompleteNotifyDisabledMessage,
+                  );
+                }
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildSettingItem(
+            context,
+            title: t.settingsTrayHintTitle,
+            subtitle: t.settingsTrayHintSubtitle,
+            trailing: ToggleSwitch(
+              checked: _showTrayRunningStatus,
+              onChanged: _saveShowTrayRunningStatus,
+            ),
+          ),
+        ],
+      ),
+    ];
+  }
+
+  List<Widget> _buildDownloadTab(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    final windowEffect = context.watch<WindowEffectService>();
+    var popupEffectModeForUi = _popupWindowEffectMode;
+    final popupModeUnsupportedOnWin11 = windowEffect.isWindows11 &&
+        (_popupWindowEffectMode == ClientConfigService.popupWindowEffectBlur ||
+            (!windowEffect.supportsSystemBackdrop &&
+                _popupWindowEffectMode ==
+                    ClientConfigService.popupWindowEffectMicaTransient));
+    if (!windowEffect.isWindows11 &&
+        (_popupWindowEffectMode ==
+                ClientConfigService.popupWindowEffectMicaMain ||
+            _popupWindowEffectMode ==
+                ClientConfigService.popupWindowEffectMicaTransient)) {
+      popupEffectModeForUi = ClientConfigService.popupWindowEffectSolid;
+    } else if (popupModeUnsupportedOnWin11) {
+      popupEffectModeForUi = ClientConfigService.popupWindowEffectMicaMain;
+    }
+    final popupMayShow = ClientConfigService.browserDownloadModeMayShowPopup(
+      _browserDownloadHandlingMode,
+    );
+
+    return [
+      _buildSection(
+        context,
+        title: t.settingsDownloadPathSection,
+        icon: custom_icons.FluentIcons.folder_open,
+        children: [
+          _buildSettingItem(
+            context,
+            title: t.settingsDownloadPathTitle,
+            subtitle: _downloadPath,
+            trailing: Button(
+              onPressed: _kernelOnline ? _changeDownloadPath : null,
+              child: Text(t.settingsDownloadPathChangeButton),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildSettingItem(
+            context,
+            title: t.settingsConflictStrategyTitle,
+            subtitle: t.settingsConflictStrategySubtitle,
+            trailing: ComboBox<String>(
+              value: _conflictStrategy,
+              items: [
+                ComboBoxItem(
+                    value: 'increment',
+                    child: Text(t.settingsConflictStrategyIncrement)),
+                ComboBoxItem(
+                    value: 'timestamp',
+                    child: Text(t.settingsConflictStrategyTimestamp)),
+                ComboBoxItem(
+                    value: 'overwrite',
+                    child: Text(t.settingsConflictStrategyOverwrite)),
+              ],
+              onChanged: (value) {
+                if (value != null) _updateConfig(conflictStrategy: value);
+              },
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 24),
+      _buildSection(
+        context,
+        title: _isChineseLocale ? '下载接管' : 'Download capture',
+        icon: custom_icons.FluentIcons.download,
         children: [
           _buildSettingItem(
             context,
@@ -2065,28 +2474,25 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           const SizedBox(height: 12),
-          Opacity(
-            opacity: popupMayShow ? 1.0 : 0.5,
-            child: IgnorePointer(
-              ignoring: !popupMayShow,
-              child: _buildSettingItem(
-                context,
-                title: _popupWindowEffectTitle,
-                subtitle: _popupWindowEffectDescription(
-                  popupEffectModeForUi,
-                  windowEffect,
-                ),
-                trailing: SizedBox(
-                  width: 220,
-                  child: ComboBox<String>(
-                    value: popupEffectModeForUi,
-                    items: _popupWindowEffectItems(windowEffect),
-                    onChanged: (value) {
-                      if (value != null) {
-                        _savePopupWindowEffectMode(value);
-                      }
-                    },
-                  ),
+          _buildDisabledSetting(
+            enabled: popupMayShow,
+            child: _buildSettingItem(
+              context,
+              title: _popupWindowEffectTitle,
+              subtitle: _popupWindowEffectDescription(
+                popupEffectModeForUi,
+                windowEffect,
+              ),
+              trailing: SizedBox(
+                width: 220,
+                child: ComboBox<String>(
+                  value: popupEffectModeForUi,
+                  items: _popupWindowEffectItems(windowEffect),
+                  onChanged: (value) {
+                    if (value != null) {
+                      _savePopupWindowEffectMode(value);
+                    }
+                  },
                 ),
               ),
             ),
@@ -2099,91 +2505,6 @@ class _SettingsPageState extends State<SettingsPage> {
             trailing: ToggleSwitch(
               checked: _enableClipboardListener,
               onChanged: _saveEnableClipboardListener,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildSettingItem(
-            context,
-            title: t.settingsOnlineStatsTitle,
-            subtitle: t.settingsOnlineStatsSubtitle,
-            trailing: ToggleSwitch(
-              checked: _onlineStatsEnabled,
-              onChanged: _saveOnlineStatsEnabled,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildSettingItem(
-            context,
-            title: t.settingsCompleteNotifyTitle,
-            subtitle: t.settingsCompleteNotifySubtitle,
-            trailing: ToggleSwitch(
-              checked: _notifyOnComplete,
-              onChanged: (value) {
-                setState(() => _notifyOnComplete = value);
-                if (mounted) {
-                  NotificationManager.of(context)?.showSuccess(
-                    value
-                        ? t.settingsCompleteNotifyEnabledTitle
-                        : t.settingsCompleteNotifyDisabledTitle,
-                    message: value
-                        ? t.settingsCompleteNotifyEnabledMessage
-                        : t.settingsCompleteNotifyDisabledMessage,
-                  );
-                }
-              },
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildSettingItem(
-            context,
-            title: t.settingsTrayHintTitle,
-            subtitle: t.settingsTrayHintSubtitle,
-            trailing: ToggleSwitch(
-              checked: _showTrayRunningStatus,
-              onChanged: _saveShowTrayRunningStatus,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildSettingItem(
-            context,
-            title: t.settingsCloseBehaviorTitle,
-            subtitle:
-                _getCloseButtonBehaviorDescription(_closeButtonBehavior, t),
-            trailing: ComboBox<String>(
-              value: _closeButtonBehavior,
-              items: [
-                ComboBoxItem(
-                    value: 'minimize_to_tray',
-                    child: Text(t.settingsCloseBehaviorMinimizeLabel)),
-                ComboBoxItem(
-                    value: 'exit_app',
-                    child: Text(t.settingsCloseBehaviorExitLabel)),
-              ],
-              onChanged: (value) {
-                if (value != null) _saveCloseButtonBehavior(value);
-              },
-            ),
-          ),
-        ],
-      ),
-    ];
-  }
-
-  List<Widget> _buildDownloadTab(BuildContext context) {
-    final t = AppLocalizations.of(context)!;
-    return [
-      _buildSection(
-        context,
-        title: t.settingsDownloadPathSection,
-        icon: custom_icons.FluentIcons.folder_open,
-        children: [
-          _buildSettingItem(
-            context,
-            title: t.settingsDownloadPathTitle,
-            subtitle: _downloadPath,
-            trailing: Button(
-              onPressed: _kernelOnline ? _changeDownloadPath : null,
-              child: Text(t.settingsDownloadPathChangeButton),
             ),
           ),
         ],
@@ -2226,80 +2547,73 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
           ),
           const SizedBox(height: 12),
-          Opacity(
-            opacity: (_mode == 'manual' || _mode == 'threads_only') ? 1.0 : 0.5,
-            child: IgnorePointer(
-              ignoring: !(_mode == 'manual' || _mode == 'threads_only'),
-              child: _buildSettingItem(
-                context,
-                title: t.settingsThreadsTitle,
-                subtitle: t.settingsThreadsSubtitle,
-                trailing: SizedBox(
-                  width: 200,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Slider(
-                          value: _threads.toDouble(),
-                          min: 1,
-                          max: 32,
-                          divisions: 31,
-                          label: _threads.toString(),
-                          onChanged: (value) {
-                            _updateConfig(threads: value.toInt());
-                          },
-                        ),
+          _buildDisabledSetting(
+            enabled: _mode == 'manual' || _mode == 'threads_only',
+            child: _buildSettingItem(
+              context,
+              title: t.settingsThreadsTitle,
+              subtitle: t.settingsThreadsSubtitle,
+              trailing: SizedBox(
+                width: 200,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Slider(
+                        value: _threads.toDouble(),
+                        min: 1,
+                        max: 32,
+                        divisions: 31,
+                        label: _threads.toString(),
+                        onChanged: (value) {
+                          _updateConfig(threads: value.toInt());
+                        },
                       ),
-                      const SizedBox(width: 12),
-                      SizedBox(
-                        width: 30,
-                        child: Text(
-                          '$_threads',
-                          style: FluentTheme.of(context).typography.bodyStrong,
-                        ),
+                    ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: 30,
+                      child: Text(
+                        '$_threads',
+                        style: FluentTheme.of(context).typography.bodyStrong,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
           const SizedBox(height: 12),
-          Opacity(
-            opacity:
-                (_mode == 'manual' || _mode == 'segments_only') ? 1.0 : 0.5,
-            child: IgnorePointer(
-              ignoring: !(_mode == 'manual' || _mode == 'segments_only'),
-              child: _buildSettingItem(
-                context,
-                title: t.settingsSegmentsTitle,
-                subtitle: t.settingsSegmentsSubtitle,
-                trailing: SizedBox(
-                  width: 200,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Slider(
-                          value: _segments.toDouble(),
-                          min: 1,
-                          max: 32,
-                          divisions: 31,
-                          label: _segments.toString(),
-                          onChanged: (value) {
-                            _updateConfig(segments: value.toInt());
-                          },
-                        ),
+          _buildDisabledSetting(
+            enabled: _mode == 'manual' || _mode == 'segments_only',
+            child: _buildSettingItem(
+              context,
+              title: t.settingsSegmentsTitle,
+              subtitle: t.settingsSegmentsSubtitle,
+              trailing: SizedBox(
+                width: 200,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Slider(
+                        value: _segments.toDouble(),
+                        min: 1,
+                        max: 32,
+                        divisions: 31,
+                        label: _segments.toString(),
+                        onChanged: (value) {
+                          _updateConfig(segments: value.toInt());
+                        },
                       ),
-                      const SizedBox(width: 12),
-                      SizedBox(
-                        width: 30,
-                        child: Text(
-                          '$_segments',
-                          style: FluentTheme.of(context).typography.bodyStrong,
-                        ),
+                    ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: 30,
+                      child: Text(
+                        '$_segments',
+                        style: FluentTheme.of(context).typography.bodyStrong,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -2358,7 +2672,14 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+        ],
+      ),
+      const SizedBox(height: 24),
+      _buildSection(
+        context,
+        title: _isChineseLocale ? '速度与协议' : 'Speed and protocol',
+        icon: custom_icons.FluentIcons.processing,
+        children: [
           _buildSettingItem(
             context,
             title: t.settingsSegmentSpeedLimitTitle,
@@ -2373,7 +2694,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           .clamp(0, 20480)
                           .toDouble(),
                       min: 0,
-                      max: 20480, // 20 MB/s
+                      max: 20480,
                       divisions: 200,
                       onChanged: (value) {
                         _updateConfig(
@@ -2430,7 +2751,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           .clamp(0, 102400)
                           .toDouble(),
                       min: 0,
-                      max: 102400, // 100 MB/s
+                      max: 102400,
                       divisions: 200,
                       onChanged: (value) {
                         _updateConfig(globalSpeedLimit: (value * 1024).toInt());
@@ -2452,29 +2773,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ],
               ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildSettingItem(
-            context,
-            title: t.settingsConflictStrategyTitle,
-            subtitle: t.settingsConflictStrategySubtitle,
-            trailing: ComboBox<String>(
-              value: _conflictStrategy,
-              items: [
-                ComboBoxItem(
-                    value: 'increment',
-                    child: Text(t.settingsConflictStrategyIncrement)),
-                ComboBoxItem(
-                    value: 'timestamp',
-                    child: Text(t.settingsConflictStrategyTimestamp)),
-                ComboBoxItem(
-                    value: 'overwrite',
-                    child: Text(t.settingsConflictStrategyOverwrite)),
-              ],
-              onChanged: (value) {
-                if (value != null) _updateConfig(conflictStrategy: value);
-              },
             ),
           ),
           const SizedBox(height: 12),
@@ -2504,17 +2802,298 @@ class _SettingsPageState extends State<SettingsPage> {
               },
             ),
           ),
-          const SizedBox(height: 12),
+        ],
+      ),
+      const SizedBox(height: 24),
+    ];
+  }
+
+  Future<void> _testProxyConnection() async {
+    final t = AppLocalizations.of(context)!;
+
+    if (_proxyType != 'system' && _proxyHost.isEmpty) {
+      NotificationManager.of(context)?.showError(
+        t.settingsProxyErrorTitle,
+        message: t.settingsProxyErrorMessage,
+      );
+      return;
+    }
+
+    NotificationManager.of(context)?.showInfo(
+      t.settingsProxyTestingTitle,
+      message: t.settingsProxyTestingMessage,
+    );
+
+    try {
+      final service = context.read<IntegratedDownloadService>();
+
+      String testHost = _proxyHost;
+      int testPort = _proxyPort;
+
+      if (_proxyType == 'system') {
+        testHost = '127.0.0.1';
+      }
+
+      final result = await service.testProxyConnection(
+        type: _proxyType,
+        host: testHost,
+        port: testPort,
+        username: _proxyRequiresAuth ? _proxyUsername : null,
+        password: _proxyRequiresAuth ? _proxyPassword : null,
+      );
+
+      if (mounted) {
+        if (result) {
+          NotificationManager.of(context)?.showSuccess(
+            t.settingsProxyTestSuccessTitle,
+            message: t.settingsProxyTestSuccessMessage,
+          );
+        } else {
+          NotificationManager.of(context)?.showError(
+            t.settingsProxyTestFailedTitle,
+            message: t.settingsProxyTestFailedMessage,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        NotificationManager.of(context)?.showError(
+          t.settingsProxyTestErrorTitle,
+          message: t.settingsProxyTestErrorMessage(e.toString()),
+        );
+      }
+    }
+  }
+
+  String _getProxyConfigTips(AppLocalizations t) {
+    switch (_proxyType) {
+      case 'system':
+        return t.settingsProxyTipsSystem;
+      case 'http':
+        return t.settingsProxyTipsHttp;
+      case 'socks5':
+        return t.settingsProxyTipsSocks5;
+      default:
+        return t.settingsProxyTipsDefault;
+    }
+  }
+
+  // 高级设置
+  List<Widget> _buildNetworkTab(BuildContext context) {
+    final t = AppLocalizations.of(context)!;
+    return [
+      _buildSection(
+        context,
+        title: t.settingsProxySection,
+        icon: custom_icons.FluentIcons.network_tower,
+        children: [
           _buildSettingItem(
             context,
-            title: t.settingsDownloadCardHttpBadgeTitle,
-            subtitle: t.settingsDownloadCardHttpBadgeSubtitle,
+            title: t.settingsProxyEnableTitle,
+            subtitle: t.settingsProxyEnableSubtitle,
             trailing: ToggleSwitch(
-              checked: _showHttpConnectivityBadges,
-              onChanged: _setShowHttpConnectivityBadges,
+              checked: _useProxy,
+              onChanged: (value) {
+                setState(() => _useProxy = value);
+                _updateProxyConfig();
+              },
             ),
           ),
-          const SizedBox(height: 12),
+          if (_useProxy) ...[
+            const SizedBox(height: 12),
+            _buildSettingItem(
+              context,
+              title: t.settingsProxyTypeTitle,
+              subtitle: t.settingsProxyTypeSubtitle,
+              trailing: ComboBox<String>(
+                value: _proxyType,
+                items: [
+                  ComboBoxItem(
+                      value: 'system', child: Text(t.settingsProxyTypeSystem)),
+                  ComboBoxItem(
+                      value: 'http', child: Text(t.settingsProxyTypeHttp)),
+                  ComboBoxItem(
+                      value: 'socks5', child: Text(t.settingsProxyTypeSocks5)),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _proxyType = value;
+                      if (_proxyType != 'system') {
+                        if (_proxyHost.trim().isEmpty) {
+                          _proxyHost = '127.0.0.1';
+                        }
+                        if (_proxyPort <= 0) {
+                          _proxyPort = 7897;
+                        }
+                      }
+                    });
+                    _updateProxyConfig();
+                  }
+                },
+              ),
+            ),
+            if (_proxyType != 'system') ...[
+              const SizedBox(height: 12),
+              _buildSettingItem(
+                context,
+                title: t.settingsProxyServerTitle,
+                subtitle: t.settingsProxyServerSubtitle,
+                trailing: SizedBox(
+                  width: 300,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: TextBox(
+                          placeholder: t.settingsProxyHostPlaceholder,
+                          controller: TextEditingController(text: _proxyHost)
+                            ..selection = TextSelection.fromPosition(
+                              TextPosition(offset: _proxyHost.length),
+                            ),
+                          onChanged: (value) => _proxyHost = value,
+                          onSubmitted: (_) => _updateProxyConfig(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(':'),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 1,
+                        child: NumberBox<int>(
+                          value: _proxyPort,
+                          min: 1,
+                          max: 65535,
+                          mode: SpinButtonPlacementMode.none,
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() => _proxyPort = value);
+                              _updateProxyConfig();
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildSettingItem(
+                context,
+                title: t.settingsProxyAuthTitle,
+                subtitle: t.settingsProxyAuthSubtitle,
+                trailing: ToggleSwitch(
+                  checked: _proxyRequiresAuth,
+                  onChanged: (value) {
+                    setState(() => _proxyRequiresAuth = value);
+                    _updateProxyConfig();
+                  },
+                ),
+              ),
+              if (_proxyRequiresAuth) ...[
+                const SizedBox(height: 12),
+
+                // 认证信息
+                _buildSettingItem(
+                  context,
+                  title: t.settingsProxyUsernameTitle,
+                  subtitle: t.settingsProxyUsernameSubtitle,
+                  trailing: SizedBox(
+                    width: 200,
+                    child: TextBox(
+                      placeholder: t.settingsProxyUsernamePlaceholder,
+                      controller: TextEditingController(text: _proxyUsername)
+                        ..selection = TextSelection.fromPosition(
+                          TextPosition(offset: _proxyUsername.length),
+                        ),
+                      onChanged: (value) => _proxyUsername = value,
+                      onSubmitted: (_) => _updateProxyConfig(),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                _buildSettingItem(
+                  context,
+                  title: t.settingsProxyPasswordTitle,
+                  subtitle: t.settingsProxyPasswordSubtitle,
+                  trailing: SizedBox(
+                    width: 200,
+                    child: PasswordBox(
+                      placeholder: t.settingsProxyPasswordPlaceholder,
+                      controller: TextEditingController(text: _proxyPassword)
+                        ..selection = TextSelection.fromPosition(
+                          TextPosition(offset: _proxyPassword.length),
+                        ),
+                      onChanged: (value) => _proxyPassword = value,
+                      onSubmitted: (_) => _updateProxyConfig(),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.accentPrimary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                border: Border.all(
+                  color: AppTheme.accentPrimary.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    custom_icons.FluentIcons.info,
+                    size: 16,
+                    color: AppTheme.accentLight,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          t.settingsProxyTipsTitle,
+                          style: FluentTheme.of(context)
+                              .typography
+                              .bodyStrong
+                              ?.copyWith(
+                                color: AppTheme.accentLight,
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _getProxyConfigTips(t),
+                          style: FluentTheme.of(context)
+                              .typography
+                              .caption
+                              ?.copyWith(
+                                color: AppTheme.textSecondary,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Button(
+                    onPressed: _testProxyConnection,
+                    child: Text(t.settingsProxyTestButton),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+      const SizedBox(height: 24),
+      _buildSection(
+        context,
+        title: 'User Agent',
+        icon: custom_icons.FluentIcons.globe,
+        children: [
           _buildUaSettingItem(
             context,
             title: t.settingsDefaultUserAgentTitle,
@@ -2828,289 +3407,40 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ],
       ),
-      const SizedBox(height: 24),
-      _buildSection(
-        context,
-        title: t.settingsProxySection,
-        icon: custom_icons.FluentIcons.network_tower,
-        children: [
-          _buildSettingItem(
-            context,
-            title: t.settingsProxyEnableTitle,
-            subtitle: t.settingsProxyEnableSubtitle,
-            trailing: ToggleSwitch(
-              checked: _useProxy,
-              onChanged: (value) {
-                setState(() => _useProxy = value);
-                _updateProxyConfig();
-              },
-            ),
-          ),
-          if (_useProxy) ...[
-            const SizedBox(height: 12),
-            _buildSettingItem(
-              context,
-              title: t.settingsProxyTypeTitle,
-              subtitle: t.settingsProxyTypeSubtitle,
-              trailing: ComboBox<String>(
-                value: _proxyType,
-                items: [
-                  ComboBoxItem(
-                      value: 'system', child: Text(t.settingsProxyTypeSystem)),
-                  ComboBoxItem(
-                      value: 'http', child: Text(t.settingsProxyTypeHttp)),
-                  ComboBoxItem(
-                      value: 'socks5', child: Text(t.settingsProxyTypeSocks5)),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _proxyType = value;
-                      if (_proxyType != 'system') {
-                        if (_proxyHost.trim().isEmpty) {
-                          _proxyHost = '127.0.0.1';
-                        }
-                        if (_proxyPort <= 0) {
-                          _proxyPort = 7897;
-                        }
-                      }
-                    });
-                    _updateProxyConfig();
-                  }
-                },
-              ),
-            ),
-            if (_proxyType != 'system') ...[
-              const SizedBox(height: 12),
-              _buildSettingItem(
-                context,
-                title: t.settingsProxyServerTitle,
-                subtitle: t.settingsProxyServerSubtitle,
-                trailing: SizedBox(
-                  width: 300,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: TextBox(
-                          placeholder: t.settingsProxyHostPlaceholder,
-                          controller: TextEditingController(text: _proxyHost)
-                            ..selection = TextSelection.fromPosition(
-                              TextPosition(offset: _proxyHost.length),
-                            ),
-                          onChanged: (value) => _proxyHost = value,
-                          onSubmitted: (_) => _updateProxyConfig(),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(':'),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        flex: 1,
-                        child: NumberBox<int>(
-                          value: _proxyPort,
-                          min: 1,
-                          max: 65535,
-                          mode: SpinButtonPlacementMode.none,
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() => _proxyPort = value);
-                              _updateProxyConfig();
-                            }
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              _buildSettingItem(
-                context,
-                title: t.settingsProxyAuthTitle,
-                subtitle: t.settingsProxyAuthSubtitle,
-                trailing: ToggleSwitch(
-                  checked: _proxyRequiresAuth,
-                  onChanged: (value) {
-                    setState(() => _proxyRequiresAuth = value);
-                    _updateProxyConfig();
-                  },
-                ),
-              ),
-              if (_proxyRequiresAuth) ...[
-                const SizedBox(height: 12),
-
-                // 认证信息
-                _buildSettingItem(
-                  context,
-                  title: t.settingsProxyUsernameTitle,
-                  subtitle: t.settingsProxyUsernameSubtitle,
-                  trailing: SizedBox(
-                    width: 200,
-                    child: TextBox(
-                      placeholder: t.settingsProxyUsernamePlaceholder,
-                      controller: TextEditingController(text: _proxyUsername)
-                        ..selection = TextSelection.fromPosition(
-                          TextPosition(offset: _proxyUsername.length),
-                        ),
-                      onChanged: (value) => _proxyUsername = value,
-                      onSubmitted: (_) => _updateProxyConfig(),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                _buildSettingItem(
-                  context,
-                  title: t.settingsProxyPasswordTitle,
-                  subtitle: t.settingsProxyPasswordSubtitle,
-                  trailing: SizedBox(
-                    width: 200,
-                    child: PasswordBox(
-                      placeholder: t.settingsProxyPasswordPlaceholder,
-                      controller: TextEditingController(text: _proxyPassword)
-                        ..selection = TextSelection.fromPosition(
-                          TextPosition(offset: _proxyPassword.length),
-                        ),
-                      onChanged: (value) => _proxyPassword = value,
-                      onSubmitted: (_) => _updateProxyConfig(),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.accentPrimary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                border: Border.all(
-                  color: AppTheme.accentPrimary.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    custom_icons.FluentIcons.info,
-                    size: 16,
-                    color: AppTheme.accentLight,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          t.settingsProxyTipsTitle,
-                          style: FluentTheme.of(context)
-                              .typography
-                              .bodyStrong
-                              ?.copyWith(
-                                color: AppTheme.accentLight,
-                              ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _getProxyConfigTips(t),
-                          style: FluentTheme.of(context)
-                              .typography
-                              .caption
-                              ?.copyWith(
-                                color: AppTheme.textSecondary,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Button(
-                    onPressed: _testProxyConnection,
-                    child: Text(t.settingsProxyTestButton),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
     ];
   }
 
-  Future<void> _testProxyConnection() async {
-    final t = AppLocalizations.of(context)!;
-
-    if (_proxyType != 'system' && _proxyHost.isEmpty) {
-      NotificationManager.of(context)?.showError(
-        t.settingsProxyErrorTitle,
-        message: t.settingsProxyErrorMessage,
-      );
-      return;
-    }
-
-    NotificationManager.of(context)?.showInfo(
-      t.settingsProxyTestingTitle,
-      message: t.settingsProxyTestingMessage,
-    );
-
-    try {
-      final service = context.read<IntegratedDownloadService>();
-
-      String testHost = _proxyHost;
-      int testPort = _proxyPort;
-
-      if (_proxyType == 'system') {
-        testHost = '127.0.0.1';
-      }
-
-      final result = await service.testProxyConnection(
-        type: _proxyType,
-        host: testHost,
-        port: testPort,
-        username: _proxyRequiresAuth ? _proxyUsername : null,
-        password: _proxyRequiresAuth ? _proxyPassword : null,
-      );
-
-      if (mounted) {
-        if (result) {
-          NotificationManager.of(context)?.showSuccess(
-            t.settingsProxyTestSuccessTitle,
-            message: t.settingsProxyTestSuccessMessage,
-          );
-        } else {
-          NotificationManager.of(context)?.showError(
-            t.settingsProxyTestFailedTitle,
-            message: t.settingsProxyTestFailedMessage,
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        NotificationManager.of(context)?.showError(
-          t.settingsProxyTestErrorTitle,
-          message: t.settingsProxyTestErrorMessage(e.toString()),
-        );
-      }
-    }
-  }
-
-  String _getProxyConfigTips(AppLocalizations t) {
-    switch (_proxyType) {
-      case 'system':
-        return t.settingsProxyTipsSystem;
-      case 'http':
-        return t.settingsProxyTipsHttp;
-      case 'socks5':
-        return t.settingsProxyTipsSocks5;
-      default:
-        return t.settingsProxyTipsDefault;
-    }
-  }
-
-  // 高级设置
   List<Widget> _buildAdvancedTab(BuildContext context) {
     return [
+      _buildStatusSection(context),
+      const SizedBox(height: 24),
+      _buildSection(
+        context,
+        title: t.settingsTabAdvanced,
+        icon: custom_icons.FluentIcons.developer_tools,
+        children: [
+          _buildSettingItem(
+            context,
+            title: t.settingsOnlineStatsTitle,
+            subtitle: t.settingsOnlineStatsSubtitle,
+            trailing: ToggleSwitch(
+              checked: _onlineStatsEnabled,
+              onChanged: _saveOnlineStatsEnabled,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildSettingItem(
+            context,
+            title: t.settingsDownloadCardHttpBadgeTitle,
+            subtitle: t.settingsDownloadCardHttpBadgeSubtitle,
+            trailing: ToggleSwitch(
+              checked: _showHttpConnectivityBadges,
+              onChanged: _setShowHttpConnectivityBadges,
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 24),
       _buildKernelSection(context),
       const SizedBox(height: 24),
       _buildLogManagementSection(context),
@@ -3411,7 +3741,6 @@ class _SettingsPageState extends State<SettingsPage> {
     ];
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppTheme.cardBackground(darkAlpha: 0.6, lightAlpha: 0.6),
@@ -3485,12 +3814,19 @@ class _SettingsPageState extends State<SettingsPage> {
     BuildContext context, {
     required String title,
     required IconData icon,
-    required List<Widget> children,
+    required List<Widget?> children,
   }) {
+    final validChildren = children.whereType<Widget>().toList();
+    if (_searchQuery.isNotEmpty && validChildren.isEmpty) {
+      if (!title.toLowerCase().contains(_searchQuery.toLowerCase())) {
+        return const SizedBox.shrink();
+      }
+    }
     return SettingsSection(
       title: title,
       icon: icon,
-      children: children,
+      margin: EdgeInsets.zero,
+      children: validChildren,
     );
   }
 
@@ -3524,12 +3860,10 @@ class _SettingsPageState extends State<SettingsPage> {
   String _browserDownloadHandlingLabel(String mode) {
     return switch (
         ClientConfigService.normalizeBrowserDownloadHandlingMode(mode)) {
-      ClientConfigService.browserDownloadModeAlwaysAsk => _isChineseLocale
-          ? '\u603b\u662f\u8be2\u95ee'
-          : 'Always ask',
-      ClientConfigService.browserDownloadModeSilentTakeover => _isChineseLocale
-          ? '\u9759\u9ed8\u63a5\u7ba1'
-          : 'Silent takeover',
+      ClientConfigService.browserDownloadModeAlwaysAsk =>
+        _isChineseLocale ? '\u603b\u662f\u8be2\u95ee' : 'Always ask',
+      ClientConfigService.browserDownloadModeSilentTakeover =>
+        _isChineseLocale ? '\u9759\u9ed8\u63a5\u7ba1' : 'Silent takeover',
       ClientConfigService.browserDownloadModeSmallFilesToBrowser =>
         _isChineseLocale
             ? '\u5c0f\u6587\u4ef6\u4ea4\u7ed9\u6d4f\u89c8\u5668'
@@ -3550,10 +3884,9 @@ class _SettingsPageState extends State<SettingsPage> {
       ClientConfigService.browserDownloadModeSilentTakeover => _isChineseLocale
           ? '\u652f\u6301\u7684\u6d4f\u89c8\u5668\u4e0b\u8f7d\u76f4\u63a5\u52a0\u5165\u4efb\u52a1\uff0c\u4e0d\u6253\u5f00 Popup\u3002'
           : 'Supported browser downloads are added directly without opening a popup.',
-      ClientConfigService.browserDownloadModeSmallFilesToBrowser =>
-        _isChineseLocale
-            ? '\u5df2\u77e5\u5c0f\u4e8e $threshold \u7684\u5c0f\u6587\u4ef6\u4fdd\u7559\u6d4f\u89c8\u5668\u4e0b\u8f7d\uff0c\u5176\u4ed6\u4e0b\u8f7d\u4ea4\u7ed9 Hanabi \u786e\u8ba4\u3002'
-            : 'Known files under $threshold stay in the browser; other downloads are confirmed in Hanabi.',
+      ClientConfigService.browserDownloadModeSmallFilesToBrowser => _isChineseLocale
+          ? '\u5df2\u77e5\u5c0f\u4e8e $threshold \u7684\u5c0f\u6587\u4ef6\u4fdd\u7559\u6d4f\u89c8\u5668\u4e0b\u8f7d\uff0c\u5176\u4ed6\u4e0b\u8f7d\u4ea4\u7ed9 Hanabi \u786e\u8ba4\u3002'
+          : 'Known files under $threshold stay in the browser; other downloads are confirmed in Hanabi.',
       _ => _isChineseLocale
           ? '\u5df2\u77e5\u5b89\u5168\u4e14\u5c0f\u4e8e $threshold \u7684\u6587\u4ef6\u9759\u9ed8\u63a5\u7ba1\uff0c\u5176\u4ed6\u4e0b\u8f7d\u5f39\u51fa\u786e\u8ba4\u3002'
           : 'Known safe files under $threshold are accepted silently; other downloads open the confirmation popup.',
@@ -3647,11 +3980,13 @@ class _SettingsPageState extends State<SettingsPage> {
     final values = <String>[
       ClientConfigService.popupWindowEffectFollowMain,
       ClientConfigService.popupWindowEffectSolid,
-      ClientConfigService.popupWindowEffectAcrylic,
-      ClientConfigService.popupWindowEffectBlur,
+      if (!windowEffect.isWindows11 || windowEffect.supportsWin11Acrylic)
+        ClientConfigService.popupWindowEffectAcrylic,
+      if (!windowEffect.isWindows11) ClientConfigService.popupWindowEffectBlur,
       if (windowEffect.isWindows11) ...[
         ClientConfigService.popupWindowEffectMicaMain,
-        ClientConfigService.popupWindowEffectMicaTransient,
+        if (windowEffect.supportsMicaAlt)
+          ClientConfigService.popupWindowEffectMicaTransient,
       ],
     ];
 
@@ -3664,13 +3999,36 @@ class _SettingsPageState extends State<SettingsPage> {
     ];
   }
 
-  Widget _buildSettingItem(
+  Widget? _buildDisabledSetting({
+    required bool enabled,
+    required Widget? child,
+  }) {
+    if (child == null) {
+      return null;
+    }
+    return Opacity(
+      opacity: enabled ? 1.0 : 0.5,
+      child: IgnorePointer(
+        ignoring: !enabled,
+        child: child,
+      ),
+    );
+  }
+
+  Widget? _buildSettingItem(
     BuildContext context, {
     required String title,
     required String subtitle,
     required Widget trailing,
     bool showBetaBadge = false,
   }) {
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      if (!title.toLowerCase().contains(query) &&
+          !subtitle.toLowerCase().contains(query)) {
+        return null;
+      }
+    }
     return SettingsItem(
       title: title,
       subtitle: subtitle,
@@ -3679,12 +4037,19 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildUaSettingItem(
+  Widget? _buildUaSettingItem(
     BuildContext context, {
     required String title,
     required String subtitle,
     required Widget trailing,
   }) {
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      if (!title.toLowerCase().contains(query) &&
+          !subtitle.toLowerCase().contains(query)) {
+        return null;
+      }
+    }
     return SettingsItem(
       title: title,
       subtitle: subtitle,
@@ -3698,6 +4063,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildDangerZone(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     return DangerZone(
+      margin: EdgeInsets.zero,
       children: [
         SettingsItem(
           title: t.settingsDangerCleanTempTitle,

@@ -94,7 +94,7 @@ class FileIconService {
       try {
         // 获取文件信息和图标
         final result = SHGetFileInfo(
-          pathPtr,
+          PCWSTR(pathPtr),
           FILE_ATTRIBUTE_NORMAL,
           shFileInfo,
           sizeOf<SHFILEINFO>(),
@@ -106,22 +106,22 @@ class FileIconService {
         }
 
         final hIcon = shFileInfo.ref.hIcon;
-        if (hIcon == 0) {
+        if (hIcon.address == 0) {
           return null;
         }
 
         // 获取图标信息
         final iconInfo = calloc<ICONINFO>();
-        if (GetIconInfo(hIcon, iconInfo) == 0) {
+        if (GetIconInfo(hIcon, iconInfo).value == false) {
           DestroyIcon(hIcon);
           return null;
         }
 
         // 获取位图句柄
         final hBitmap = iconInfo.ref.hbmColor;
-        if (hBitmap == 0) {
-          if (iconInfo.ref.hbmMask != 0) {
-            DeleteObject(iconInfo.ref.hbmMask);
+        if (hBitmap.address == 0) {
+          if (iconInfo.ref.hbmMask.address != 0) {
+            DeleteObject(HGDIOBJ(iconInfo.ref.hbmMask));
           }
           DestroyIcon(hIcon);
           calloc.free(iconInfo);
@@ -130,9 +130,9 @@ class FileIconService {
 
         // 获取位图信息
         final bitmap = calloc<BITMAP>();
-        if (GetObject(hBitmap, sizeOf<BITMAP>(), bitmap) == 0) {
-          if (iconInfo.ref.hbmColor != 0) DeleteObject(iconInfo.ref.hbmColor);
-          if (iconInfo.ref.hbmMask != 0) DeleteObject(iconInfo.ref.hbmMask);
+        if (GetObject(HGDIOBJ(hBitmap), sizeOf<BITMAP>(), bitmap) == 0) {
+          if (iconInfo.ref.hbmColor.address != 0) DeleteObject(HGDIOBJ(iconInfo.ref.hbmColor));
+          if (iconInfo.ref.hbmMask.address != 0) DeleteObject(HGDIOBJ(iconInfo.ref.hbmMask));
           DestroyIcon(hIcon);
           calloc.free(iconInfo);
           calloc.free(bitmap);
@@ -143,8 +143,8 @@ class FileIconService {
         final height = bitmap.ref.bmHeight;
 
         if (width <= 0 || height <= 0) {
-          if (iconInfo.ref.hbmColor != 0) DeleteObject(iconInfo.ref.hbmColor);
-          if (iconInfo.ref.hbmMask != 0) DeleteObject(iconInfo.ref.hbmMask);
+          if (iconInfo.ref.hbmColor.address != 0) DeleteObject(HGDIOBJ(iconInfo.ref.hbmColor));
+          if (iconInfo.ref.hbmMask.address != 0) DeleteObject(HGDIOBJ(iconInfo.ref.hbmMask));
           DestroyIcon(hIcon);
           calloc.free(iconInfo);
           calloc.free(bitmap);
@@ -152,7 +152,7 @@ class FileIconService {
         }
 
         // 创建设备上下文
-        final hdcScreen = GetDC(NULL);
+        final hdcScreen = GetDC(HWND(Pointer.fromAddress(0)));
         final hdcMem = CreateCompatibleDC(hdcScreen);
 
         // 创建 DIB Section
@@ -170,15 +170,15 @@ class FileIconService {
           bmi,
           DIB_RGB_COLORS,
           ppvBits.cast(),
-          NULL,
+          HANDLE(Pointer.fromAddress(0)),
           0,
         );
 
-        if (hDib == 0) {
-          ReleaseDC(NULL, hdcScreen);
+        if (hDib.value.address == 0) {
+          ReleaseDC(HWND(Pointer.fromAddress(0)), hdcScreen);
           DeleteDC(hdcMem);
-          if (iconInfo.ref.hbmColor != 0) DeleteObject(iconInfo.ref.hbmColor);
-          if (iconInfo.ref.hbmMask != 0) DeleteObject(iconInfo.ref.hbmMask);
+          if (iconInfo.ref.hbmColor.address != 0) DeleteObject(HGDIOBJ(iconInfo.ref.hbmColor));
+          if (iconInfo.ref.hbmMask.address != 0) DeleteObject(HGDIOBJ(iconInfo.ref.hbmMask));
           DestroyIcon(hIcon);
           calloc.free(bmi);
           calloc.free(ppvBits);
@@ -187,7 +187,7 @@ class FileIconService {
           return null;
         }
 
-        final hOldBitmap = SelectObject(hdcMem, hDib);
+        final hOldBitmap = SelectObject(hdcMem, HGDIOBJ(Pointer.fromAddress(hDib.value.address)));
 
         // 绘制图标到 DIB
         DrawIcon(hdcMem, 0, 0, hIcon);
@@ -209,11 +209,11 @@ class FileIconService {
 
         // 清理资源
         SelectObject(hdcMem, hOldBitmap);
-        DeleteObject(hDib);
+        DeleteObject(HGDIOBJ(Pointer.fromAddress(hDib.value.address)));
         DeleteDC(hdcMem);
-        ReleaseDC(NULL, hdcScreen);
-        if (iconInfo.ref.hbmColor != 0) DeleteObject(iconInfo.ref.hbmColor);
-        if (iconInfo.ref.hbmMask != 0) DeleteObject(iconInfo.ref.hbmMask);
+        ReleaseDC(HWND(Pointer.fromAddress(0)), hdcScreen);
+        if (iconInfo.ref.hbmColor.address != 0) DeleteObject(HGDIOBJ(iconInfo.ref.hbmColor));
+        if (iconInfo.ref.hbmMask.address != 0) DeleteObject(HGDIOBJ(iconInfo.ref.hbmMask));
         DestroyIcon(hIcon);
         calloc.free(bmi);
         calloc.free(ppvBits);

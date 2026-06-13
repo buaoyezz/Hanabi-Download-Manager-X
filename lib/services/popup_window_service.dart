@@ -197,7 +197,7 @@ class PopupWindowService {
           popupMode: popupMode,
           mainEffectMode: effect.effectMode,
           mainEffectEnabled: effect.effectEnabled,
-          isWindows11: effect.isWindows11,
+          windowsBuildNumber: effect.windowsBuildNumber,
         );
         final effectEnabled = resolvedMode != 'none';
         return <String, dynamic>{
@@ -205,6 +205,7 @@ class PopupWindowService {
           'mode': resolvedMode,
           'alpha': effectEnabled ? effect.alpha : 255,
           'is_windows11': effect.isWindows11,
+          'windows_build_number': effect.windowsBuildNumber,
           'rounded_corners_enabled': effect.roundedCornersEnabled,
           'corner_radius': effect.windowCornerRadius.round(),
           'dark_mode': effect.darkMode,
@@ -221,22 +222,24 @@ class PopupWindowService {
       if (popupMode == ClientConfigService.popupWindowEffectFollowMain) {
         return null;
       }
-      final isWindows11 = await _detectWindows11();
+      final windowsBuildNumber = await _detectWindowsBuildNumber();
       final resolvedMode = _resolvePopupEffectMode(
         popupMode: popupMode,
         mainEffectMode: 'none',
         mainEffectEnabled: false,
-        isWindows11: isWindows11,
+        windowsBuildNumber: windowsBuildNumber,
       );
       final effectEnabled = resolvedMode != 'none';
       final darkMode =
           WidgetsBinding.instance.platformDispatcher.platformBrightness ==
               Brightness.dark;
+      final isWindows11 = windowsBuildNumber >= 22000;
       return <String, dynamic>{
         'enabled': effectEnabled,
         'mode': resolvedMode,
         'alpha': effectEnabled ? config.getWindowEffectAlpha() : 255,
         'is_windows11': isWindows11,
+        'windows_build_number': windowsBuildNumber,
         'rounded_corners_enabled': true,
         'corner_radius': isWindows11 ? 8 : 6,
         'dark_mode': darkMode,
@@ -248,16 +251,15 @@ class PopupWindowService {
     return null;
   }
 
-  static Future<bool> _detectWindows11() async {
-    if (!Platform.isWindows) return false;
+  static Future<int> _detectWindowsBuildNumber() async {
+    if (!Platform.isWindows) return 0;
     try {
       final result = await Process.run('cmd', ['/c', 'ver']);
       final match =
           RegExp(r'10\.0\.(\d+)').firstMatch(result.stdout.toString());
-      final build = int.tryParse(match?.group(1) ?? '') ?? 0;
-      return build >= 22000;
+      return int.tryParse(match?.group(1) ?? '') ?? 0;
     } catch (_) {
-      return false;
+      return 0;
     }
   }
 
@@ -265,8 +267,10 @@ class PopupWindowService {
     required String popupMode,
     required String mainEffectMode,
     required bool mainEffectEnabled,
-    required bool isWindows11,
+    required int windowsBuildNumber,
   }) {
+    final isWindows11 = windowsBuildNumber >= 22000;
+    final supportsSystemBackdrop = windowsBuildNumber >= 22621;
     final normalized =
         ClientConfigService.normalizePopupWindowEffectMode(popupMode);
     if (normalized == ClientConfigService.popupWindowEffectFollowMain) {
@@ -279,6 +283,15 @@ class PopupWindowService {
         (normalized == ClientConfigService.popupWindowEffectMicaMain ||
             normalized == ClientConfigService.popupWindowEffectMicaTransient)) {
       return 'none';
+    }
+    if (isWindows11 &&
+        !supportsSystemBackdrop &&
+        normalized == ClientConfigService.popupWindowEffectMicaTransient) {
+      return 'mica_main';
+    }
+    if (isWindows11 &&
+        normalized == ClientConfigService.popupWindowEffectBlur) {
+      return 'mica_main';
     }
     return normalized;
   }

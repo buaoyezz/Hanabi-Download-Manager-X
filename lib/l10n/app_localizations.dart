@@ -254,11 +254,23 @@ abstract class AppLocalizations {
   /// **'设置'**
   String get settingsTitle;
 
+  /// No description provided for @settingsSearchPlaceholder.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索设置...'**
+  String get settingsSearchPlaceholder;
+
   /// No description provided for @settingsTabGeneral.
   ///
   /// In zh, this message translates to:
   /// **'常规'**
   String get settingsTabGeneral;
+
+  /// No description provided for @settingsTabNetwork.
+  ///
+  /// In zh, this message translates to:
+  /// **'网络与代理'**
+  String get settingsTabNetwork;
 
   /// No description provided for @settingsTabDownload.
   ///

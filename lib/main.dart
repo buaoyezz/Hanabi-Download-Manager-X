@@ -4,7 +4,6 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:fluent_ui/fluent_ui.dart' as fluent;
 import 'package:provider/provider.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:flutter_acrylic/flutter_acrylic.dart';
 import 'l10n/app_localizations.dart';
 import 'l10n/app_localizations_delegate.dart';
 import 'l10n/fallback_localizations_delegate.dart';
@@ -82,6 +81,74 @@ Future<void> _loadCustomFonts(FontService fontService) async {
   } catch (e) {
     debugPrint('Error loading custom fonts: $e');
   }
+}
+
+Future<void> _configureMainWindowLaunch({
+  required ClientConfigService clientConfig,
+  required WindowEffectService windowEffectService,
+  required bool isAutoStart,
+}) async {
+  if (!Platform.isWindows) {
+    return;
+  }
+
+  double screenWidth = 1920.0;
+  double screenHeight = 1080.0;
+  try {
+    final primaryDisplay = await screenRetriever.getPrimaryDisplay();
+    screenWidth = primaryDisplay.size.width;
+    screenHeight = primaryDisplay.size.height;
+    debugPrint('Screen size: $screenWidth x $screenHeight');
+    await clientConfig.autoSetScaleFactorByResolution(
+        screenWidth, screenHeight);
+  } catch (e) {
+    debugPrint('Failed to get screen size: $e');
+  }
+
+  final rememberSize = clientConfig.getWindowRememberSize();
+  final defaultWidth = clientConfig.getWindowDefaultWidth();
+  final defaultHeight = clientConfig.getWindowDefaultHeight();
+
+  double targetWidth = defaultWidth;
+  double targetHeight = defaultHeight;
+  if (rememberSize) {
+    final savedWidth = clientConfig.getWindowWidth();
+    final savedHeight = clientConfig.getWindowHeight();
+    final isOldConfig = (savedWidth == 1280.0 && savedHeight == 800.0) ||
+        (savedWidth == 1200.0 && savedHeight == 800.0);
+
+    if (isOldConfig) {
+      await clientConfig.setWindowWidth(defaultWidth);
+      await clientConfig.setWindowHeight(defaultHeight);
+    } else {
+      targetWidth = savedWidth;
+      targetHeight = savedHeight;
+    }
+  }
+
+  final initialSize = Size(
+    targetWidth.clamp(600.0, screenWidth).toDouble(),
+    targetHeight.clamp(400.0, screenHeight).toDouble(),
+  );
+
+  final windowOptions = WindowOptions(
+    size: initialSize,
+    minimumSize: const Size(600, 400),
+    center: true,
+    backgroundColor: Colors.transparent,
+    titleBarStyle: TitleBarStyle.hidden,
+    title: 'Hanabi Download ManagerX',
+  );
+
+  windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowEffectService.applyWindowEffect();
+    if (!isAutoStart) {
+      await windowManager.show();
+      await windowManager.focus();
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      await windowEffectService.applyWindowEffect();
+    }
+  });
 }
 
 @pragma('vm:entry-point')
@@ -238,10 +305,8 @@ void main(List<String> args) async {
       return true;
     };
 
-    // 初始化 Acrylic/Mica 效果 - 只初始化，不设置效果
-    // 效果由 WindowEffectService 通过自定义 C++ 代码控制
-    await Window.initialize();
-    // 注意：不再调用 Window.setEffect()，由 flutter_window.cpp 处理
+    // 初始化 WindowManager
+    await windowManager.ensureInitialized();
 
     // 检查是否是开机自启动（启动参数 --autostart）
     final bool isAutoStart = args.contains('--autostart');
@@ -325,6 +390,12 @@ void main(List<String> args) async {
       debugPrint('Failed to load speed history: $e');
     });
 
+    await _configureMainWindowLaunch(
+      clientConfig: clientConfig,
+      windowEffectService: windowEffectService,
+      isAutoStart: isAutoStart,
+    );
+
     runApp(
       MultiProvider(
         providers: [
@@ -353,74 +424,6 @@ void main(List<String> args) async {
         child: const MyApp(),
       ),
     );
-
-    await windowManager.ensureInitialized();
-    
-    // 获取屏幕大小（使用 screen_retriever）
-    double screenWidth = 1920.0;
-    double screenHeight = 1080.0;
-    try {
-      final primaryDisplay = await screenRetriever.getPrimaryDisplay();
-      screenWidth = primaryDisplay.size.width;
-      screenHeight = primaryDisplay.size.height;
-      debugPrint('Screen size: $screenWidth x $screenHeight');
-
-      // 根据屏幕分辨率自动设置缩放比例
-      await clientConfig.autoSetScaleFactorByResolution(
-          screenWidth, screenHeight);
-    } catch (e) {
-      debugPrint('Failed to get screen size: $e');
-    }
-
-    // 根据是否记忆大小来决定使用哪个尺寸
-    Size initialSize;
-    final rememberSize = clientConfig.getWindowRememberSize();
-    final defaultWidth = clientConfig.getWindowDefaultWidth();
-    final defaultHeight = clientConfig.getWindowDefaultHeight();
-
-    if (rememberSize) {
-      final savedWidth = clientConfig.getWindowWidth();
-      final savedHeight = clientConfig.getWindowHeight();
-      
-      bool isOldConfig = false;
-      if ((savedWidth == 1280.0 && savedHeight == 800.0) ||
-          (savedWidth == 1200.0 && savedHeight == 800.0)) {
-        isOldConfig = true;
-      }
-
-      double targetWidth = savedWidth;
-      double targetHeight = savedHeight;
-
-      if (isOldConfig) {
-        targetWidth = defaultWidth;
-        targetHeight = defaultHeight;
-        await clientConfig.setWindowWidth(defaultWidth);
-        await clientConfig.setWindowHeight(defaultHeight);
-      }
-
-      final safeWidth = targetWidth.clamp(600.0, screenWidth);
-      final safeHeight = targetHeight.clamp(400.0, screenHeight);
-      initialSize = Size(safeWidth, safeHeight);
-    } else {
-      final safeWidth = defaultWidth.clamp(600.0, screenWidth);
-      final safeHeight = defaultHeight.clamp(400.0, screenHeight);
-      initialSize = Size(safeWidth, safeHeight);
-    }
-
-    WindowOptions windowOptions = WindowOptions(
-      size: initialSize,
-      minimumSize: const Size(600, 400),
-      center: true,
-      title: "Hanabi Download ManagerX",
-      titleBarStyle: TitleBarStyle.hidden,
-    );
-
-    windowManager.waitUntilReadyToShow(windowOptions, () async {
-      if (!isAutoStart) {
-        await windowManager.show();
-        await windowManager.focus();
-      }
-    });
   });
 }
 
@@ -1053,54 +1056,97 @@ class _StartupShellScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox.expand();
+    final brightness = fluent.FluentTheme.of(context).brightness;
+    final backgroundColor = brightness == Brightness.dark
+        ? const Color(0xFF202020)
+        : const Color(0xFFF3F3F3);
+    return ColoredBox(
+      color: backgroundColor,
+      child: const SizedBox.expand(),
+    );
   }
 }
 
-class _WindowCornerFrame extends StatelessWidget {
+class _WindowCornerFrame extends StatefulWidget {
   final Widget child;
 
   const _WindowCornerFrame({required this.child});
 
   @override
+  State<_WindowCornerFrame> createState() => _WindowCornerFrameState();
+}
+
+class _WindowCornerFrameState extends State<_WindowCornerFrame>
+    with WindowListener {
+  bool _isMaximized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (Platform.isWindows) {
+      windowManager.addListener(this);
+      unawaited(_syncMaximizedState());
+    }
+  }
+
+  Future<void> _syncMaximizedState() async {
+    try {
+      final isMaximized = await windowManager.isMaximized();
+      if (mounted) {
+        setState(() => _isMaximized = isMaximized);
+      }
+    } catch (_) {}
+  }
+
+  @override
+  void onWindowMaximize() {
+    if (mounted) {
+      setState(() => _isMaximized = true);
+    }
+  }
+
+  @override
+  void onWindowUnmaximize() {
+    if (mounted) {
+      setState(() => _isMaximized = false);
+    }
+  }
+
+  @override
+  void onWindowRestore() {
+    unawaited(_syncMaximizedState());
+  }
+
+  @override
+  void dispose() {
+    if (Platform.isWindows) {
+      windowManager.removeListener(this);
+    }
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     if (!Platform.isWindows) {
-      return child;
+      return widget.child;
     }
 
     final windowEffect = context.watch<WindowEffectService>();
-    if (!windowEffect.usesCustomWindowClip) {
-      return child;
+    if (!windowEffect.usesCustomWindowClip || _isMaximized) {
+      return widget.child;
     }
 
     final radius = windowEffect.roundedCornersEnabled
         ? windowEffect.windowCornerRadius
         : 0.0;
     if (radius <= 0) {
-      return child;
+      return widget.child;
     }
 
-    final borderRadius = BorderRadius.circular(radius);
     return ClipRRect(
-      borderRadius: borderRadius,
+      borderRadius: BorderRadius.circular(radius),
       clipBehavior: Clip.antiAlias,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          child,
-          IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: borderRadius,
-                border: Border.all(
-                  color: AppTheme.borderSubtle.withValues(alpha: 0.55),
-                  width: 1,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+      child: widget.child,
     );
   }
 }

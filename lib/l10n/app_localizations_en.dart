@@ -100,7 +100,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsTitle => 'Settings';
 
   @override
+  String get settingsSearchPlaceholder => '搜索设置...';
+
+  @override
   String get settingsTabGeneral => 'General';
+
+  @override
+  String get settingsTabNetwork => '网络与代理';
 
   @override
   String get settingsTabDownload => 'Download';

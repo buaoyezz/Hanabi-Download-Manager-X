@@ -1,3 +1,5 @@
+// ignore_for_file: non_const_argument_for_const_parameter
+
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';

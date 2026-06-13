@@ -1,5 +1,6 @@
 #include "win32_window.h"
 
+#include <algorithm>
 #include <dwmapi.h>
 #include <cstdio>
 #include <flutter_windows.h>
@@ -41,7 +42,7 @@ namespace {
 #endif
 
 #ifndef DWMWA_BORDER_COLOR
-#define DWMWA_BORDER_COLOR 28
+#define DWMWA_BORDER_COLOR 34
 #endif
 
 #ifndef DWMWA_CAPTION_COLOR
@@ -50,6 +51,10 @@ namespace {
 
 #ifndef DWMWA_TEXT_COLOR
 #define DWMWA_TEXT_COLOR 36
+#endif
+
+#ifndef DWMWA_WINDOW_CORNER_PREFERENCE
+#define DWMWA_WINDOW_CORNER_PREFERENCE 33
 #endif
 
 #ifndef DWM_COLOR_DEFAULT
@@ -84,6 +89,14 @@ using EnableNonClientDpiScaling = BOOL __stdcall(HWND hwnd);
 // scale factor
 int Scale(int source, double scale_factor) {
   return static_cast<int>(source * scale_factor);
+}
+
+int ScaleForWindowDpi(HWND hwnd, int logical_pixels) {
+  if (!hwnd || logical_pixels <= 0) {
+    return logical_pixels;
+  }
+  const UINT dpi = GetDpiForWindow(hwnd);
+  return std::max(1, MulDiv(logical_pixels, dpi == 0 ? 96 : dpi, 96));
 }
 
 void LogRenderA(const char* s) {
@@ -139,6 +152,57 @@ void LogWindowStyles(const char* prefix, HWND hwnd) {
             "%s hwnd=%p style=0x%llX exStyle=0x%llX enabled=%d visible=%d",
             prefix, hwnd, style, ex_style, enabled, visible);
   LogRenderA(buffer);
+}
+
+void PaintCustomFrameBackground(HWND hwnd) {
+  if (!hwnd) {
+    return;
+  }
+
+  RECT window_rect{};
+  RECT client_rect{};
+  if (!GetWindowRect(hwnd, &window_rect) || !GetClientRect(hwnd, &client_rect)) {
+    return;
+  }
+
+  POINT client_origin{client_rect.left, client_rect.top};
+  ClientToScreen(hwnd, &client_origin);
+
+  const int window_width = window_rect.right - window_rect.left;
+  const int window_height = window_rect.bottom - window_rect.top;
+  const int client_left = client_origin.x - window_rect.left;
+  const int client_top = client_origin.y - window_rect.top;
+  const int client_width = client_rect.right - client_rect.left;
+  const int client_height = client_rect.bottom - client_rect.top;
+  const int client_right = client_left + client_width;
+  const int client_bottom = client_top + client_height;
+
+  HDC dc = GetWindowDC(hwnd);
+  if (!dc) {
+    return;
+  }
+
+  HBRUSH brush = CreateSolidBrush(RGB(0, 0, 0));
+  if (!brush) {
+    ReleaseDC(hwnd, dc);
+    return;
+  }
+
+  auto fill = [&](int left, int top, int right, int bottom) {
+    if (right <= left || bottom <= top) {
+      return;
+    }
+    RECT rect{left, top, right, bottom};
+    FillRect(dc, &rect, brush);
+  };
+
+  fill(0, 0, client_left, window_height);
+  fill(client_right, 0, window_width, window_height);
+  fill(client_left, 0, client_right, client_top);
+  fill(client_left, client_bottom, client_right, window_height);
+
+  DeleteObject(brush);
+  ReleaseDC(hwnd, dc);
 }
 
 // Dynamically loads the |EnableNonClientDpiScaling| from the User32 module.
@@ -283,13 +347,21 @@ bool Win32Window::Create(const std::wstring& title,
     DwmSetWindowAttribute(window, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
     
     if (HasCustomFrame()) {
+      const COLORREF caption_color = DWM_COLOR_NONE;
+      const COLORREF border_color = RGB(0, 0, 0);
+      DwmSetWindowAttribute(window, DWMWA_CAPTION_COLOR, &caption_color,
+                            sizeof(caption_color));
+      DwmSetWindowAttribute(window, DWMWA_BORDER_COLOR, &border_color,
+                            sizeof(border_color));
+
       if (buildNumber >= 22000) {
         // Windows 11: Use native DWM features with rounded corners
         MARGINS margins = {-1, -1, -1, -1};
         DwmExtendFrameIntoClientArea(window, &margins);
 
         DWORD corner = 2; // DWMWCP_ROUND
-        DwmSetWindowAttribute(window, 33, &corner, sizeof(corner));
+        DwmSetWindowAttribute(window, DWMWA_WINDOW_CORNER_PREFERENCE, &corner,
+                              sizeof(corner));
         LogRenderA("Win32Window Create: Win11 native rounded corners");
       } else {
         // Windows 10: Extend frame for acrylic, accept square corners
@@ -306,7 +378,8 @@ bool Win32Window::Create(const std::wstring& title,
     } else {
       if (buildNumber >= 22000) {
         DWORD corner = 2; // DWMWCP_ROUND
-        DwmSetWindowAttribute(window, 33, &corner, sizeof(corner));
+        DwmSetWindowAttribute(window, DWMWA_WINDOW_CORNER_PREFERENCE, &corner,
+                              sizeof(corner));
       }
       LogRenderA("Win32Window Create: native window frame");
     }
@@ -369,6 +442,25 @@ Win32Window::MessageHandler(HWND hwnd,
 
       return 0;
     }
+    case WM_GETMINMAXINFO: {
+      if (HasCustomFrame()) {
+        auto minmax_info = reinterpret_cast<MINMAXINFO*>(lparam);
+        MONITORINFO monitor_info{};
+        monitor_info.cbSize = sizeof(monitor_info);
+        HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        if (GetMonitorInfo(monitor, &monitor_info)) {
+          const RECT& work_area = monitor_info.rcWork;
+          const RECT& monitor_area = monitor_info.rcMonitor;
+          minmax_info->ptMaxPosition.x = work_area.left - monitor_area.left;
+          minmax_info->ptMaxPosition.y = work_area.top - monitor_area.top;
+          minmax_info->ptMaxSize.x = work_area.right - work_area.left;
+          minmax_info->ptMaxSize.y = work_area.bottom - work_area.top;
+          minmax_info->ptMaxTrackSize = minmax_info->ptMaxSize;
+        }
+        return 0;
+      }
+      break;
+    }
     case WM_SIZE: {
       LogRenderA("Win32Window WM_SIZE");
       RECT rect = GetClientArea();
@@ -419,6 +511,7 @@ Win32Window::MessageHandler(HWND hwnd,
         sprintf_s(buffer, sizeof(buffer), "Win32Window WM_NCACTIVATE active=%d",
                   wparam != FALSE);
         LogRenderA(buffer);
+        PaintCustomFrameBackground(hwnd);
         // The Flutter content owns the full frame. Letting DefWindowProc handle
         // activation paints the native caption for a frame, causing a brief
         // classic title bar flash when focus changes.
@@ -429,20 +522,23 @@ Win32Window::MessageHandler(HWND hwnd,
     case WM_NCPAINT:
       if (HasCustomFrame()) {
         LogRenderA("Win32Window WM_NCPAINT");
+        PaintCustomFrameBackground(hwnd);
         return 0;
       }
       break;
 
     case WM_NCCALCSIZE:
-      // Keep the client area the same size as the window
-      if (HasCustomFrame() && wparam == TRUE) {
-        // Let the client area fill the entire window
+      if (HasCustomFrame()) {
+        // Let the Flutter client area fill the entire top-level window. This
+        // must cover both NCCALCSIZE forms; DefWindowProc otherwise keeps an
+        // 8px non-client resize frame around WS_POPUP windows after style
+        // changes from window_manager/titlebar setup.
         return 0;
       }
       break;
 
     case WM_NCHITTEST: {
-      // Let bitsdojo_window handle hit testing
+      // Handle hit testing for borderless window resizing
       LRESULT hit = DefWindowProc(hwnd, message, wparam, lparam);
       if (!HasCustomFrame()) {
         return hit;
@@ -457,7 +553,7 @@ Win32Window::MessageHandler(HWND hwnd,
         GetClientRect(hwnd, &rect);
         
         // Define resize border width
-        const int border_width = 5;
+        const int border_width = ScaleForWindowDpi(hwnd, 5);
         
         // Check if in resize borders
         if (pt.y < border_width) {

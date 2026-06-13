@@ -56,7 +56,8 @@ class FlutterWindow : public Win32Window {
   void DispatchClipboardChanged();
   void RestorePreviousForegroundWindow();
   const char* WindowKindName() const;
-  void ApplyWindowEffect(HWND hwnd);
+  void ApplyWindowEffect(HWND hwnd, bool force = false);
+  void ScheduleWindowEffectRefresh(HWND hwnd);
   void ApplyRoundedCorners(HWND hwnd, DWORD buildNumber, int width, int height);
   void ApplyTrayMenuWindowRegion(HWND hwnd);
   void SendPopupPayloadToFlutter(const std::string& payload_json);
@@ -83,6 +84,13 @@ class FlutterWindow : public Win32Window {
   static constexpr UINT kPopupMinimizeMessage = WM_APP + 3;
   static constexpr UINT kPopupStartDragMessage = WM_APP + 4;
   static constexpr UINT kTrayMenuCloseMessage = WM_APP + 5;
+  static constexpr UINT_PTR kPopupInitialEffectTimer = 1;
+  static constexpr UINT_PTR kWindowResizeEffectTimer = 2;
+  static constexpr UINT_PTR kWindowEffectShowTimer = 10;
+  static constexpr UINT_PTR kWindowEffectActivateTimer = 11;
+  static constexpr UINT_PTR kWindowEffectSettledTimer = 12;
+  static constexpr UINT_PTR kWindowFramePaintTimer = 13;
+  static constexpr UINT_PTR kWindowFramePaintSettledTimer = 14;
   struct TrayMenuRegionRect {
     double x = 0;
     double y = 0;
@@ -107,6 +115,7 @@ class FlutterWindow : public Win32Window {
   bool is_suspended_ = false;
   bool launch_hidden_ = false;
   bool clipboard_listener_registered_ = false;
+  bool effect_configured_ = false;
   WindowKind kind_ = WindowKind::kMain;
   HWND previous_foreground_window_ = nullptr;
 };

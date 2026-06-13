@@ -99,7 +99,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsTitle => '设置';
 
   @override
+  String get settingsSearchPlaceholder => '搜索设置...';
+
+  @override
   String get settingsTabGeneral => '常规';
+
+  @override
+  String get settingsTabNetwork => '网络与代理';
 
   @override
   String get settingsTabDownload => '下载';

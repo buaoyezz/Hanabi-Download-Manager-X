@@ -18,7 +18,7 @@ enum WindowsWindowEffectMode {
       'acrylic' => WindowsWindowEffectMode.acrylic,
       'mica_main' => WindowsWindowEffectMode.micaMain,
       'mica_transient' => WindowsWindowEffectMode.micaTransient,
-      _ => WindowsWindowEffectMode.acrylic,
+      _ => WindowsWindowEffectMode.none,
     };
   }
 }

@@ -4,7 +4,7 @@ import 'dart:io';
 import 'dart:ffi' hide Size;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 import 'package:win32/win32.dart';
@@ -303,13 +303,14 @@ Set<_FontLanguageSupport> _detectFontSupportedScripts(String fontFamily) {
       return const <_FontLanguageSupport>{};
     }
 
-    final hdc = CreateCompatibleDC(0);
-    if (hdc == 0) {
-      DeleteObject(hFont);
+    final hdc = CreateCompatibleDC(HDC(Pointer.fromAddress(0)));
+    if (hdc.address == 0) {
+      DeleteObject(HGDIOBJ(Pointer.fromAddress(hFont.address)));
       return const <_FontLanguageSupport>{};
     }
 
-    final previousObject = SelectObject(hdc, hFont);
+    final previousObject =
+        SelectObject(hdc, HGDIOBJ(Pointer.fromAddress(hFont.address)));
     try {
       final supportedScripts = <_FontLanguageSupport>{};
       for (final script in _FontLanguageSupport.values) {
@@ -320,11 +321,11 @@ Set<_FontLanguageSupport> _detectFontSupportedScripts(String fontFamily) {
       _fontPickerSupportCache[normalizedFontFamily] = supportedScripts;
       return supportedScripts;
     } finally {
-      if (previousObject != 0) {
+      if (previousObject.address != 0) {
         SelectObject(hdc, previousObject);
       }
       DeleteDC(hdc);
-      DeleteObject(hFont);
+      DeleteObject(HGDIOBJ(Pointer.fromAddress(hFont.address)));
     }
   } catch (e) {
     debugPrint('Error detecting font language support for $fontFamily: $e');
@@ -351,7 +352,7 @@ void _copyLogFontFaceName(Array<Uint16> target, String value) {
   }
 }
 
-bool _fontSupportsSample(int hdc, String sampleText) {
+bool _fontSupportsSample(HDC hdc, String sampleText) {
   final normalizedSample = sampleText.replaceAll(' ', '');
   if (normalizedSample.isEmpty) {
     return false;
@@ -362,7 +363,7 @@ bool _fontSupportsSample(int hdc, String sampleText) {
 
   try {
     final result = _getGlyphIndices(
-      hdc,
+      hdc.address,
       textPtr,
       normalizedSample.length,
       glyphsPtr,
@@ -562,12 +563,12 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
   }
 
   void _collectFontsFromRegistry(
-    int rootKey,
+    HKEY rootKey,
     String subKey,
     Set<String> fontNames,
   ) {
-    final keyHandle = calloc<HKEY>();
-    final subKeyPtr = subKey.toNativeUtf16();
+    final phkResult = calloc<IntPtr>();
+    final subKeyPtr = PCWSTR(subKey.toNativeUtf16());
 
     try {
       final result = RegOpenKeyEx(
@@ -575,14 +576,14 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         subKeyPtr,
         0,
         KEY_READ,
-        keyHandle,
+        phkResult.cast(),
       );
 
       if (result != ERROR_SUCCESS) {
         return;
       }
 
-      final hKey = keyHandle.value;
+      final hKey = HKEY(Pointer.fromAddress(phkResult.value));
       try {
         var index = 0;
         while (true) {
@@ -596,7 +597,6 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
               index,
               valueName,
               valueNameSize,
-              nullptr,
               nullptr,
               nullptr,
               nullptr,
@@ -621,7 +621,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
       }
     } finally {
       calloc.free(subKeyPtr);
-      calloc.free(keyHandle);
+      calloc.free(phkResult);
     }
   }
 
@@ -1349,14 +1349,17 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
   Future<void> _importCustomFont() async {
     try {
       final t = AppLocalizations.of(context)!;
-      final result = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['ttf', 'otf'],
-        dialogTitle: t.appearanceFontImportDialogTitle,
+      final result = await openFile(
+        acceptedTypeGroups: <XTypeGroup>[
+          XTypeGroup(
+            label: t.appearanceFontImportDialogTitle,
+            extensions: const <String>['ttf', 'otf'],
+          ),
+        ],
       );
 
-      if (result != null && result.files.single.path != null) {
-        final fontPath = result.files.single.path!;
+      if (result != null) {
+        final fontPath = result.path;
 
         if (mounted) {
           // 显示加载提示
@@ -2108,24 +2111,28 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                   trailing: ComboBox<String>(
                     value: windowEffect.effectMode,
                     items: [
-                      ComboBoxItem(
-                        value: 'acrylic',
-                        child: Text(t.appearanceWindowEffectAcrylic),
-                      ),
-                      ComboBoxItem(
-                        value: 'blur',
-                        child: Text(t.appearanceWindowEffectBlur),
-                      ),
+                      if (!windowEffect.isWindows11 ||
+                          windowEffect.supportsWin11Acrylic)
+                        ComboBoxItem(
+                          value: 'acrylic',
+                          child: Text(t.appearanceWindowEffectAcrylic),
+                        ),
+                      if (!windowEffect.isWindows11)
+                        ComboBoxItem(
+                          value: 'blur',
+                          child: Text(t.appearanceWindowEffectBlur),
+                        ),
                       // Mica 选项仅在 Win11 上显示
                       if (windowEffect.isWindows11) ...[
                         ComboBoxItem(
                           value: 'mica_main',
                           child: Text(t.appearanceWindowEffectMica),
                         ),
-                        ComboBoxItem(
-                          value: 'mica_transient',
-                          child: Text(t.appearanceWindowEffectMicaAlt),
-                        ),
+                        if (windowEffect.supportsMicaAlt)
+                          ComboBoxItem(
+                            value: 'mica_transient',
+                            child: Text(t.appearanceWindowEffectMicaAlt),
+                          ),
                       ],
                     ],
                     onChanged: (value) async {

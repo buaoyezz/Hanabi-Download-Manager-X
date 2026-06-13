@@ -179,8 +179,16 @@ class PluginAppLocalizations extends AppLocalizations {
   String get settingsTitle => _string('settingsTitle', _fallback.settingsTitle);
 
   @override
+  String get settingsSearchPlaceholder =>
+      _string('settingsSearchPlaceholder', _fallback.settingsSearchPlaceholder);
+
+  @override
   String get settingsTabGeneral =>
       _string('settingsTabGeneral', _fallback.settingsTabGeneral);
+
+  @override
+  String get settingsTabNetwork =>
+      _string('settingsTabNetwork', _fallback.settingsTabNetwork);
 
   @override
   String get settingsTabDownload =>

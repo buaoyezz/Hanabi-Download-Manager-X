@@ -28,6 +28,18 @@
 #define DWMWA_USE_IMMERSIVE_DARK_MODE 20
 #endif
 
+#ifndef DWMWA_NCRENDERING_POLICY
+#define DWMWA_NCRENDERING_POLICY 2
+#endif
+
+#ifndef DWMWA_ALLOW_NCPAINT
+#define DWMWA_ALLOW_NCPAINT 4
+#endif
+
+#ifndef DWMNCRP_DISABLED
+#define DWMNCRP_DISABLED 2
+#endif
+
 #ifndef DWMWA_WINDOW_CORNER_PREFERENCE
 #define DWMWA_WINDOW_CORNER_PREFERENCE 33
 #endif
@@ -38,6 +50,10 @@
 
 #ifndef DWMWA_BORDER_COLOR
 #define DWMWA_BORDER_COLOR 34
+#endif
+
+#ifndef DWMWA_CAPTION_COLOR
+#define DWMWA_CAPTION_COLOR 35
 #endif
 
 #ifndef DWMWA_COLOR_NONE
@@ -90,6 +106,222 @@ typedef struct WINDOWCOMPOSITIONATTRIBUTEDATA {
 } WINDOWCOMPOSITIONATTRIBUTEDATA;
 
 static BOOL (WINAPI* pSetWindowCompositionAttribute)(HWND, WINDOWCOMPOSITIONATTRIBUTEDATA*) = nullptr;
+
+constexpr int kEffectNone = 0;
+constexpr int kEffectBlur = 1;
+constexpr int kEffectAcrylic = 2;
+constexpr int kEffectMica = 3;
+constexpr int kEffectMicaAlt = 4;
+
+constexpr DWORD kWin11Build = 22000;
+constexpr DWORD kSystemBackdropBuild = 22621;
+
+constexpr INT kDwmSystemBackdropNone = 1;
+constexpr INT kDwmSystemBackdropMainWindow = 2;
+constexpr INT kDwmSystemBackdropTransientWindow = 3;
+constexpr INT kDwmSystemBackdropTabbedWindow = 4;
+
+constexpr DWORD kDwmCornerDoNotRound = 1;
+constexpr DWORD kDwmCornerRound = 2;
+
+constexpr COLORREF kDwmColorNone = 0xFFFFFFFE;
+constexpr COLORREF kDwmBorderFallbackColor = RGB(0, 0, 0);
+
+static bool LoadAccentPolicyApi() {
+  if (pSetWindowCompositionAttribute) {
+    return true;
+  }
+
+  HMODULE user32 = ::GetModuleHandleA("user32.dll");
+  if (!user32) {
+    user32 = ::LoadLibraryA("user32.dll");
+  }
+  if (!user32) {
+    return false;
+  }
+
+  pSetWindowCompositionAttribute =
+      reinterpret_cast<BOOL(WINAPI*)(HWND, WINDOWCOMPOSITIONATTRIBUTEDATA*)>(
+          ::GetProcAddress(user32, "SetWindowCompositionAttribute"));
+  return pSetWindowCompositionAttribute != nullptr;
+}
+
+static BOOL DisableAccentPolicy(HWND hwnd) {
+  if (!LoadAccentPolicyApi()) {
+    return FALSE;
+  }
+  ACCENT_POLICY policy{};
+  policy.AccentState = ACCENT_DISABLED;
+  policy.AccentFlags = 0;
+  policy.GradientColor = 0;
+  policy.AnimationId = 0;
+  WINDOWCOMPOSITIONATTRIBUTEDATA data{};
+  data.Attribute = 19;
+  data.Data = &policy;
+  data.SizeOfData = sizeof(policy);
+  return pSetWindowCompositionAttribute(hwnd, &data);
+}
+
+static DWORD MakeAccentGradientColor(unsigned int alpha, COLORREF rgb) {
+  const unsigned int r = GetRValue(rgb);
+  const unsigned int g = GetGValue(rgb);
+  const unsigned int b = GetBValue(rgb);
+  return ((alpha & 0xFF) << 24) | (b << 16) | (g << 8) | r;
+}
+
+static COLORREF EffectTintColor(bool dark_mode) {
+  return dark_mode ? RGB(32, 32, 32) : RGB(243, 248, 252);
+}
+
+static INT DwmBackdropForEffect(int effect_mode) {
+  switch (effect_mode) {
+    case kEffectMica:
+      return kDwmSystemBackdropMainWindow;
+    case kEffectMicaAlt:
+      return kDwmSystemBackdropTabbedWindow;
+    default:
+      return kDwmSystemBackdropNone;
+  }
+}
+
+static bool IsDwmBackdropEffect(int effect_mode) {
+  return effect_mode == kEffectMica || effect_mode == kEffectMicaAlt;
+}
+
+static bool IsAccentEffect(int effect_mode) {
+  return effect_mode == kEffectBlur || effect_mode == kEffectAcrylic;
+}
+
+static int ScaleForWindowDpi(HWND hwnd, int logical_pixels) {
+  if (!hwnd || logical_pixels <= 0) {
+    return logical_pixels;
+  }
+  const UINT dpi = ::GetDpiForWindow(hwnd);
+  return std::max(1, ::MulDiv(logical_pixels, dpi == 0 ? 96 : dpi, 96));
+}
+
+static void ExtendFrameForEffect(HWND hwnd, bool transparent_frame) {
+  if (!hwnd) {
+    return;
+  }
+
+  MARGINS margins = transparent_frame ? MARGINS{-1, -1, -1, -1}
+                                      : MARGINS{0, 0, 1, 0};
+  ::DwmExtendFrameIntoClientArea(hwnd, &margins);
+}
+
+static void ResetDwmBackdrop(HWND hwnd, DWORD buildNumber) {
+  if (!hwnd) {
+    return;
+  }
+
+  if (buildNumber >= kSystemBackdropBuild) {
+    INT backdropType = kDwmSystemBackdropNone;
+    ::DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, &backdropType,
+                            sizeof(backdropType));
+  }
+  if (buildNumber >= kWin11Build) {
+    BOOL mica = FALSE;
+    ::DwmSetWindowAttribute(hwnd, DWMWA_MICA_EFFECT, &mica, sizeof(mica));
+  }
+}
+
+static void ConfigureDwmFrame(HWND hwnd, bool dark_mode) {
+  if (!hwnd) {
+    return;
+  }
+
+  BOOL dark = dark_mode ? TRUE : FALSE;
+  ::DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark,
+                          sizeof(dark));
+  ::DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, &kDwmColorNone,
+                          sizeof(kDwmColorNone));
+  COLORREF borderColor = kDwmBorderFallbackColor;
+  ::DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, &borderColor,
+                          sizeof(borderColor));
+}
+
+static void PaintNativeFrameStrips(HWND hwnd) {
+  if (!hwnd) {
+    return;
+  }
+
+  RECT windowRect{};
+  RECT clientRect{};
+  if (!GetWindowRect(hwnd, &windowRect) || !GetClientRect(hwnd, &clientRect)) {
+    return;
+  }
+
+  POINT clientOrigin{clientRect.left, clientRect.top};
+  ClientToScreen(hwnd, &clientOrigin);
+
+  const int windowWidth = windowRect.right - windowRect.left;
+  const int windowHeight = windowRect.bottom - windowRect.top;
+  const int clientLeft = clientOrigin.x - windowRect.left;
+  const int clientTop = clientOrigin.y - windowRect.top;
+  const int clientRight = clientLeft + (clientRect.right - clientRect.left);
+  const int clientBottom = clientTop + (clientRect.bottom - clientRect.top);
+
+  HDC dc = GetWindowDC(hwnd);
+  if (!dc) {
+    return;
+  }
+
+  HBRUSH brush = CreateSolidBrush(RGB(0, 0, 0));
+  if (!brush) {
+    ReleaseDC(hwnd, dc);
+    return;
+  }
+
+  auto fill = [&](int left, int top, int right, int bottom) {
+    if (right <= left || bottom <= top) {
+      return;
+    }
+    RECT rect{left, top, right, bottom};
+    FillRect(dc, &rect, brush);
+  };
+
+  fill(0, 0, clientLeft, windowHeight);
+  fill(clientRight, 0, windowWidth, windowHeight);
+  fill(clientLeft, 0, clientRight, clientTop);
+  fill(clientLeft, clientBottom, clientRight, windowHeight);
+
+  DeleteObject(brush);
+  ReleaseDC(hwnd, dc);
+}
+
+static bool ApplyAccentEffect(HWND hwnd,
+                              int effect_mode,
+                              int effect_alpha,
+                              bool dark_mode,
+                              bool limit_popup_alpha) {
+  if (!hwnd || !LoadAccentPolicyApi() || !IsAccentEffect(effect_mode)) {
+    return false;
+  }
+
+  ACCENT_POLICY policy{};
+  policy.AccentState = effect_mode == kEffectBlur
+                           ? ACCENT_ENABLE_BLURBEHIND
+                           : ACCENT_ENABLE_ACRYLICBLURBEHIND;
+  policy.AccentFlags = 2;
+  unsigned int alpha =
+      static_cast<unsigned int>(std::max(0, std::min(effect_alpha, 255)));
+  if (limit_popup_alpha) {
+    alpha = std::min(alpha, 120u);
+  }
+  if (effect_mode == kEffectBlur) {
+    alpha = std::max(32u, std::min(alpha, 140u));
+  }
+  policy.GradientColor =
+      MakeAccentGradientColor(alpha, EffectTintColor(dark_mode));
+  policy.AnimationId = 0;
+
+  WINDOWCOMPOSITIONATTRIBUTEDATA data{};
+  data.Attribute = 19;
+  data.Data = &policy;
+  data.SizeOfData = sizeof(policy);
+  return pSetWindowCompositionAttribute(hwnd, &data) != FALSE;
+}
 
 static void LogA(const char* s) {
   if (!IsNativeRenderLoggingEnabled()) {
@@ -297,10 +529,10 @@ FlutterWindow::FlutterWindow(const flutter::DartProject& project,
                              bool launch_hidden)
     : project_(project), launch_hidden_(launch_hidden), kind_(kind) {
   if (kind_ == WindowKind::kPopup) {
-    effect_mode_ = 0;
+    effect_mode_ = kEffectNone;
   }
   if (kind_ == WindowKind::kTrayMenu) {
-    effect_mode_ = 0;
+    effect_mode_ = kEffectNone;
   }
 }
 
@@ -329,6 +561,11 @@ bool FlutterWindow::OnCreate() {
 
   RECT frame = GetClientArea();
 
+  // Call DwmExtendFrameIntoClientArea BEFORE creating FlutterViewController
+  // This tells the Flutter 3.x engine on Windows to natively use a transparent
+  // swapchain without needing the toxic WS_EX_LAYERED attribute!
+  ExtendFrameForEffect(GetHandle(), true);
+
   // The size here must match the window dimensions to avoid unnecessary surface
   // creation / destruction in the startup path.
   flutter_controller_ = std::make_unique<flutter::FlutterViewController>(
@@ -353,13 +590,14 @@ bool FlutterWindow::OnCreate() {
     if (!launch_hidden_) {
       if (kind_ == WindowKind::kPopup) {
         BringWindowToFront();
-      } else {
+      } else if (kind_ == WindowKind::kTrayMenu) {
         this->Show();
       }
     } else {
       LogA("NextFrameCallback: skipping native show for auto-start launch");
     }
-    ApplyWindowEffect(hwnd);
+    ApplyWindowEffect(hwnd, true);
+    ScheduleWindowEffectRefresh(hwnd);
     LogA("NextFrameCallback end");
   });
 
@@ -377,6 +615,14 @@ void FlutterWindow::OnDestroy() {
   sprintf_s(destroy_log, "=== FlutterWindow::OnDestroy START kind=%s hwnd=%p ===",
             WindowKindName(), GetHandle());
   LogA(destroy_log);
+
+  KillTimer(GetHandle(), kPopupInitialEffectTimer);
+  KillTimer(GetHandle(), kWindowResizeEffectTimer);
+  KillTimer(GetHandle(), kWindowEffectShowTimer);
+  KillTimer(GetHandle(), kWindowEffectActivateTimer);
+  KillTimer(GetHandle(), kWindowEffectSettledTimer);
+  KillTimer(GetHandle(), kWindowFramePaintTimer);
+  KillTimer(GetHandle(), kWindowFramePaintSettledTimer);
 
   if (pSetWindowCompositionAttribute) {
     ACCENT_POLICY policy{};
@@ -449,10 +695,18 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
         flutter_controller_->engine()->ReloadSystemFonts();
       }
       break;
+    case WM_SHOWWINDOW:
+      if (wparam == TRUE) {
+        ScheduleWindowEffectRefresh(hwnd);
+      }
+      break;
     case WM_ACTIVATE:
       if (kind_ == WindowKind::kTrayMenu && LOWORD(wparam) == WA_INACTIVE) {
         ShowWindow(hwnd, SW_HIDE);
         return 0;
+      }
+      if (LOWORD(wparam) != WA_INACTIVE) {
+        ScheduleWindowEffectRefresh(hwnd);
       }
       break;
     case WM_DWMCOMPOSITIONCHANGED:
@@ -462,30 +716,27 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     case WM_DISPLAYCHANGE:
     {
       // Re-apply effect on system-level changes
-      ApplyWindowEffect(hwnd);
+      ApplyWindowEffect(hwnd, true);
+      ScheduleWindowEffectRefresh(hwnd);
       break;
     }
     case WM_SIZE:
     {
-      // Update rounded corners on Win10 when window size changes
-      DWORD buildNumber = GetWindowsBuildNumber();
-      if (buildNumber < 22000) {
-        // Use timer to debounce rapid size changes
-        SetTimer(hwnd, 2, 50, NULL);
-      }
+      // Debounce rapid size changes before refreshing corners/effects.
+      SetTimer(hwnd, kWindowResizeEffectTimer, 50, NULL);
       break;
     }
     // Win10: use opaque tinted gradient during drag (no blur cost, no transparency)
     case WM_ENTERSIZEMOVE:
     {
-      if (GetWindowsBuildNumber() < 22000 && drag_suspend_ && effect_mode_ > 0 && !is_suspended_) {
-        if (pSetWindowCompositionAttribute) {
+      if (GetWindowsBuildNumber() < kWin11Build && drag_suspend_ &&
+          IsAccentEffect(effect_mode_) && !is_suspended_) {
+        if (LoadAccentPolicyApi()) {
           ACCENT_POLICY policy{};
           policy.AccentState = ACCENT_ENABLE_TRANSPARENTGRADIENT;
           policy.AccentFlags = 2;
-          // Near-opaque dark fill matching typical dark theme background
-          // 0xF0 alpha + 0x202020 RGB = dark gray, visually close to acrylic
-          policy.GradientColor = 0xF0202020;
+          policy.GradientColor =
+              MakeAccentGradientColor(0xF0, EffectTintColor(dark_mode_));
           policy.AnimationId = 0;
           WINDOWCOMPOSITIONATTRIBUTEDATA data{};
           data.Attribute = 19;
@@ -499,20 +750,27 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     }
     case WM_EXITSIZEMOVE:
     {
-      if (GetWindowsBuildNumber() < 22000 && is_suspended_) {
+      if (GetWindowsBuildNumber() < kWin11Build && is_suspended_) {
         is_suspended_ = false;
-        ApplyWindowEffect(hwnd);
+        ApplyWindowEffect(hwnd, true);
       }
       break;
     }
     case WM_TIMER:
     {
-      if (wparam == 1) {
-        KillTimer(hwnd, 1);
-        ApplyWindowEffect(hwnd);
-      } else if (wparam == 2) {
-        KillTimer(hwnd, 2);
-        ApplyWindowEffect(hwnd);
+      if (wparam == kPopupInitialEffectTimer ||
+          wparam == kWindowResizeEffectTimer ||
+          wparam == kWindowEffectShowTimer ||
+          wparam == kWindowEffectActivateTimer ||
+          wparam == kWindowEffectSettledTimer) {
+        KillTimer(hwnd, static_cast<UINT_PTR>(wparam));
+        ApplyWindowEffect(hwnd, true);
+      } else if (wparam == kWindowFramePaintTimer) {
+        KillTimer(hwnd, kWindowFramePaintTimer);
+        PaintNativeFrameStrips(hwnd);
+      } else if (wparam == kWindowFramePaintSettledTimer) {
+        KillTimer(hwnd, kWindowFramePaintSettledTimer);
+        PaintNativeFrameStrips(hwnd);
       }
       break;
     }
@@ -650,15 +908,15 @@ void FlutterWindow::SetupMethodChannel() {
                       if (const std::string* mode =
                               std::get_if<std::string>(&mode_it->second)) {
                         if (!effect_enabled || *mode == "none") {
-                          popup_effect.effect_mode = 0;
+                          popup_effect.effect_mode = kEffectNone;
                         } else if (*mode == "blur") {
-                          popup_effect.effect_mode = 1;
+                          popup_effect.effect_mode = kEffectBlur;
                         } else if (*mode == "acrylic") {
-                          popup_effect.effect_mode = 2;
+                          popup_effect.effect_mode = kEffectAcrylic;
                         } else if (*mode == "mica_main") {
-                          popup_effect.effect_mode = 3;
+                          popup_effect.effect_mode = kEffectMica;
                         } else if (*mode == "mica_transient") {
-                          popup_effect.effect_mode = 4;
+                          popup_effect.effect_mode = kEffectMicaAlt;
                         }
                       }
                     }
@@ -899,12 +1157,13 @@ void FlutterWindow::SetupMethodChannel() {
           const int safe_height = std::max(min_height, std::min(max_height, height));
 
           bool suspended_here = false;
-          if (effect_mode_ > 0 && !is_suspended_) {
-            if (pSetWindowCompositionAttribute) {
+          if (IsAccentEffect(effect_mode_) && !is_suspended_) {
+            if (LoadAccentPolicyApi()) {
               ACCENT_POLICY policy{};
               policy.AccentState = ACCENT_ENABLE_TRANSPARENTGRADIENT;
               policy.AccentFlags = 2;
-              policy.GradientColor = 0xF0202020;
+              policy.GradientColor =
+                  MakeAccentGradientColor(0xF0, EffectTintColor(dark_mode_));
               policy.AnimationId = 0;
               WINDOWCOMPOSITIONATTRIBUTEDATA data{};
               data.Attribute = 19;
@@ -920,7 +1179,7 @@ void FlutterWindow::SetupMethodChannel() {
               SWP_NOMOVE | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOZORDER);
 
           if (suspended_here) {
-            ApplyWindowEffect(hwnd);
+            ApplyWindowEffect(hwnd, true);
           }
 
           result->Success(flutter::EncodableValue(ok != FALSE));
@@ -938,11 +1197,11 @@ void FlutterWindow::SetupMethodChannel() {
                 arguments->find(flutter::EncodableValue("darkMode"));
             if (itMode != arguments->end()) {
               if (const std::string* s = std::get_if<std::string>(&itMode->second)) {
-                if (*s == "none") effect_mode_ = 0;
-                else if (*s == "blur") effect_mode_ = 1;
-                else if (*s == "acrylic") effect_mode_ = 2;
-                else if (*s == "mica_main") effect_mode_ = 3;
-                else if (*s == "mica_transient") effect_mode_ = 4;
+                if (*s == "none") effect_mode_ = kEffectNone;
+                else if (*s == "blur") effect_mode_ = kEffectBlur;
+                else if (*s == "acrylic") effect_mode_ = kEffectAcrylic;
+                else if (*s == "mica_main") effect_mode_ = kEffectMica;
+                else if (*s == "mica_transient") effect_mode_ = kEffectMicaAlt;
               }
             }
             if (itAlpha != arguments->end()) {
@@ -965,7 +1224,9 @@ void FlutterWindow::SetupMethodChannel() {
                 corner_radius_ = std::max(0, std::min(32, *radius));
               }
             }
-            ApplyWindowEffect(GetHandle());
+            effect_configured_ = true;
+            ApplyWindowEffect(GetHandle(), true);
+            ScheduleWindowEffectRefresh(GetHandle());
             result->Success();
           } else {
             result->Error("INVALID_ARGUMENT", "Missing map");
@@ -1131,6 +1392,12 @@ void FlutterWindow::SetupMethodChannel() {
           if (g_main_window_handle && ::IsWindow(g_main_window_handle)) {
             ::ShowWindow(g_main_window_handle, SW_RESTORE);
             ::SetForegroundWindow(g_main_window_handle);
+            if (g_main_flutter_window != nullptr) {
+              g_main_flutter_window->ApplyWindowEffect(g_main_window_handle,
+                                                       true);
+              g_main_flutter_window->ScheduleWindowEffectRefresh(
+                  g_main_window_handle);
+            }
           }
           result->Success();
           return;
@@ -1152,6 +1419,12 @@ void FlutterWindow::SetupMethodChannel() {
           if (g_main_window_handle && ::IsWindow(g_main_window_handle)) {
             ::ShowWindow(g_main_window_handle, SW_RESTORE);
             ::SetForegroundWindow(g_main_window_handle);
+            if (g_main_flutter_window != nullptr) {
+              g_main_flutter_window->ApplyWindowEffect(g_main_window_handle,
+                                                       true);
+              g_main_flutter_window->ScheduleWindowEffectRefresh(
+                  g_main_window_handle);
+            }
           }
 
           if (!action.empty() && g_main_flutter_window != nullptr &&
@@ -1249,6 +1522,8 @@ void FlutterWindow::BringWindowToFront() {
     const HWND active_result = SetActiveWindow(hwnd);
     // Set focus
     const HWND focus_result = SetFocus(hwnd);
+    ApplyWindowEffect(hwnd, true);
+    ScheduleWindowEffectRefresh(hwnd);
 
     if (attached_target) {
       AttachThreadInput(current_thread, target_thread, FALSE);
@@ -1443,7 +1718,8 @@ bool FlutterWindow::CreatePopupWindow(
       SetWindowTextW(existing_hwnd, window_title.c_str());
       popup_window->SendPopupPayloadToFlutter(payload_json);
       CenterWindowOnWorkArea(existing_hwnd);
-      popup_window->ApplyWindowEffect(existing_hwnd);
+      popup_window->ApplyWindowEffect(existing_hwnd, true);
+      popup_window->ScheduleWindowEffectRefresh(existing_hwnd);
       InvalidateRect(existing_hwnd, nullptr, TRUE);
       ::ShowWindow(existing_hwnd, SW_SHOW);
       SetForegroundWindow(existing_hwnd);
@@ -1486,7 +1762,7 @@ bool FlutterWindow::CreatePopupWindow(
   popup_window->SetQuitOnClose(false);
   CenterWindowOnWorkArea(popup_window->GetHandle());
   if (popup_window->GetHandle()) {
-    SetTimer(popup_window->GetHandle(), 1, 180, NULL);
+    SetTimer(popup_window->GetHandle(), kPopupInitialEffectTimer, 180, NULL);
   }
   LogA("CreatePopupWindow waiting for first Flutter frame before showing");
   g_popup_windows.push_back(std::move(popup_window));
@@ -1545,9 +1821,19 @@ void FlutterWindow::CleanupPopupWindows() {
   CleanupClosedPopupWindows();
 }
 
+void FlutterWindow::ScheduleWindowEffectRefresh(HWND hwnd) {
+  if (!hwnd || kind_ == WindowKind::kTrayMenu) {
+    return;
+  }
 
-void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
+  SetTimer(hwnd, kWindowEffectShowTimer, 120, NULL);
+  SetTimer(hwnd, kWindowEffectActivateTimer, 360, NULL);
+  SetTimer(hwnd, kWindowEffectSettledTimer, 900, NULL);
+}
+
+void FlutterWindow::ApplyWindowEffect(HWND hwnd, bool force) {
   if (!hwnd) return;
+  if (kind_ == WindowKind::kMain && !effect_configured_) return;
 
   // Debounce per window: popup windows may be created in quick succession and
   // must not inherit the last apply state from the main window or another popup.
@@ -1567,7 +1853,7 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
       (last_corner_radius_ != corner_radius_);
   bool sizeChanged = (width != (last_window_rect_.right - last_window_rect_.left) ||
                       height != (last_window_rect_.bottom - last_window_rect_.top));
-  if (!modeChanged && !sizeChanged && !cornerSettingChanged &&
+  if (!force && !modeChanged && !sizeChanged && !cornerSettingChanged &&
       (currentTime - last_apply_time_ < 100)) {
     return;
   }
@@ -1579,47 +1865,15 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
   last_window_rect_ = windowRect;
 
   if (kind_ == WindowKind::kTrayMenu) {
-    BOOL dark = TRUE;
-    DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark,
-                          sizeof(dark));
+    ConfigureDwmFrame(hwnd, true);
 
     // Tray menu windows must NOT use any DWM backdrop effects.
     // The menu panels are entirely Flutter-painted; DWM acrylic/mica
     // would bleed through and cause visual artifacts.
-    COLORREF border_color = DWMWA_COLOR_NONE;
-    DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, &border_color,
-                          sizeof(border_color));
     const DWORD buildNumber = GetWindowsBuildNumber();
-    if (buildNumber >= 22523) {
-      INT backdropType = 0;
-      DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, &backdropType,
-                            sizeof(backdropType));
-    }
-    if (buildNumber >= 22000) {
-      BOOL mica = FALSE;
-      DwmSetWindowAttribute(hwnd, DWMWA_MICA_EFFECT, &mica, sizeof(mica));
-    }
-
-    if (!pSetWindowCompositionAttribute) {
-      HMODULE user32 = LoadLibraryA("user32.dll");
-      if (user32) {
-        pSetWindowCompositionAttribute =
-            reinterpret_cast<BOOL(WINAPI*)(HWND, WINDOWCOMPOSITIONATTRIBUTEDATA*)>(
-                GetProcAddress(user32, "SetWindowCompositionAttribute"));
-      }
-    }
-    if (pSetWindowCompositionAttribute) {
-      ACCENT_POLICY policy{};
-      policy.AccentState = ACCENT_DISABLED;
-      policy.AccentFlags = 0;
-      policy.GradientColor = 0;
-      policy.AnimationId = 0;
-      WINDOWCOMPOSITIONATTRIBUTEDATA data{};
-      data.Attribute = 19;
-      data.Data = &policy;
-      data.SizeOfData = sizeof(policy);
-      pSetWindowCompositionAttribute(hwnd, &data);
-    }
+    ResetDwmBackdrop(hwnd, buildNumber);
+    DisableAccentPolicy(hwnd);
+    ExtendFrameForEffect(hwnd, false);
 
     // Use region clipping instead of DWM rounded corners
     ApplyTrayMenuWindowRegion(hwnd);
@@ -1630,195 +1884,75 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd) {
   char logBuf[256];
   const char* kindName = WindowKindName();
   sprintf_s(logBuf,
-            "ApplyWindowEffect: kind=%s mode=%d alpha=%d build=%lu changed=%d size=%dx%d",
+            "ApplyWindowEffect: kind=%s mode=%d alpha=%d build=%lu changed=%d force=%d size=%dx%d",
             kindName, effect_mode_, effect_alpha_, buildNumber, modeChanged,
-            width, height);
+            force, width, height);
   LogA(logBuf);
 
-  // Load SetWindowCompositionAttribute
-  if (!pSetWindowCompositionAttribute) {
-    HMODULE user32 = LoadLibraryA("user32.dll");
-    if (user32) {
-      pSetWindowCompositionAttribute = reinterpret_cast<BOOL (WINAPI*)(HWND, WINDOWCOMPOSITIONATTRIBUTEDATA*)>(GetProcAddress(user32, "SetWindowCompositionAttribute"));
-    }
+  ConfigureDwmFrame(hwnd, dark_mode_);
+
+  const bool supportsSystemBackdrop = buildNumber >= kSystemBackdropBuild;
+  const bool useDwmBackdrop =
+      supportsSystemBackdrop && IsDwmBackdropEffect(effect_mode_);
+  const bool useLegacyMica =
+      !supportsSystemBackdrop && buildNumber >= kWin11Build &&
+      (effect_mode_ == kEffectMica || effect_mode_ == kEffectMicaAlt);
+  const bool useAccent =
+      !useDwmBackdrop && !useLegacyMica && IsAccentEffect(effect_mode_);
+  const bool needsTransparentFrame =
+      effect_mode_ != kEffectNone || kind_ == WindowKind::kPopup;
+
+  if (modeChanged || force) {
+    ResetDwmBackdrop(hwnd, buildNumber);
+    DisableAccentPolicy(hwnd);
   }
 
-  // Keep the native DWM backdrop in sync with the Flutter theme. If this stays
-  // dark while Flutter switches to light, the transparent shell looks stale
-  // until another navigation-triggered repaint happens.
-  BOOL dark = dark_mode_ ? TRUE : FALSE;
-  DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
+  ExtendFrameForEffect(hwnd, needsTransparentFrame);
 
-  // STEP 1: Always reset all effects first when mode changes
-  if (modeChanged) {
-    LogA("Resetting all effects...");
-
-    // Reset Mica/Backdrop
-    if (buildNumber >= 22523) {
-      INT backdropType = 0;  // DWMSBT_AUTO (disable)
-      DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, &backdropType, sizeof(backdropType));
-    } else if (buildNumber >= 22000) {
-      BOOL mica = FALSE;
-      DwmSetWindowAttribute(hwnd, DWMWA_MICA_EFFECT, &mica, sizeof(mica));
-    }
-
-    // Reset SetWindowCompositionAttribute
-    if (pSetWindowCompositionAttribute) {
-      ACCENT_POLICY policy{};
-      policy.AccentState = ACCENT_DISABLED;
-      policy.AccentFlags = 0;
-      policy.GradientColor = 0;
-      policy.AnimationId = 0;
-      WINDOWCOMPOSITIONATTRIBUTEDATA data{};
-      data.Attribute = 19;
-      data.Data = &policy;
-      data.SizeOfData = sizeof(policy);
-      pSetWindowCompositionAttribute(hwnd, &data);
-    }
-
-    // Small delay to let the reset take effect
-    Sleep(50);
-  }
-
-  // STEP 2: Extend frame into client area (needed for acrylic/blur effects)
-  MARGINS margins = {-1, -1, -1, -1};
-  HRESULT hrExtend = DwmExtendFrameIntoClientArea(hwnd, &margins);
-  sprintf_s(logBuf, "DwmExtendFrameIntoClientArea hr=0x%08lX", hrExtend);
-  LogA(logBuf);
-
-  // STEP 3: Apply the new effect
-  // Win11 22H2+ (build 22621+): Use DWMWA_SYSTEMBACKDROP_TYPE for all effects
-  // Win11 21H2 (build 22000-22620): Use DWMWA_MICA_EFFECT for Mica, SetWindowCompositionAttribute for Acrylic
-  // Win10: Use SetWindowCompositionAttribute for Acrylic/Blur
-  
-  if (buildNumber >= 22621) {
-    // Windows 11 22H2+: use DWM backdrop for Acrylic/Mica.
-    // DWMWA_SYSTEMBACKDROP_TYPE has no plain Blur option, so keep Blur on
-    // SetWindowCompositionAttribute; mapping Blur to Acrylic makes Blur appear
-    // ineffective/indistinguishable from Acrylic.
-    if ((effect_mode_ == 1 || (kind_ == WindowKind::kPopup && effect_mode_ == 2)) &&
-        pSetWindowCompositionAttribute) {
-      INT backdropType = 0;  // DWMSBT_AUTO / disable DWM backdrop first.
-      DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, &backdropType,
-                            sizeof(backdropType));
-
-      ACCENT_POLICY policy{};
-      policy.AccentState = effect_mode_ == 2
-                               ? ACCENT_ENABLE_ACRYLICBLURBEHIND
-                               : ACCENT_ENABLE_BLURBEHIND;
-      policy.AccentFlags = 2;
-      if (effect_mode_ == 2) {
-        unsigned int a =
-            static_cast<unsigned int>(std::min(effect_alpha_, 150) & 0xFF);
-        const unsigned int tint = dark_mode_ ? 0x202020 : 0xF3F8FC;
-        policy.GradientColor = (a << 24) | tint;
-      } else {
-        policy.GradientColor = 0;
-      }
-      policy.AnimationId = 0;
-
-      WINDOWCOMPOSITIONATTRIBUTEDATA data{};
-      data.Attribute = 19;
-      data.Data = &policy;
-      data.SizeOfData = sizeof(policy);
-      BOOL ok = pSetWindowCompositionAttribute(hwnd, &data);
-      sprintf_s(logBuf,
-                "Win11 22H2+: %s via SWCA ok=%d alpha=%d",
-                effect_mode_ == 2 ? "ACRYLIC" : "BLURBEHIND", ok,
-                effect_alpha_);
-      LogA(logBuf);
-    } else {
-      INT backdropType = 0;  // Disabled / solid fallback.
-
-      if (effect_mode_ == 2) {
-        backdropType = 3;  // DWMSBT_TRANSIENTWINDOW (Acrylic)
-      } else if (effect_mode_ == 3) {
-        backdropType = 2;  // DWMSBT_MAINWINDOW (Mica)
-      } else if (effect_mode_ == 4) {
-        backdropType = 4;  // DWMSBT_TABBEDWINDOW (Mica Alt)
-      }
-
-      HRESULT hrBackdrop = DwmSetWindowAttribute(
-          hwnd, DWMWA_SYSTEMBACKDROP_TYPE, &backdropType, sizeof(backdropType));
-      sprintf_s(logBuf,
-                "Win11 22H2+: SYSTEMBACKDROP_TYPE=%d hr=0x%08lX",
-                backdropType, hrBackdrop);
-      LogA(logBuf);
-    }
-
-  } else if (buildNumber >= 22000) {
-    // Windows 11 21H2: Mixed approach
-    if (effect_mode_ == 3 || effect_mode_ == 4) {
-      // Mica - use DWMWA_MICA_EFFECT
-      BOOL mica = TRUE;
-      HRESULT hrMica = DwmSetWindowAttribute(hwnd, DWMWA_MICA_EFFECT, &mica, sizeof(mica));
-      sprintf_s(logBuf, "Win11 21H2: MICA_EFFECT hr=0x%08lX", hrMica);
-      LogA(logBuf);
-    } else if (effect_mode_ > 0 && pSetWindowCompositionAttribute) {
-      // Acrylic/Blur - use SetWindowCompositionAttribute
-      ACCENT_POLICY policy{};
-      if (effect_mode_ == 1) {
-        policy.AccentState = ACCENT_ENABLE_BLURBEHIND;
-        policy.AccentFlags = 2;
-      } else {
-        policy.AccentState = ACCENT_ENABLE_ACRYLICBLURBEHIND;
-        policy.AccentFlags = 2;
-        unsigned int a = static_cast<unsigned int>(effect_alpha_ & 0xFF);
-        if (kind_ == WindowKind::kPopup) {
-          a = std::min(a, 120u);
-        }
-        const unsigned int tint = dark_mode_ ? 0x202020 : 0xF3F8FC;
-        policy.GradientColor = (a << 24) | tint;
-      }
-      WINDOWCOMPOSITIONATTRIBUTEDATA data{};
-      data.Attribute = 19;
-      data.Data = &policy;
-      data.SizeOfData = sizeof(policy);
-      pSetWindowCompositionAttribute(hwnd, &data);
-      LogA("Win11 21H2: Using SetWindowCompositionAttribute for Acrylic");
-    }
-  } else {
-    // Windows 10: Use SetWindowCompositionAttribute
-    if (effect_mode_ > 0 && pSetWindowCompositionAttribute) {
-      ACCENT_POLICY policy{};
-      if (effect_mode_ == 1) {
-        policy.AccentState = ACCENT_ENABLE_BLURBEHIND;
-        policy.AccentFlags = 2;
-        policy.GradientColor = 0;
-      } else {
-        // Acrylic or Mica fallback
-        policy.AccentState = ACCENT_ENABLE_ACRYLICBLURBEHIND;
-        policy.AccentFlags = 2;
-        unsigned int a = static_cast<unsigned int>(effect_alpha_ & 0xFF);
-        if (kind_ == WindowKind::kPopup) {
-          a = std::min(a, 120u);
-        }
-        const unsigned int tint = dark_mode_ ? 0x202020 : 0xF3F8FC;
-        policy.GradientColor = (a << 24) | tint;
-      }
-      policy.AnimationId = 0;
-
-      WINDOWCOMPOSITIONATTRIBUTEDATA data{};
-      data.Attribute = 19;
-      data.Data = &policy;
-      data.SizeOfData = sizeof(policy);
-      BOOL ok = pSetWindowCompositionAttribute(hwnd, &data);
-      sprintf_s(logBuf,
-                "Win10: SetWindowCompositionAttribute kind=%s AccentState=%d ok=%d alpha=%d",
-                kindName, policy.AccentState, ok, effect_alpha_);
-      LogA(logBuf);
-    }
+  if (useDwmBackdrop) {
+    const INT backdropType = DwmBackdropForEffect(effect_mode_);
+    const HRESULT hrBackdrop =
+        DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, &backdropType,
+                              sizeof(backdropType));
+    sprintf_s(logBuf,
+              "DWM system backdrop=%d hr=0x%08lX build=%lu",
+              backdropType, hrBackdrop, buildNumber);
+    LogA(logBuf);
+  } else if (useLegacyMica) {
+    BOOL mica = TRUE;
+    const HRESULT hrMica =
+        DwmSetWindowAttribute(hwnd, DWMWA_MICA_EFFECT, &mica, sizeof(mica));
+    sprintf_s(logBuf, "Legacy MICA_EFFECT hr=0x%08lX build=%lu", hrMica,
+              buildNumber);
+    LogA(logBuf);
+  } else if (useAccent) {
+    const bool ok = ApplyAccentEffect(hwnd, effect_mode_, effect_alpha_,
+                                      dark_mode_,
+                                      kind_ == WindowKind::kPopup);
+    sprintf_s(logBuf,
+              "Accent effect mode=%d ok=%d alpha=%d build=%lu",
+              effect_mode_, ok ? 1 : 0, effect_alpha_, buildNumber);
+    LogA(logBuf);
   }
 
   ApplyRoundedCorners(hwnd, buildNumber, width, height);
 
   // Force window redraw
-  if (modeChanged || cornerSettingChanged) {
+  if (modeChanged || cornerSettingChanged || force) {
+    SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE |
+                     SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
     RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW | RDW_FRAME);
+    PaintNativeFrameStrips(hwnd);
+    SetTimer(hwnd, kWindowFramePaintTimer, 120, NULL);
+    SetTimer(hwnd, kWindowFramePaintSettledTimer, 900, NULL);
   }
 }
 
 DWORD FlutterWindow::WindowStyle() const {
+  if (kind_ == WindowKind::kMain) {
+    return WS_POPUP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
+  }
   if (kind_ == WindowKind::kPopup) {
     return WS_POPUP | WS_THICKFRAME | WS_SYSMENU | WS_MINIMIZEBOX;
   }
@@ -1855,7 +1989,10 @@ void FlutterWindow::ApplyTrayMenuWindowRegion(HWND hwnd) {
     return;
   }
 
-  const int radius = std::max(0, tray_menu_region_radius_);
+  const int radius =
+      tray_menu_region_radius_ > 0
+          ? ScaleForWindowDpi(hwnd, tray_menu_region_radius_)
+          : 0;
   const int diameter = radius * 2;
   bool has_region = false;
 
@@ -1911,9 +2048,11 @@ void FlutterWindow::ApplyRoundedCorners(HWND hwnd,
   const bool isMaximized = wp.showCmd == SW_MAXIMIZE;
 
   // Windows 11 (build 22000+) native rounded corners
-  if (buildNumber >= 22000) {
+  if (buildNumber >= kWin11Build) {
     SetWindowRgn(hwnd, NULL, TRUE);
-    DWORD corner = rounded_corners_enabled_ && !isMaximized ? 2 : 1;
+    DWORD corner =
+        rounded_corners_enabled_ && !isMaximized ? kDwmCornerRound
+                                                 : kDwmCornerDoNotRound;
     DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner,
                           sizeof(corner));
     return;
@@ -1925,22 +2064,12 @@ void FlutterWindow::ApplyRoundedCorners(HWND hwnd,
     return;
   }
 
-  // On Windows 10, SetWindowCompositionAttribute draws a square backdrop.
-  // If an effect (Acrylic/Blur) is enabled, we must use SetWindowRgn to clip
-  // the window to a rounded rectangle, otherwise the square backdrop will bleed
-  // out. This comes at the cost of jagged edges and clipped native shadows.
-  // If no effect is enabled (solid/transparent), we don't clip, allowing
-  // Flutter to render smooth anti-aliased corners and drop shadows perfectly.
-  if (effect_mode_ > 0) {
-    const int radius = std::max(4, corner_radius_);
-    const int diameter = radius * 2;
-    HRGN hRgn =
-        CreateRoundRectRgn(0, 0, width + 1, height + 1, diameter, diameter);
-    if (hRgn) {
-      SetWindowRgn(hwnd, hRgn, TRUE);
-    }
-  } else {
-    SetWindowRgn(hwnd, NULL, TRUE);
+  const int radius = ScaleForWindowDpi(hwnd, std::max(4, corner_radius_));
+  const int diameter = radius * 2;
+  HRGN hRgn =
+      CreateRoundRectRgn(0, 0, width + 1, height + 1, diameter, diameter);
+  if (hRgn) {
+    SetWindowRgn(hwnd, hRgn, TRUE);
   }
 }
 

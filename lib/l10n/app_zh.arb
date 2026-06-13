@@ -57,7 +57,9 @@
     }
   },
   "settingsTitle": "设置",
+  "settingsSearchPlaceholder": "搜索设置...",
   "settingsTabGeneral": "常规",
+  "settingsTabNetwork": "网络与代理",
   "settingsTabDownload": "下载",
   "settingsTabAppearance": "界面",
   "settingsTabUpdate": "更新",

@@ -954,7 +954,7 @@ class NsfxProxyRuntime {
 
   static void _freeGlobalWideString(Pointer<Utf16> pointer) {
     if (pointer.address != 0) {
-      GlobalFree(pointer.cast());
+      GlobalFree(HGLOBAL(pointer.cast()));
     }
   }
 
@@ -1081,16 +1081,16 @@ void _windowsSystemProxyRegistryObserverMain(SendPort eventsPort) {
   final subKeyPtr =
       NsfxProxyRuntime._windowsInternetSettingsSubKey.toNativeUtf16();
   final keyPtr = calloc<IntPtr>();
-  int registryKey = 0;
-  int eventHandle = 0;
+  HKEY registryKey = HKEY(Pointer.fromAddress(0));
+  HANDLE eventHandle = HANDLE(Pointer.fromAddress(0));
 
   try {
     final openResult = RegOpenKeyEx(
       HKEY_CURRENT_USER,
-      subKeyPtr,
+      PCWSTR(subKeyPtr),
       0,
       KEY_NOTIFY,
-      keyPtr,
+      keyPtr.cast(),
     );
     if (openResult != ERROR_SUCCESS) {
       eventsPort.send(<Object?>[
@@ -1100,14 +1100,14 @@ void _windowsSystemProxyRegistryObserverMain(SendPort eventsPort) {
       return;
     }
 
-    registryKey = keyPtr.value;
+    registryKey = HKEY(Pointer.fromAddress(keyPtr.value));
     eventHandle = CreateEvent(
-      nullptr,
-      FALSE,
-      FALSE,
-      nullptr.cast<Utf16>(),
-    );
-    if (eventHandle == 0) {
+      Pointer.fromAddress(0),
+      false,
+      false,
+      PCWSTR(Pointer.fromAddress(0)),
+    ).value;
+    if (eventHandle.address == 0) {
       eventsPort.send(const <Object?>[NsfxProxyRuntime._observerMessageError]);
       return;
     }
@@ -1115,10 +1115,10 @@ void _windowsSystemProxyRegistryObserverMain(SendPort eventsPort) {
     while (!shouldStop) {
       final notifyResult = RegNotifyChangeKeyValue(
         registryKey,
-        FALSE,
+        false,
         REG_NOTIFY_CHANGE_LAST_SET,
         eventHandle,
-        TRUE,
+        true,
       );
       if (notifyResult != ERROR_SUCCESS) {
         eventsPort.send(<Object?>[
@@ -1132,14 +1132,14 @@ void _windowsSystemProxyRegistryObserverMain(SendPort eventsPort) {
         eventHandle,
         NsfxProxyRuntime._windowsSystemProxyObserverWaitTimeoutMs,
       );
-      if (waitResult == WAIT_OBJECT_0) {
+      if (waitResult.value == WAIT_OBJECT_0) {
         eventsPort.send(
           const <Object?>[NsfxProxyRuntime._observerMessageChanged],
         );
-      } else if (waitResult != WAIT_TIMEOUT) {
+      } else if (waitResult.value != WAIT_TIMEOUT) {
         eventsPort.send(<Object?>[
           NsfxProxyRuntime._observerMessageError,
-          waitResult,
+          waitResult.value,
         ]);
         break;
       }
@@ -1147,10 +1147,10 @@ void _windowsSystemProxyRegistryObserverMain(SendPort eventsPort) {
   } finally {
     controlSub.cancel();
     controlPort.close();
-    if (eventHandle != 0) {
+    if (eventHandle.address != 0) {
       CloseHandle(eventHandle);
     }
-    if (registryKey != 0) {
+    if (registryKey.address != 0) {
       RegCloseKey(registryKey);
     }
     calloc.free(keyPtr);

@@ -1,7 +1,7 @@
 import 'dart:ui';
 import 'package:fluent_ui/fluent_ui.dart' hide FluentIcons;
 import 'package:flutter/material.dart' show Material;
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/update_service.dart';

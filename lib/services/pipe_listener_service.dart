@@ -64,7 +64,7 @@ class PipeListenerService with ChangeNotifier {
   static const int bufferSize = 4096;
 
   bool _isRunning = false;
-  int _pipeHandle = INVALID_HANDLE_VALUE;
+  int _pipeHandleAddress = 0;
   Timer? _reconnectTimer;
 
   /// Callback when a download request is received
@@ -95,9 +95,9 @@ class PipeListenerService with ChangeNotifier {
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
 
-    if (_pipeHandle != INVALID_HANDLE_VALUE) {
-      CloseHandle(_pipeHandle);
-      _pipeHandle = INVALID_HANDLE_VALUE;
+    if (_pipeHandleAddress != 0 && _pipeHandleAddress != INVALID_HANDLE_VALUE.address) {
+      CloseHandle(HANDLE(Pointer.fromAddress(_pipeHandleAddress)));
+      _pipeHandleAddress = 0;
     }
 
     notifyListeners();
@@ -114,8 +114,8 @@ class PipeListenerService with ChangeNotifier {
     final pipeNamePtr = pipeName.toNativeUtf16();
 
     try {
-      _pipeHandle = CreateNamedPipe(
-        pipeNamePtr,
+      _pipeHandleAddress = CreateNamedPipe(
+        PCWSTR(pipeNamePtr),
         PIPE_ACCESS_INBOUND, // Read-only from our side
         PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
         1, // Max instances
@@ -123,9 +123,9 @@ class PipeListenerService with ChangeNotifier {
         bufferSize,
         0, // Default timeout
         nullptr, // Default security
-      );
+      ).address;
 
-      if (_pipeHandle == INVALID_HANDLE_VALUE) {
+      if (_pipeHandleAddress == 0 || _pipeHandleAddress == INVALID_HANDLE_VALUE.address) {
         final error = GetLastError();
         debugPrint('[PipeListener] Failed to create pipe, error: $error');
         _scheduleReconnect();
@@ -143,15 +143,15 @@ class PipeListenerService with ChangeNotifier {
 
   void _waitForConnection() {
     // Use compute to avoid blocking the UI thread
-    compute(_connectAndRead, _pipeHandle).then((result) {
+    compute(_connectAndRead, _pipeHandleAddress).then((result) {
       if (result != null && _isRunning) {
         _handleMessage(result);
       }
 
       // Close current handle and create new pipe for next connection
-      if (_pipeHandle != INVALID_HANDLE_VALUE) {
-        CloseHandle(_pipeHandle);
-        _pipeHandle = INVALID_HANDLE_VALUE;
+      if (_pipeHandleAddress != 0 && _pipeHandleAddress != INVALID_HANDLE_VALUE.address) {
+        CloseHandle(HANDLE(Pointer.fromAddress(_pipeHandleAddress)));
+        _pipeHandleAddress = 0;
       }
 
       // Continue listening if still running
@@ -166,12 +166,12 @@ class PipeListenerService with ChangeNotifier {
     });
   }
 
-  static String? _connectAndRead(int pipeHandle) {
+  static String? _connectAndRead(int pipeHandleAddress) {
     // Wait for a client to connect
-    final connected = ConnectNamedPipe(pipeHandle, nullptr);
+    final connected = ConnectNamedPipe(HANDLE(Pointer.fromAddress(pipeHandleAddress)), nullptr);
     final error = GetLastError();
 
-    if (connected == 0 && error != ERROR_PIPE_CONNECTED) {
+    if (connected.value == false && error != ERROR_PIPE_CONNECTED) {
       return null;
     }
 
@@ -181,14 +181,14 @@ class PipeListenerService with ChangeNotifier {
 
     try {
       final success = ReadFile(
-        pipeHandle,
+        HANDLE(Pointer.fromAddress(pipeHandleAddress)),
         buffer,
         bufferSize,
         bytesRead,
         nullptr,
       );
 
-      if (success != 0 && bytesRead.value > 0) {
+      if (success.value != false && bytesRead.value > 0) {
         final data = buffer.cast<Utf8>().toDartString(length: bytesRead.value);
         return data.trim();
       }

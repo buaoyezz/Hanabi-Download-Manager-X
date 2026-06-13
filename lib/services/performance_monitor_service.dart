@@ -564,7 +564,7 @@ class PerformanceMonitorService extends ChangeNotifier {
         kernelTime,
         userTime,
       );
-      if (result == 0) {
+      if (result.value == false) {
         return _lastProcessCpuTime100ns ?? 0;
       }
 

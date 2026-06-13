@@ -1,41 +1,56 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'client_config_service.dart';
 import '../platform/windows/window_effect_bridge.dart';
+import 'client_config_service.dart';
 
 class WindowEffectService extends ChangeNotifier {
-  // Keep this switch available as a hard fallback, but Win11 effects should be
-  // user-controllable. The native runner now uses a safer Win11 DWM path.
-  static const bool _disableNativeEffectsOnWindows11 = false;
+  WindowEffectService({
+    WindowsWindowEffectBridge bridge = const WindowsWindowEffectBridge(),
+  }) : _bridge = bridge;
 
-  // Win10's manual region clipping looks visibly rounder than Win11's native
-  // DWM corner preference, so keep it slightly tighter to match the same feel.
-  static const double _windows10CornerRadius = 6.0;
+  static const bool _disableNativeEffectsOnWindows11 = false;
+  static const int _windows11Build = 22000;
+  static const int _systemBackdropBuild = 22621;
+  static const double _windows10CornerRadius = 8.0;
   static const double _windows11CornerRadius = 8.0;
   static const String popupEffectCrashGuardPreferenceKey =
       'popup_window_effect_applying_native_effect';
 
-  String _effectMode = 'acrylic';
+  static const String modeNone = 'none';
+  static const String modeBlur = 'blur';
+  static const String modeAcrylic = 'acrylic';
+  static const String modeMicaMain = 'mica_main';
+  static const String modeMicaTransient = 'mica_transient';
+
+  final WindowsWindowEffectBridge _bridge;
+
+  String _effectMode = modeAcrylic;
   int _alpha = 160;
   bool _effectEnabled = true;
-  bool _dragSuspend = true; // Win10: disable effect during drag
+  bool _dragSuspend = true;
   bool _roundedCornersEnabled = true;
   bool _darkMode = true;
-  final WindowsWindowEffectBridge _windowBridge =
-      const WindowsWindowEffectBridge();
+
   bool _isInitialized = false;
   bool _isWindows11 = false;
+  int _windowsBuildNumber = 0;
   bool _recoveredFromCrash = false;
 
   String get effectMode => _effectMode;
   int get alpha => _alpha;
   bool get windowEffectsAvailable =>
-      !_isWindows11 || !_disableNativeEffectsOnWindows11;
+      Platform.isWindows &&
+      (!_isWindows11 || !_disableNativeEffectsOnWindows11);
   bool get effectEnabled => _effectEnabled && windowEffectsAvailable;
   bool get isWindows11 => _isWindows11;
+  int get windowsBuildNumber => _windowsBuildNumber;
+  bool get supportsSystemBackdrop =>
+      _isWindows11 && _windowsBuildNumber >= _systemBackdropBuild;
+  bool get supportsMicaAlt => supportsSystemBackdrop;
+  bool get supportsWin11Acrylic => _isWindows11;
   bool get recoveredFromCrash => _recoveredFromCrash;
   bool get dragSuspend => _dragSuspend;
   bool get roundedCornersEnabled => _roundedCornersEnabled;
@@ -43,19 +58,22 @@ class WindowEffectService extends ChangeNotifier {
   double get windowCornerRadius =>
       _isWindows11 ? _windows11CornerRadius : _windows10CornerRadius;
   bool get usesCustomWindowClip =>
-      !_isWindows11 ||
-      (effectEnabled && (_effectMode == 'acrylic' || _effectMode == 'blur'));
+      Platform.isWindows && (!_isWindows11 || (effectEnabled && _isLegacyBlur));
 
   bool get isTransparentBackground =>
       effectEnabled &&
-      (_effectMode == 'acrylic' ||
-          _effectMode == 'blur' ||
-          _effectMode == 'mica_main' ||
-          _effectMode == 'mica_transient');
+      const {
+        modeAcrylic,
+        modeBlur,
+        modeMicaMain,
+        modeMicaTransient,
+      }.contains(_effectMode);
 
   bool get isMicaEffect =>
       effectEnabled &&
-      (_effectMode == 'mica_main' || _effectMode == 'mica_transient');
+      (_effectMode == modeMicaMain || _effectMode == modeMicaTransient);
+
+  bool get _isLegacyBlur => _effectMode == modeBlur;
 
   void clearCrashRecoveryFlag() {
     if (_recoveredFromCrash) {
@@ -64,51 +82,29 @@ class WindowEffectService extends ChangeNotifier {
     }
   }
 
-  Future<void> initialize(
-      {Brightness initialBrightness = Brightness.dark}) async {
+  Future<void> initialize({
+    Brightness initialBrightness = Brightness.dark,
+  }) async {
     if (_isInitialized) return;
+
     _darkMode = initialBrightness == Brightness.dark;
     await _detectWindowsVersion();
 
     final prefs = await SharedPreferences.getInstance();
+    await _recoverPopupEffectCrashIfNeeded(prefs);
+    await _recoverMainEffectCrashIfNeeded(prefs);
 
-    final wasApplyingPopupNativeEffect =
-        prefs.getBool(popupEffectCrashGuardPreferenceKey) ?? false;
-    if (wasApplyingPopupNativeEffect) {
-      _recoveredFromCrash = true;
-      await prefs.setBool(popupEffectCrashGuardPreferenceKey, false);
-      try {
-        await ClientConfigService().setPopupWindowEffectMode(
-          ClientConfigService.popupWindowEffectSolid,
-        );
-      } catch (e) {
-        debugPrint('popup window effect crash recovery error: $e');
-      }
-    }
+    _effectMode = _normalizeModeForPlatform(
+      prefs.getString('window_effect_mode') ??
+          (_isWindows11 ? modeMicaMain : modeAcrylic),
+    );
+    _alpha = (prefs.getInt('window_effect_alpha') ?? 160).clamp(0, 255).toInt();
 
-    // Check if we crashed while applying acrylic previously
-    if (_isWindows11) {
-      final wasApplyingAcrylic =
-          prefs.getBool('window_effect_applying_acrylic') ?? false;
-      if (wasApplyingAcrylic) {
-        _recoveredFromCrash = true;
-        await prefs.setBool('window_effect_applying_acrylic', false);
-        await prefs.setString('window_effect_mode', 'mica_main');
-      }
-    }
-
-    _effectMode = prefs.getString('window_effect_mode') ??
-        (_isWindows11 ? 'mica_main' : 'acrylic');
-    _alpha = prefs.getInt('window_effect_alpha') ?? 160;
-
-    // 新用户：Win11 默认启用 Mica，Win10 默认关闭窗口特效。
-    // Win11 的 Mica 走 DWM 原生路径，比 Acrylic/Blur 更稳定。
     if (prefs.containsKey('window_effect_enabled')) {
       _effectEnabled = prefs.getBool('window_effect_enabled')!;
     } else {
       _effectEnabled = _isWindows11;
     }
-
     if (!windowEffectsAvailable) {
       _effectEnabled = false;
     }
@@ -116,126 +112,178 @@ class WindowEffectService extends ChangeNotifier {
     _dragSuspend = prefs.getBool('window_effect_drag_suspend') ?? true;
     _roundedCornersEnabled = prefs.getBool('window_rounded_corners') ?? true;
 
-    if (!_isWindows11 &&
-        (_effectMode == 'mica_main' || _effectMode == 'mica_transient')) {
-      _effectMode = 'acrylic';
-      await _saveSettings();
-    } else if (_isWindows11 && _effectMode == 'acrylic') {
-      // 避免 Win11 开启 acrylic 导致硬崩溃，强转为 mica_main
-      _effectMode = 'mica_main';
-      await _saveSettings();
-    }
-
-    await _applyWindowEffect();
-    try {
-      await _windowBridge.setDragSuspend(_dragSuspend);
-    } catch (e) {
-      debugPrint('setDragSuspend init error: $e');
-    }
+    await applyWindowEffect();
+    await _setNativeDragSuspend();
     _isInitialized = true;
     notifyListeners();
+  }
+
+  Future<void> _recoverPopupEffectCrashIfNeeded(
+    SharedPreferences prefs,
+  ) async {
+    final wasApplyingPopupNativeEffect =
+        prefs.getBool(popupEffectCrashGuardPreferenceKey) ?? false;
+    if (!wasApplyingPopupNativeEffect) return;
+
+    _recoveredFromCrash = true;
+    await prefs.setBool(popupEffectCrashGuardPreferenceKey, false);
+    try {
+      await ClientConfigService().setPopupWindowEffectMode(
+        ClientConfigService.popupWindowEffectSolid,
+      );
+    } catch (e) {
+      debugPrint('popup window effect crash recovery error: $e');
+    }
+  }
+
+  Future<void> _recoverMainEffectCrashIfNeeded(
+    SharedPreferences prefs,
+  ) async {
+    final wasApplyingAcrylic =
+        prefs.getBool('window_effect_applying_acrylic') ?? false;
+    if (!wasApplyingAcrylic) return;
+
+    _recoveredFromCrash = true;
+    await prefs.setBool('window_effect_applying_acrylic', false);
+    await prefs.setString('window_effect_mode', modeMicaMain);
   }
 
   Future<void> _detectWindowsVersion() async {
     if (!Platform.isWindows) {
       _isWindows11 = false;
+      _windowsBuildNumber = 0;
       return;
     }
+
     try {
       final result = await Process.run('cmd', ['/c', 'ver']);
-      final output = result.stdout.toString();
-      final match = RegExp(r'10\.0\.(\d+)').firstMatch(output);
-      if (match != null) {
-        final buildNumber = int.tryParse(match.group(1) ?? '0') ?? 0;
-        _isWindows11 = buildNumber >= 22000;
-        debugPrint('Windows build: $buildNumber, isWindows11: $_isWindows11');
-      }
+      final match = RegExp(r'10\.0\.(\d+)').firstMatch(
+        result.stdout.toString(),
+      );
+      final buildNumber = int.tryParse(match?.group(1) ?? '') ?? 0;
+      _windowsBuildNumber = buildNumber;
+      _isWindows11 = buildNumber >= _windows11Build;
+      debugPrint('Windows build: $buildNumber, isWindows11: $_isWindows11');
     } catch (e) {
       debugPrint('Failed to detect Windows version: $e');
       _isWindows11 = false;
+      _windowsBuildNumber = 0;
     }
+  }
+
+  String _normalizeModeForPlatform(String mode) {
+    final normalized = switch (mode.trim().toLowerCase()) {
+      modeNone => modeNone,
+      modeBlur => modeBlur,
+      modeAcrylic => modeAcrylic,
+      modeMicaMain => modeMicaMain,
+      modeMicaTransient => modeMicaTransient,
+      _ => _isWindows11 ? modeMicaMain : modeAcrylic,
+    };
+
+    if (!_isWindows11) {
+      return switch (normalized) {
+        modeMicaMain || modeMicaTransient => modeAcrylic,
+        _ => normalized,
+      };
+    }
+
+    if (!supportsSystemBackdrop) {
+      return switch (normalized) {
+        modeNone => modeNone,
+        modeBlur || modeMicaTransient => modeMicaMain,
+        _ => normalized,
+      };
+    }
+
+    if (normalized == modeBlur) {
+      return modeMicaMain;
+    }
+
+    return normalized;
   }
 
   Future<void> setEffectEnabled(bool enabled) async {
     final nextEnabled = windowEffectsAvailable ? enabled : false;
-    if (_effectEnabled != nextEnabled) {
-      _effectEnabled = nextEnabled;
-      await _applyWindowEffect();
-      await _saveSettings();
-      notifyListeners();
-    }
+    if (_effectEnabled == nextEnabled) return;
+
+    _effectEnabled = nextEnabled;
+    await applyWindowEffect();
+    await _saveSettings();
+    notifyListeners();
   }
 
   Future<void> setEffectMode(String mode) async {
-    if (_effectMode != mode) {
-      _effectMode = mode;
-      await _applyWindowEffect();
-      await _saveSettings();
-      notifyListeners();
-    }
+    final nextMode = _normalizeModeForPlatform(mode);
+    if (_effectMode == nextMode) return;
+
+    _effectMode = nextMode;
+    await applyWindowEffect();
+    await _saveSettings();
+    notifyListeners();
   }
 
   Future<void> setAlpha(int alpha) async {
-    if (_alpha != alpha) {
-      _alpha = alpha;
-      await _applyWindowEffect();
-      await _saveSettings();
-      notifyListeners();
-    }
+    final nextAlpha = alpha.clamp(0, 255).toInt();
+    if (_alpha == nextAlpha) return;
+
+    _alpha = nextAlpha;
+    await applyWindowEffect();
+    await _saveSettings();
+    notifyListeners();
   }
 
   Future<void> setDragSuspend(bool value) async {
-    if (_dragSuspend != value) {
-      _dragSuspend = value;
-      try {
-        await _windowBridge.setDragSuspend(value);
-      } catch (e) {
-        debugPrint('setDragSuspend error: $e');
-      }
-      await _saveSettings();
-      notifyListeners();
-    }
+    if (_dragSuspend == value) return;
+
+    _dragSuspend = value;
+    await _setNativeDragSuspend();
+    await _saveSettings();
+    notifyListeners();
   }
 
   Future<void> setRoundedCornersEnabled(bool value) async {
-    if (_roundedCornersEnabled != value) {
-      _roundedCornersEnabled = value;
-      await _applyWindowEffect();
-      await _saveSettings();
-      notifyListeners();
-    }
+    if (_roundedCornersEnabled == value) return;
+
+    _roundedCornersEnabled = value;
+    await applyWindowEffect();
+    await _saveSettings();
+    notifyListeners();
   }
 
   Future<void> setThemeBrightness(Brightness brightness) async {
     final nextDarkMode = brightness == Brightness.dark;
-    if (_darkMode == nextDarkMode) {
-      return;
-    }
+    if (_darkMode == nextDarkMode) return;
+
     _darkMode = nextDarkMode;
     if (_isInitialized) {
-      await _applyWindowEffect();
+      await applyWindowEffect();
       notifyListeners();
     }
   }
 
-  Future<void> _applyWindowEffect() async {
-    final prefs = await SharedPreferences.getInstance();
-    final isTryingAcrylicOnWin11 = _isWindows11 &&
-        effectEnabled &&
-        (_effectMode == 'acrylic' || _effectMode == 'blur');
+  Future<void> applyWindowEffect() async {
+    if (!Platform.isWindows) return;
 
-    if (isTryingAcrylicOnWin11) {
-      // 写入标记，如果在此之后发生硬崩溃，下次启动 initialize 时能检测到
+    final prefs = await SharedPreferences.getInstance();
+    final mode = _normalizeModeForPlatform(_effectMode);
+    if (mode != _effectMode) {
+      _effectMode = mode;
+    }
+
+    final isApplyingAcrylicOnWin11 =
+        _isWindows11 && effectEnabled && mode == modeAcrylic;
+
+    if (isApplyingAcrylicOnWin11) {
       await prefs.setBool('window_effect_applying_acrylic', true);
     }
 
     try {
-      final effectiveMode = effectEnabled
-          ? WindowsWindowEffectMode.fromName(_effectMode)
-          : WindowsWindowEffectMode.none;
-      await _windowBridge.applyEffect(
+      await _bridge.applyEffect(
         WindowsWindowEffectRequest(
-          mode: effectiveMode,
+          mode: effectEnabled
+              ? WindowsWindowEffectMode.fromName(mode)
+              : WindowsWindowEffectMode.none,
           alpha: effectEnabled ? _alpha : 255,
           roundedCornersEnabled: _roundedCornersEnabled,
           cornerRadius: windowCornerRadius.round(),
@@ -245,10 +293,18 @@ class WindowEffectService extends ChangeNotifier {
     } catch (e) {
       debugPrint('setWindowEffect error: $e');
     } finally {
-      if (isTryingAcrylicOnWin11) {
-        // 成功应用，清除标记
+      if (isApplyingAcrylicOnWin11) {
         await prefs.setBool('window_effect_applying_acrylic', false);
       }
+    }
+  }
+
+  Future<void> _setNativeDragSuspend() async {
+    if (!Platform.isWindows) return;
+    try {
+      await _bridge.setDragSuspend(_dragSuspend);
+    } catch (e) {
+      debugPrint('setDragSuspend error: $e');
     }
   }
 

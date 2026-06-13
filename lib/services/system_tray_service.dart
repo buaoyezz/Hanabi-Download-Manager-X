@@ -1,19 +1,19 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
-import 'package:system_tray/system_tray.dart';
+import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:path/path.dart' as path;
 import 'logger_service.dart';
 import 'client_config_service.dart';
+import 'package:win32/win32.dart';
 import 'kernel/kernel_manager.dart';
 
-class SystemTrayService {
+class SystemTrayService with TrayListener {
   static const MethodChannel _windowChannel =
       MethodChannel('com.hanabi.download/window');
-  final SystemTray _systemTray = SystemTray();
   bool _isInitialized = false;
   bool _isExiting = false;
   bool _trayMenuPrewarmed = false;
@@ -32,24 +32,9 @@ class SystemTrayService {
       _logger
           .info('System tray init, iconPath=$iconPath, showWindow=$showWindow');
 
-      await _systemTray.initSystemTray(
-        title: "Hanabi Download ManagerX",
-        iconPath: iconPath,
-        toolTip: "Hanabi Download ManagerX",
-      );
-
-      _systemTray.registerSystemTrayEventHandler((eventName) {
-        _logger.debug('Tray event: $eventName');
-        if (eventName == kSystemTrayEventClick) {
-          showMainWindow();
-        } else if (eventName == kSystemTrayEventRightClick) {
-          _showCustomTrayMenu();
-        }
-      });
-
-      final Menu menu = Menu();
-      await menu.buildFrom([]);
-      await _systemTray.setContextMenu(menu);
+      await trayManager.setIcon(iconPath);
+      await trayManager.setToolTip("Hanabi Download ManagerX");
+      trayManager.addListener(this);
       _scheduleTrayMenuPrewarm();
 
       _isInitialized = true;
@@ -180,7 +165,7 @@ class SystemTrayService {
       tooltip += " - 正在后台运行";
     }
 
-    _systemTray.setToolTip(tooltip);
+    trayManager.setToolTip(tooltip);
   }
 
   Future<String> _getIconPath() async {
@@ -215,6 +200,15 @@ class SystemTrayService {
     _logger.info('Hide main window to tray');
     windowManager.hide();
     updateToolTip(false);
+
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
+
+    if (Platform.isWindows) {
+      final process = GetCurrentProcess();
+      SetProcessWorkingSetSize(process, -1, -1);
+      _logger.info('Trimmed working set memory for background operation');
+    }
   }
 
   Future<bool> _requestNativeQuit() async {
@@ -265,7 +259,7 @@ class SystemTrayService {
 
     try {
       // 先销毁托盘图标，避免用户误以为应用只是退到后台。
-      _systemTray.destroy();
+      await trayManager.destroy();
       _isInitialized = false;
     } catch (e) {
       _logger.warning('Failed to destroy system tray during exit: $e');
@@ -298,7 +292,18 @@ class SystemTrayService {
     exit(0);
   }
 
+  @override
+  void onTrayIconMouseDown() {
+    showMainWindow();
+  }
+
+  @override
+  void onTrayIconRightMouseDown() {
+    _showCustomTrayMenu();
+  }
+
   void dispose() {
-    _systemTray.destroy();
+    trayManager.removeListener(this);
+    trayManager.destroy();
   }
 }

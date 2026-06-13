@@ -9,6 +9,7 @@ class SettingsSection extends StatelessWidget {
   final IconData? icon;
   final Widget Function(BuildContext, Color)? iconBuilder;
   final List<Widget> children;
+  final EdgeInsetsGeometry margin;
 
   const SettingsSection({
     super.key,
@@ -16,38 +17,60 @@ class SettingsSection extends StatelessWidget {
     this.icon,
     this.iconBuilder,
     required this.children,
+    this.margin = const EdgeInsets.symmetric(horizontal: 20),
   }) : assert(icon != null || iconBuilder != null);
 
   @override
   Widget build(BuildContext context) {
     final isDark = AppTheme.isDarkContext(context);
     final sectionBackground = AppTheme.cardBackground(
-      darkAlpha: 0.76,
-      lightAlpha: 0.86,
+      darkAlpha: 0.44,
+      lightAlpha: 0.68,
     );
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
+      margin: margin,
       decoration: BoxDecoration(
         color: sectionBackground,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(
           color: isDark
-              ? AppTheme.borderSubtle.withValues(alpha: 0.6)
-              : AppTheme.borderSubtle.withValues(alpha: 0.28),
+              ? AppTheme.borderSubtle.withValues(alpha: 0.44)
+              : AppTheme.borderSubtle.withValues(alpha: 0.22),
         ),
-        boxShadow: isDark ? null : AppTheme.shadowSm,
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                iconBuilder != null
-                    ? iconBuilder!(context, AppTheme.textSecondary)
-                    : Icon(icon, size: 16, color: AppTheme.textSecondary),
-                const SizedBox(width: 10),
+                Container(
+                  width: 24,
+                  height: 24,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentPrimary.withValues(
+                      alpha: isDark ? 0.10 : 0.08,
+                    ),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: iconBuilder != null
+                      ? iconBuilder!(
+                          context,
+                          isDark
+                              ? AppTheme.accentLight
+                              : AppTheme.accentPrimary,
+                        )
+                      : Icon(
+                          icon,
+                          size: 13,
+                          color: isDark
+                              ? AppTheme.accentLight
+                              : AppTheme.accentPrimary,
+                        ),
+                ),
+                const SizedBox(width: 9),
                 Text(
                   title,
                   style: FluentTheme.of(context).typography.body?.copyWith(
@@ -58,7 +81,7 @@ class SettingsSection extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             ...children,
           ],
         ),
@@ -108,7 +131,7 @@ class _SettingsItemState extends State<SettingsItem> {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: FluentTheme.of(context).typography.body?.copyWith(
-                      fontWeight: FontWeight.w400,
+                      fontWeight: FontWeight.w500,
                       color: AppTheme.textPrimary,
                       fontSize: 13,
                     ),
@@ -146,6 +169,7 @@ class _SettingsItemState extends State<SettingsItem> {
             style: FluentTheme.of(context).typography.caption?.copyWith(
                   color: AppTheme.textTertiary,
                   fontSize: 12,
+                  height: 1.25,
                 ),
           ),
         ],
@@ -166,18 +190,9 @@ class _SettingsItemState extends State<SettingsItem> {
     final radius = BorderRadius.circular(AppTheme.radiusSm);
     final background = _isHovered
         ? (isDark
-            ? AppTheme.bgLayer2.withValues(alpha: 0.70)
-            : AppTheme.surfaceCardHover.withValues(alpha: 0.94))
-        : (isDark
-            ? AppTheme.bgLayer2.withValues(alpha: 0.52)
-            : AppTheme.bgLayer2.withValues(alpha: 0.88));
-    final borderColor = _isHovered
-        ? (isDark
-            ? AppTheme.borderStrong.withValues(alpha: 0.65)
-            : AppTheme.borderDefault.withValues(alpha: 0.40))
-        : (isDark
-            ? AppTheme.borderSubtle.withValues(alpha: 0.45)
-            : AppTheme.borderSubtle.withValues(alpha: 0.22));
+            ? AppTheme.bgLayer2.withValues(alpha: 0.40)
+            : AppTheme.surfaceCardHover.withValues(alpha: 0.58))
+        : Colors.transparent;
 
     return MouseRegion(
       onEnter: (_) => _setHovered(true),
@@ -188,8 +203,6 @@ class _SettingsItemState extends State<SettingsItem> {
         decoration: BoxDecoration(
           color: background,
           borderRadius: radius,
-          border: Border.all(color: borderColor),
-          boxShadow: !isDark && _isHovered ? AppTheme.shadowSm : null,
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -329,19 +342,24 @@ class StatusIndicator extends StatelessWidget {
 /// 危险操作区域
 class DangerZone extends StatelessWidget {
   final List<Widget> children;
+  final EdgeInsetsGeometry margin;
 
-  const DangerZone({super.key, required this.children});
+  const DangerZone({
+    super.key,
+    required this.children,
+    this.margin = const EdgeInsets.symmetric(horizontal: 20),
+  });
 
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     final isDark = AppTheme.isDarkContext(context);
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(20),
+      margin: margin,
+      padding: const EdgeInsets.fromLTRB(16, 15, 16, 16),
       decoration: BoxDecoration(
         color: AppTheme.statusError.withValues(alpha: isDark ? 0.06 : 0.04),
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(
           color: AppTheme.statusError.withValues(alpha: isDark ? 0.3 : 0.18),
         ),
@@ -352,8 +370,8 @@ class DangerZone extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 28,
-                height: 28,
+                width: 24,
+                height: 24,
                 decoration: BoxDecoration(
                   color: AppTheme.statusError.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
@@ -387,18 +405,21 @@ class SettingsPageHeader extends StatelessWidget {
   final String title;
   final IconData? icon;
   final Widget Function(BuildContext, Color)? iconBuilder;
+  final Widget? commandBar;
 
   const SettingsPageHeader({
     super.key,
     required this.title,
     this.icon,
     this.iconBuilder,
+    this.commandBar,
   }) : assert(icon != null || iconBuilder != null);
 
   @override
   Widget build(BuildContext context) {
     final isDark = AppTheme.isDarkContext(context);
     return PageHeader(
+      commandBar: commandBar,
       title: Row(
         children: [
           Container(
@@ -420,11 +441,13 @@ class SettingsPageHeader extends StatelessWidget {
               ),
             ),
             child: iconBuilder != null
-                ? iconBuilder!(context, isDark ? AppTheme.accentLight : AppTheme.accentPrimary)
+                ? iconBuilder!(context,
+                    isDark ? AppTheme.accentLight : AppTheme.accentPrimary)
                 : Icon(
                     icon,
                     size: 18,
-                    color: isDark ? AppTheme.accentLight : AppTheme.accentPrimary,
+                    color:
+                        isDark ? AppTheme.accentLight : AppTheme.accentPrimary,
                   ),
           ),
           const SizedBox(width: 14),
