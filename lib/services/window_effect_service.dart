@@ -42,8 +42,7 @@ class WindowEffectService extends ChangeNotifier {
   String get effectMode => _effectMode;
   int get alpha => _alpha;
   bool get windowEffectsAvailable =>
-      Platform.isWindows &&
-      (!_isWindows11 || !_disableNativeEffectsOnWindows11);
+      effectsAvailableForWindowsBuild(_windowsBuildNumber);
   bool get effectEnabled => _effectEnabled && windowEffectsAvailable;
   bool get isWindows11 => _isWindows11;
   int get windowsBuildNumber => _windowsBuildNumber;
@@ -74,6 +73,56 @@ class WindowEffectService extends ChangeNotifier {
       (_effectMode == modeMicaMain || _effectMode == modeMicaTransient);
 
   bool get _isLegacyBlur => _effectMode == modeBlur;
+
+  static bool effectsAvailableForWindowsBuild(int windowsBuildNumber) {
+    final isWindows11 = windowsBuildNumber >= _windows11Build;
+    return Platform.isWindows &&
+        (!isWindows11 || !_disableNativeEffectsOnWindows11);
+  }
+
+  static bool isWindows11Build(int windowsBuildNumber) =>
+      windowsBuildNumber >= _windows11Build;
+
+  static bool supportsSystemBackdropForBuild(int windowsBuildNumber) =>
+      windowsBuildNumber >= _systemBackdropBuild;
+
+  static String normalizeModeForWindowsBuild(
+    String? mode,
+    int windowsBuildNumber,
+  ) {
+    final isWindows11 = isWindows11Build(windowsBuildNumber);
+    final supportsSystemBackdrop =
+        supportsSystemBackdropForBuild(windowsBuildNumber);
+    final normalized = switch (mode?.trim().toLowerCase()) {
+      modeNone => modeNone,
+      modeBlur => modeBlur,
+      modeAcrylic => modeAcrylic,
+      modeMicaMain => modeMicaMain,
+      modeMicaTransient => modeMicaTransient,
+      _ => isWindows11 ? modeMicaMain : modeAcrylic,
+    };
+
+    if (!isWindows11) {
+      return switch (normalized) {
+        modeMicaMain || modeMicaTransient => modeAcrylic,
+        _ => normalized,
+      };
+    }
+
+    if (!supportsSystemBackdrop) {
+      return switch (normalized) {
+        modeNone => modeNone,
+        modeBlur || modeMicaTransient => modeMicaMain,
+        _ => normalized,
+      };
+    }
+
+    if (normalized == modeBlur) {
+      return modeMicaMain;
+    }
+
+    return normalized;
+  }
 
   void clearCrashRecoveryFlag() {
     if (_recoveredFromCrash) {
@@ -129,7 +178,7 @@ class WindowEffectService extends ChangeNotifier {
     await prefs.setBool(popupEffectCrashGuardPreferenceKey, false);
     try {
       await ClientConfigService().setPopupWindowEffectMode(
-        ClientConfigService.popupWindowEffectSolid,
+        ClientConfigService.popupWindowEffectFollowMain,
       );
     } catch (e) {
       debugPrint('popup window effect crash recovery error: $e');
@@ -171,37 +220,8 @@ class WindowEffectService extends ChangeNotifier {
     }
   }
 
-  String _normalizeModeForPlatform(String mode) {
-    final normalized = switch (mode.trim().toLowerCase()) {
-      modeNone => modeNone,
-      modeBlur => modeBlur,
-      modeAcrylic => modeAcrylic,
-      modeMicaMain => modeMicaMain,
-      modeMicaTransient => modeMicaTransient,
-      _ => _isWindows11 ? modeMicaMain : modeAcrylic,
-    };
-
-    if (!_isWindows11) {
-      return switch (normalized) {
-        modeMicaMain || modeMicaTransient => modeAcrylic,
-        _ => normalized,
-      };
-    }
-
-    if (!supportsSystemBackdrop) {
-      return switch (normalized) {
-        modeNone => modeNone,
-        modeBlur || modeMicaTransient => modeMicaMain,
-        _ => normalized,
-      };
-    }
-
-    if (normalized == modeBlur) {
-      return modeMicaMain;
-    }
-
-    return normalized;
-  }
+  String _normalizeModeForPlatform(String mode) =>
+      normalizeModeForWindowsBuild(mode, _windowsBuildNumber);
 
   Future<void> setEffectEnabled(bool enabled) async {
     final nextEnabled = windowEffectsAvailable ? enabled : false;

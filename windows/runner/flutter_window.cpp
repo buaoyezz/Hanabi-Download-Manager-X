@@ -175,6 +175,8 @@ static COLORREF EffectTintColor(bool dark_mode) {
 
 static INT DwmBackdropForEffect(int effect_mode) {
   switch (effect_mode) {
+    case kEffectAcrylic:
+      return kDwmSystemBackdropTransientWindow;
     case kEffectMica:
       return kDwmSystemBackdropMainWindow;
     case kEffectMicaAlt:
@@ -311,6 +313,8 @@ static bool ApplyAccentEffect(HWND hwnd,
   }
   if (effect_mode == kEffectBlur) {
     alpha = std::max(32u, std::min(alpha, 140u));
+  } else if (effect_mode == kEffectAcrylic && limit_popup_alpha) {
+    alpha = std::max(48u, alpha);
   }
   policy.GradientColor =
       MakeAccentGradientColor(alpha, EffectTintColor(dark_mode));
@@ -1187,6 +1191,14 @@ void FlutterWindow::SetupMethodChannel() {
         } else if (call.method_name() == "setWindowEffect") {
           const auto* arguments = std::get_if<flutter::EncodableMap>(call.arguments());
           if (arguments) {
+            const bool was_effect_configured = effect_configured_;
+            const int previous_effect_mode = effect_mode_;
+            const int previous_effect_alpha = effect_alpha_;
+            const bool previous_dark_mode = dark_mode_;
+            const bool previous_rounded_corners_enabled =
+                rounded_corners_enabled_;
+            const int previous_corner_radius = corner_radius_;
+
             auto itMode = arguments->find(flutter::EncodableValue("mode"));
             auto itAlpha = arguments->find(flutter::EncodableValue("alpha"));
             auto itRoundedCorners =
@@ -1207,6 +1219,10 @@ void FlutterWindow::SetupMethodChannel() {
             if (itAlpha != arguments->end()) {
               if (const int32_t* a = std::get_if<int32_t>(&itAlpha->second)) {
                 effect_alpha_ = std::max(0, std::min(255, *a));
+              } else if (const int64_t* alpha64 =
+                             std::get_if<int64_t>(&itAlpha->second)) {
+                effect_alpha_ =
+                    std::max(0, std::min(255, static_cast<int>(*alpha64)));
               }
             }
             if (itDarkMode != arguments->end()) {
@@ -1225,8 +1241,18 @@ void FlutterWindow::SetupMethodChannel() {
               }
             }
             effect_configured_ = true;
-            ApplyWindowEffect(GetHandle(), true);
-            ScheduleWindowEffectRefresh(GetHandle());
+            const bool only_alpha_changed =
+                was_effect_configured &&
+                previous_effect_mode == effect_mode_ &&
+                previous_effect_alpha != effect_alpha_ &&
+                previous_dark_mode == dark_mode_ &&
+                previous_rounded_corners_enabled ==
+                    rounded_corners_enabled_ &&
+                previous_corner_radius == corner_radius_;
+            ApplyWindowEffect(GetHandle(), !only_alpha_changed);
+            if (!only_alpha_changed) {
+              ScheduleWindowEffectRefresh(GetHandle());
+            }
             result->Success();
           } else {
             result->Error("INVALID_ARGUMENT", "Missing map");
@@ -1845,20 +1871,25 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd, bool force) {
   int width = windowRect.right - windowRect.left;
   int height = windowRect.bottom - windowRect.top;
 
-  // Allow immediate update if effect mode changed or window size changed
-  bool modeChanged = (last_effect_mode_ != effect_mode_) ||
-                     (last_dark_mode_ != dark_mode_);
+  // Allow immediate update if effect mode, tint alpha, theme, or window size
+  // changed. Alpha-only updates should not tear down the current Accent/DWM
+  // state, otherwise DWM can present a fully transparent intermediate frame.
+  bool effectModeChanged = last_effect_mode_ != effect_mode_;
+  bool alphaChanged = last_effect_alpha_ != effect_alpha_;
+  bool modeChanged = effectModeChanged || (last_dark_mode_ != dark_mode_);
   bool cornerSettingChanged =
       (last_rounded_corners_enabled_ != rounded_corners_enabled_) ||
       (last_corner_radius_ != corner_radius_);
   bool sizeChanged = (width != (last_window_rect_.right - last_window_rect_.left) ||
                       height != (last_window_rect_.bottom - last_window_rect_.top));
-  if (!force && !modeChanged && !sizeChanged && !cornerSettingChanged &&
+  if (!force && !modeChanged && !alphaChanged && !sizeChanged &&
+      !cornerSettingChanged &&
       (currentTime - last_apply_time_ < 100)) {
     return;
   }
   last_apply_time_ = currentTime;
   last_effect_mode_ = effect_mode_;
+  last_effect_alpha_ = effect_alpha_;
   last_dark_mode_ = dark_mode_;
   last_rounded_corners_enabled_ = rounded_corners_enabled_;
   last_corner_radius_ = corner_radius_;
@@ -1884,16 +1915,17 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd, bool force) {
   char logBuf[256];
   const char* kindName = WindowKindName();
   sprintf_s(logBuf,
-            "ApplyWindowEffect: kind=%s mode=%d alpha=%d build=%lu changed=%d force=%d size=%dx%d",
+            "ApplyWindowEffect: kind=%s mode=%d alpha=%d build=%lu changed=%d alphaChanged=%d force=%d size=%dx%d",
             kindName, effect_mode_, effect_alpha_, buildNumber, modeChanged,
-            force, width, height);
+            alphaChanged, force, width, height);
   LogA(logBuf);
 
-  ConfigureDwmFrame(hwnd, dark_mode_);
-
   const bool supportsSystemBackdrop = buildNumber >= kSystemBackdropBuild;
+  const bool useDwmAcrylicBackdrop =
+      kind_ == WindowKind::kPopup && effect_mode_ == kEffectAcrylic;
   const bool useDwmBackdrop =
-      supportsSystemBackdrop && IsDwmBackdropEffect(effect_mode_);
+      supportsSystemBackdrop &&
+      (IsDwmBackdropEffect(effect_mode_) || useDwmAcrylicBackdrop);
   const bool useLegacyMica =
       !supportsSystemBackdrop && buildNumber >= kWin11Build &&
       (effect_mode_ == kEffectMica || effect_mode_ == kEffectMicaAlt);
@@ -1902,7 +1934,25 @@ void FlutterWindow::ApplyWindowEffect(HWND hwnd, bool force) {
   const bool needsTransparentFrame =
       effect_mode_ != kEffectNone || kind_ == WindowKind::kPopup;
 
-  if (modeChanged || force) {
+  const bool alphaOnlyChanged =
+      !force && alphaChanged && !modeChanged && !sizeChanged &&
+      !cornerSettingChanged;
+  if (alphaOnlyChanged) {
+    if (useAccent) {
+      const bool ok = ApplyAccentEffect(hwnd, effect_mode_, effect_alpha_,
+                                        dark_mode_,
+                                        kind_ == WindowKind::kPopup);
+      sprintf_s(logBuf,
+                "Accent alpha-only update mode=%d ok=%d alpha=%d build=%lu",
+                effect_mode_, ok ? 1 : 0, effect_alpha_, buildNumber);
+      LogA(logBuf);
+    }
+    return;
+  }
+
+  ConfigureDwmFrame(hwnd, dark_mode_);
+
+  if (effectModeChanged) {
     ResetDwmBackdrop(hwnd, buildNumber);
     DisableAccentPolicy(hwnd);
   }
@@ -1954,7 +2004,7 @@ DWORD FlutterWindow::WindowStyle() const {
     return WS_POPUP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
   }
   if (kind_ == WindowKind::kPopup) {
-    return WS_POPUP | WS_THICKFRAME | WS_SYSMENU | WS_MINIMIZEBOX;
+    return WS_POPUP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
   }
   if (kind_ == WindowKind::kTrayMenu) {
     return WS_POPUP;

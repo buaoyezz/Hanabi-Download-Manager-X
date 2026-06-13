@@ -106,6 +106,7 @@ class FlutterWindow : public Win32Window {
   std::vector<TrayMenuRegionRect> tray_menu_region_rects_;
   DWORD last_apply_time_ = 0;
   int last_effect_mode_ = -1;
+  int last_effect_alpha_ = -1;
   bool last_dark_mode_ = true;
   bool last_rounded_corners_enabled_ = true;
   int last_corner_radius_ = 14;

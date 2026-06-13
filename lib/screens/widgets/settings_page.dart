@@ -127,8 +127,8 @@ class _SettingsPageState extends State<SettingsPage> {
       createSmoothScrollController(config: SmoothScrollConfig.fast);
 
   // Search state
-  String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  int _lastSearchRegistryCount = 0;
 
   // Download configuration state
   int _threads = 8;
@@ -210,6 +210,8 @@ class _SettingsPageState extends State<SettingsPage> {
       ClientConfigService.browserDownloadModeSmart;
   String _popupWindowEffectMode =
       ClientConfigService.popupWindowEffectFollowMain;
+  int _popupWindowEffectAlpha =
+      ClientConfigService.defaultPopupWindowEffectAlpha;
   bool _enableClipboardListener = true;
   bool _onlineStatsEnabled = true;
   int _browserExtensionPort = ClientConfigService.defaultBrowserExtensionPort;
@@ -238,6 +240,10 @@ class _SettingsPageState extends State<SettingsPage> {
       _devModeService =
           Provider.of<DeveloperModeService>(context, listen: false);
       _devModeService?.addListener(_onDeveloperModeChanged);
+
+      if (mounted) {
+        setState(() {});
+      }
     });
   }
 
@@ -284,6 +290,7 @@ class _SettingsPageState extends State<SettingsPage> {
       final browserDownloadHandlingMode =
           config.getBrowserDownloadHandlingMode();
       final popupWindowEffectMode = config.getPopupWindowEffectMode();
+      final popupWindowEffectAlpha = config.getPopupWindowEffectAlpha();
       final enableClipboardListener = config.getEnableClipboardListener();
       final onlineStatsEnabled = config.getEnableOnlineStats();
       final browserExtensionPort = config.getBrowserExtensionPort();
@@ -294,6 +301,7 @@ class _SettingsPageState extends State<SettingsPage> {
           _showTrayRunningStatus = showTrayRunningStatus;
           _browserDownloadHandlingMode = browserDownloadHandlingMode;
           _popupWindowEffectMode = popupWindowEffectMode;
+          _popupWindowEffectAlpha = popupWindowEffectAlpha;
           _enableClipboardListener = enableClipboardListener;
           _onlineStatsEnabled = onlineStatsEnabled;
           _browserExtensionPort = browserExtensionPort;
@@ -424,8 +432,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ClientConfigService.normalizePopupWindowEffectMode(value);
 
       if (windowEffect.isWindows11 &&
-          (normalized == ClientConfigService.popupWindowEffectAcrylic ||
-              normalized == ClientConfigService.popupWindowEffectBlur)) {
+          normalized == ClientConfigService.popupWindowEffectBlur) {
         final confirmed = await showDialog<bool>(
           context: context,
           builder: (context) => ContentDialog(
@@ -463,6 +470,28 @@ class _SettingsPageState extends State<SettingsPage> {
           _popupWindowEffectSavedTitle,
           message: _popupWindowEffectDescription(normalized, windowEffect),
         );
+      }
+    } catch (e) {
+      if (mounted) {
+        final t = AppLocalizations.of(context)!;
+        NotificationManager.of(context)?.showError(
+          t.settingsSaveFailedTitle,
+          message: t.settingsSaveFailedMessage(e.toString()),
+        );
+      }
+    }
+  }
+
+  Future<void> _savePopupWindowEffectAlpha(int value) async {
+    try {
+      final config = Provider.of<ClientConfigService>(context, listen: false);
+      final nextAlpha = value.clamp(0, 255).toInt();
+      await config.setPopupWindowEffectAlpha(nextAlpha);
+
+      if (mounted) {
+        setState(() {
+          _popupWindowEffectAlpha = nextAlpha;
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -1715,6 +1744,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final t = AppLocalizations.of(context)!;
 
     final tabItems = _settingsTabItems(t, isDeveloperMode);
+    _refreshSearchSuggestionsAfterFrame();
 
     return ScaffoldPage(
       header: SettingsPageHeader(
@@ -1724,36 +1754,44 @@ class _SettingsPageState extends State<SettingsPage> {
           padding: const EdgeInsets.only(right: 20.0),
           child: SizedBox(
             width: 260,
-            child: TextBox(
+            child: AutoSuggestBox<RegisteredSetting>(
               controller: _searchController,
+              items: SettingsSearchRegistry.getAllSettings().map((item) {
+                return AutoSuggestBoxItem<RegisteredSetting>(
+                  value: item,
+                  label: item.title,
+                );
+              }).toList(),
+              onSelected: (item) {
+                if (item.value != null) {
+                  _selectTab(item.value!.tabIndex);
+                  Future.delayed(const Duration(milliseconds: 100), () {
+                    final key =
+                        SettingsSearchRegistry.getKey(item.value!.targetId);
+                    if (key.currentContext != null) {
+                      Scrollable.ensureVisible(
+                        key.currentContext!,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    }
+                  });
+                  // Optionally clear the text after navigation
+                  // _searchController.clear();
+                }
+              },
               placeholder: t.settingsSearchPlaceholder,
-              prefix: const Padding(
-                padding: EdgeInsets.only(left: 8.0),
+              trailingIcon: const Padding(
+                padding: EdgeInsets.only(right: 8.0),
                 child: Icon(FluentIcons.search),
               ),
-              suffixMode: OverlayVisibilityMode.editing,
-              suffix: IconButton(
-                icon: const Icon(FluentIcons.clear),
-                onPressed: () {
-                  _searchController.clear();
-                  setState(() => _searchQuery = '');
-                },
-              ),
-              onChanged: (v) => setState(() => _searchQuery = v),
+              clearButtonEnabled: true,
             ),
           ),
         ),
       ),
       content: LayoutBuilder(
         builder: (context, constraints) {
-          if (_searchQuery.isNotEmpty) {
-            return SmoothSingleChildScrollView(
-              config: SmoothScrollConfig.fast,
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-              child: _buildSearchResults(context, isDeveloperMode),
-            );
-          }
-
           final useSideNavigation = constraints.maxWidth >= 900;
           if (useSideNavigation) {
             return Padding(
@@ -1877,6 +1915,17 @@ class _SettingsPageState extends State<SettingsPage> {
     ];
   }
 
+  void _refreshSearchSuggestionsAfterFrame() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final nextCount = SettingsSearchRegistry.getAllSettings().length;
+      if (nextCount == _lastSearchRegistryCount) return;
+      setState(() {
+        _lastSearchRegistryCount = nextCount;
+      });
+    });
+  }
+
   Widget _buildAnimatedSettingsContent(
     BuildContext context,
     bool isDeveloperMode,
@@ -1897,7 +1946,10 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           );
         },
-        child: _buildCurrentTabContent(context, isDeveloperMode),
+        child: SettingsTabScope(
+          tabIndex: _currentTabIndex,
+          child: _buildCurrentTabContent(context, isDeveloperMode),
+        ),
       ),
     );
   }
@@ -2097,35 +2149,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildSearchResults(BuildContext context, bool isDeveloperMode) {
-    final results = [
-      ..._buildGeneralTab(context),
-      ..._buildDownloadTab(context),
-      ..._buildNetworkTab(context),
-      ..._buildAdvancedTab(context),
-    ].whereType<Widget>().toList();
-
-    if (results.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 40.0),
-        child: Center(
-          child: Text(
-            'No results found', // Fallback, could be localized
-            style: FluentTheme.of(context).typography.subtitle,
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ...results,
-        const SizedBox(height: 40),
-      ],
-    );
-  }
-
   void _selectTab(int index) {
     if (_currentTabIndex == index) {
       return;
@@ -2271,18 +2294,19 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  // 通用设置
   List<Widget> _buildGeneralTab(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     return [
       if (Platform.isWindows) ...[
         _buildSection(
           context,
+          searchId: 'settingsSectionSystem',
           title: t.settingsSectionSystem,
           icon: custom_icons.FluentIcons.power_button,
           children: [
             _buildSettingItem(
               context,
+              searchId: 'settingsAutoStart',
               title: t.settingsAutoStartTitle,
               subtitle: t.settingsAutoStartSubtitle,
               trailing: ToggleSwitch(
@@ -2296,11 +2320,13 @@ class _SettingsPageState extends State<SettingsPage> {
       ],
       _buildSection(
         context,
+        searchId: 'settingsSectionBehavior',
         title: t.settingsSectionBehavior,
         icon: custom_icons.FluentIcons.processing,
         children: [
           _buildSettingItem(
             context,
+            searchId: 'settingsCloseBehavior',
             title: t.settingsCloseBehaviorTitle,
             subtitle:
                 _getCloseButtonBehaviorDescription(_closeButtonBehavior, t),
@@ -2329,6 +2355,7 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           _buildSettingItem(
             context,
+            searchId: 'settingsCompleteNotify',
             title: t.settingsCompleteNotifyTitle,
             subtitle: t.settingsCompleteNotifySubtitle,
             trailing: ToggleSwitch(
@@ -2366,33 +2393,30 @@ class _SettingsPageState extends State<SettingsPage> {
   List<Widget> _buildDownloadTab(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     final windowEffect = context.watch<WindowEffectService>();
-    var popupEffectModeForUi = _popupWindowEffectMode;
-    final popupModeUnsupportedOnWin11 = windowEffect.isWindows11 &&
-        (_popupWindowEffectMode == ClientConfigService.popupWindowEffectBlur ||
-            (!windowEffect.supportsSystemBackdrop &&
-                _popupWindowEffectMode ==
-                    ClientConfigService.popupWindowEffectMicaTransient));
+    var popupEffectModeForUi =
+        ClientConfigService.normalizePopupWindowEffectMode(
+      _popupWindowEffectMode,
+    );
     if (!windowEffect.isWindows11 &&
-        (_popupWindowEffectMode ==
-                ClientConfigService.popupWindowEffectMicaMain ||
-            _popupWindowEffectMode ==
-                ClientConfigService.popupWindowEffectMicaTransient)) {
-      popupEffectModeForUi = ClientConfigService.popupWindowEffectSolid;
-    } else if (popupModeUnsupportedOnWin11) {
-      popupEffectModeForUi = ClientConfigService.popupWindowEffectMicaMain;
+        popupEffectModeForUi == ClientConfigService.popupWindowEffectMicaMain) {
+      popupEffectModeForUi = ClientConfigService.popupWindowEffectAcrylic;
     }
     final popupMayShow = ClientConfigService.browserDownloadModeMayShowPopup(
       _browserDownloadHandlingMode,
     );
+    final popupUsesIndependentEffect =
+        popupEffectModeForUi != ClientConfigService.popupWindowEffectFollowMain;
 
     return [
       _buildSection(
         context,
+        searchId: 'settingsDownloadPath',
         title: t.settingsDownloadPathSection,
         icon: custom_icons.FluentIcons.folder_open,
         children: [
           _buildSettingItem(
             context,
+            searchId: 'settingsDownloadPath',
             title: t.settingsDownloadPathTitle,
             subtitle: _downloadPath,
             trailing: Button(
@@ -2403,6 +2427,7 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 12),
           _buildSettingItem(
             context,
+            searchId: 'settingsConflictStrategy',
             title: t.settingsConflictStrategyTitle,
             subtitle: t.settingsConflictStrategySubtitle,
             trailing: ComboBox<String>(
@@ -2433,6 +2458,7 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           _buildSettingItem(
             context,
+            searchId: 'settingsAutoDownload',
             title: t.settingsAutoDownloadTitle,
             subtitle: t.settingsAutoDownloadSubtitle,
             trailing: ToggleSwitch(
@@ -2498,8 +2524,49 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           const SizedBox(height: 12),
+          if (popupUsesIndependentEffect) ...[
+            _buildDisabledSetting(
+              enabled: popupMayShow,
+              child: _buildSettingItem(
+                context,
+                title: _popupWindowEffectAlphaTitle,
+                subtitle: _popupWindowEffectAlphaDescription(
+                  popupEffectModeForUi,
+                ),
+                trailing: SizedBox(
+                  width: 250,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Slider(
+                          value: _popupWindowEffectAlpha.toDouble(),
+                          min: 0,
+                          max: 255,
+                          divisions: 255,
+                          label: _popupWindowEffectAlpha.toString(),
+                          onChanged: (value) {
+                            _savePopupWindowEffectAlpha(value.toInt());
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      SizedBox(
+                        width: 40,
+                        child: Text(
+                          '$_popupWindowEffectAlpha',
+                          style: FluentTheme.of(context).typography.bodyStrong,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           _buildSettingItem(
             context,
+            searchId: 'settingsClipboardListener',
             title: t.settingsClipboardListenerTitle,
             subtitle: t.settingsClipboardListenerSubtitle,
             trailing: ToggleSwitch(
@@ -2512,11 +2579,13 @@ class _SettingsPageState extends State<SettingsPage> {
       const SizedBox(height: 24),
       _buildSection(
         context,
+        searchId: 'settingsDownloadConfig',
         title: t.settingsDownloadConfigSection,
         icon: custom_icons.FluentIcons.settings,
         children: [
           _buildSettingItem(
             context,
+            searchId: 'settingsDownloadMode',
             title: t.settingsDownloadModeTitle,
             subtitle: _getModeDescription(_mode, t),
             trailing: _loadingConfig
@@ -2551,6 +2620,7 @@ class _SettingsPageState extends State<SettingsPage> {
             enabled: _mode == 'manual' || _mode == 'threads_only',
             child: _buildSettingItem(
               context,
+              searchId: 'settingsThreads',
               title: t.settingsThreadsTitle,
               subtitle: t.settingsThreadsSubtitle,
               trailing: SizedBox(
@@ -2587,6 +2657,7 @@ class _SettingsPageState extends State<SettingsPage> {
             enabled: _mode == 'manual' || _mode == 'segments_only',
             child: _buildSettingItem(
               context,
+              searchId: 'settingsSegments',
               title: t.settingsSegmentsTitle,
               subtitle: t.settingsSegmentsSubtitle,
               trailing: SizedBox(
@@ -2621,6 +2692,7 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 12),
           _buildSettingItem(
             context,
+            searchId: 'settingsDynamicSegments',
             title: t.settingsDynamicSegmentsTitle,
             subtitle: t.settingsDynamicSegmentsSubtitle,
             trailing: ToggleSwitch(
@@ -2643,6 +2715,7 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 12),
           _buildSettingItem(
             context,
+            searchId: 'settingsMaxConcurrent',
             title: t.settingsMaxConcurrentTitle,
             subtitle: t.settingsMaxConcurrentSubtitle,
             trailing: SizedBox(
@@ -2682,6 +2755,7 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           _buildSettingItem(
             context,
+            searchId: 'settingsSegmentSpeedLimit',
             title: t.settingsSegmentSpeedLimitTitle,
             subtitle: t.settingsSegmentSpeedLimitSubtitle,
             trailing: SizedBox(
@@ -2739,6 +2813,7 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 12),
           _buildSettingItem(
             context,
+            searchId: 'settingsGlobalSpeedLimit',
             title: t.settingsGlobalSpeedLimitTitle,
             subtitle: t.settingsGlobalSpeedLimitSubtitle,
             trailing: SizedBox(
@@ -2778,6 +2853,7 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 12),
           _buildSettingItem(
             context,
+            searchId: 'settingsHttpVersion',
             title: t.settingsHttpVersionTitle,
             subtitle: t.settingsHttpVersionSubtitle,
             trailing: ComboBox<String>(
@@ -2884,11 +2960,13 @@ class _SettingsPageState extends State<SettingsPage> {
     return [
       _buildSection(
         context,
+        searchId: 'settingsProxy',
         title: t.settingsProxySection,
         icon: custom_icons.FluentIcons.network_tower,
         children: [
           _buildSettingItem(
             context,
+            searchId: 'settingsProxy',
             title: t.settingsProxyEnableTitle,
             subtitle: t.settingsProxyEnableSubtitle,
             trailing: ToggleSwitch(
@@ -2903,6 +2981,7 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 12),
             _buildSettingItem(
               context,
+              searchId: 'settingsProxyType',
               title: t.settingsProxyTypeTitle,
               subtitle: t.settingsProxyTypeSubtitle,
               trailing: ComboBox<String>(
@@ -2937,6 +3016,7 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 12),
               _buildSettingItem(
                 context,
+                searchId: 'settingsProxyServer',
                 title: t.settingsProxyServerTitle,
                 subtitle: t.settingsProxyServerSubtitle,
                 trailing: SizedBox(
@@ -2980,6 +3060,7 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 12),
               _buildSettingItem(
                 context,
+                searchId: 'settingsProxyAuth',
                 title: t.settingsProxyAuthTitle,
                 subtitle: t.settingsProxyAuthSubtitle,
                 trailing: ToggleSwitch(
@@ -2996,6 +3077,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 // 认证信息
                 _buildSettingItem(
                   context,
+                  searchId: 'settingsProxyUsername',
                   title: t.settingsProxyUsernameTitle,
                   subtitle: t.settingsProxyUsernameSubtitle,
                   trailing: SizedBox(
@@ -3016,6 +3098,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
                 _buildSettingItem(
                   context,
+                  searchId: 'settingsProxyPassword',
                   title: t.settingsProxyPasswordTitle,
                   subtitle: t.settingsProxyPasswordSubtitle,
                   trailing: SizedBox(
@@ -3096,6 +3179,7 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           _buildUaSettingItem(
             context,
+            searchId: 'settingsDefaultUserAgent',
             title: t.settingsDefaultUserAgentTitle,
             subtitle: t.settingsDefaultUserAgentSubtitle,
             trailing: SizedBox(
@@ -3121,6 +3205,7 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 12),
           _buildUaSettingItem(
             context,
+            searchId: 'settingsUaPreset',
             title: t.settingsUaPresetTitle,
             subtitle: t.settingsUaPresetSubtitle,
             trailing: SizedBox(
@@ -3156,6 +3241,7 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 12),
           _buildUaSettingItem(
             context,
+            searchId: 'settingsUaCustomCreate',
             title: t.settingsUaCustomCreateTitle,
             subtitle: t.settingsUaCustomCreateSubtitle,
             trailing: ConstrainedBox(
@@ -3252,6 +3338,7 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 12),
           _buildUaSettingItem(
             context,
+            searchId: 'settingsUaCustomList',
             title: t.settingsUaCustomListTitle,
             subtitle: _customUaPacks.isEmpty
                 ? t.settingsUaCustomListEmpty
@@ -3421,6 +3508,7 @@ class _SettingsPageState extends State<SettingsPage> {
         children: [
           _buildSettingItem(
             context,
+            searchId: 'settingsOnlineStats',
             title: t.settingsOnlineStatsTitle,
             subtitle: t.settingsOnlineStatsSubtitle,
             trailing: ToggleSwitch(
@@ -3431,6 +3519,7 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: 12),
           _buildSettingItem(
             context,
+            searchId: 'settingsDownloadCardHttpBadge',
             title: t.settingsDownloadCardHttpBadgeTitle,
             subtitle: t.settingsDownloadCardHttpBadgeSubtitle,
             trailing: ToggleSwitch(
@@ -3458,11 +3547,13 @@ class _SettingsPageState extends State<SettingsPage> {
 
     return _buildSection(
       context,
+      searchId: 'settingsLogManagement',
       title: t.settingsLogManagementSection,
       icon: custom_icons.FluentIcons.text_document,
       children: [
         _buildSettingItem(
           context,
+          searchId: 'settingsLogClear',
           title: t.settingsLogClearTitle,
           subtitle: t.settingsLogClearSubtitle,
           trailing: Button(
@@ -3473,6 +3564,7 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(height: 12),
         _buildSettingItem(
           context,
+          searchId: 'settingsLogOpenDir',
           title: t.settingsLogOpenDirTitle,
           subtitle: t.settingsLogOpenDirSubtitle,
           trailing: Button(
@@ -3483,6 +3575,7 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(height: 12),
         _buildSettingItem(
           context,
+          searchId: 'settingsLogRetention',
           title: t.settingsLogRetentionTitle,
           subtitle: t.settingsLogRetentionSubtitle(retentionDays),
           trailing: ComboBox<int>(
@@ -3583,11 +3676,13 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (context, devMode, child) {
         return _buildSection(
           context,
+          searchId: 'settingsDeveloper',
           title: t.settingsDeveloperSection,
           icon: custom_icons.FluentIcons.developer_tools,
           children: [
             _buildSettingItem(
               context,
+              searchId: 'settingsDeveloperMode',
               title: t.settingsDeveloperModeTitle,
               subtitle: t.settingsDeveloperModeSubtitle,
               trailing: ToggleSwitch(
@@ -3651,11 +3746,13 @@ class _SettingsPageState extends State<SettingsPage> {
     final t = AppLocalizations.of(context)!;
     return _buildSection(
       context,
+      searchId: 'settingsKernel',
       title: t.settingsKernelSection,
       icon: custom_icons.FluentIcons.processing,
       children: [
         _buildSettingItem(
           context,
+          searchId: 'settingsKernelCurrent',
           title: t.settingsKernelCurrentTitle,
           subtitle:
               '${AppConstants.newKernelFullName} | ${AppConstants.newKernelVersion} | ${AppConstants.newKernelBuildNumber}',
@@ -3681,6 +3778,7 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(height: 12),
         _buildSettingItem(
           context,
+          searchId: 'settingsBrowserExtensionPort',
           title: t.settingsBrowserExtensionPortTitle,
           subtitle: t.settingsBrowserExtensionPortSubtitle(
             _browserExtensionPort,
@@ -3812,21 +3910,16 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _buildSection(
     BuildContext context, {
+    String? searchId,
     required String title,
     required IconData icon,
     required List<Widget?> children,
   }) {
-    final validChildren = children.whereType<Widget>().toList();
-    if (_searchQuery.isNotEmpty && validChildren.isEmpty) {
-      if (!title.toLowerCase().contains(_searchQuery.toLowerCase())) {
-        return const SizedBox.shrink();
-      }
-    }
     return SettingsSection(
+      searchId: searchId,
       title: title,
       icon: icon,
-      margin: EdgeInsets.zero,
-      children: validChildren,
+      children: children.whereType<Widget>().toList(),
     );
   }
 
@@ -3974,20 +4067,25 @@ class _SettingsPageState extends State<SettingsPage> {
     };
   }
 
+  String get _popupWindowEffectAlphaTitle => _isChineseLocale
+      ? '\u5f39\u7a97\u7279\u6548\u900f\u660e\u5ea6'
+      : 'Popup effect opacity';
+
+  String _popupWindowEffectAlphaDescription(String mode) {
+    final label = _popupWindowEffectLabel(mode);
+    return _isChineseLocale
+        ? '$label \u72ec\u7acb\u900f\u660e\u5ea6\uff1b\u8ddf\u968f\u4e3b\u7a97\u53e3\u65f6\u4f7f\u7528\u4e3b\u7a97\u53e3\u900f\u660e\u5ea6'
+        : '$label uses this independent opacity; follow mode uses the main window opacity.';
+  }
+
   List<ComboBoxItem<String>> _popupWindowEffectItems(
     WindowEffectService windowEffect,
   ) {
     final values = <String>[
       ClientConfigService.popupWindowEffectFollowMain,
-      ClientConfigService.popupWindowEffectSolid,
-      if (!windowEffect.isWindows11 || windowEffect.supportsWin11Acrylic)
-        ClientConfigService.popupWindowEffectAcrylic,
-      if (!windowEffect.isWindows11) ClientConfigService.popupWindowEffectBlur,
-      if (windowEffect.isWindows11) ...[
+      ClientConfigService.popupWindowEffectAcrylic,
+      if (windowEffect.isWindows11)
         ClientConfigService.popupWindowEffectMicaMain,
-        if (windowEffect.supportsMicaAlt)
-          ClientConfigService.popupWindowEffectMicaTransient,
-      ],
     ];
 
     return [
@@ -4017,19 +4115,14 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget? _buildSettingItem(
     BuildContext context, {
+    String? searchId,
     required String title,
     required String subtitle,
     required Widget trailing,
     bool showBetaBadge = false,
   }) {
-    if (_searchQuery.isNotEmpty) {
-      final query = _searchQuery.toLowerCase();
-      if (!title.toLowerCase().contains(query) &&
-          !subtitle.toLowerCase().contains(query)) {
-        return null;
-      }
-    }
     return SettingsItem(
+      searchId: searchId,
       title: title,
       subtitle: subtitle,
       trailing: trailing,
@@ -4039,18 +4132,13 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget? _buildUaSettingItem(
     BuildContext context, {
+    String? searchId,
     required String title,
     required String subtitle,
     required Widget trailing,
   }) {
-    if (_searchQuery.isNotEmpty) {
-      final query = _searchQuery.toLowerCase();
-      if (!title.toLowerCase().contains(query) &&
-          !subtitle.toLowerCase().contains(query)) {
-        return null;
-      }
-    }
     return SettingsItem(
+      searchId: searchId,
       title: title,
       subtitle: subtitle,
       trailing: trailing,
@@ -4066,6 +4154,7 @@ class _SettingsPageState extends State<SettingsPage> {
       margin: EdgeInsets.zero,
       children: [
         SettingsItem(
+          searchId: 'settingsDangerCleanTemp',
           title: t.settingsDangerCleanTempTitle,
           subtitle: t.settingsDangerCleanTempSubtitle,
           trailing: Button(
@@ -4075,6 +4164,7 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         const SizedBox(height: 12),
         SettingsItem(
+          searchId: 'settingsDangerClearData',
           title: t.settingsDangerClearDataTitle,
           subtitle: t.settingsDangerClearDataSubtitle,
           trailing: FilledButton(

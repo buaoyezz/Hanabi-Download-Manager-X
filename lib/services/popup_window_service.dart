@@ -193,6 +193,8 @@ class PopupWindowService {
         final effect = Provider.of<WindowEffectService>(context, listen: false);
         final config = Provider.of<ClientConfigService>(context, listen: false);
         final popupMode = config.getPopupWindowEffectMode();
+        final followsMainWindow =
+            popupMode == ClientConfigService.popupWindowEffectFollowMain;
         final resolvedMode = _resolvePopupEffectMode(
           popupMode: popupMode,
           mainEffectMode: effect.effectMode,
@@ -200,10 +202,13 @@ class PopupWindowService {
           windowsBuildNumber: effect.windowsBuildNumber,
         );
         final effectEnabled = resolvedMode != 'none';
+        final alpha = followsMainWindow
+            ? effect.alpha
+            : config.getPopupWindowEffectAlpha();
         return <String, dynamic>{
           'enabled': effectEnabled,
           'mode': resolvedMode,
-          'alpha': effectEnabled ? effect.alpha : 255,
+          'alpha': effectEnabled ? alpha : 255,
           'is_windows11': effect.isWindows11,
           'windows_build_number': effect.windowsBuildNumber,
           'rounded_corners_enabled': effect.roundedCornersEnabled,
@@ -219,31 +224,53 @@ class PopupWindowService {
     try {
       final config = ClientConfigService();
       final popupMode = config.getPopupWindowEffectMode();
-      if (popupMode == ClientConfigService.popupWindowEffectFollowMain) {
-        return null;
-      }
+      final followsMainWindow =
+          popupMode == ClientConfigService.popupWindowEffectFollowMain;
       final windowsBuildNumber = await _detectWindowsBuildNumber();
+      final prefs = await SharedPreferences.getInstance();
+      final isWindows11 =
+          WindowEffectService.isWindows11Build(windowsBuildNumber);
+      final mainEffectMode = WindowEffectService.normalizeModeForWindowsBuild(
+        prefs.getString('window_effect_mode') ??
+            (isWindows11
+                ? WindowEffectService.modeMicaMain
+                : WindowEffectService.modeAcrylic),
+        windowsBuildNumber,
+      );
+      final mainEffectEnabled =
+          WindowEffectService.effectsAvailableForWindowsBuild(
+                windowsBuildNumber,
+              ) &&
+              (prefs.containsKey('window_effect_enabled')
+                  ? (prefs.getBool('window_effect_enabled') ?? false)
+                  : isWindows11);
       final resolvedMode = _resolvePopupEffectMode(
         popupMode: popupMode,
-        mainEffectMode: 'none',
-        mainEffectEnabled: false,
+        mainEffectMode: mainEffectMode,
+        mainEffectEnabled: mainEffectEnabled,
         windowsBuildNumber: windowsBuildNumber,
       );
       final effectEnabled = resolvedMode != 'none';
       final darkMode =
           WidgetsBinding.instance.platformDispatcher.platformBrightness ==
               Brightness.dark;
-      final isWindows11 = windowsBuildNumber >= 22000;
+      final mainAlpha =
+          (prefs.getInt('window_effect_alpha') ?? config.getWindowEffectAlpha())
+              .clamp(0, 255)
+              .toInt();
+      final alpha =
+          followsMainWindow ? mainAlpha : config.getPopupWindowEffectAlpha();
       return <String, dynamic>{
         'enabled': effectEnabled,
         'mode': resolvedMode,
-        'alpha': effectEnabled ? config.getWindowEffectAlpha() : 255,
+        'alpha': effectEnabled ? alpha : 255,
         'is_windows11': isWindows11,
         'windows_build_number': windowsBuildNumber,
-        'rounded_corners_enabled': true,
-        'corner_radius': isWindows11 ? 8 : 6,
+        'rounded_corners_enabled':
+            prefs.getBool('window_rounded_corners') ?? true,
+        'corner_radius': 8,
         'dark_mode': darkMode,
-        'drag_suspend': true,
+        'drag_suspend': prefs.getBool('window_effect_drag_suspend') ?? true,
       };
     } catch (e) {
       _logger.warning('Unable to snapshot window effect from config: $e');
@@ -269,31 +296,42 @@ class PopupWindowService {
     required bool mainEffectEnabled,
     required int windowsBuildNumber,
   }) {
-    final isWindows11 = windowsBuildNumber >= 22000;
-    final supportsSystemBackdrop = windowsBuildNumber >= 22621;
     final normalized =
         ClientConfigService.normalizePopupWindowEffectMode(popupMode);
     if (normalized == ClientConfigService.popupWindowEffectFollowMain) {
-      return mainEffectEnabled ? mainEffectMode : 'none';
+      return mainEffectEnabled
+          ? _normalizeSupportedPopupEffectMode(
+              mainEffectMode,
+              windowsBuildNumber,
+            )
+          : 'none';
     }
-    if (normalized == ClientConfigService.popupWindowEffectSolid) {
-      return 'none';
+    return _normalizeSupportedPopupEffectMode(
+      normalized,
+      windowsBuildNumber,
+    );
+  }
+
+  static String _normalizeSupportedPopupEffectMode(
+    String mode,
+    int windowsBuildNumber,
+  ) {
+    final normalized = switch (mode.trim().toLowerCase()) {
+      WindowEffectService.modeBlur ||
+      WindowEffectService.modeAcrylic =>
+        WindowEffectService.modeAcrylic,
+      WindowEffectService.modeMicaTransient ||
+      WindowEffectService.modeMicaMain =>
+        WindowEffectService.modeMicaMain,
+      _ => WindowEffectService.modeNone,
+    };
+    if (normalized == WindowEffectService.modeNone) {
+      return WindowEffectService.modeNone;
     }
-    if (!isWindows11 &&
-        (normalized == ClientConfigService.popupWindowEffectMicaMain ||
-            normalized == ClientConfigService.popupWindowEffectMicaTransient)) {
-      return 'none';
-    }
-    if (isWindows11 &&
-        !supportsSystemBackdrop &&
-        normalized == ClientConfigService.popupWindowEffectMicaTransient) {
-      return 'mica_main';
-    }
-    if (isWindows11 &&
-        normalized == ClientConfigService.popupWindowEffectBlur) {
-      return 'mica_main';
-    }
-    return normalized;
+    return WindowEffectService.normalizeModeForWindowsBuild(
+      normalized,
+      windowsBuildNumber,
+    );
   }
 
   // 显示弹窗下载对话框（旧方式，需要拉起主窗口）

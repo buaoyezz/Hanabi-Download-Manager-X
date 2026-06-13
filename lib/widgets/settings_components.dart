@@ -3,9 +3,76 @@ import '../theme/app_theme.dart';
 import '../utils/fluent_icons.dart' as CustomIcons;
 import '../l10n/app_localizations.dart';
 
+class RegisteredSetting {
+  final String id;
+  final String targetId;
+  final String title;
+  final String subtitle;
+  final int tabIndex;
+
+  RegisteredSetting({
+    required this.id,
+    required this.targetId,
+    required this.title,
+    required this.subtitle,
+    required this.tabIndex,
+  });
+}
+
+class SettingsSearchRegistry {
+  static final Map<String, GlobalKey> keys = {};
+  static final Map<String, RegisteredSetting> items = {};
+
+  static GlobalKey getKey(String id) {
+    return keys.putIfAbsent(id, () => GlobalKey());
+  }
+
+  static void register({
+    required String id,
+    String? targetId,
+    required String title,
+    String subtitle = '',
+    required int tabIndex,
+  }) {
+    items[id] = RegisteredSetting(
+      id: id,
+      targetId: targetId ?? id,
+      title: title,
+      subtitle: subtitle,
+      tabIndex: tabIndex,
+    );
+  }
+
+  static List<RegisteredSetting> getAllSettings() {
+    return items.values.toList();
+  }
+}
+
+class SettingsTabScope extends InheritedWidget {
+  final int tabIndex;
+  final bool isRegistrationPhase;
+
+  const SettingsTabScope({
+    super.key,
+    required this.tabIndex,
+    this.isRegistrationPhase = false,
+    required super.child,
+  });
+
+  static SettingsTabScope? of(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<SettingsTabScope>();
+  }
+
+  @override
+  bool updateShouldNotify(SettingsTabScope oldWidget) {
+    return tabIndex != oldWidget.tabIndex;
+  }
+}
+
 /// 设置页面区块卡片
 class SettingsSection extends StatelessWidget {
   final String title;
+  final String? searchId;
   final IconData? icon;
   final Widget Function(BuildContext, Color)? iconBuilder;
   final List<Widget> children;
@@ -13,6 +80,7 @@ class SettingsSection extends StatelessWidget {
 
   const SettingsSection({
     super.key,
+    this.searchId,
     required this.title,
     this.icon,
     this.iconBuilder,
@@ -22,12 +90,31 @@ class SettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tabScope = SettingsTabScope.of(context);
+    final isReg = tabScope?.isRegistrationPhase ?? false;
+
+    if (searchId != null) {
+      if (tabScope != null) {
+        SettingsSearchRegistry.register(
+          id: searchId!,
+          targetId: 'section:$searchId',
+          title: title,
+          tabIndex: tabScope.tabIndex,
+        );
+      }
+    }
+
+    final searchKey = (searchId != null && !isReg)
+        ? SettingsSearchRegistry.getKey('section:$searchId')
+        : null;
+
     final isDark = AppTheme.isDarkContext(context);
     final sectionBackground = AppTheme.cardBackground(
       darkAlpha: 0.44,
       lightAlpha: 0.68,
     );
     return Container(
+      key: searchKey,
       margin: margin,
       decoration: BoxDecoration(
         color: sectionBackground,
@@ -93,6 +180,7 @@ class SettingsSection extends StatelessWidget {
 /// 设置项组件
 class SettingsItem extends StatefulWidget {
   final String title;
+  final String? searchId;
   final String? subtitle;
   final Widget trailing;
   final bool stackOnNarrow;
@@ -102,6 +190,7 @@ class SettingsItem extends StatefulWidget {
 
   const SettingsItem({
     super.key,
+    this.searchId,
     required this.title,
     this.subtitle,
     required this.trailing,
@@ -186,6 +275,25 @@ class _SettingsItemState extends State<SettingsItem> {
 
   @override
   Widget build(BuildContext context) {
+    final tabScope = SettingsTabScope.of(context);
+    final isReg = tabScope?.isRegistrationPhase ?? false;
+
+    if (widget.searchId != null) {
+      if (tabScope != null) {
+        SettingsSearchRegistry.register(
+          id: widget.searchId!,
+          targetId: 'item:${widget.searchId!}',
+          title: widget.title,
+          subtitle: widget.subtitle ?? '',
+          tabIndex: tabScope.tabIndex,
+        );
+      }
+    }
+
+    final searchKey = (widget.searchId != null && !isReg)
+        ? SettingsSearchRegistry.getKey('item:${widget.searchId!}')
+        : null;
+
     final isDark = AppTheme.isDarkContext(context);
     final radius = BorderRadius.circular(AppTheme.radiusSm);
     final background = _isHovered
@@ -198,6 +306,7 @@ class _SettingsItemState extends State<SettingsItem> {
       onEnter: (_) => _setHovered(true),
       onExit: (_) => _setHovered(false),
       child: AnimatedContainer(
+        key: searchKey,
         duration: const Duration(milliseconds: 140),
         curve: Curves.easeOutCubic,
         decoration: BoxDecoration(

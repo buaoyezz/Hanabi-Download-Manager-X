@@ -35,6 +35,7 @@ class ClientConfigService extends ChangeNotifier {
   static const String popupWindowEffectAcrylic = 'acrylic';
   static const String popupWindowEffectMicaMain = 'mica_main';
   static const String popupWindowEffectMicaTransient = 'mica_transient';
+  static const int defaultPopupWindowEffectAlpha = 160;
   static const String browserDownloadModeSmart = 'smart';
   static const String browserDownloadModeAlwaysAsk = 'always_ask';
   static const String browserDownloadModeSilentTakeover = 'silent_takeover';
@@ -197,6 +198,7 @@ class ClientConfigService extends ChangeNotifier {
         'effect_mode': 'acrylic',
         'effect_alpha': 160,
         'popup_effect_mode': popupWindowEffectFollowMain,
+        'popup_effect_alpha': defaultPopupWindowEffectAlpha,
         'width': 889.0, // 上次保存的窗口宽度
         'height': 586.0, // 上次保存的窗口高度
         'remember_size': false, // 默认不记忆窗口大小，使用默认值
@@ -394,11 +396,12 @@ class ClientConfigService extends ChangeNotifier {
 
   static String normalizePopupWindowEffectMode(String? mode) {
     return switch (mode?.trim().toLowerCase()) {
-      popupWindowEffectSolid => popupWindowEffectSolid,
-      popupWindowEffectBlur => popupWindowEffectBlur,
       popupWindowEffectAcrylic => popupWindowEffectAcrylic,
       popupWindowEffectMicaMain => popupWindowEffectMicaMain,
-      popupWindowEffectMicaTransient => popupWindowEffectMicaTransient,
+      // Legacy values are intentionally folded into the reduced popup surface.
+      popupWindowEffectBlur => popupWindowEffectAcrylic,
+      popupWindowEffectMicaTransient => popupWindowEffectMicaMain,
+      popupWindowEffectSolid => popupWindowEffectFollowMain,
       _ => popupWindowEffectFollowMain,
     };
   }
@@ -419,6 +422,25 @@ class ClientConfigService extends ChangeNotifier {
       _uiConfigPath,
       'window.popup_effect_mode',
       normalizePopupWindowEffectMode(mode),
+    );
+  }
+
+  int getPopupWindowEffectAlpha() {
+    final raw = _getFromConfig<dynamic>(
+      _uiConfig,
+      'window.popup_effect_alpha',
+      defaultValue: defaultPopupWindowEffectAlpha,
+    );
+    final parsed = raw is int ? raw : int.tryParse(raw?.toString() ?? '');
+    return (parsed ?? defaultPopupWindowEffectAlpha).clamp(0, 255).toInt();
+  }
+
+  Future<void> setPopupWindowEffectAlpha(int alpha) async {
+    await _setToConfig(
+      _uiConfig,
+      _uiConfigPath,
+      'window.popup_effect_alpha',
+      alpha.clamp(0, 255).toInt(),
     );
   }
 
@@ -635,7 +657,8 @@ class ClientConfigService extends ChangeNotifier {
   }
 
   Future<void> setNoticeUseSplitView(bool value) async {
-    await _setToConfig(_uiConfig, _uiConfigPath, 'notice.use_split_view', value);
+    await _setToConfig(
+        _uiConfig, _uiConfigPath, 'notice.use_split_view', value);
   }
 
   /// 根据屏幕分辨率自动设置缩放比例（仅在首次启动或缩放为默认值时）
@@ -909,9 +932,7 @@ class ClientConfigService extends ChangeNotifier {
 
   Future<void> setEnablePopupWindow(bool value) async {
     await setBrowserDownloadHandlingMode(
-      value
-          ? browserDownloadModeAlwaysAsk
-          : browserDownloadModeSilentTakeover,
+      value ? browserDownloadModeAlwaysAsk : browserDownloadModeSilentTakeover,
     );
   }
 
