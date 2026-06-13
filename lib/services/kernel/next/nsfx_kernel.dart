@@ -27,7 +27,10 @@ class NsfxKernel implements KernelInterface {
 
   final _progressController = StreamController<DownloadTask>.broadcast();
   final _completeController = StreamController<DownloadTask>.broadcast();
-  final _statsController = StreamController<DownloadStatistics>.broadcast();
+  late final _statsController = StreamController<DownloadStatistics>.broadcast(
+    onListen: _ensureStatsTimer,
+    onCancel: _stopStatsTimer,
+  );
 
   Timer? _statsTimer;
   Timer? _saveTimer;
@@ -95,15 +98,17 @@ class NsfxKernel implements KernelInterface {
       _downloadDir = p.join(home, 'Downloads');
 
       // 启动统计定时器
-      _statsTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-        _emitStatistics();
-      });
-
       // 启动自动保存
-      _saveTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-        _storage.saveTasks(_tasks);
-        _storage
-            .saveHostStrategies(NsfxHttpClient.exportAdaptiveHostStrategies());
+      _saveTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+        if (!_hasActiveWork()) {
+          return;
+        }
+        unawaited(_storage.saveTasks(_tasks));
+        unawaited(
+          _storage.saveHostStrategies(
+            NsfxHttpClient.exportAdaptiveHostStrategies(),
+          ),
+        );
       });
 
       // 启动 HTTP 服务器（用于浏览器扩展通信）
@@ -125,8 +130,9 @@ class NsfxKernel implements KernelInterface {
   @override
   Future<void> stop() async {
     _logger.info('NSFX', 'Stopping NSFX kernel...');
-    _statsTimer?.cancel();
+    _stopStatsTimer();
     _saveTimer?.cancel();
+    _saveTimer = null;
 
     await _httpServer?.stop();
     await _storage.saveTasks(_tasks);
@@ -136,6 +142,26 @@ class NsfxKernel implements KernelInterface {
 
     _isRunning = false;
     _logger.info('NSFX', 'NSFX kernel stopped');
+  }
+
+  void _ensureStatsTimer() {
+    _statsTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      _emitStatistics();
+    });
+  }
+
+  void _stopStatsTimer() {
+    _statsTimer?.cancel();
+    _statsTimer = null;
+  }
+
+  bool _hasActiveWork() {
+    return _tasks.values.any(
+      (task) =>
+          task.status == TaskStatus.downloading ||
+          task.status == TaskStatus.pending ||
+          task.status == TaskStatus.merging,
+    );
   }
 
   @override
@@ -769,6 +795,16 @@ class NsfxKernel implements KernelInterface {
     unawaited(_storage.saveTasks(_tasks).catchError((error) {
       _logger.warning('NSFX', 'Failed to save tasks after $reason: $error');
     }));
+    unawaited(
+      _storage
+          .saveHostStrategies(NsfxHttpClient.exportAdaptiveHostStrategies())
+          .catchError((error) {
+        _logger.warning(
+          'NSFX',
+          'Failed to save host strategies after $reason: $error',
+        );
+      }),
+    );
   }
 
   void _emitStatistics() {

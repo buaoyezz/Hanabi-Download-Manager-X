@@ -68,6 +68,7 @@ class AppLoggerService extends ChangeNotifier {
       _logRetention = value;
     }
   }
+
   factory AppLoggerService() => _instance;
   AppLoggerService._internal();
 
@@ -421,6 +422,7 @@ class AppLoggerService extends ChangeNotifier {
     String message, {
     bool? toConsole,
     bool immediateFlush = false,
+    bool persist = true,
   }) {
     ingest(
       LogEntry(
@@ -431,11 +433,17 @@ class AppLoggerService extends ChangeNotifier {
       ),
       toConsole: toConsole,
       immediateFlush: immediateFlush,
+      persist: persist,
     );
   }
 
-  void debug(String source, String message, {bool? toConsole}) =>
-      log(LogLevel.debug, source, message, toConsole: toConsole);
+  void debug(String source, String message, {bool? toConsole}) {
+    if (!kDebugMode) {
+      return;
+    }
+    log(LogLevel.debug, source, message, toConsole: toConsole);
+  }
+
   void info(String source, String message, {bool? toConsole}) =>
       log(LogLevel.info, source, message, toConsole: toConsole);
   void warning(String source, String message, {bool? toConsole}) => log(

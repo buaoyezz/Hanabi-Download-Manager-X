@@ -16,9 +16,8 @@ class SystemTrayService with TrayListener {
       MethodChannel('com.hanabi.download/window');
   bool _isInitialized = false;
   bool _isExiting = false;
-  bool _trayMenuPrewarmed = false;
-  Timer? _trayMenuPrewarmTimer;
   Future<bool> Function()? onExitRequested;
+  void Function(bool isVisible)? onMainWindowVisibilityChanged;
   List<Map<String, dynamic>> Function()? activeTaskPayloadProvider;
   final _logger = LoggerService();
 
@@ -35,7 +34,6 @@ class SystemTrayService with TrayListener {
       await trayManager.setIcon(iconPath);
       await trayManager.setToolTip("Hanabi Download ManagerX");
       trayManager.addListener(this);
-      _scheduleTrayMenuPrewarm();
 
       _isInitialized = true;
       _logger.info('System tray initialized with custom Fluent menu');
@@ -48,16 +46,6 @@ class SystemTrayService with TrayListener {
     } catch (e) {
       _logger.error('System tray init failed: $e');
     }
-  }
-
-  void _scheduleTrayMenuPrewarm() {
-    _trayMenuPrewarmTimer?.cancel();
-    _trayMenuPrewarmTimer = Timer(const Duration(milliseconds: 450), () {
-      if (_isExiting || _trayMenuPrewarmed) {
-        return;
-      }
-      unawaited(_prepareCustomTrayMenu());
-    });
   }
 
   Future<void> _showCustomTrayMenu() async {
@@ -73,27 +61,6 @@ class SystemTrayService with TrayListener {
       );
     } catch (e) {
       _logger.warning('Failed to show custom tray menu: $e');
-    }
-  }
-
-  Future<void> _prepareCustomTrayMenu() async {
-    if (_trayMenuPrewarmed || _isExiting) {
-      return;
-    }
-    try {
-      final prepared = await _windowChannel.invokeMethod<bool>(
-        'prepareTrayMenu',
-        {
-          'payload': jsonEncode(
-            _buildTrayMenuPayload(const {'x': 0.0, 'y': 0.0}),
-          ),
-          'title': 'Hanabi Tray Menu',
-        },
-      );
-      _trayMenuPrewarmed = prepared ?? true;
-    } catch (e) {
-      _trayMenuPrewarmed = false;
-      _logger.warning('Failed to prewarm custom tray menu: $e');
     }
   }
 
@@ -194,12 +161,14 @@ class SystemTrayService with TrayListener {
     windowManager.show();
     windowManager.restore();
     updateToolTip(true);
+    onMainWindowVisibilityChanged?.call(true);
   }
 
   void hideMainWindow() {
     _logger.info('Hide main window to tray');
     windowManager.hide();
     updateToolTip(false);
+    onMainWindowVisibilityChanged?.call(false);
 
     PaintingBinding.instance.imageCache.clear();
     PaintingBinding.instance.imageCache.clearLiveImages();
@@ -253,7 +222,6 @@ class SystemTrayService with TrayListener {
       return;
     }
     _isExiting = true;
-    _trayMenuPrewarmTimer?.cancel();
 
     _logger.info('Exit app from tray - beginning shutdown sequence...');
 
@@ -305,5 +273,6 @@ class SystemTrayService with TrayListener {
   void dispose() {
     trayManager.removeListener(this);
     trayManager.destroy();
+    onMainWindowVisibilityChanged = null;
   }
 }

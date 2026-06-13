@@ -357,6 +357,9 @@ class _LogPageState extends State<LogPage> {
       _showFailureStats = config.getLogShowFailureStats();
       _autoScroll = config.getLogAutoScroll();
       _showRenderLogs = config.getLogShowRenderLogs();
+      if (_showRenderLogs) {
+        unawaited(NativeRenderLogService().start(force: true));
+      }
 
       // 恢复内置规则启用状态
       for (final entry in builtinStates.entries) {
@@ -411,6 +414,11 @@ class _LogPageState extends State<LogPage> {
     });
 
     await context.read<ClientConfigService>().setLogShowRenderLogs(value);
+    if (value) {
+      await NativeRenderLogService().start(force: true);
+    } else {
+      await NativeRenderLogService().stop();
+    }
   }
 
   bool _shouldShowLogEntry(LogEntry entry) {
@@ -2108,7 +2116,8 @@ class _LogPageState extends State<LogPage> {
               }),
               behavior: HitTestBehavior.opaque,
               child: Padding(
-                padding: EdgeInsets.fromLTRB(14, 12, 14, _isFailureStatsExpanded ? 8 : 12),
+                padding: EdgeInsets.fromLTRB(
+                    14, 12, 14, _isFailureStatsExpanded ? 8 : 12),
                 child: Row(
                   children: [
                     Icon(FluentIcons.warning,

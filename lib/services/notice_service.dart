@@ -9,7 +9,8 @@ import 'client_config_service.dart';
 
 class NoticeService extends ChangeNotifier {
   static const String _noticeApiBase = 'https://x.zzbuaoye.net/api/v1';
-  static const Duration _onlineHeartbeatInterval = Duration(seconds: 30);
+  static const Duration _foregroundHeartbeatInterval = Duration(minutes: 2);
+  static const Duration _backgroundHeartbeatInterval = Duration(minutes: 10);
 
   final AppLoggerService? _logger;
   final ClientConfigService _config;
@@ -23,6 +24,7 @@ class NoticeService extends ChangeNotifier {
   String? _onlineSessionId;
   int? _onlineUserCount;
   DateTime? _onlineLastSeenAt;
+  bool _isBackgroundMode = false;
 
   List<Notice> get notices => _notices;
   bool get isLoading => _isLoading;
@@ -30,6 +32,7 @@ class NoticeService extends ChangeNotifier {
   DateTime? get lastFetchTime => _lastFetchTime;
   int? get onlineUserCount => _onlineUserCount;
   DateTime? get onlineLastSeenAt => _onlineLastSeenAt;
+  bool get isBackgroundMode => _isBackgroundMode;
 
   List<Notice> get pinnedNotices =>
       _notices.where((n) => n.pinned && n.isActive).toList();
@@ -52,11 +55,23 @@ class NoticeService extends ChangeNotifier {
 
     if (_onlineHeartbeatTimer != null) return;
 
-    unawaited(sendOnlineHeartbeat());
-    _onlineHeartbeatTimer = Timer.periodic(
-      _onlineHeartbeatInterval,
-      (_) => unawaited(sendOnlineHeartbeat()),
-    );
+    _startOnlineHeartbeatTimer(sendImmediately: true);
+  }
+
+  void setBackgroundMode(bool isBackgroundMode) {
+    if (_isBackgroundMode == isBackgroundMode) {
+      return;
+    }
+
+    _isBackgroundMode = isBackgroundMode;
+    if (!_canSendOnlineHeartbeat()) {
+      stopOnlineHeartbeat();
+      return;
+    }
+
+    if (_onlineHeartbeatTimer != null) {
+      _startOnlineHeartbeatTimer(sendImmediately: !isBackgroundMode);
+    }
   }
 
   void stopOnlineHeartbeat() {
@@ -115,25 +130,37 @@ class NoticeService extends ChangeNotifier {
       if (!_canSendOnlineHeartbeat()) return;
 
       final payload = json.decode(response.body) as Map<String, dynamic>;
+      var changed = false;
+
       final sessionId = payload['sessionId'];
       if (sessionId is String && sessionId.isNotEmpty) {
-        _onlineSessionId = sessionId;
+        if (_onlineSessionId != sessionId) {
+          _onlineSessionId = sessionId;
+          changed = true;
+        }
       }
 
       final online = payload['online'];
       if (online is Map<String, dynamic>) {
         final total = online['total'];
-        if (total is num) {
+        if (total is num && _onlineUserCount != total.toInt()) {
           _onlineUserCount = total.toInt();
+          changed = true;
         }
 
         final lastSeenAt = online['lastSeenAt'];
         if (lastSeenAt is String) {
-          _onlineLastSeenAt = DateTime.tryParse(lastSeenAt);
+          final parsedLastSeenAt = DateTime.tryParse(lastSeenAt);
+          if (_onlineLastSeenAt != parsedLastSeenAt) {
+            _onlineLastSeenAt = parsedLastSeenAt;
+            changed = true;
+          }
         }
       }
 
-      notifyListeners();
+      if (changed) {
+        notifyListeners();
+      }
     } catch (e) {
       _logger?.debug('Notice', 'Online heartbeat failed: $e');
     } finally {
@@ -151,6 +178,20 @@ class NoticeService extends ChangeNotifier {
 
   bool _canSendOnlineHeartbeat() {
     return _config.getEnableOnlineStats() && !_config.shouldShowOobe();
+  }
+
+  void _startOnlineHeartbeatTimer({required bool sendImmediately}) {
+    _onlineHeartbeatTimer?.cancel();
+    _onlineHeartbeatTimer = Timer.periodic(
+      _isBackgroundMode
+          ? _backgroundHeartbeatInterval
+          : _foregroundHeartbeatInterval,
+      (_) => unawaited(sendOnlineHeartbeat()),
+    );
+
+    if (sendImmediately) {
+      unawaited(sendOnlineHeartbeat());
+    }
   }
 
   @override

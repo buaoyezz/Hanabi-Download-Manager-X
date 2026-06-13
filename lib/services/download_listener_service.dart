@@ -15,6 +15,7 @@ class DownloadListenerService {
   Timer? _pollTimer;
   bool _isChecking = false;
   bool _isShowingPopup = false; // 防止独立 popup 创建期间重复触发
+  bool _isBackgroundMode = false;
 
   String? _lastPopupSignature;
   DateTime? _lastPopupOpenedAt;
@@ -31,18 +32,29 @@ class DownloadListenerService {
     _scheduleNextCheck(const Duration(milliseconds: 500));
   }
 
+  void setBackgroundMode(bool isBackgroundMode) {
+    if (_isBackgroundMode == isBackgroundMode) {
+      return;
+    }
+
+    _isBackgroundMode = isBackgroundMode;
+    if (!_isStopped && !_isShowingPopup) {
+      _scheduleNextCheck(_idleDelay);
+    }
+  }
+
   void _scheduleNextCheck(Duration delay) {
     if (_isStopped) return;
     _pollTimer?.cancel();
     _pollTimer = Timer(delay, () async {
       if (_isStopped) return;
       final found = await _checkForNewDownloads();
-      
-      Duration nextDelay = const Duration(seconds: 2);
+
+      Duration nextDelay = _idleDelay;
       if (found || _isShowingPopup) {
         nextDelay = const Duration(milliseconds: 500);
       }
-      
+
       _scheduleNextCheck(nextDelay);
     });
   }
@@ -58,6 +70,10 @@ class DownloadListenerService {
     _lastPopupOpenedAt = null;
     _logger.info('Download listener stopped');
   }
+
+  Duration get _idleDelay => _isBackgroundMode
+      ? const Duration(seconds: 6)
+      : const Duration(seconds: 2);
 
   // 检查是否有新的下载请求
   Future<bool> _checkForNewDownloads() async {
@@ -91,7 +107,7 @@ class DownloadListenerService {
     } finally {
       _isChecking = false;
     }
-    
+
     return foundNewDownload;
   }
 

@@ -20,6 +20,8 @@ class NetworkInfo {
 }
 
 class NetworkStatusService extends ChangeNotifier {
+  static const Duration _monitorInterval = Duration(seconds: 30);
+
   NetworkInfo _networkInfo = NetworkInfo(
     isConnected: false,
     hasInternet: false,
@@ -29,6 +31,7 @@ class NetworkStatusService extends ChangeNotifier {
 
   Timer? _checkTimer;
   bool _isMonitoring = false;
+  bool _checkInFlight = false;
 
   void startMonitoring() {
     if (_isMonitoring) {
@@ -36,7 +39,7 @@ class NetworkStatusService extends ChangeNotifier {
     }
     _isMonitoring = true;
     _checkNetworkStatus();
-    _checkTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+    _checkTimer = Timer.periodic(_monitorInterval, (_) {
       _checkNetworkStatus();
     });
   }
@@ -52,11 +55,16 @@ class NetworkStatusService extends ChangeNotifier {
   }
 
   Future<void> _checkNetworkStatus() async {
+    if (_checkInFlight) {
+      return;
+    }
+    _checkInFlight = true;
+
     try {
       // 检查本地网络连接
       final interfaces = await NetworkInterface.list();
       final hasConnection = interfaces.isNotEmpty;
-      
+
       String? localIP;
       if (hasConnection) {
         for (var interface in interfaces) {
@@ -75,12 +83,14 @@ class NetworkStatusService extends ChangeNotifier {
       bool hasInternet = false;
       try {
         final stopwatch = Stopwatch()..start();
-        final response = await http.get(
-          Uri.parse('https://www.google.com'),
-        ).timeout(const Duration(seconds: 5));
+        final response = await http
+            .head(
+              Uri.parse('https://www.gstatic.com/generate_204'),
+            )
+            .timeout(const Duration(seconds: 5));
         stopwatch.stop();
-        
-        if (response.statusCode == 200) {
+
+        if (response.statusCode >= 200 && response.statusCode < 400) {
           hasInternet = true;
           ping = stopwatch.elapsedMilliseconds;
         }
@@ -88,12 +98,14 @@ class NetworkStatusService extends ChangeNotifier {
         // 尝试备用地址
         try {
           final stopwatch = Stopwatch()..start();
-          final response = await http.get(
-            Uri.parse('https://www.baidu.com'),
-          ).timeout(const Duration(seconds: 5));
+          final response = await http
+              .head(
+                Uri.parse('https://www.baidu.com/favicon.ico'),
+              )
+              .timeout(const Duration(seconds: 5));
           stopwatch.stop();
-          
-          if (response.statusCode == 200) {
+
+          if (response.statusCode >= 200 && response.statusCode < 400) {
             hasInternet = true;
             ping = stopwatch.elapsedMilliseconds;
           }
@@ -102,7 +114,7 @@ class NetworkStatusService extends ChangeNotifier {
         }
       }
 
-      _networkInfo = NetworkInfo(
+      final nextNetworkInfo = NetworkInfo(
         isConnected: hasConnection,
         hasInternet: hasInternet,
         localIP: localIP,
@@ -110,12 +122,25 @@ class NetworkStatusService extends ChangeNotifier {
         connectionType: _getConnectionType(),
       );
 
-      notifyListeners();
+      if (!_isSameNetworkInfo(_networkInfo, nextNetworkInfo)) {
+        _networkInfo = nextNetworkInfo;
+        notifyListeners();
+      }
     } catch (e) {
       if (kDebugMode) {
         print('Network status check error: $e');
       }
+    } finally {
+      _checkInFlight = false;
     }
+  }
+
+  bool _isSameNetworkInfo(NetworkInfo a, NetworkInfo b) {
+    return a.isConnected == b.isConnected &&
+        a.hasInternet == b.hasInternet &&
+        a.localIP == b.localIP &&
+        a.ping == b.ping &&
+        a.connectionType == b.connectionType;
   }
 
   String _getConnectionType() {

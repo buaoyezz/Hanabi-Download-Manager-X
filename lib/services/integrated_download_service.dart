@@ -30,10 +30,13 @@ class IntegratedDownloadService extends ChangeNotifier {
 
   // 智能轮询：根据是否有活跃下载调整间隔
   bool _hasActiveDownloads = false;
+  bool _isBackgroundMode = false;
   bool _hasLoadedOnce = false;
   String? _lastAddTaskError;
-  static const _activePollingInterval = Duration(seconds: 1); // 有下载时1秒
-  static const _idlePollingInterval = Duration(seconds: 5); // 空闲时5秒
+  static const _activePollingInterval = Duration(seconds: 2);
+  static const _backgroundActivePollingInterval = Duration(seconds: 5);
+  static const _idlePollingInterval = Duration(seconds: 30);
+  static const _backgroundIdlePollingInterval = Duration(seconds: 60);
 
   // Stream 订阅
   StreamSubscription? _progressSubscription;
@@ -58,7 +61,17 @@ class IntegratedDownloadService extends ChangeNotifier {
 
   List<DownloadTask> get tasks => List.unmodifiable(_tasks);
   bool get hasLoadedOnce => _hasLoadedOnce;
+  bool get isBackgroundMode => _isBackgroundMode;
   String? get lastAddTaskError => _lastAddTaskError;
+
+  void setBackgroundMode(bool isBackgroundMode) {
+    if (_isBackgroundMode == isBackgroundMode) {
+      return;
+    }
+
+    _isBackgroundMode = isBackgroundMode;
+    _scheduleNextPoll();
+  }
 
   DownloadTask? findDuplicateTask(String url) {
     final normalized = _normalizeUrl(url);
@@ -242,8 +255,7 @@ class IntegratedDownloadService extends ChangeNotifier {
   // 智能轮询：根据下载状态动态调整间隔
   void _scheduleNextPoll() {
     _pollTimer?.cancel();
-    final interval =
-        _hasActiveDownloads ? _activePollingInterval : _idlePollingInterval;
+    final interval = _resolvePollingInterval();
     _pollTimer = Timer(interval, () async {
       // 确保已订阅内核 Stream
       if ((_progressSubscription == null || _completeSubscription == null) &&
@@ -253,6 +265,18 @@ class IntegratedDownloadService extends ChangeNotifier {
       await _updateTasks();
       _scheduleNextPoll();
     });
+  }
+
+  Duration _resolvePollingInterval() {
+    if (_hasActiveDownloads) {
+      return _isBackgroundMode
+          ? _backgroundActivePollingInterval
+          : _activePollingInterval;
+    }
+
+    return _isBackgroundMode
+        ? _backgroundIdlePollingInterval
+        : _idlePollingInterval;
   }
 
   /// 从根源 override notifyListeners，所有通知强制走节流

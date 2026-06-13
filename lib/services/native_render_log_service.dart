@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'app_logger_service.dart';
+import 'client_config_service.dart';
 
 class NativeRenderLogService {
   static final NativeRenderLogService _instance =
@@ -39,9 +41,23 @@ class NativeRenderLogService {
   bool _polling = false;
   bool _nativeLoggingEnabled = false;
 
-  Future<void> start() async {
-    if (_started || !Platform.isWindows) {
-      if (Platform.isWindows && !_nativeLoggingEnabled) {
+  bool get isRunning => _started;
+
+  Future<void> start({bool force = false}) async {
+    if (!Platform.isWindows) {
+      return;
+    }
+
+    final shouldRun =
+        force || kDebugMode || ClientConfigService().getLogShowRenderLogs();
+    if (!shouldRun) {
+      await stop();
+      await _setNativeRenderLoggingEnabled(false);
+      return;
+    }
+
+    if (_started) {
+      if (!_nativeLoggingEnabled) {
         await _setNativeRenderLoggingEnabled(true);
       }
       return;

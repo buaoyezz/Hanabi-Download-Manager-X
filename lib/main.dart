@@ -333,7 +333,6 @@ void main(List<String> args) async {
     appLogger.info('App', 'Application starting...');
     await clientConfig.initialize();
     await quickPathService.initialize(clientConfig.configDir);
-    networkStatus.startMonitoring();
     await developerMode.loadSettings();
     await fontService.loadFont();
     final initialThemeBrightness = AppTheme.resolveBrightness(
@@ -442,7 +441,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   ClipboardListenerService? _clipboardListener;
   PopupBridgeService? _popupBridgeService;
   ClientConfigService? _clientConfig;
+  NetworkStatusService? _networkStatus;
+  NoticeService? _noticeService;
   bool _showClientUi = !Platform.isWindows;
+  bool _isBackgroundMode = false;
   bool _syncingPopupBridge = false;
   bool _oobeDialogShown = false;
 
@@ -465,18 +467,23 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       _clientConfig = clientConfig;
       _clientConfig?.addListener(_handleClientConfigChanged);
     }
+    _networkStatus = context.read<NetworkStatusService>();
+    _noticeService = context.read<NoticeService>();
   }
 
   Future<void> _runStartupSequence() async {
     final canContinue = await _resolveExistingInstanceConflictIfNeeded();
     if (!canContinue || !mounted) return;
 
+    final isAutoStart = context.read<bool>();
     _configureTrayMenuTaskProvider();
+    _configureBackgroundModeBridge();
     setState(() {
       _showClientUi = true;
     });
 
     await _initSystemTray();
+    _handleMainWindowVisibilityChanged(!isAutoStart);
     await _initKernel();
     await _syncPopupBridgeState();
     _initDownloadListener();
@@ -536,6 +543,25 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           )
           .toList(growable: false);
     };
+  }
+
+  void _configureBackgroundModeBridge() {
+    systemTrayService.onMainWindowVisibilityChanged =
+        _handleMainWindowVisibilityChanged;
+  }
+
+  void _handleMainWindowVisibilityChanged(bool isVisible) {
+    _isBackgroundMode = !isVisible;
+    _noticeService?.setBackgroundMode(_isBackgroundMode);
+    _downloadListener?.setBackgroundMode(_isBackgroundMode);
+
+    try {
+      context.read<IntegratedDownloadService>().setBackgroundMode(
+            _isBackgroundMode,
+          );
+    } catch (_) {
+      // The provider is not available during the earliest bootstrap moments.
+    }
   }
 
   int _trayTaskStatusOrder(DownloadStatus status) {
@@ -825,6 +851,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   void _initDownloadListener() {
     _downloadListener = DownloadListenerService(context);
     _downloadListener!.startListening();
+    _downloadListener!.setBackgroundMode(_isBackgroundMode);
 
     // 注意：在线统计功能已移至网页端
     // 访问 https://online.zzbuaoye.net 查看统计数据
@@ -839,6 +866,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     // Cache dependencies before async gaps.
     final kernelManager = context.read<KernelManager>();
     systemTrayService.activeTaskPayloadProvider = null;
+    if (identical(
+      systemTrayService.onMainWindowVisibilityChanged,
+      _handleMainWindowVisibilityChanged,
+    )) {
+      systemTrayService.onMainWindowVisibilityChanged = null;
+    }
 
     // 保存窗口状态
     try {
@@ -872,6 +905,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     await _popupBridgeService?.stop();
     _popupBridgeService = null;
     await NsfxProxyRuntime.stopSystemProxyObserver();
+    _noticeService?.stopOnlineHeartbeat();
+    _networkStatus?.stopMonitoring();
+    await NativeRenderLogService().stop();
 
     // 停止新内核
     try {
@@ -894,6 +930,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _clipboardListener?.stop();
     _popupBridgeService?.stop();
     _popupBridgeService = null;
+    if (identical(
+      systemTrayService.onMainWindowVisibilityChanged,
+      _handleMainWindowVisibilityChanged,
+    )) {
+      systemTrayService.onMainWindowVisibilityChanged = null;
+    }
+    _noticeService?.stopOnlineHeartbeat();
+    _networkStatus?.stopMonitoring();
+    NativeRenderLogService().stop();
     systemTrayService.dispose();
     NsfxProxyRuntime.stopSystemProxyObserver();
 
