@@ -326,18 +326,18 @@ class _HomeScreenState extends State<HomeScreen>
       unawaited(_showPendingCrashReportIfNeeded());
     });
 
-    // 侧边栏动画控制器 - 快速响应的展开/收缩
+    // 侧边栏动画控制器。导航项内部也读取同一进度，避免宽度变化时切换两套布局造成跳帧感。
     _sidebarController = AnimationController(
-      duration: const Duration(milliseconds: 250),
+      duration: const Duration(milliseconds: 280),
       vsync: this,
     );
 
-    // 宽度动画 - 使用 easeInOutCubic 曲线实现丝滑的双向过渡
+    // 宽度动画：0 为展开，1 为收缩。
     _widthAnimation = Tween<double>(begin: 200, end: 52).animate(
       CurvedAnimation(
         parent: _sidebarController,
-        curve: Curves.easeInOutCubic,
-        reverseCurve: Curves.easeInOutCubic,
+        curve: Curves.easeInOutCubicEmphasized,
+        reverseCurve: Curves.easeInOutCubicEmphasized,
       ),
     );
 
@@ -377,6 +377,11 @@ class _HomeScreenState extends State<HomeScreen>
         _isMaximized = false;
       });
     }
+  }
+
+  @override
+  void onWindowRestore() {
+    unawaited(_initIsMaximized());
   }
 
   /// 检查更新并显示通知
@@ -1380,7 +1385,8 @@ class _HomeScreenState extends State<HomeScreen>
         animation: _widthAnimation,
         builder: (context, child) {
           final width = _widthAnimation.value;
-          final isCompact = width < 100;
+          final collapseProgress = _sidebarController.value.clamp(0.0, 1.0);
+          final separatorInset = lerpDouble(16, 8, collapseProgress)!;
 
           final sidebarContent = Column(
             children: [
@@ -1392,14 +1398,20 @@ class _HomeScreenState extends State<HomeScreen>
                   .entries
                   .where((entry) => !_isBottomNavItem(entry.value))
                   .map((entry) => _buildNavItemWidget(
-                      context, entry.key, entry.value, isCompact)),
+                        context,
+                        entry.key,
+                        entry.value,
+                        collapseProgress,
+                      )),
 
               const Spacer(),
 
               // 分隔线
               Padding(
                 padding: EdgeInsets.symmetric(
-                    horizontal: isCompact ? 8 : 16, vertical: 8),
+                  horizontal: separatorInset,
+                  vertical: 8,
+                ),
                 child: Container(
                   height: 1,
                   color: AppTheme.borderSubtle.withValues(alpha: 0.3),
@@ -1407,7 +1419,7 @@ class _HomeScreenState extends State<HomeScreen>
               ),
 
               // 底部导航项
-              ..._buildBottomNavItems(context, navItems, isCompact),
+              ..._buildBottomNavItems(context, navItems, collapseProgress),
 
               const SizedBox(height: 8),
             ],
@@ -1450,7 +1462,10 @@ class _HomeScreenState extends State<HomeScreen>
 
   /// 构建底部导航项
   List<Widget> _buildBottomNavItems(
-      BuildContext context, List<NavigationItem> navItems, bool isCompact) {
+    BuildContext context,
+    List<NavigationItem> navItems,
+    double collapseProgress,
+  ) {
     final bottomItems = navItems
         .asMap()
         .entries
@@ -1460,7 +1475,7 @@ class _HomeScreenState extends State<HomeScreen>
     return bottomItems.map((entry) {
       final item = entry.value;
       final index = entry.key;
-      return _buildNavItemWidget(context, index, item, isCompact);
+      return _buildNavItemWidget(context, index, item, collapseProgress);
     }).toList();
   }
 
@@ -1591,12 +1606,18 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildNavItemWidget(
-      BuildContext context, int index, NavigationItem item, bool isCompact) {
+    BuildContext context,
+    int index,
+    NavigationItem item,
+    double collapseProgress,
+  ) {
     final isSelected = _currentIndex == index;
+    final progress = collapseProgress.clamp(0.0, 1.0);
+    final horizontalPadding = lerpDouble(12, 6, progress)!;
 
     return Padding(
       padding: EdgeInsets.symmetric(
-        horizontal: isCompact ? 6 : 12,
+        horizontal: horizontalPadding,
         vertical: 2,
       ),
       child: _NavItem(
@@ -1607,7 +1628,7 @@ class _HomeScreenState extends State<HomeScreen>
         iconBuilder: item.iconBuilder,
         title: item.title,
         isSelected: isSelected,
-        isCompact: isCompact,
+        collapseProgress: progress,
         onTap: () {
           AppLoggerService().info('App', 'Navigated to: ${item.title}');
           _diag.mark(
@@ -1702,10 +1723,12 @@ class _HomeScreenState extends State<HomeScreen>
   ) {
     return _buildWindowButton(
       colors: colors,
-      icon: _isMaximized ? FluentIcons.copy : FluentIcons.square_shape,
+      icon: _isMaximized
+          ? CustomIcons.FluentIcons.chrome_unmaximize
+          : CustomIcons.FluentIcons.chrome_maximize,
       width: width,
       height: height,
-      iconSize: _isMaximized ? iconSize - 2 : iconSize - 3,
+      iconSize: _isMaximized ? iconSize - 2 : iconSize - 4,
       onPressed: () async {
         bool isMaximized = await windowManager.isMaximized();
         if (isMaximized) {
@@ -1810,7 +1833,7 @@ class _NavItem extends StatefulWidget {
   final Widget Function(BuildContext context, Color color)? iconBuilder;
   final String title;
   final bool isSelected;
-  final bool isCompact;
+  final double collapseProgress;
   final VoidCallback onTap;
 
   const _NavItem({
@@ -1821,7 +1844,7 @@ class _NavItem extends StatefulWidget {
     this.iconBuilder,
     required this.title,
     required this.isSelected,
-    required this.isCompact,
+    required this.collapseProgress,
     required this.onTap,
   });
 
@@ -1849,7 +1872,7 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
           'id': widget.id,
           'title': widget.title,
           'isSelected': widget.isSelected,
-          'isCompact': widget.isCompact,
+          'collapseProgress': widget.collapseProgress,
           'hasIconBuilder': widget.iconBuilder != null,
           'hasIcon': widget.icon != null,
         },
@@ -1878,8 +1901,7 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
     if (widget.pluginId != null &&
         (oldWidget.id != widget.id ||
             oldWidget.title != widget.title ||
-            oldWidget.isSelected != widget.isSelected ||
-            oldWidget.isCompact != widget.isCompact)) {
+            oldWidget.isSelected != widget.isSelected)) {
       _diag.mark(
         'navItem.didUpdateWidget',
         pluginId: widget.pluginId,
@@ -1888,8 +1910,6 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
           'title': widget.title,
           'oldSelected': oldWidget.isSelected,
           'newSelected': widget.isSelected,
-          'oldCompact': oldWidget.isCompact,
-          'newCompact': widget.isCompact,
         },
       );
     }
@@ -1958,7 +1978,7 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
           'id': widget.id,
           'title': widget.title,
           'isSelected': widget.isSelected,
-          'isCompact': widget.isCompact,
+          'collapseProgress': widget.collapseProgress,
           'hasIconBuilder': widget.iconBuilder != null,
           'hasIcon': widget.icon != null,
         },
@@ -1987,9 +2007,7 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
               return Transform.scale(
                 scale: scale,
                 alignment: Alignment.center,
-                child: widget.isCompact
-                    ? _buildCompactContent(hoverValue, selectValue)
-                    : _buildExpandedContent(hoverValue, selectValue),
+                child: _buildNavContent(hoverValue, selectValue),
               );
             },
           ),
@@ -1998,61 +2016,23 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildCompactContent(
+  Widget _buildNavContent(
     double hoverValue,
     double selectValue,
   ) {
-    final iconColor = Color.lerp(
-      Color.lerp(AppTheme.textSecondary, AppTheme.textPrimary, hoverValue),
-      AppTheme.accentLight,
-      selectValue,
-    )!;
+    final collapseProgress = widget.collapseProgress.clamp(0.0, 1.0);
+    final expandedProgress =
+        Curves.easeOutCubic.transform(1.0 - collapseProgress);
+    final textOpacity = Curves.easeOut
+        .transform(((1.0 - collapseProgress) * 1.35).clamp(0.0, 1.0));
+    final iconSlotWidth = lerpDouble(16, 40, collapseProgress)!;
+    final iconAlignment = Alignment.lerp(
+        Alignment.centerLeft, Alignment.center, collapseProgress)!;
+    final contentHorizontalPadding = lerpDouble(12, 0, collapseProgress)!;
+    final indicatorRightMargin = lerpDouble(12, 0, collapseProgress)!;
+    final iconTextGap = lerpDouble(12, 0, collapseProgress)!;
+    final compactIndicatorLeft = lerpDouble(0, 4, collapseProgress)!;
 
-    return Center(
-      child: Container(
-        width: 40,
-        height: 36,
-        decoration: BoxDecoration(
-          color: AppTheme.shellNavItemBackground(
-            hoverValue: hoverValue,
-            selectedValue: selectValue,
-          ),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            if (selectValue > 0.01)
-              Positioned(
-                left: 4,
-                top: (36 - (16 * selectValue).clamp(0.0, 16.0)) / 2,
-                child: Container(
-                  width: 3,
-                  height: (16 * selectValue).clamp(0.0, 16.0),
-                  decoration: BoxDecoration(
-                    color:
-                        AppTheme.accentPrimary.withValues(alpha: selectValue),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-            widget.iconBuilder != null
-                ? widget.iconBuilder!(context, iconColor)
-                : Icon(
-                    widget.icon,
-                    size: 16,
-                    color: iconColor,
-                  ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildExpandedContent(
-    double hoverValue,
-    double selectValue,
-  ) {
     final iconColor = Color.lerp(
       Color.lerp(AppTheme.textSecondary, AppTheme.textPrimary, hoverValue),
       AppTheme.accentLight,
@@ -2067,7 +2047,7 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
 
     return Container(
       height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: EdgeInsets.symmetric(horizontal: contentHorizontalPadding),
       decoration: BoxDecoration(
         color: AppTheme.shellNavItemBackground(
           hoverValue: hoverValue,
@@ -2075,33 +2055,82 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
         ),
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Row(
+      child: Stack(
         children: [
-          if (selectValue > 0.01)
-            Container(
-              width: 3,
-              height: (16 * selectValue).clamp(0.0, 16.0),
-              margin: const EdgeInsets.only(right: 12),
-              decoration: BoxDecoration(
-                color: AppTheme.accentPrimary.withValues(alpha: selectValue),
-                borderRadius: BorderRadius.circular(2),
+          Positioned(
+            left: compactIndicatorLeft,
+            top: (36 - (16 * selectValue).clamp(0.0, 16.0)) / 2,
+            child: Opacity(
+              opacity: selectValue,
+              child: Container(
+                width: 3,
+                height: (16 * selectValue).clamp(0.0, 16.0),
+                margin: EdgeInsets.only(right: indicatorRightMargin),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentPrimary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
-          widget.iconBuilder != null
-              ? widget.iconBuilder!(context, iconColor)
-              : Icon(widget.icon, size: 16, color: iconColor),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              widget.title,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: textColor,
-                fontWeight:
-                    widget.isSelected ? FontWeight.w600 : FontWeight.w400,
-                fontSize: 13,
-              ),
-            ),
+          ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final availableWidth =
+                  constraints.maxWidth.clamp(0.0, double.infinity);
+              final leadingWidth =
+                  (15 * expandedProgress).clamp(0.0, availableWidth).toDouble();
+              final widthAfterLeading =
+                  (availableWidth - leadingWidth).clamp(0.0, double.infinity);
+              final resolvedIconSlotWidth =
+                  iconSlotWidth.clamp(0.0, widthAfterLeading).toDouble();
+              final widthAfterIcon = (widthAfterLeading - resolvedIconSlotWidth)
+                  .clamp(0.0, double.infinity);
+              final resolvedIconTextGap =
+                  iconTextGap.clamp(0.0, widthAfterIcon).toDouble();
+              final textWidth = (widthAfterIcon - resolvedIconTextGap)
+                  .clamp(0.0, double.infinity);
+              final showText = textOpacity > 0.01 && textWidth > 1;
+
+              return Row(
+                children: [
+                  SizedBox(width: leadingWidth),
+                  SizedBox(
+                    width: resolvedIconSlotWidth,
+                    height: 36,
+                    child: Align(
+                      alignment: iconAlignment,
+                      child: widget.iconBuilder != null
+                          ? widget.iconBuilder!(context, iconColor)
+                          : Icon(widget.icon, size: 16, color: iconColor),
+                    ),
+                  ),
+                  SizedBox(width: resolvedIconTextGap),
+                  SizedBox(
+                    width: textWidth,
+                    child: ClipRect(
+                      child: Transform.translate(
+                        offset: Offset(-8 * collapseProgress, 0),
+                        child: Opacity(
+                          opacity: showText ? textOpacity : 0,
+                          child: Text(
+                            widget.title,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false,
+                            style: TextStyle(
+                              color: textColor,
+                              fontWeight: widget.isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),

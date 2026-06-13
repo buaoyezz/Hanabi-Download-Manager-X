@@ -1494,6 +1494,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         // 窗口大小设置
         _buildSection(
           context,
+          searchId: 'appearanceWindowSize',
           title: t.appearanceWindowSizeSection,
           icon: CustomIcons.FluentIcons.full_screen,
           children: [
@@ -1505,11 +1506,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         // UI 缩放设置
         _buildSection(
           context,
+          searchId: 'appearanceUiScale',
           title: t.appearanceUiScaleSection,
           icon: CustomIcons.FluentIcons.font_size,
           children: [
             _buildSettingItem(
               context,
+              searchId: 'appearanceUiScale',
               title: t.appearanceUiScaleTitle,
               subtitle: t.appearanceUiScaleSubtitle,
               trailing: SizedBox(
@@ -1632,11 +1635,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         // 主题设置
         _buildSection(
           context,
+          searchId: 'appearanceTheme',
           title: t.appearanceThemeSection,
           icon: CustomIcons.FluentIcons.color,
           children: [
             _buildSettingItem(
               context,
+              searchId: 'appearanceThemeMode',
               title: t.appearanceThemeModeTitle,
               subtitle: t.appearanceThemeModeSubtitle,
               trailing: SizedBox(
@@ -1677,6 +1682,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             const SizedBox(height: 12),
             _buildSettingItem(
               context,
+              searchId: 'appearanceClassicControlVisuals',
               title: t.appearanceClassicControlVisualsTitle,
               subtitle: t.appearanceClassicControlVisualsSubtitle,
               trailing: ToggleSwitch(
@@ -1704,11 +1710,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         // 语言设置
         _buildSection(
           context,
+          searchId: 'appearanceSectionLanguage',
           title: t.appearanceSectionLanguage,
           icon: CustomIcons.FluentIcons.globe,
           children: [
             _buildSettingItem(
               context,
+              searchId: 'appearanceLanguage',
               title: t.appearanceLanguageTitle,
               subtitle: t.appearanceLanguageSubtitle,
               trailing: SizedBox(
@@ -1752,6 +1760,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             const SizedBox(height: 12),
             _buildSettingItem(
               context,
+              searchId: 'appearanceLanguagePacks',
               title: t.appearanceLanguagePacksTitle,
               subtitle: t.appearanceLanguagePacksSubtitle(langDir),
               trailing: SizedBox(
@@ -1785,6 +1794,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             const SizedBox(height: 12),
             _buildSettingItem(
               context,
+              searchId: 'developerOpenL10nFolder',
               title: t.developerOpenL10nFolderTitle,
               subtitle: t.developerOpenL10nFolderSubtitle,
               trailing: SizedBox(
@@ -1825,6 +1835,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         // 字体设置
         _buildSection(
           context,
+          searchId: 'appearanceFont',
           title: t.appearanceFontSection,
           icon: CustomIcons.FluentIcons.font,
           children: [
@@ -2070,11 +2081,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         // 窗口效果
         _buildSection(
           context,
+          searchId: 'appearanceWindowEffects',
           title: t.appearanceWindowEffectsSection,
           icon: CustomIcons.FluentIcons.color,
           children: [
             _buildSettingItem(
               context,
+              searchId: 'appearanceWindowEffects',
               title: t.appearanceWindowEffectsEnableTitle,
               subtitle: windowEffect.effectEnabled
                   ? t.appearanceWindowEffectsEnabledSubtitle
@@ -2105,6 +2118,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 ignoring: !windowEffect.effectEnabled,
                 child: _buildSettingItem(
                   context,
+                  searchId: 'appearanceWindowEffectsType',
                   title: t.appearanceWindowEffectsTypeTitle,
                   subtitle:
                       _getEffectModeDescription(windowEffect.effectMode, t),
@@ -2184,6 +2198,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 ignoring: !windowEffect.effectEnabled,
                 child: _buildSettingItem(
                   context,
+                  searchId: 'appearanceWindowEffectsAcrylicOpacity',
                   title: t.appearanceWindowEffectsAcrylicOpacityTitle,
                   subtitle: t.appearanceWindowEffectsAcrylicOpacityHint,
                   trailing: SizedBox(
@@ -2222,6 +2237,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
               const SizedBox(height: 12),
               _buildSettingItem(
                 context,
+                searchId: 'appearanceWindowEffectsDragSuspend',
                 title: t.appearanceWindowEffectsDragSuspendTitle,
                 subtitle: windowEffect.dragSuspend
                     ? t.appearanceWindowEffectsDragSuspendEnabledSubtitle
@@ -2237,6 +2253,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             const SizedBox(height: 12),
             _buildSettingItem(
               context,
+              searchId: 'appearanceWindowEffectsRoundedCorners',
               title: t.appearanceWindowEffectsRoundedCornersTitle,
               subtitle: windowEffect.roundedCornersEnabled
                   ? t.appearanceWindowEffectsRoundedCornersEnabledSubtitle
@@ -2311,11 +2328,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         // 侧边栏设置
         _buildSection(
           context,
+          searchId: 'appearanceSidebar',
           title: t.appearanceSidebarSection,
           icon: CustomIcons.FluentIcons.side_panel,
           children: [
             _buildSettingItem(
               context,
+              searchId: 'appearanceSidebar',
               title: t.appearanceSidebarDefaultTitle,
               subtitle: t.appearanceSidebarDefaultSubtitle,
               trailing: ComboBox<bool>(
@@ -2351,11 +2370,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         // 通知设置
         _buildSection(
           context,
+          searchId: 'appearanceNotification',
           title: t.appearanceNotificationSection,
           icon: CustomIcons.FluentIcons.ringer,
           children: [
             _buildSettingItem(
               context,
+              searchId: 'appearanceNotification',
               title: t.appearanceNotificationEnableTitle,
               subtitle: t.appearanceNotificationEnableSubtitle,
               trailing: ToggleSwitch(
@@ -2366,6 +2387,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             const SizedBox(height: 12),
             _buildSettingItem(
               context,
+              searchId: 'appearanceNotificationScheme',
               title: t.appearanceNotificationSchemeTitle,
               subtitle:
                   _getNotificationColorSchemeName(_notificationColorScheme, t),
@@ -2397,6 +2419,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             const SizedBox(height: 12),
             _buildSettingItem(
               context,
+              searchId: 'appearanceNotificationPosition',
               title: t.appearanceNotificationPositionTitle,
               subtitle: _getNotificationPositionName(_notificationPosition, t),
               trailing: ComboBox<String>(
@@ -2420,6 +2443,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             const SizedBox(height: 12),
             _buildSettingItem(
               context,
+              searchId: 'appearanceNotificationPerformance',
               title: t.appearanceNotificationPerformanceTitle,
               subtitle: _getPerformanceModeName(_performanceMode, t),
               trailing: ComboBox<String>(
@@ -2502,11 +2526,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
         // 下载列表显示
         _buildSection(
           context,
+          searchId: 'appearanceDownloadList',
           title: t.appearanceDownloadListSection,
           icon: CustomIcons.FluentIcons.list,
           children: [
             _buildSettingItem(
               context,
+              searchId: 'appearanceSegmentsMode',
               title: t.appearanceSegmentsModeTitle,
               subtitle:
                   _getSegmentsDisplayModeDescription(_segmentsDisplayMode, t),
@@ -2539,6 +2565,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 ignoring: _segmentsDisplayMode != 'list',
                 child: _buildSettingItem(
                   context,
+                  searchId: 'appearanceSegmentsDefaultExpanded',
                   title: t.appearanceSegmentsDefaultExpandedTitle,
                   subtitle: t.appearanceSegmentsDefaultExpandedSubtitle,
                   trailing: ToggleSwitch(
@@ -2555,6 +2582,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 ignoring: _segmentsDisplayMode != 'list',
                 child: _buildSettingItem(
                   context,
+                  searchId: 'appearanceSegmentsMaxVisible',
                   title: t.appearanceSegmentsMaxVisibleTitle,
                   subtitle: t.appearanceSegmentsMaxVisibleSubtitle,
                   trailing: SizedBox(
@@ -2591,6 +2619,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             const SizedBox(height: 12),
             _buildSettingItem(
               context,
+              searchId: 'appearanceSpeedChart',
               title: t.appearanceSpeedChartTitle,
               subtitle: t.appearanceSpeedChartSubtitle,
               trailing: ToggleSwitch(
@@ -2603,6 +2632,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
               const SizedBox(height: 12),
               _buildSettingItem(
                 context,
+                searchId: 'appearanceChartFrost',
                 title: t.appearanceChartFrostTitle,
                 subtitle: t.appearanceChartFrostSubtitle,
                 trailing: ToggleSwitch(
@@ -2613,6 +2643,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
               const SizedBox(height: 12),
               _buildSettingItem(
                 context,
+                searchId: 'appearanceChartPosition',
                 title: t.appearanceChartPositionTitle,
                 subtitle: t.appearanceChartPositionSubtitle,
                 trailing: ComboBox<String>(
@@ -2636,6 +2667,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
               const SizedBox(height: 12),
               _buildSettingItem(
                 context,
+                searchId: 'appearanceChartColor',
                 title: t.appearanceChartColorTitle,
                 subtitle: t.appearanceChartColorSubtitle,
                 trailing: ComboBox<String>(
@@ -2708,6 +2740,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
       children: [
         _buildSettingItem(
           context,
+          searchId: 'appearanceWindowRemember',
           title: t.appearanceWindowRememberTitle,
           subtitle: rememberSize
               ? t.appearanceWindowRememberSubtitleOn
@@ -2729,6 +2762,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
               children: [
                 _buildSettingItem(
                   context,
+                  searchId: 'appearanceWindowDefaultWidth',
                   title: t.appearanceWindowDefaultWidthTitle,
                   subtitle:
                       t.appearanceWindowDefaultWidthSubtitle(maxWidth.toInt()),
@@ -2764,6 +2798,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 const SizedBox(height: 12),
                 _buildSettingItem(
                   context,
+                  searchId: 'appearanceWindowDefaultHeight',
                   title: t.appearanceWindowDefaultHeightTitle,
                   subtitle: t
                       .appearanceWindowDefaultHeightSubtitle(maxHeight.toInt()),
@@ -2972,11 +3007,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
 
   Widget _buildSection(
     BuildContext context, {
+    String? searchId,
     required String title,
     required IconData icon,
     required List<Widget> children,
   }) {
     return SettingsSection(
+      searchId: searchId,
       title: title,
       icon: icon,
       children: children,
@@ -3003,11 +3040,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
 
   Widget _buildSettingItem(
     BuildContext context, {
+    String? searchId,
     required String title,
     required String subtitle,
     required Widget trailing,
   }) {
     return SettingsItem(
+      searchId: searchId,
       title: title,
       subtitle: subtitle,
       trailing: trailing,

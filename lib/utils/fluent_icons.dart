@@ -111,6 +111,8 @@ class FluentIcons {
   static IconData get arrow_maximize_24 => getIcon('maximize_24');
   static IconData get maximize_20 => arrow_maximize_20;
   static IconData get maximize_24 => arrow_maximize_24;
+  static IconData get square_multiple_20 => getIcon('square_multiple_20');
+  static IconData get window_multiple_20 => getIcon('window_multiple_20');
 
   static IconData get arrowMinimize20 =>
       getIcon('ic_fluent_full_screen_minimize_20_regular');
@@ -233,6 +235,8 @@ class FluentIcons {
       getIcon('arrow_maximize_vertical_20');
   static IconData get arrow_maximize_vertical_24 =>
       getIcon('arrow_maximize_vertical_24');
+  static IconData get chrome_maximize => maximize_20;
+  static IconData get chrome_unmaximize => window_multiple_20;
   static IconData get chrome_restore => arrow_maximize_vertical_24;
   static IconData get window_20 => getIcon('window_20');
 

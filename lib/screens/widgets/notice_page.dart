@@ -1,4 +1,5 @@
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart' as material;
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -11,6 +12,140 @@ import '../../theme/app_theme.dart';
 import '../../utils/fluent_icons.dart' as CustomIcons;
 import '../../widgets/animated_notifications.dart';
 import '../../widgets/smooth_scroll_wrapper.dart';
+
+String _normalizeNoticeMarkdown(String source) {
+  return source
+      .replaceAll('\r\n', '\n')
+      .replaceAll('\r', '\n')
+      .replaceAllMapped(
+        RegExp(r'(\*\*[^*\n]*?)\s*[:：]\s+\*\*\s+\*\s+'),
+        (match) => '${match.group(1)}：** ',
+      );
+}
+
+MarkdownStyleSheet _noticeMarkdownStyleSheet(
+  BuildContext context, {
+  required bool compact,
+}) {
+  final isDark = AppTheme.isDarkContext(context);
+  final bodyColor = compact ? AppTheme.textSecondary : AppTheme.textPrimary;
+  final secondaryColor =
+      compact ? AppTheme.textTertiary : AppTheme.textSecondary;
+  final accentColor = isDark ? AppTheme.accentLight : AppTheme.accentPrimary;
+  final baseTextStyle = FluentTheme.of(context).typography.body?.copyWith(
+        fontSize: compact ? 13 : 14,
+        height: compact ? 1.55 : 1.65,
+        color: bodyColor,
+      );
+
+  return MarkdownStyleSheet(
+    p: baseTextStyle,
+    pPadding: EdgeInsets.only(bottom: compact ? 8 : 10),
+    strong: baseTextStyle?.copyWith(
+      color: AppTheme.textPrimary,
+      fontWeight: FontWeight.w700,
+    ),
+    em: baseTextStyle?.copyWith(
+      color: secondaryColor,
+      fontStyle: FontStyle.italic,
+    ),
+    h1: FluentTheme.of(context).typography.title?.copyWith(
+          fontSize: compact ? 20 : 23,
+          fontWeight: FontWeight.w700,
+          color: AppTheme.textPrimary,
+          height: 1.25,
+        ),
+    h1Padding: const EdgeInsets.only(bottom: 14),
+    h2: FluentTheme.of(context).typography.subtitle?.copyWith(
+          fontSize: compact ? 18 : 20,
+          fontWeight: FontWeight.w700,
+          color: AppTheme.textPrimary,
+          height: 1.3,
+        ),
+    h2Padding: const EdgeInsets.only(top: 4, bottom: 12),
+    h3: FluentTheme.of(context).typography.bodyLarge?.copyWith(
+          fontSize: compact ? 15 : 16,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.textPrimary,
+          height: 1.35,
+        ),
+    h3Padding: const EdgeInsets.only(top: 8, bottom: 8),
+    a: baseTextStyle?.copyWith(
+      color: accentColor,
+      decoration: TextDecoration.underline,
+      decorationColor: accentColor.withValues(alpha: 0.65),
+    ),
+    listIndent: compact ? 22 : 26,
+    listBullet: baseTextStyle?.copyWith(
+      color: accentColor,
+      fontWeight: FontWeight.w700,
+    ),
+    listBulletPadding: const EdgeInsets.only(right: 8),
+    blockSpacing: compact ? 8 : 10,
+    blockquote: baseTextStyle?.copyWith(
+      color: secondaryColor,
+      height: compact ? 1.55 : 1.65,
+    ),
+    blockquotePadding: EdgeInsets.fromLTRB(
+      compact ? 12 : 14,
+      compact ? 8 : 10,
+      compact ? 12 : 14,
+      compact ? 8 : 10,
+    ),
+    blockquoteDecoration: BoxDecoration(
+      color: AppTheme.bgLayer2.withValues(alpha: isDark ? 0.34 : 0.58),
+      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+      border: Border(
+        left: BorderSide(
+          color: accentColor.withValues(alpha: 0.9),
+          width: 3,
+        ),
+      ),
+    ),
+    code: baseTextStyle?.copyWith(
+      fontSize: compact ? 12 : 13,
+      fontFamily: 'Consolas',
+      backgroundColor: AppTheme.bgLayer2.withValues(alpha: 0.82),
+      color: accentColor,
+    ),
+    codeblockPadding: const EdgeInsets.all(12),
+    codeblockDecoration: BoxDecoration(
+      color: AppTheme.bgLayer2.withValues(alpha: 0.72),
+      borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+      border: Border.all(
+        color: AppTheme.borderSubtle.withValues(alpha: 0.6),
+      ),
+    ),
+    horizontalRuleDecoration: BoxDecoration(
+      border: Border(
+        top: BorderSide(
+          color: AppTheme.borderSubtle.withValues(alpha: 0.62),
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _buildNoticeMarkdown(
+  BuildContext context, {
+  required String content,
+  required bool compact,
+  required Future<void> Function(String url) onLinkTap,
+}) {
+  return material.Material(
+    color: material.Colors.transparent,
+    child: MarkdownBody(
+      data: _normalizeNoticeMarkdown(content),
+      selectable: true,
+      styleSheet: _noticeMarkdownStyleSheet(context, compact: compact),
+      onTapLink: (text, href, title) {
+        if (href != null) {
+          onLinkTap(href);
+        }
+      },
+    ),
+  );
+}
 
 class NoticePage extends StatefulWidget {
   const NoticePage({super.key});
@@ -177,11 +312,9 @@ class _NoticePageState extends State<NoticePage> {
                     decoration: BoxDecoration(
                       color: AppTheme.cardBackground(
                           darkAlpha: 0.4, lightAlpha: 0.6),
-                      borderRadius:
-                          BorderRadius.circular(AppTheme.radiusLg),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                       border: Border.all(
-                        color:
-                            AppTheme.borderSubtle.withValues(alpha: 0.5),
+                        color: AppTheme.borderSubtle.withValues(alpha: 0.5),
                       ),
                     ),
                     child: SmoothListView.builder(
@@ -190,8 +323,7 @@ class _NoticePageState extends State<NoticePage> {
                       itemCount: notices.length,
                       itemBuilder: (context, index) {
                         final notice = notices[index];
-                        final isSelected =
-                            _selectedNotice?.id == notice.id;
+                        final isSelected = _selectedNotice?.id == notice.id;
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: _NoticeListTile(
@@ -217,8 +349,8 @@ class _NoticePageState extends State<NoticePage> {
               child: Container(
                 margin: const EdgeInsets.only(top: 26),
                 decoration: BoxDecoration(
-                  color: AppTheme.cardBackground(
-                      darkAlpha: 0.6, lightAlpha: 0.8),
+                  color:
+                      AppTheme.cardBackground(darkAlpha: 0.6, lightAlpha: 0.8),
                   borderRadius: BorderRadius.circular(AppTheme.radiusXl),
                   border: Border.all(
                     color: AppTheme.borderSubtle.withValues(alpha: 0.8),
@@ -453,8 +585,9 @@ class _NoticeListTile extends StatelessWidget {
                             notice.title,
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight:
-                                  isSelected ? FontWeight.w600 : FontWeight.w500,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
                               color: isSelected
                                   ? AppTheme.textPrimary
                                   : AppTheme.textSecondary,
@@ -632,54 +765,11 @@ class _NoticeDetailPane extends StatelessWidget {
             color: AppTheme.borderSubtle.withValues(alpha: 0.6),
             margin: const EdgeInsets.only(bottom: 24),
           ),
-          MarkdownBody(
-            data: notice.content ?? '',
-            selectable: true,
-            styleSheet: MarkdownStyleSheet(
-              p: TextStyle(
-                fontSize: 14,
-                color: AppTheme.textSecondary,
-                height: 1.6,
-              ),
-              h1: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
-                height: 1.5,
-              ),
-              h2: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-                height: 1.5,
-              ),
-              h3: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-                height: 1.5,
-              ),
-              a: TextStyle(
-                color: isDark ? AppTheme.accentLight : AppTheme.accentPrimary,
-                decoration: TextDecoration.underline,
-              ),
-              listBullet: TextStyle(color: AppTheme.textSecondary),
-              code: TextStyle(
-                fontSize: 13,
-                backgroundColor: AppTheme.bgLayer2,
-                color: isDark ? AppTheme.accentLight : AppTheme.accentPrimary,
-              ),
-              codeblockDecoration: BoxDecoration(
-                color: AppTheme.bgLayer2,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                border: Border.all(color: AppTheme.borderSubtle),
-              ),
-            ),
-            onTapLink: (text, href, title) {
-              if (href != null) {
-                onLinkTap(href);
-              }
-            },
+          _buildNoticeMarkdown(
+            context,
+            content: notice.content ?? '',
+            compact: false,
+            onLinkTap: onLinkTap,
           ),
         ],
       ),
@@ -797,8 +887,8 @@ class _ModernNoticeCardState extends State<_ModernNoticeCard> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: AppTheme.accentPrimary.withValues(
-                                        alpha: isDark ? 0.2 : 0.1),
+                                    color: AppTheme.accentPrimary
+                                        .withValues(alpha: isDark ? 0.2 : 0.1),
                                     borderRadius: BorderRadius.circular(
                                         AppTheme.radiusRound),
                                     border: Border.all(
@@ -910,46 +1000,11 @@ class _ModernNoticeCardState extends State<_ModernNoticeCard> {
             color: AppTheme.borderSubtle.withValues(alpha: 0.5),
             margin: const EdgeInsets.only(bottom: 16),
           ),
-          MarkdownBody(
-            data: notice.content ?? '',
-            selectable: true,
-            styleSheet: MarkdownStyleSheet(
-              p: TextStyle(
-                fontSize: 14,
-                color: AppTheme.textSecondary,
-                height: 1.6,
-              ),
-              h2: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-              ),
-              h3: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-              ),
-              a: TextStyle(
-                color: isDark ? AppTheme.accentLight : AppTheme.accentPrimary,
-                decoration: TextDecoration.underline,
-              ),
-              listBullet: TextStyle(color: AppTheme.textSecondary),
-              code: TextStyle(
-                fontSize: 13,
-                backgroundColor: AppTheme.bgLayer2,
-                color: isDark ? AppTheme.accentLight : AppTheme.accentPrimary,
-              ),
-              codeblockDecoration: BoxDecoration(
-                color: AppTheme.bgLayer2,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                border: Border.all(color: AppTheme.borderSubtle),
-              ),
-            ),
-            onTapLink: (text, href, title) {
-              if (href != null) {
-                widget.onLinkTap(href);
-              }
-            },
+          _buildNoticeMarkdown(
+            context,
+            content: notice.content ?? '',
+            compact: true,
+            onLinkTap: widget.onLinkTap,
           ),
           if (notice.link != null && notice.link!.url != null) ...[
             const SizedBox(height: 20),
