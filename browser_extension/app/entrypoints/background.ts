@@ -46,7 +46,9 @@ const CAPTURED_HEADER_NAMES = new Set([
 const HEADER_CAPTURE_FILTER = {
   urls: ['http://*/*', 'https://*/*'],
   types: ['main_frame', 'sub_frame', 'object', 'other'],
-};
+} satisfies Parameters<
+  typeof browser.webRequest.onSendHeaders.addListener
+>[1];
 type PortScanMode = 'primary' | 'nearby' | 'full';
 const MENU_IDS = {
   link: 'hanabi-send-link',
