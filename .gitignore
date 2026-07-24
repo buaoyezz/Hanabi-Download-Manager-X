@@ -207,20 +207,6 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
-
-# Logs and debug files
-*.log
-logs/
-*.stackdump
-
-# Environment variables
-.env
-.env.local
-.env.*.local
 
 # Database files
 *.db
@@ -294,6 +280,10 @@ updater/dotnet/**/bin/
 updater/dotnet/**/obj/
 updater/dist/
 updater/standalone/
+# NativeAOT NeoNSF build outputs
+neonsf/dotnet/**/bin/
+neonsf/dotnet/**/obj/
+neonsf/dist/
 app_meow.arb
 
 # Browser extension source icons must stay in the source tree. This override
@@ -301,3 +291,10 @@ app_meow.arb
 !browser_extension/app/public/
 !browser_extension/app/public/icon/
 !browser_extension/app/public/icon/*.png
+
+# Local patch & log files
+*.patch
+diff.txt
+build_log.txt
+build_windows_log.txt
+log.txt

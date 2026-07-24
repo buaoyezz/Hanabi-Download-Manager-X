@@ -10,11 +10,17 @@ import 'downloader/download_engine.dart';
 import 'downloader/http_client.dart';
 import 'storage/task_storage.dart';
 import 'server/http_server.dart';
+import '../../../utils/constants.dart';
 import '../../app_logger_service.dart';
 import '../../client_config_service.dart';
 
 class NsfxKernel implements KernelInterface {
+  NsfxKernel({KernelInterface? commandRouter}) : _commandRouter = commandRouter;
+
+  final KernelInterface? _commandRouter;
   bool _isRunning = false;
+  bool _stopping = false;
+  Future<void>? _stopFuture;
   late NsfxConfig _config;
   late NsfxHttpClient _httpClient;
   late DownloadEngine _engine;
@@ -44,7 +50,7 @@ class NsfxKernel implements KernelInterface {
   final Map<String, int> _lastEmittedTotalSize = {};
 
   @override
-  String get name => 'NSFX (Next Speed Force X)';
+  String get name => AppConstants.newKernelFullName;
 
   @override
   bool get isRunning => _isRunning;
@@ -103,12 +109,7 @@ class NsfxKernel implements KernelInterface {
         if (!_hasActiveWork()) {
           return;
         }
-        unawaited(_storage.saveTasks(_tasks));
-        unawaited(
-          _storage.saveHostStrategies(
-            NsfxHttpClient.exportAdaptiveHostStrategies(),
-          ),
-        );
+        _saveTasksInBackground('periodic checkpoint');
       });
 
       // 启动 HTTP 服务器（用于浏览器扩展通信）
@@ -129,10 +130,61 @@ class NsfxKernel implements KernelInterface {
 
   @override
   Future<void> stop() async {
+    if (_stopFuture != null) {
+      await _stopFuture;
+      return;
+    }
+    _stopping = true;
+    _stopFuture = _stopInternal();
+    try {
+      await _stopFuture;
+    } finally {
+      _stopping = false;
+      _stopFuture = null;
+    }
+  }
+
+  Future<void> _stopInternal() async {
     _logger.info('NSFX', 'Stopping NSFX kernel...');
     _stopStatsTimer();
     _saveTimer?.cancel();
     _saveTimer = null;
+
+    for (final task in _tasks.values) {
+      if (task.status == TaskStatus.downloading ||
+          task.status == TaskStatus.merging) {
+        task.status = TaskStatus.paused;
+        task.speed = 0;
+        task.eta = 0;
+        for (final segment in task.segments) {
+          if (segment.status == SegmentStatus.downloading) {
+            segment.status = SegmentStatus.paused;
+            segment.speed = 0;
+          }
+        }
+      }
+    }
+
+    try {
+      await _engine.pauseAllActive();
+    } catch (e) {
+      _logger.warning('NSFX', 'Failed to pause active downloads on stop: $e');
+    }
+
+    for (final task in _tasks.values) {
+      if (task.status == TaskStatus.paused ||
+          task.status == TaskStatus.failed) {
+        try {
+          await _engine.discardIncompleteMergeArtifact(task);
+          await _engine.calibrateTaskProgressFromDisk(task);
+        } catch (e) {
+          _logger.debug(
+            'NSFX',
+            'Failed to calibrate task ${task.id} on stop: $e',
+          );
+        }
+      }
+    }
 
     await _httpServer?.stop();
     await _storage.saveTasks(_tasks);
@@ -174,6 +226,7 @@ class NsfxKernel implements KernelInterface {
     Map<String, dynamic>? headers,
     String? saveDir,
     bool startPaused = false,
+    int? expectedSizeHint,
   }) async {
     if (!_isRunning) return null;
 
@@ -206,16 +259,24 @@ class NsfxKernel implements KernelInterface {
       referer: referer,
       cookies: cookies,
       headers: headers?.map((k, v) => MapEntry(k, v.toString())),
+      expectedSizeHint: expectedSizeHint != null && expectedSizeHint > 0
+          ? expectedSizeHint
+          : null,
     );
 
     _tasks[id] = task;
 
-    // 绔嬪嵆淇濆瓨浠诲姟鍒楄〃
-    await _storage.saveTasks(_tasks);
+    // Snapshot the task for durable storage immediately, but do not hold the
+    // first network request behind a full atomic JSON flush. The add call still
+    // awaits persistence before it reports success, while the transfer and the
+    // disk write can make progress concurrently.
+    final persistence = _storage.saveTasks(_tasks);
 
     if (!startPaused) {
       _checkQueue();
     }
+
+    await persistence;
 
     _logger.info('NSFX', 'Download added with ID: $id');
     return id;
@@ -242,8 +303,29 @@ class NsfxKernel implements KernelInterface {
     var changed = false;
 
     for (final task in _tasks.values) {
-      if (task.status != TaskStatus.downloading &&
-          task.status != TaskStatus.merging) {
+      // 1) Always discard incomplete merge staging / journal leftovers.
+      try {
+        final mergingFile = File('${task.filepath}.nsfx_merging');
+        final hadMerging = await mergingFile.exists();
+        await _engine.discardIncompleteMergeArtifact(task);
+        if (hadMerging) {
+          _logger.warning(
+            'NSFX',
+            'Discarded incomplete merge artifact on recovery: '
+                '${mergingFile.path}',
+          );
+          changed = true;
+        }
+      } catch (e) {
+        _logger.warning(
+          'NSFX',
+          'Failed to discard merge artifacts for ${task.filename}: $e',
+        );
+      }
+
+      // Completed tasks: only heal dirty segment runtime flags.
+      if (task.status == TaskStatus.completed ||
+          task.status == TaskStatus.cancelled) {
         continue;
       }
 
@@ -251,8 +333,35 @@ class NsfxKernel implements KernelInterface {
       task.eta = 0;
 
       final file = File(task.filepath);
-      final fileExists = await file.exists();
-      final fileLength = fileExists ? await file.length() : 0;
+      final partialFile = File('${task.filepath}.nsfx_partial');
+      var fileExists = await file.exists();
+      var fileLength = fileExists ? await file.length() : 0;
+
+      // A direct-write partial is preallocated to totalSize, so file length is
+      // not evidence of completion.  Promote only after the engine verifies
+      // the continuous segment layout and every durable completion marker.
+      if (!fileExists && await partialFile.exists()) {
+        try {
+          final promoted = await _engine.recoverCompletedDirectWrite(task);
+          if (promoted) {
+            fileExists = true;
+            fileLength = await file.length();
+            changed = true;
+            _logger.info(
+              'NSFX',
+              'Promoted completed direct-write partial on recovery: '
+                  '${task.filename}',
+            );
+          }
+        } catch (e) {
+          _logger.warning(
+            'NSFX',
+            'Failed to verify/promote direct-write partial for '
+                '${task.filename}: $e',
+          );
+        }
+      }
+
       final hasExpectedSize =
           task.totalSize > 0 && fileLength >= task.totalSize;
       final hasPersistedCompleteProgress = task.progress >= 100 &&
@@ -262,37 +371,89 @@ class NsfxKernel implements KernelInterface {
           fileLength > 0 &&
           (hasExpectedSize || hasPersistedCompleteProgress);
 
+      // 2) Full final file => completed.
       if (isCompleteFile) {
-        task.status = TaskStatus.completed;
-        task.downloadedSize = fileLength;
-        if (task.totalSize <= 0 || fileLength > task.totalSize) {
-          task.totalSize = fileLength;
-        }
-        task.progress = 100;
-        task.endTime ??= DateTime.now();
-        task.targetReachable = true;
-        _logger.info(
-          'NSFX',
-          'Recovered completed task from disk: ${task.filename}',
-        );
-      } else {
-        task.status = TaskStatus.paused;
-        task.progress = task.totalSize > 0
-            ? (task.downloadedSize / task.totalSize) * 100
-            : 0;
-        for (final segment in task.segments) {
-          if (segment.status == SegmentStatus.downloading) {
-            segment.status = SegmentStatus.paused;
-            segment.speed = 0;
+        if (task.status != TaskStatus.completed) {
+          task.status = TaskStatus.completed;
+          task.downloadedSize = fileLength;
+          if (task.totalSize <= 0 || fileLength > task.totalSize) {
+            task.totalSize = fileLength;
           }
+          task.progress = 100;
+          task.endTime ??= DateTime.now();
+          task.targetReachable = true;
+          task.errorMessage = null;
+          _logger.info(
+            'NSFX',
+            'Recovered completed task from disk: ${task.filename}',
+          );
+          changed = true;
         }
-        _logger.warning(
-          'NSFX',
-          'Recovered interrupted active task as paused: ${task.filename}',
-        );
+        continue;
       }
 
-      changed = true;
+      final wasActive = task.status == TaskStatus.downloading ||
+          task.status == TaskStatus.merging;
+      final hasDirtySegmentRuntime = task.segments.any(
+        (segment) =>
+            segment.status == SegmentStatus.downloading ||
+            (wasActive && segment.status == SegmentStatus.pending),
+      );
+      final hasPartialData = await _engine.hasRecoverablePartialData(task) ||
+          task.downloadedSize > 0 ||
+          task.segments.any((s) => s.downloadedBytes > 0);
+
+      // 3/4) Interrupted active work, or any partial on disk => paused + calibrate.
+      if (wasActive || hasDirtySegmentRuntime || hasPartialData) {
+        final previousStatus = task.status;
+        if (wasActive || task.status == TaskStatus.pending) {
+          task.status = TaskStatus.paused;
+        }
+
+        try {
+          await _engine.calibrateTaskProgressFromDisk(task);
+        } catch (_) {
+          task.progress = task.totalSize > 0
+              ? (task.downloadedSize / task.totalSize) * 100
+              : 0;
+          for (final segment in task.segments) {
+            if (segment.status == SegmentStatus.downloading) {
+              segment.status = SegmentStatus.paused;
+              segment.speed = 0;
+            }
+          }
+        }
+
+        // Keep failed tasks failed unless they were mid-transfer.
+        if (wasActive && previousStatus != TaskStatus.failed) {
+          task.status = TaskStatus.paused;
+        } else if (previousStatus == TaskStatus.failed) {
+          task.status = TaskStatus.failed;
+        }
+
+        _logger.warning(
+          'NSFX',
+          'Recovered task as ${task.status.name} with disk-calibrated '
+              'progress: ${task.filename} '
+              '(${task.downloadedSize}/${task.totalSize})',
+        );
+        changed = true;
+        continue;
+      }
+
+      // 5) Clear leftover downloading markers on idle tasks.
+      if (task.status == TaskStatus.downloading ||
+          task.status == TaskStatus.merging) {
+        task.status = TaskStatus.paused;
+        changed = true;
+      }
+      for (final segment in task.segments) {
+        if (segment.status == SegmentStatus.downloading) {
+          segment.status = SegmentStatus.paused;
+          segment.speed = 0;
+          changed = true;
+        }
+      }
     }
 
     return changed;
@@ -374,10 +535,16 @@ class NsfxKernel implements KernelInterface {
     if (task == null || task.status != TaskStatus.downloading) return false;
 
     task.status = TaskStatus.paused;
-    _engine.pauseDownload(taskId);
-    _progressController.add(_toDownloadTask(task));
+    await _engine.pauseDownload(taskId);
+    try {
+      await _engine.calibrateTaskProgressFromDisk(task);
+    } catch (e) {
+      _logger.debug('NSFX', 'Failed to calibrate paused task $taskId: $e');
+    }
+    if (!_progressController.isClosed) {
+      _progressController.add(_toDownloadTask(task));
+    }
 
-    // 绔嬪嵆淇濆瓨浠诲姟鍒楄〃
     await _storage.saveTasks(_tasks);
 
     _checkQueue();
@@ -403,16 +570,20 @@ class NsfxKernel implements KernelInterface {
     if (task == null) return false;
 
     task.status = TaskStatus.cancelled;
-    _engine.cancelDownload(taskId);
+    await _engine.cancelDownload(taskId);
     _tasks.remove(taskId);
 
-    // 绔嬪嵆淇濆瓨浠诲姟鍒楄〃
     await _storage.saveTasks(_tasks);
 
-    // 娓呯悊鏂囦欢
     try {
       final file = File(task.filepath);
       if (await file.exists()) await file.delete();
+
+      final mergingFile = File('${task.filepath}.nsfx_merging');
+      if (await mergingFile.exists()) await mergingFile.delete();
+
+      final partialFile = File('${task.filepath}.nsfx_partial');
+      if (await partialFile.exists()) await partialFile.delete();
 
       final tempDir = Directory(p.join(
         File(task.filepath).parent.path,
@@ -517,6 +688,10 @@ class NsfxKernel implements KernelInterface {
       conflictStrategy: _config.conflictStrategy,
       defaultUserAgent: _config.defaultUserAgent,
       httpVersionPolicy: _config.httpVersionPolicy,
+      allowInsecureTls: _config.allowInsecureTls,
+      globalMaxConnections: _config.globalMaxConnections,
+      connectionTimeout: _config.connectionTimeout,
+      readTimeout: _config.readTimeout,
       proxy: ProxyConfig(
         enabled: _config.proxy.enabled,
         type: _config.proxy.type,
@@ -544,6 +719,14 @@ class NsfxKernel implements KernelInterface {
         : config.defaultUserAgent;
     _config.httpVersionPolicy =
         NsfxHttpVersionPolicy.normalize(config.httpVersionPolicy);
+    _config.allowInsecureTls = config.allowInsecureTls;
+    _config.globalMaxConnections =
+        NsfxConnectionBudget.normalize(config.globalMaxConnections);
+    _config.connectionTimeout = config.connectionTimeout.clamp(3, 120);
+    _config.readTimeout = config.readTimeout.clamp(5, 300);
+    _config.maxRetries =
+        NsfxRetryPolicy.effectiveMaxRetries(_config.maxRetries);
+    _engine.syncRuntimeBudgets();
 
     if (config.proxy != null) {
       _config.proxy.enabled = config.proxy!.enabled;
@@ -694,7 +877,7 @@ class NsfxKernel implements KernelInterface {
         clientConfig.getBrowserExtensionCompatibilityPorts();
 
     final nextServer = NsfxHttpServer(
-      this,
+      _commandRouter ?? this,
       port: normalizedPort,
       compatibilityPorts: _buildCompatibilityPorts(
         primaryPort: normalizedPort,
@@ -718,7 +901,7 @@ class NsfxKernel implements KernelInterface {
       'Failed to rebind browser bridge to port $normalizedPort',
     );
     final fallbackServer = NsfxHttpServer(
-      this,
+      _commandRouter ?? this,
       port: fallbackPort,
       compatibilityPorts: _buildCompatibilityPorts(
         primaryPort: fallbackPort,
@@ -739,13 +922,23 @@ class NsfxKernel implements KernelInterface {
 
   @override
   void dispose() {
-    stop();
-    _progressController.close();
-    _completeController.close();
-    _statsController.close();
+    if (_isRunning && !_stopping) {
+      unawaited(stop());
+    }
+    if (!_progressController.isClosed) {
+      _progressController.close();
+    }
+    if (!_completeController.isClosed) {
+      _completeController.close();
+    }
+    if (!_statsController.isClosed) {
+      _statsController.close();
+    }
   }
 
   void _onTaskProgress(Task task) {
+    if (!_isRunning || _progressController.isClosed) return;
+
     final now = DateTime.now();
 
     // 检查是否有关键变化（状态变化或文件大小变化）
@@ -754,7 +947,9 @@ class NsfxKernel implements KernelInterface {
     final isStatusChanged = lastStatus != task.status;
     final isTotalSizeChanged =
         lastTotalSize != task.totalSize && task.totalSize > 0;
-    final isCriticalChange = isStatusChanged || isTotalSizeChanged;
+    final enteredMerging = isStatusChanged && task.status == TaskStatus.merging;
+    final isCriticalChange =
+        isStatusChanged || isTotalSizeChanged || enteredMerging;
 
     // 关键变化必须立即发送，普通进度更新会被节流
     if (!isCriticalChange &&
@@ -768,25 +963,44 @@ class NsfxKernel implements KernelInterface {
     _lastProgressEmit = now;
 
     _progressController.add(_toDownloadTask(task));
+
+    // 进入 merging / 关键状态变化时立即落盘，降低崩溃窗口
+    if (enteredMerging ||
+        (isStatusChanged &&
+            (task.status == TaskStatus.paused ||
+                task.status == TaskStatus.failed ||
+                task.status == TaskStatus.completed))) {
+      _saveTasksInBackground(
+        enteredMerging ? 'merging' : 'status:${task.status.name}',
+      );
+    }
   }
 
   void _onTaskComplete(Task task) {
+    if (!_isRunning) return;
     _logger.info('NSFX', 'Download completed: ${task.filename}');
     final completedTask = _toDownloadTask(task);
     _lastEmittedStatus[task.id] = task.status;
     _lastEmittedTotalSize[task.id] = task.totalSize;
-    _progressController.add(completedTask);
-    _completeController.add(completedTask);
+    if (!_progressController.isClosed) {
+      _progressController.add(completedTask);
+    }
+    if (!_completeController.isClosed) {
+      _completeController.add(completedTask);
+    }
     _saveTasksInBackground('completion');
     _checkQueue();
   }
 
   void _onTaskError(Task task) {
+    if (!_isRunning) return;
     final errorMessage = task.errorMessage?.trim();
     if (errorMessage == null || errorMessage.isEmpty) {
       _logger.error('NSFX', 'Download failed: ${task.filename}');
     }
-    _progressController.add(_toDownloadTask(task));
+    if (!_progressController.isClosed) {
+      _progressController.add(_toDownloadTask(task));
+    }
     _saveTasksInBackground('failure');
     _checkQueue();
   }
@@ -904,7 +1118,7 @@ class NsfxKernel implements KernelInterface {
     final clientConfig = ClientConfigService();
     final bridgePort = clientConfig.getBrowserExtensionPort();
     _httpServer = NsfxHttpServer(
-      this,
+      _commandRouter ?? this,
       port: bridgePort,
       compatibilityPorts: _buildCompatibilityPorts(
         primaryPort: bridgePort,

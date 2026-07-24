@@ -355,6 +355,11 @@ class _StatusPageState extends State<StatusPage> {
     if (_checkingKernel) return;
 
     if (!mounted) return;
+    final kernelManager = context.read<KernelManager>();
+    final defaultVersion = kernelManager.isNeoNsfSelected
+        ? '${AppConstants.neoKernelVersion} (${AppConstants.neoKernelBuildNumber})'
+        : '${AppConstants.newKernelVersion} (${AppConstants.newKernelBuildNumber})';
+
     setState(() {
       _checkingKernel = true;
     });
@@ -371,20 +376,20 @@ class _StatusPageState extends State<StatusPage> {
         if (!mounted) return;
         setState(() {
           _kernelHealthy = true;
-          _kernelVersion = result['version'] ?? AppConstants.newKernelVersion;
+          _kernelVersion = result['version'] ?? defaultVersion;
         });
       } else {
         if (!mounted) return;
         setState(() {
           _kernelHealthy = false;
-          _kernelVersion = AppConstants.newKernelVersion;
+          _kernelVersion = defaultVersion;
         });
       }
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _kernelHealthy = false;
-        _kernelVersion = AppConstants.newKernelVersion;
+        _kernelVersion = defaultVersion;
       });
     } finally {
       if (mounted) {

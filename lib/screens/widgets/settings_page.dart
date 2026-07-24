@@ -23,8 +23,8 @@ import '../../widgets/temp_files_dialog.dart';
 import '../../widgets/smooth_scroll_wrapper.dart';
 import '../../services/auto_start_service.dart';
 import '../../theme/app_theme.dart';
-import '../../utils/fluent_icons.dart' as custom_icons;
 import '../../utils/constants.dart';
+import '../../utils/fluent_icons.dart' as custom_icons;
 import '../../l10n/app_localizations.dart';
 import 'appearance_settings_page.dart';
 import 'developer_settings_page.dart';
@@ -139,6 +139,8 @@ class _SettingsPageState extends State<SettingsPage> {
   int _globalSpeedLimit = 0;
   String _conflictStrategy = 'increment'; // increment | timestamp | overwrite
   bool _enableDynamicSegments = true;
+  bool _allowInsecureTls = false;
+  int _globalMaxConnections = 32;
   bool _showHttpConnectivityBadges = false;
   bool _loadingConfig = true;
 
@@ -212,16 +214,17 @@ class _SettingsPageState extends State<SettingsPage> {
       ClientConfigService.popupWindowEffectFollowMain;
   int _popupWindowEffectAlpha =
       ClientConfigService.defaultPopupWindowEffectAlpha;
+  String _popupNsfxTextMode = ClientConfigService.popupNsfxTextModeDefault;
   bool _enableClipboardListener = true;
   bool _onlineStatsEnabled = true;
   int _browserExtensionPort = ClientConfigService.defaultBrowserExtensionPort;
+  final ValueNotifier<String> _selectedDownloadKernelId =
+      ValueNotifier<String>(ClientConfigService.downloadKernelNsfx);
 
   // Status monitoring
-  bool _kernelOnline = false;
+  bool _browserBridgeOnline = false;
   List<_BrowserExtensionStatus> _browserExtensionStatuses = const [];
   Timer? _statusTimer;
-
-  String _currentKernelName = 'NSFX (Next Speed Force X)';
 
   DeveloperModeService? _devModeService;
 
@@ -248,22 +251,44 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _onDeveloperModeChanged() {
-    if (_devModeService != null &&
-        !_devModeService!.developerMode &&
-        _currentTabIndex == 6) {
+    if (_devModeService == null || _devModeService!.developerMode) return;
+
+    if (_currentTabIndex == 6) {
       setState(() {
+        _tabAnimationDirection = -1;
         _currentTabIndex = 5;
       });
     }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_tabScrollController.hasClients) return;
+      _tabScrollController.jumpTo(0);
+    });
   }
 
   Future<void> _loadKernelSettings() async {
-    final kernelManager = KernelManager();
+    final selectedKernelId = ClientConfigService.normalizeDownloadKernelId(
+      ClientConfigService().getDownloadKernelId(),
+    );
+    if (mounted) _selectedDownloadKernelId.value = selectedKernelId;
+  }
 
-    if (mounted) {
-      setState(() {
-        _currentKernelName = kernelManager.kernelName;
-      });
+  Future<void> _selectDownloadKernel(String kernelId) async {
+    final normalized = ClientConfigService.normalizeDownloadKernelId(kernelId);
+    final previous = _selectedDownloadKernelId.value;
+    if (normalized == previous) return;
+
+    _selectedDownloadKernelId.value = normalized;
+    final kernelManager = context.read<KernelManager>();
+    final success = await kernelManager.selectKernel(normalized);
+    if (!mounted) return;
+
+    if (!success) {
+      _selectedDownloadKernelId.value = previous;
+      NotificationManager.of(context)?.showError(
+        t.settingsKernelSwitchFailedTitle,
+        message: t.settingsKernelSwitchFailedNewMessage,
+      );
     }
   }
 
@@ -291,6 +316,7 @@ class _SettingsPageState extends State<SettingsPage> {
           config.getBrowserDownloadHandlingMode();
       final popupWindowEffectMode = config.getPopupWindowEffectMode();
       final popupWindowEffectAlpha = config.getPopupWindowEffectAlpha();
+      final popupNsfxTextMode = config.popupNsfxTextMode;
       final enableClipboardListener = config.getEnableClipboardListener();
       final onlineStatsEnabled = config.getEnableOnlineStats();
       final browserExtensionPort = config.getBrowserExtensionPort();
@@ -302,6 +328,7 @@ class _SettingsPageState extends State<SettingsPage> {
           _browserDownloadHandlingMode = browserDownloadHandlingMode;
           _popupWindowEffectMode = popupWindowEffectMode;
           _popupWindowEffectAlpha = popupWindowEffectAlpha;
+          _popupNsfxTextMode = popupNsfxTextMode;
           _enableClipboardListener = enableClipboardListener;
           _onlineStatsEnabled = onlineStatsEnabled;
           _browserExtensionPort = browserExtensionPort;
@@ -621,21 +648,11 @@ class _SettingsPageState extends State<SettingsPage> {
               placeholder: t.settingsBrowserExtensionPortPlaceholder,
             ),
             const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.accentPrimary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                border: Border.all(
-                  color: AppTheme.accentPrimary.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Text(
-                t.settingsBrowserExtensionPortHintBody,
-                style: FluentTheme.of(context).typography.caption?.copyWith(
-                      color: AppTheme.textSecondary,
-                    ),
-              ),
+            InfoBar(
+              title: Text(t.settingsBrowserExtensionPortTitle),
+              content: Text(t.settingsBrowserExtensionPortHintBody),
+              severity: InfoBarSeverity.info,
+              isLong: true,
             ),
           ],
         ),
@@ -750,6 +767,7 @@ class _SettingsPageState extends State<SettingsPage> {
     _defaultUserAgentController.dispose();
     _uaPackNameController.dispose();
     _uaPackValueController.dispose();
+    _selectedDownloadKernelId.dispose();
     super.dispose();
   }
 
@@ -765,27 +783,24 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!mounted) return;
 
     final kernelManager = KernelManager();
-    final newKernelName = kernelManager.kernelName;
-    var newKernelOnline = false;
+    var newBrowserBridgeOnline = false;
     var newBrowserExtensionStatuses = const <_BrowserExtensionStatus>[];
 
     if (kernelManager.isRunning) {
       final status = await _fetchBrowserBridgeStatus();
-      newKernelOnline = status.kernelOnline;
+      newBrowserBridgeOnline = status.bridgeOnline;
       newBrowserExtensionStatuses = status.browserExtensions;
     }
 
     if (mounted &&
-        (newKernelOnline != _kernelOnline ||
+        (newBrowserBridgeOnline != _browserBridgeOnline ||
             !_browserExtensionStatusesEqual(
               newBrowserExtensionStatuses,
               _browserExtensionStatuses,
-            ) ||
-            newKernelName != _currentKernelName)) {
+            ))) {
       setState(() {
-        _kernelOnline = newKernelOnline;
+        _browserBridgeOnline = newBrowserBridgeOnline;
         _browserExtensionStatuses = newBrowserExtensionStatuses;
-        _currentKernelName = newKernelName;
       });
     }
   }
@@ -816,13 +831,13 @@ class _SettingsPageState extends State<SettingsPage> {
           );
       final healthBody = await healthResponse.transform(utf8.decoder).join();
       final healthJson = jsonDecode(healthBody);
-      final kernelOnline = healthResponse.statusCode == 200 &&
+      final bridgeOnline = healthResponse.statusCode == 200 &&
           healthJson is Map &&
           healthJson['status'] == 'ok' &&
           healthJson['running'] == true;
 
-      if (!kernelOnline) {
-        return const _BrowserBridgeStatus(kernelOnline: false);
+      if (!bridgeOnline) {
+        return const _BrowserBridgeStatus(bridgeOnline: false);
       }
 
       final statsPort = _resolveBrowserBridgeStatsPort(
@@ -854,18 +869,18 @@ class _SettingsPageState extends State<SettingsPage> {
           }
         }
       } catch (_) {
-        // Keep the kernel status from /health even if the optional extension
+        // Keep the bridge status from /health even if the optional extension
         // activity endpoint is temporarily unavailable.
       }
       final sortedBrowserExtensions = browserExtensions.values.toList()
         ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
 
       return _BrowserBridgeStatus(
-        kernelOnline: true,
+        bridgeOnline: true,
         browserExtensions: List.unmodifiable(sortedBrowserExtensions),
       );
     } catch (_) {
-      return const _BrowserBridgeStatus(kernelOnline: false);
+      return const _BrowserBridgeStatus(bridgeOnline: false);
     } finally {
       client.close(force: true);
     }
@@ -1576,6 +1591,9 @@ class _SettingsPageState extends State<SettingsPage> {
           _segmentSpeedLimit = config['segment_speed_limit'] ?? 0;
           _globalSpeedLimit = config['global_speed_limit'] ?? 0;
           _enableDynamicSegments = config['enable_dynamic_segments'] ?? true;
+          _allowInsecureTls = config['allow_insecure_tls'] ?? false;
+          _globalMaxConnections =
+              (config['global_max_connections'] as int?)?.clamp(1, 128) ?? 32;
           _conflictStrategy = config['conflict_strategy'] ?? 'increment';
           final configuredUserAgent =
               (config['default_user_agent'] ?? '').toString().trim();
@@ -1635,6 +1653,8 @@ class _SettingsPageState extends State<SettingsPage> {
     int? segmentSpeedLimit,
     int? globalSpeedLimit,
     bool? enableDynamicSegments,
+    bool? allowInsecureTls,
+    int? globalMaxConnections,
     String? conflictStrategy,
     String? defaultUserAgent,
     String? httpVersionPolicy,
@@ -1652,6 +1672,12 @@ class _SettingsPageState extends State<SettingsPage> {
       if (globalSpeedLimit != null) _globalSpeedLimit = globalSpeedLimit;
       if (enableDynamicSegments != null) {
         _enableDynamicSegments = enableDynamicSegments;
+      }
+      if (allowInsecureTls != null) {
+        _allowInsecureTls = allowInsecureTls;
+      }
+      if (globalMaxConnections != null) {
+        _globalMaxConnections = globalMaxConnections.clamp(1, 128);
       }
       if (conflictStrategy != null) _conflictStrategy = conflictStrategy;
       if (defaultUserAgent != null) {
@@ -1671,6 +1697,8 @@ class _SettingsPageState extends State<SettingsPage> {
       segmentSpeedLimit: segmentSpeedLimit ?? _segmentSpeedLimit,
       globalSpeedLimit: globalSpeedLimit ?? _globalSpeedLimit,
       enableDynamicSegments: enableDynamicSegments ?? _enableDynamicSegments,
+      allowInsecureTls: allowInsecureTls ?? _allowInsecureTls,
+      globalMaxConnections: globalMaxConnections ?? _globalMaxConnections,
       conflictStrategy: conflictStrategy ?? _conflictStrategy,
       defaultUserAgent: defaultUserAgent ?? _defaultUserAgent,
       httpVersionPolicy: httpVersionPolicy ?? _httpVersionPolicy,
@@ -1958,16 +1986,8 @@ class _SettingsPageState extends State<SettingsPage> {
     BuildContext context,
     List<_SettingsTabInfo> items,
   ) {
-    final isDark = AppTheme.isDarkContext(context);
     return Container(
-      padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
-      decoration: BoxDecoration(
-        color: AppTheme.bgLayer1.withValues(alpha: isDark ? 0.22 : 0.42),
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(
-          color: AppTheme.borderSubtle.withValues(alpha: isDark ? 0.34 : 0.18),
-        ),
-      ),
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -2027,14 +2047,24 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               child: Row(
                 children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
+                  SizedBox(
                     width: 3,
-                    height: selected ? 34 : 18,
-                    decoration: BoxDecoration(
-                      color:
-                          selected ? AppTheme.accentLight : Colors.transparent,
-                      borderRadius: BorderRadius.circular(3),
+                    height: 34,
+                    child: Center(
+                      child: SizedBox(
+                        width: 3,
+                        height: 18 + (16 * selectedValue),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Color.lerp(
+                              Colors.transparent,
+                              AppTheme.accentLight,
+                              selectedValue,
+                            ),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 9),
@@ -2053,9 +2083,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                     color: selected
                                         ? AppTheme.textPrimary
                                         : AppTheme.textSecondary,
-                                    fontWeight: selected
-                                        ? FontWeight.w600
-                                        : FontWeight.w500,
+                                    fontWeight: FontWeight.w600,
                                     fontSize: 13,
                                   ),
                         ),
@@ -2093,58 +2121,110 @@ class _SettingsPageState extends State<SettingsPage> {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: AppTheme.bgLayer1.withValues(alpha: 0.5),
+        color: AppTheme.surfaceCard,
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(
-          color: AppTheme.borderSubtle.withValues(alpha: 0.5),
-          width: 1,
-        ),
+        border: Border.all(color: AppTheme.borderDefault),
       ),
-      child: Listener(
-        onPointerSignal: (signal) {
-          if (signal is PointerScrollEvent) {
-            if (!_tabScrollController.hasClients) return;
-            final maxExtent = _tabScrollController.position.maxScrollExtent;
-            if (maxExtent <= 0) return;
-            final next = (_tabScrollController.offset + signal.scrollDelta.dy)
-                .clamp(0.0, maxExtent);
-            if (next != _tabScrollController.offset) {
-              _tabScrollController.jumpTo(next);
-            }
-          }
-        },
-        child: ScrollConfiguration(
-          behavior: ScrollConfiguration.of(context).copyWith(
-            scrollbars: false,
-            dragDevices: {
-              PointerDeviceKind.mouse,
-              PointerDeviceKind.touch,
-              PointerDeviceKind.trackpad,
-            },
-          ),
-          child: SmoothSingleChildScrollView(
-            config: SmoothScrollConfig.fast,
-            controller: _tabScrollController,
-            scrollDirection: Axis.horizontal,
-            physics: const ClampingScrollPhysics(),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final item in items) ...[
-                  _buildTabButton(
-                    context,
-                    icon: item.icon,
-                    title: item.title,
-                    index: item.index,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final tabTextStyle =
+              FluentTheme.of(context).typography.body?.copyWith(
+                        fontFamily: fontFamily,
+                        fontFamilyFallback: fontFamilyFallback,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ) ??
+                  TextStyle(
                     fontFamily: fontFamily,
                     fontFamilyFallback: fontFamilyFallback,
-                  ),
-                  if (item != items.last) const SizedBox(width: 4),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  );
+          final textDirection = Directionality.of(context);
+          final textScaler = MediaQuery.textScalerOf(context);
+          final naturalWidths = items.map((item) {
+            final painter = TextPainter(
+              text: TextSpan(text: item.title, style: tabTextStyle),
+              textDirection: textDirection,
+              textScaler: textScaler,
+              maxLines: 1,
+            )..layout();
+            final width = painter.width + 58;
+            painter.dispose();
+            return width;
+          }).toList();
+          final gapWidth = items.length > 1 ? (items.length - 1) * 4.0 : 0.0;
+          final naturalWidth = naturalWidths.fold<double>(
+                0,
+                (total, width) => total + width,
+              ) +
+              gapWidth;
+
+          Widget buildButton(int position, {double? width}) {
+            final item = items[position];
+            return _buildTabButton(
+              context,
+              icon: item.icon,
+              title: item.title,
+              index: item.index,
+              width: width,
+              fontFamily: fontFamily,
+              fontFamilyFallback: fontFamilyFallback,
+            );
+          }
+
+          List<Widget> buildButtons({List<double>? widths}) => [
+                for (var index = 0; index < items.length; index++) ...[
+                  buildButton(index, width: widths?[index]),
+                  if (index != items.length - 1) const SizedBox(width: 4),
                 ],
-              ],
+              ];
+
+          if (naturalWidth <= constraints.maxWidth) {
+            final extraWidth =
+                (constraints.maxWidth - naturalWidth) / items.length;
+            final expandedWidths = [
+              for (final width in naturalWidths) width + extraWidth,
+            ];
+            return Row(children: buildButtons(widths: expandedWidths));
+          }
+
+          return Listener(
+            onPointerSignal: (signal) {
+              if (signal is PointerScrollEvent) {
+                if (!_tabScrollController.hasClients) return;
+                final maxExtent = _tabScrollController.position.maxScrollExtent;
+                if (maxExtent <= 0) return;
+                final next =
+                    (_tabScrollController.offset + signal.scrollDelta.dy)
+                        .clamp(0.0, maxExtent);
+                if (next != _tabScrollController.offset) {
+                  _tabScrollController.jumpTo(next);
+                }
+              }
+            },
+            child: ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context).copyWith(
+                scrollbars: false,
+                dragDevices: {
+                  PointerDeviceKind.mouse,
+                  PointerDeviceKind.touch,
+                  PointerDeviceKind.trackpad,
+                },
+              ),
+              child: SmoothSingleChildScrollView(
+                config: SmoothScrollConfig.fast,
+                controller: _tabScrollController,
+                scrollDirection: Axis.horizontal,
+                physics: const ClampingScrollPhysics(),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: buildButtons(),
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -2211,43 +2291,42 @@ class _SettingsPageState extends State<SettingsPage> {
     required IconData icon,
     required String title,
     required int index,
+    double? width,
     required String? fontFamily,
     required List<String> fontFamilyFallback,
   }) {
     final isSelected = _currentTabIndex == index;
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: () => _selectTab(index),
-        child: TweenAnimationBuilder<double>(
-          tween: Tween<double>(end: isSelected ? 1 : 0),
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOutCubic,
-          builder: (context, selectedValue, child) {
-            final contentColor = Color.lerp(
-              AppTheme.textSecondary,
-              AppTheme.accentLight,
-              selectedValue,
-            )!;
-            final backgroundColor = Color.lerp(
-              Colors.transparent,
-              AppTheme.accentPrimary.withValues(alpha: 0.15),
-              selectedValue,
-            )!;
-            final borderColor = Color.lerp(
-              Colors.transparent,
-              AppTheme.accentPrimary.withValues(alpha: 0.4),
-              selectedValue,
-            )!;
+    return SizedBox(
+      width: width,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: () => _selectTab(index),
+          child: TweenAnimationBuilder<double>(
+            tween: Tween<double>(end: isSelected ? 1 : 0),
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            builder: (context, selectedValue, child) {
+              final contentColor = Color.lerp(
+                AppTheme.textSecondary,
+                AppTheme.accentLight,
+                selectedValue,
+              )!;
+              final backgroundColor = Color.lerp(
+                Colors.transparent,
+                AppTheme.accentPrimary.withValues(alpha: 0.15),
+                selectedValue,
+              )!;
+              final borderColor = Color.lerp(
+                Colors.transparent,
+                AppTheme.accentPrimary.withValues(alpha: 0.4),
+                selectedValue,
+              )!;
 
-            return Transform.scale(
-              scale: 1 + selectedValue * 0.018,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                padding: EdgeInsets.symmetric(
-                  horizontal: 16 + selectedValue * 2,
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
@@ -2259,36 +2338,34 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                  mainAxisSize:
+                      width == null ? MainAxisSize.min : MainAxisSize.max,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Transform.translate(
-                      offset: Offset(0, -selectedValue),
-                      child: Icon(
-                        icon,
-                        size: 14,
-                        color: contentColor,
-                      ),
+                    Icon(
+                      icon,
+                      size: 14,
+                      color: contentColor,
                     ),
                     const SizedBox(width: 8),
                     Text(
                       title,
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.fade,
                       style: FluentTheme.of(context).typography.body?.copyWith(
                             fontFamily: fontFamily,
                             fontFamilyFallback: fontFamilyFallback,
                             color: contentColor,
-                            fontWeight: FontWeight.lerp(
-                              FontWeight.w500,
-                              FontWeight.w600,
-                              selectedValue,
-                            ),
+                            fontWeight: FontWeight.w600,
                             fontSize: 13,
                           ),
                     ),
                   ],
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
@@ -2420,7 +2497,9 @@ class _SettingsPageState extends State<SettingsPage> {
             title: t.settingsDownloadPathTitle,
             subtitle: _downloadPath,
             trailing: Button(
-              onPressed: _kernelOnline ? _changeDownloadPath : null,
+              onPressed: context.watch<KernelManager>().isRunning
+                  ? _changeDownloadPath
+                  : null,
               child: Text(t.settingsDownloadPathChangeButton),
             ),
           ),
@@ -2564,6 +2643,27 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             const SizedBox(height: 12),
           ],
+          _buildDisabledSetting(
+            enabled: popupMayShow,
+            child: _buildSettingItem(
+              context,
+              title: t.settingsPopupNsfxTextModeTitle,
+              subtitle: '',
+              trailing: SizedBox(
+                width: 250,
+                child: ComboBox<String>(
+                  value: _popupNsfxTextMode,
+                  items: _popupNsfxTextModeItems(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      _savePopupNsfxTextMode(value);
+                    }
+                  },
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
           _buildSettingItem(
             context,
             searchId: 'settingsClipboardListener',
@@ -2745,6 +2845,40 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
           ),
+          const SizedBox(height: 12),
+          _buildSettingItem(
+            context,
+            searchId: 'settingsGlobalMaxConnections',
+            title: t.settingsGlobalMaxConnectionsTitle,
+            subtitle: t.settingsGlobalMaxConnectionsSubtitle,
+            trailing: SizedBox(
+              width: 200,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Slider(
+                      value: _globalMaxConnections.toDouble().clamp(1, 128),
+                      min: 1,
+                      max: 128,
+                      divisions: 127,
+                      label: _globalMaxConnections.toString(),
+                      onChanged: (value) {
+                        _updateConfig(globalMaxConnections: value.toInt());
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 36,
+                    child: Text(
+                      '$_globalMaxConnections',
+                      style: FluentTheme.of(context).typography.bodyStrong,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
       const SizedBox(height: 24),
@@ -2874,6 +3008,29 @@ class _SettingsPageState extends State<SettingsPage> {
               onChanged: (value) {
                 if (value != null) {
                   _updateConfig(httpVersionPolicy: value);
+                }
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildSettingItem(
+            context,
+            searchId: 'settingsAllowInsecureTls',
+            title: t.settingsAllowInsecureTlsTitle,
+            subtitle: t.settingsAllowInsecureTlsSubtitle,
+            trailing: ToggleSwitch(
+              checked: _allowInsecureTls,
+              onChanged: (value) {
+                _updateConfig(allowInsecureTls: value);
+                if (mounted) {
+                  NotificationManager.of(context)?.showSuccess(
+                    value
+                        ? t.settingsAllowInsecureTlsEnabledTitle
+                        : t.settingsAllowInsecureTlsDisabledTitle,
+                    message: value
+                        ? t.settingsAllowInsecureTlsEnabledMessage
+                        : t.settingsAllowInsecureTlsDisabledMessage,
+                  );
                 }
               },
             ),
@@ -3117,55 +3274,17 @@ class _SettingsPageState extends State<SettingsPage> {
               ],
             ],
             const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.accentPrimary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                border: Border.all(
-                  color: AppTheme.accentPrimary.withValues(alpha: 0.3),
+            SizedBox(
+              width: double.infinity,
+              child: InfoBar(
+                title: Text(t.settingsProxyTipsTitle),
+                content: Text(_getProxyConfigTips(t)),
+                action: Button(
+                  onPressed: _testProxyConnection,
+                  child: Text(t.settingsProxyTestButton),
                 ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    custom_icons.FluentIcons.info,
-                    size: 16,
-                    color: AppTheme.accentLight,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          t.settingsProxyTipsTitle,
-                          style: FluentTheme.of(context)
-                              .typography
-                              .bodyStrong
-                              ?.copyWith(
-                                color: AppTheme.accentLight,
-                              ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _getProxyConfigTips(t),
-                          style: FluentTheme.of(context)
-                              .typography
-                              .caption
-                              ?.copyWith(
-                                color: AppTheme.textSecondary,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Button(
-                    onPressed: _testProxyConnection,
-                    child: Text(t.settingsProxyTestButton),
-                  ),
-                ],
+                severity: InfoBarSeverity.info,
+                isLong: true,
               ),
             ),
           ],
@@ -3540,6 +3659,128 @@ class _SettingsPageState extends State<SettingsPage> {
     ];
   }
 
+  String _kernelSelectorSubtitle(String selectedKernelId) =>
+      switch (selectedKernelId) {
+        ClientConfigService.downloadKernelAuto => _isChineseLocale
+            ? '${AppConstants.nsfxKernelFormattedString} + ${AppConstants.neoKernelFormattedString} | 自动路由'
+            : '${AppConstants.nsfxKernelFormattedString} + ${AppConstants.neoKernelFormattedString} | Automatic routing',
+        ClientConfigService.downloadKernelNeoNsf =>
+          AppConstants.neoKernelFormattedString,
+        _ => AppConstants.nsfxKernelFormattedString,
+      };
+
+  Widget _buildKernelSelector(BuildContext context, String selectedKernelId) {
+    Widget option(String id, String label, String tooltip) {
+      final selected = selectedKernelId == id;
+      final captionStyle = FluentTheme.of(context).typography.caption ??
+          const TextStyle(fontSize: 12);
+      return Expanded(
+        child: Tooltip(
+          message: tooltip,
+          child: Button(
+            onPressed: () => unawaited(_selectDownloadKernel(id)),
+            style: ButtonStyle(
+              padding: WidgetStateProperty.all(EdgeInsets.zero),
+              backgroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.isHovered) return AppTheme.surfaceCardHover;
+                return Colors.transparent;
+              }),
+              shape: WidgetStateProperty.all(
+                RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
+                  side: BorderSide.none,
+                ),
+              ),
+            ),
+            child: Center(
+              child: AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 140),
+                curve: Curves.easeOutCubic,
+                style: captionStyle.copyWith(
+                  color:
+                      selected ? AppTheme.accentLight : AppTheme.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.fade,
+                  softWrap: false,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      width: 300,
+      height: 34,
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceCardPressed,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppTheme.borderDefault),
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          AnimatedAlign(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            alignment: switch (selectedKernelId) {
+              ClientConfigService.downloadKernelAuto => Alignment.centerLeft,
+              ClientConfigService.downloadKernelNeoNsf => Alignment.centerRight,
+              _ => Alignment.center,
+            },
+            child: FractionallySizedBox(
+              widthFactor: 1 / 3,
+              heightFactor: 1,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentPrimary.withValues(alpha: 0.20),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: AppTheme.accentPrimary.withValues(alpha: 0.22),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              option(
+                ClientConfigService.downloadKernelAuto,
+                'Auto',
+                _isChineseLocale
+                    ? '根据任务和内核可用性自动路由'
+                    : 'Route each task automatically',
+              ),
+              option(
+                ClientConfigService.downloadKernelNsfx,
+                'NSFX',
+                _isChineseLocale
+                    ? '始终使用稳定内核'
+                    : 'Always use the stable engine',
+              ),
+              option(
+                ClientConfigService.downloadKernelNeoNsf,
+                AppConstants.neoKernelName,
+                _isChineseLocale
+                    ? '始终使用 ${AppConstants.neoKernelFormattedString}'
+                    : 'Always use ${AppConstants.neoKernelFormattedString}',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLogManagementSection(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     final logger = AppLoggerService();
@@ -3704,35 +3945,13 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             if (devMode.developerMode) ...[
               const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppTheme.accentPrimary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                  border: Border.all(
-                    color: AppTheme.accentPrimary.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      custom_icons.FluentIcons.info,
-                      size: 16,
-                      color: AppTheme.accentLight,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        t.settingsDeveloperModeHint,
-                        style: FluentTheme.of(context)
-                            .typography
-                            .caption
-                            ?.copyWith(
-                              color: AppTheme.textSecondary,
-                            ),
-                      ),
-                    ),
-                  ],
+              SizedBox(
+                width: double.infinity,
+                child: InfoBar(
+                  title: Text(t.settingsDeveloperModeTitle),
+                  content: Text(t.settingsDeveloperModeHint),
+                  severity: InfoBarSeverity.info,
+                  isLong: true,
                 ),
               ),
             ],
@@ -3744,36 +3963,43 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _buildKernelSection(BuildContext context) {
     final t = AppLocalizations.of(context)!;
+    final kernelManager = context.watch<KernelManager>();
     return _buildSection(
       context,
       searchId: 'settingsKernel',
       title: t.settingsKernelSection,
       icon: custom_icons.FluentIcons.processing,
       children: [
-        _buildSettingItem(
-          context,
-          searchId: 'settingsKernelCurrent',
-          title: t.settingsKernelCurrentTitle,
-          subtitle:
-              '${AppConstants.newKernelFullName} | ${AppConstants.newKernelVersion} | ${AppConstants.newKernelBuildNumber}',
-          trailing: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: _kernelOnline
-                  ? AppTheme.statusSuccess.withValues(alpha: 0.2)
-                  : AppTheme.statusError.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              _kernelOnline ? t.settingsKernelOnline : t.settingsKernelOffline,
-              style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: _kernelOnline
-                        ? AppTheme.statusSuccess
-                        : AppTheme.statusError,
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-          ),
+        ValueListenableBuilder<String>(
+          valueListenable: _selectedDownloadKernelId,
+          builder: (context, selectedKernelId, _) => _buildSettingItem(
+            context,
+            title: _isChineseLocale ? '新任务下载内核' : 'Engine for new tasks',
+            subtitle: _kernelSelectorSubtitle(selectedKernelId),
+            trailing: _buildKernelSelector(context, selectedKernelId),
+          )!,
+        ),
+        const SizedBox(height: 12),
+        ValueListenableBuilder<String>(
+          valueListenable: _selectedDownloadKernelId,
+          builder: (context, selectedKernelId, _) {
+            final serviceReady =
+                _isDownloadServiceReady(kernelManager, selectedKernelId);
+            return _buildSettingItem(
+              context,
+              searchId: 'settingsKernelCurrent',
+              title: t.settingsKernelCurrentTitle,
+              subtitle: _kernelSelectorSubtitle(selectedKernelId),
+              trailing: _buildStatusText(
+                label: serviceReady
+                    ? t.settingsKernelOnline
+                    : t.settingsKernelOffline,
+                color: serviceReady
+                    ? AppTheme.statusSuccess
+                    : AppTheme.statusError,
+              ),
+            )!;
+          },
         ),
         const SizedBox(height: 12),
         _buildSettingItem(
@@ -3789,32 +4015,17 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
         const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppTheme.accentPrimary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            border: Border.all(
-              color: AppTheme.accentPrimary.withValues(alpha: 0.3),
+        SizedBox(
+          width: double.infinity,
+          child: InfoBar(
+            title: const Text('Auto'),
+            content: Text(
+              _isChineseLocale
+                  ? 'Auto \u4f1a\u5728 NeoNSFX \u63a5\u7ba1\u524d\u4fdd\u7559 NSFX \u56de\u9000\uff1b\u5df2\u5efa\u7acb\u7684\u4efb\u52a1\u59cb\u7ec8\u7531\u539f\u5185\u6838\u7ee7\u7eed\u7ba1\u7406\u3002'
+                  : 'Auto keeps NSFX as a pre-acceptance fallback; existing tasks always stay with their original engine.',
             ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                custom_icons.FluentIcons.info,
-                size: 16,
-                color: AppTheme.accentLight,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  t.settingsKernelNsfxHint,
-                  style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: AppTheme.textSecondary,
-                      ),
-                ),
-              ),
-            ],
+            severity: InfoBarSeverity.info,
+            isLong: true,
           ),
         ),
       ],
@@ -3823,88 +4034,88 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _buildStatusSection(BuildContext context) {
     final t = AppLocalizations.of(context)!;
-    final kernelDisplayName = t.settingsStatusKernelNsfx;
-    final statusIndicators = [
-      _StatusIndicatorData(
-        title: kernelDisplayName,
-        isOnline: _kernelOnline,
-        icon: custom_icons.FluentIcons.server,
-      ),
-      for (final status in _browserExtensionStatuses)
-        _StatusIndicatorData(
-          title: status.title,
-          isOnline: true,
-          icon: custom_icons.FluentIcons.globe,
-        ),
-    ];
+    final kernelManager = context.watch<KernelManager>();
+    final selectedKernelId = kernelManager.selectedKernelId;
+    final serviceReady =
+        _isDownloadServiceReady(kernelManager, selectedKernelId);
+    final extensionCount = _browserExtensionStatuses.length;
+    final extensionNames =
+        _browserExtensionStatuses.map((status) => status.title).join(', ');
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppTheme.cardBackground(darkAlpha: 0.6, lightAlpha: 0.6),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppTheme.borderSubtle.withValues(alpha: 0.5),
+    return _buildSection(
+      context,
+      title: t.settingsStatusTitle,
+      icon: custom_icons.FluentIcons.status_circle_inner,
+      children: [
+        _buildSettingItem(
+          context,
+          title: t.settingsStatusDownloadService,
+          subtitle: kernelManager.kernelDisplayName,
+          trailing: _buildStatusText(
+            label:
+                serviceReady ? t.settingsKernelOnline : t.settingsKernelOffline,
+            color: serviceReady ? AppTheme.statusSuccess : AppTheme.statusError,
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(custom_icons.FluentIcons.status_circle_inner, size: 16),
-              const SizedBox(width: 8),
-              Text(
-                t.settingsStatusTitle,
-                style: FluentTheme.of(context).typography.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-            ],
+        const SizedBox(height: 12),
+        _buildSettingItem(
+          context,
+          title: t.settingsStatusBrowserBridge,
+          subtitle: 'http://127.0.0.1:$_browserExtensionPort',
+          trailing: _buildStatusText(
+            label: _browserBridgeOnline
+                ? t.settingsKernelOnline
+                : t.settingsKernelOffline,
+            color: _browserBridgeOnline
+                ? AppTheme.statusSuccess
+                : AppTheme.statusError,
           ),
-          const SizedBox(height: 16),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              const spacing = 16.0;
-              final columnCount =
-                  constraints.maxWidth < 620 ? 1 : statusIndicators.length;
-              final itemWidth =
-                  (constraints.maxWidth - spacing * (columnCount - 1)) /
-                      columnCount;
-
-              return Wrap(
-                spacing: spacing,
-                runSpacing: spacing,
-                children: [
-                  for (final item in statusIndicators)
-                    SizedBox(
-                      width: itemWidth,
-                      child: _buildStatusIndicator(
-                        context,
-                        title: item.title,
-                        isOnline: item.isOnline,
-                        icon: item.icon,
-                      ),
-                    ),
-                ],
-              );
-            },
+        ),
+        const SizedBox(height: 12),
+        _buildSettingItem(
+          context,
+          title: t.settingsStatusBrowserExtension,
+          subtitle: !_browserBridgeOnline
+              ? t.settingsStatusBrowserExtensionsUnavailable
+              : extensionNames.isEmpty
+                  ? t.settingsStatusNoBrowserExtensions
+                  : extensionNames,
+          trailing: _buildStatusText(
+            label: _browserBridgeOnline
+                ? t.settingsStatusConnectedCount(extensionCount)
+                : t.settingsKernelOffline,
+            color: !_browserBridgeOnline
+                ? AppTheme.statusError
+                : extensionCount > 0
+                    ? AppTheme.statusSuccess
+                    : AppTheme.textSecondary,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildStatusIndicator(
-    BuildContext context, {
-    required String title,
-    required bool isOnline,
-    required IconData icon,
+  bool _isDownloadServiceReady(
+    KernelManager kernelManager,
+    String selectedKernelId,
+  ) {
+    if (!kernelManager.isRunning) return false;
+    return selectedKernelId != ClientConfigService.downloadKernelNeoNsf ||
+        kernelManager.isNeoNsfRunning;
+  }
+
+  Widget _buildStatusText({
+    required String label,
+    required Color color,
   }) {
-    return StatusIndicator(
-      title: title,
-      isOnline: isOnline,
-      icon: icon,
+    return Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: FluentTheme.of(context).typography.caption?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w600,
+          ),
     );
   }
 
@@ -4097,6 +4308,38 @@ class _SettingsPageState extends State<SettingsPage> {
     ];
   }
 
+  List<ComboBoxItem<String>> _popupNsfxTextModeItems() {
+    final t = AppLocalizations.of(context)!;
+    return [
+      ComboBoxItem(
+        value: ClientConfigService.popupNsfxTextModeDefault,
+        child: Text(t.settingsPopupNsfxTextModeDefault),
+      ),
+      ComboBoxItem(
+        value: ClientConfigService.popupNsfxTextModeOld,
+        child: Text(t.settingsPopupNsfxTextModeOld),
+      ),
+      ComboBoxItem(
+        value: ClientConfigService.popupNsfxTextModeHidden,
+        child: Text(t.settingsPopupNsfxTextModeHidden),
+      ),
+    ];
+  }
+
+  Future<void> _savePopupNsfxTextMode(String mode) async {
+    try {
+      final config = Provider.of<ClientConfigService>(context, listen: false);
+      await config.setPopupNsfxTextMode(mode);
+      if (mounted) {
+        setState(() {
+          _popupNsfxTextMode = mode;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error saving popup nsfx text mode: $e');
+    }
+  }
+
   Widget? _buildDisabledSetting({
     required bool enabled,
     required Widget? child,
@@ -4151,7 +4394,6 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildDangerZone(BuildContext context) {
     final t = AppLocalizations.of(context)!;
     return DangerZone(
-      margin: EdgeInsets.zero,
       children: [
         SettingsItem(
           searchId: 'settingsDangerCleanTemp',
@@ -4237,11 +4479,11 @@ class _SettingsPageState extends State<SettingsPage> {
 
 class _BrowserBridgeStatus {
   const _BrowserBridgeStatus({
-    required this.kernelOnline,
+    required this.bridgeOnline,
     this.browserExtensions = const [],
   });
 
-  final bool kernelOnline;
+  final bool bridgeOnline;
   final List<_BrowserExtensionStatus> browserExtensions;
 }
 
@@ -4255,16 +4497,4 @@ class _BrowserExtensionStatus {
   final String id;
   final String title;
   final int sortOrder;
-}
-
-class _StatusIndicatorData {
-  const _StatusIndicatorData({
-    required this.title,
-    required this.isOnline,
-    required this.icon,
-  });
-
-  final String title;
-  final bool isOnline;
-  final IconData icon;
 }

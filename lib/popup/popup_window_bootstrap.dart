@@ -12,9 +12,17 @@ import 'package:http/http.dart' as http;
 import '../l10n/app_localizations.dart';
 import '../l10n/fallback_localizations_delegate.dart';
 import '../models/download_intent.dart';
+import '../services/client_config_service.dart';
+import '../services/kernel/kernel_manager.dart';
 import '../theme/app_theme.dart';
-import '../widgets/file_icon_widget.dart';
+import '../utils/constants.dart';
 import '../utils/fluent_icons.dart' as CustomIcons;
+import '../widgets/file_icon_widget.dart';
+
+int? _readPositiveInt(Object? raw) {
+  final value = raw is num ? raw.toInt() : int.tryParse('$raw');
+  return value != null && value > 0 ? value : null;
+}
 
 const MethodChannel _popupWindowChannel =
     MethodChannel('com.hanabi.download/window');
@@ -49,6 +57,7 @@ class PopupWindowEffectConfig {
     required this.alpha,
     required this.isWindows11,
     this.roundedCornersEnabled = true,
+    this.nativeMaterialReady = true,
   });
 
   final bool enabled;
@@ -56,12 +65,14 @@ class PopupWindowEffectConfig {
   final int alpha;
   final bool isWindows11;
   final bool roundedCornersEnabled;
+  final bool nativeMaterialReady;
 
   bool get isMicaEffect =>
       enabled && (mode == 'mica_main' || mode == 'mica_transient');
 
   bool get isTransparentBackground =>
       enabled &&
+      nativeMaterialReady &&
       (mode == 'acrylic' ||
           mode == 'blur' ||
           mode == 'mica_main' ||
@@ -71,19 +82,23 @@ class PopupWindowEffectConfig {
     if (!isTransparentBackground) {
       return 1.0;
     }
-    final effectOpacity = (alpha / 255.0).clamp(0.0, 1.0);
-    if (isMicaEffect) {
-      return isWindows11 ? 0.22 + effectOpacity * 0.54 : 0.72;
+    // Dark translucent panels over DWM base (not milky white full-bleed).
+    if (mode == 'mica_transient') {
+      return isWindows11 ? 0.68 : 0.78;
     }
-    if (mode == 'blur') {
-      return isWindows11
-          ? 0.22 + effectOpacity * 0.34
-          : 0.28 + effectOpacity * 0.36;
+    if (isMicaEffect) {
+      return isWindows11 ? 0.58 : 0.72;
     }
     if (mode == 'acrylic') {
-      return isWindows11
-          ? 0.16 + effectOpacity * 0.34
-          : 0.14 + effectOpacity * 0.30;
+      return isWindows11 ? 0.50 : 0.55;
+    }
+    if (mode == 'blur') {
+      if (isWindows11) {
+        // Win11 blur is remapped away; keep a safe fixed fill if forced.
+        return 0.80;
+      }
+      final effectOpacity = (alpha / 255.0).clamp(0.0, 1.0);
+      return 0.50 + effectOpacity * 0.30;
     }
     return 1.0;
   }
@@ -119,6 +134,35 @@ class PopupWindowEffectConfig {
         'rounded_corners_enabled',
         fallback: true,
       ),
+      nativeMaterialReady: readBool(
+        'native_material_ready',
+        fallback: readBool('enabled'),
+      ),
+    );
+  }
+
+  PopupWindowEffectConfig withNativeState(Map<Object?, Object?> state) {
+    final requestedMode = state['requestedMode']?.toString() ?? 'none';
+    final expectedMode = enabled ? mode : 'none';
+    if (requestedMode != expectedMode) return this;
+
+    final hresult = (state['hresult'] as num?)?.toInt() ?? -1;
+    final appliedMode = state['appliedMode']?.toString() ?? 'none';
+    final ready = enabled &&
+        hresult >= 0 &&
+        state['compositionEnabled'] == true &&
+        state['transparencyEnabled'] == true &&
+        state['highContrast'] != true &&
+        appliedMode != 'none';
+    return PopupWindowEffectConfig(
+      enabled: enabled,
+      mode: mode,
+      alpha: alpha,
+      isWindows11: state['isWindows11'] is bool
+          ? state['isWindows11'] == true
+          : isWindows11,
+      roundedCornersEnabled: roundedCornersEnabled,
+      nativeMaterialReady: ready,
     );
   }
 }
@@ -152,6 +196,7 @@ class PopupWindowLaunchData {
     this.userAgent,
     this.cookies,
     this.headers,
+    this.expectedSizeHint,
     this.windowEffect,
   });
 
@@ -165,7 +210,25 @@ class PopupWindowLaunchData {
   final String? userAgent;
   final String? cookies;
   final Map<String, dynamic>? headers;
+  final int? expectedSizeHint;
   final PopupWindowEffectConfig? windowEffect;
+
+  PopupWindowLaunchData withWindowEffect(PopupWindowEffectConfig? effect) {
+    return PopupWindowLaunchData(
+      url: url,
+      filename: filename,
+      savePath: savePath,
+      windowTitle: windowTitle,
+      debugPreviewStage: debugPreviewStage,
+      localeTag: localeTag,
+      referer: referer,
+      userAgent: userAgent,
+      cookies: cookies,
+      headers: headers,
+      expectedSizeHint: expectedSizeHint,
+      windowEffect: effect,
+    );
+  }
 
   factory PopupWindowLaunchData.fromArgs(List<String> args) {
     if (args.isEmpty) {
@@ -204,6 +267,7 @@ class PopupWindowLaunchData {
               (key, value) => MapEntry(key.toString(), value),
             )
           : null,
+      expectedSizeHint: _readPositiveInt(json['file_size'] ?? json['fileSize']),
       windowEffect: PopupWindowEffectConfig.fromJson(json['window_effect']),
     );
   }
@@ -269,17 +333,20 @@ class _PopupSegmentSnapshot {
     required this.index,
     required this.progress,
     required this.status,
+    required this.size,
   });
 
   final int index;
   final double progress;
   final String status;
+  final int size;
 
   factory _PopupSegmentSnapshot.fromJson(Map<String, dynamic> json) {
     return _PopupSegmentSnapshot(
       index: _asInt(json['index']),
       progress: _asDouble(json['progress']).clamp(0, 1).toDouble(),
       status: json['status']?.toString() ?? 'pending',
+      size: _asInt(json['size']),
     );
   }
 }
@@ -429,6 +496,20 @@ class _PopupWindowAppState extends State<PopupWindowApp>
   }
 
   Future<Object?> _handleAppMethodCall(MethodCall call) async {
+    if (call.method == 'windowEffectStateChanged') {
+      final arguments = call.arguments;
+      final currentEffect = _launchData.windowEffect;
+      if (!mounted || arguments is! Map || currentEffect == null) return false;
+      setState(() {
+        _launchData = _launchData.withWindowEffect(
+          currentEffect.withNativeState(
+            Map<Object?, Object?>.from(arguments),
+          ),
+        );
+      });
+      return true;
+    }
+
     if (call.method != 'updatePopupPayload') {
       return null;
     }
@@ -545,11 +626,10 @@ class _PopupWindowAppState extends State<PopupWindowApp>
         if (_disableWindowsSemanticsWorkaround) {
           content = ExcludeSemantics(child: content);
         }
+        final scaleFactor = widget.themeConfig?.safeTextScaleFactor ?? 1.0;
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
-            textScaler: TextScaler.linear(
-              widget.themeConfig?.safeTextScaleFactor ?? 1.0,
-            ),
+            textScaler: TextScaler.linear(scaleFactor),
           ),
           child: content,
         );
@@ -696,13 +776,27 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
           totalSize: totalBytes,
           speed: 12 * 1024 * 1024,
           remainingSeconds: 19,
-          segments: const [
-            _PopupSegmentSnapshot(index: 0, progress: 0.92, status: 'done'),
+          segments: [
             _PopupSegmentSnapshot(
-                index: 1, progress: 0.76, status: 'downloading'),
+                index: 0,
+                progress: 0.92,
+                status: 'done',
+                size: totalBytes ~/ 4),
             _PopupSegmentSnapshot(
-                index: 2, progress: 0.61, status: 'downloading'),
-            _PopupSegmentSnapshot(index: 3, progress: 0.38, status: 'pending'),
+                index: 1,
+                progress: 0.76,
+                status: 'downloading',
+                size: totalBytes ~/ 4),
+            _PopupSegmentSnapshot(
+                index: 2,
+                progress: 0.61,
+                status: 'downloading',
+                size: totalBytes ~/ 4),
+            _PopupSegmentSnapshot(
+                index: 3,
+                progress: 0.38,
+                status: 'pending',
+                size: totalBytes ~/ 4),
           ],
         );
       case _PopupWindowStage.completed:
@@ -1387,21 +1481,20 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
       _PopupTaskSnapshot? snapshot) {
     final segments = snapshot?.segments ?? const <_PopupSegmentSnapshot>[];
     if (segments.isNotEmpty) {
-      return segments.take(8).toList();
+      return segments;
     }
     return <_PopupSegmentSnapshot>[
       _PopupSegmentSnapshot(
         index: 0,
         progress: (snapshot?.progressRatio ?? 0).clamp(0, 1).toDouble(),
         status: snapshot?.status ?? 'pending',
+        size: snapshot?.totalSize ?? 0,
       ),
     ];
   }
 
   Widget _buildSegmentPreviewStrip(List<_PopupSegmentSnapshot> segments) {
-    final visibleSegments = segments.isEmpty
-        ? const <_PopupSegmentSnapshot>[]
-        : segments.take(8).toList();
+    final visibleSegments = segments;
     if (visibleSegments.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -1417,6 +1510,7 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
           children: [
             for (var i = 0; i < visibleSegments.length; i++)
               Expanded(
+                flex: math.max(1, (visibleSegments[i].size / 1024).round()),
                 child: _buildSegmentPreviewBar(
                   visibleSegments[i],
                   showSeparator: i < visibleSegments.length - 1,
@@ -2413,7 +2507,15 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
       }
       return 'Waiting in queue for an available download slot';
     }
-    return t.popupDownloadProgressHint;
+    final mode = ClientConfigService().popupNsfxTextMode;
+    if (mode == ClientConfigService.popupNsfxTextModeHidden) {
+      return '';
+    }
+    final isNeo = KernelManager().isNeoNsfSelected;
+    final kernelVersion = isNeo
+        ? AppConstants.neoKernelFullVersion
+        : AppConstants.newKernelFullVersion;
+    return '${t.popupDownloadProgressHint} v$kernelVersion';
   }
 
   String _downloadedSummary() {
@@ -2805,10 +2907,18 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         final body = response.body.trim();
+        var errorMessage = body;
+        try {
+          final decoded = jsonDecode(body);
+          if (decoded is Map && decoded['error'] != null) {
+            errorMessage = decoded['error'].toString();
+          }
+        } catch (_) {}
+
         if (mounted) {
           setState(() {
-            _errorText = body.isNotEmpty
-                ? body
+            _errorText = errorMessage.isNotEmpty
+                ? errorMessage
                 : t.popupDownloadErrorAddFailed('HTTP ${response.statusCode}');
           });
           _scheduleCurrentLayoutHeightSync();
@@ -2999,6 +3109,8 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
           if (widget.launchData.headers != null &&
               widget.launchData.headers!.isNotEmpty)
             'headers': widget.launchData.headers,
+          if (widget.launchData.expectedSizeHint != null)
+            'file_size': widget.launchData.expectedSizeHint,
         }),
       );
 
@@ -3047,10 +3159,18 @@ class _PopupWindowPageState extends State<PopupWindowPage> {
       }
 
       final body = response.body.trim();
+      var errorMessage = body;
+      try {
+        final decoded = jsonDecode(body);
+        if (decoded is Map && decoded['error'] != null) {
+          errorMessage = decoded['error'].toString();
+        }
+      } catch (_) {}
+
       setState(() {
         _isSubmitting = false;
-        _errorText = body.isNotEmpty
-            ? t.popupDownloadErrorAddFailed(body)
+        _errorText = errorMessage.isNotEmpty
+            ? t.popupDownloadErrorAddFailed(errorMessage)
             : t.popupDownloadErrorAddFailed(
                 'HTTP ${response.statusCode}',
               );
