@@ -1009,6 +1009,45 @@ class PluginAppLocalizations extends AppLocalizations {
       'settingsMaxConcurrentSubtitle', _fallback.settingsMaxConcurrentSubtitle);
 
   @override
+  String get settingsGlobalMaxConnectionsTitle => _string(
+      'settingsGlobalMaxConnectionsTitle',
+      _fallback.settingsGlobalMaxConnectionsTitle);
+
+  @override
+  String get settingsGlobalMaxConnectionsSubtitle => _string(
+      'settingsGlobalMaxConnectionsSubtitle',
+      _fallback.settingsGlobalMaxConnectionsSubtitle);
+
+  @override
+  String get settingsAllowInsecureTlsTitle => _string(
+      'settingsAllowInsecureTlsTitle', _fallback.settingsAllowInsecureTlsTitle);
+
+  @override
+  String get settingsAllowInsecureTlsSubtitle => _string(
+      'settingsAllowInsecureTlsSubtitle',
+      _fallback.settingsAllowInsecureTlsSubtitle);
+
+  @override
+  String get settingsAllowInsecureTlsEnabledTitle => _string(
+      'settingsAllowInsecureTlsEnabledTitle',
+      _fallback.settingsAllowInsecureTlsEnabledTitle);
+
+  @override
+  String get settingsAllowInsecureTlsEnabledMessage => _string(
+      'settingsAllowInsecureTlsEnabledMessage',
+      _fallback.settingsAllowInsecureTlsEnabledMessage);
+
+  @override
+  String get settingsAllowInsecureTlsDisabledTitle => _string(
+      'settingsAllowInsecureTlsDisabledTitle',
+      _fallback.settingsAllowInsecureTlsDisabledTitle);
+
+  @override
+  String get settingsAllowInsecureTlsDisabledMessage => _string(
+      'settingsAllowInsecureTlsDisabledMessage',
+      _fallback.settingsAllowInsecureTlsDisabledMessage);
+
+  @override
   String get settingsSegmentSpeedLimitTitle => _string(
       'settingsSegmentSpeedLimitTitle',
       _fallback.settingsSegmentSpeedLimitTitle);
@@ -1380,13 +1419,33 @@ class PluginAppLocalizations extends AppLocalizations {
       _string('settingsStatusTitle', _fallback.settingsStatusTitle);
 
   @override
-  String get settingsStatusKernelNsfx =>
-      _string('settingsStatusKernelNsfx', _fallback.settingsStatusKernelNsfx);
+  String get settingsStatusDownloadService => _string(
+      'settingsStatusDownloadService', _fallback.settingsStatusDownloadService);
+
+  @override
+  String get settingsStatusBrowserBridge => _string(
+      'settingsStatusBrowserBridge', _fallback.settingsStatusBrowserBridge);
 
   @override
   String get settingsStatusBrowserExtension => _string(
       'settingsStatusBrowserExtension',
       _fallback.settingsStatusBrowserExtension);
+
+  @override
+  String get settingsStatusNoBrowserExtensions => _string(
+      'settingsStatusNoBrowserExtensions',
+      _fallback.settingsStatusNoBrowserExtensions);
+
+  @override
+  String get settingsStatusBrowserExtensionsUnavailable => _string(
+      'settingsStatusBrowserExtensionsUnavailable',
+      _fallback.settingsStatusBrowserExtensionsUnavailable);
+
+  @override
+  String settingsStatusConnectedCount(Object count) => _format(
+      'settingsStatusConnectedCount',
+      {'count': count},
+      _fallback.settingsStatusConnectedCount(count));
 
   @override
   String get settingsModeDescriptionAuto => _string(
@@ -3119,6 +3178,25 @@ class PluginAppLocalizations extends AppLocalizations {
   @override
   String get popupDownloadProgressHint =>
       _string('popupDownloadProgressHint', _fallback.popupDownloadProgressHint);
+
+  @override
+  String get settingsPopupNsfxTextModeTitle => _string(
+      'settingsPopupNsfxTextModeTitle',
+      _fallback.settingsPopupNsfxTextModeTitle);
+
+  @override
+  String get settingsPopupNsfxTextModeDefault => _string(
+      'settingsPopupNsfxTextModeDefault',
+      _fallback.settingsPopupNsfxTextModeDefault);
+
+  @override
+  String get settingsPopupNsfxTextModeOld => _string(
+      'settingsPopupNsfxTextModeOld', _fallback.settingsPopupNsfxTextModeOld);
+
+  @override
+  String get settingsPopupNsfxTextModeHidden => _string(
+      'settingsPopupNsfxTextModeHidden',
+      _fallback.settingsPopupNsfxTextModeHidden);
 
   @override
   String get popupDownloadCompletedHint => _string(

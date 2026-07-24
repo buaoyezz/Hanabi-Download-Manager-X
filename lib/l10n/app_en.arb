@@ -149,10 +149,20 @@
     "x-auto-source-zh": "设置",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
+  "settingsSearchPlaceholder": "Search settings...",
+  "@settingsSearchPlaceholder": {
+    "x-auto-source-zh": "搜索设置...",
+    "x-auto-synced-at": "2026-07-19T13:24:48.315038"
+  },
   "settingsTabGeneral": "General",
   "@settingsTabGeneral": {
     "x-auto-source-zh": "常规",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
+  },
+  "settingsTabNetwork": "Networks and Agents",
+  "@settingsTabNetwork": {
+    "x-auto-source-zh": "网络与代理",
+    "x-auto-synced-at": "2026-07-19T13:24:48.315038"
   },
   "settingsTabDownload": "Download",
   "@settingsTabDownload": {
@@ -789,30 +799,30 @@
     "x-auto-source-zh": "参与在线统计",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsOnlineStatsSubtitle": "Participates in anonymous online and active-user stats, without UA, fingerprints, downloads, or the local source identifier",
+  "settingsOnlineStatsSubtitle": "Participate in anonymous online population and activity statistics without uploading UA, fingerprints, downloaded content or original local identification",
   "@settingsOnlineStatsSubtitle": {
-    "x-auto-source-zh": "参与在线用户统计",
-    "x-auto-synced-at": "2026-04-17T16:57:46.639595"
+    "x-auto-source-zh": "参与匿名在线人数和活跃统计，不上传 UA、指纹、下载内容或原始本地标识",
+    "x-auto-synced-at": "2026-07-19T13:24:48.315038"
   },
   "settingsOnlineStatsEnabledTitle": "Online statistics is enabled",
   "@settingsOnlineStatsEnabledTitle": {
     "x-auto-source-zh": "在线统计已启用",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsOnlineStatsEnabledMessage": "An anonymous online heartbeat and period-based stats token will be sent for aggregated online and active-user dedupe",
+  "settingsOnlineStatsEnabledMessage": "Anonymous online heartbeats and anonymous statistical tokens derived by period will be sent, only used for aggregating the number of online people and active deduplication.",
   "@settingsOnlineStatsEnabledMessage": {
-    "x-auto-source-zh": "您的设备将参与在线用户统计，帮助我们了解软件使用情况",
-    "x-auto-synced-at": "2026-04-17T16:57:46.639595"
+    "x-auto-source-zh": "将发送匿名在线心跳和按周期派生的匿名统计 token，仅用于聚合在线人数和活跃去重",
+    "x-auto-synced-at": "2026-07-19T13:24:48.315038"
   },
   "settingsOnlineStatsDisabledTitle": "Online statistics disabled",
   "@settingsOnlineStatsDisabledTitle": {
     "x-auto-source-zh": "在线统计已禁用",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsOnlineStatsDisabledMessage": "Online heartbeats will stop, and the server-side online state will expire shortly",
+  "settingsOnlineStatsDisabledMessage": "Online heartbeats will stop being sent and the online status will automatically expire within a short period of time.",
   "@settingsOnlineStatsDisabledMessage": {
-    "x-auto-source-zh": "您的设备将不再发送统计信息",
-    "x-auto-synced-at": "2026-04-17T16:57:46.639595"
+    "x-auto-source-zh": "将停止发送在线心跳，在线状态会在短时间内自动过期",
+    "x-auto-synced-at": "2026-07-19T13:24:48.315038"
   },
   "settingsTrayHintTitle": "Tray tip",
   "@settingsTrayHintTitle": {
@@ -1125,6 +1135,38 @@
   "@settingsMaxConcurrentSubtitle": {
     "x-auto-source-zh": "限制并发下载任务数量",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
+  },
+  "settingsGlobalMaxConnectionsTitle": "Global connection limit",
+  "@settingsGlobalMaxConnectionsTitle": {
+    "x-auto-source-zh": "全局连接上限"
+  },
+  "settingsGlobalMaxConnectionsSubtitle": "Cap total concurrent segment connections across all tasks (1–128)",
+  "@settingsGlobalMaxConnectionsSubtitle": {
+    "x-auto-source-zh": "限制所有任务同时占用的分段连接总数（1–128）"
+  },
+  "settingsAllowInsecureTlsTitle": "Allow insecure TLS",
+  "@settingsAllowInsecureTlsTitle": {
+    "x-auto-source-zh": "允许不安全 TLS"
+  },
+  "settingsAllowInsecureTlsSubtitle": "Disable certificate verification for self-signed or MITM proxies (off by default)",
+  "@settingsAllowInsecureTlsSubtitle": {
+    "x-auto-source-zh": "关闭证书校验以兼容自签/抓包环境（默认关闭）"
+  },
+  "settingsAllowInsecureTlsEnabledTitle": "Insecure TLS enabled",
+  "@settingsAllowInsecureTlsEnabledTitle": {
+    "x-auto-source-zh": "已允许不安全 TLS"
+  },
+  "settingsAllowInsecureTlsEnabledMessage": "Certificate verification is off. Use only on trusted networks.",
+  "@settingsAllowInsecureTlsEnabledMessage": {
+    "x-auto-source-zh": "证书校验已关闭，仅在可信网络使用"
+  },
+  "settingsAllowInsecureTlsDisabledTitle": "TLS verification enabled",
+  "@settingsAllowInsecureTlsDisabledTitle": {
+    "x-auto-source-zh": "已启用 TLS 校验"
+  },
+  "settingsAllowInsecureTlsDisabledMessage": "Invalid or untrusted certificates will be rejected.",
+  "@settingsAllowInsecureTlsDisabledMessage": {
+    "x-auto-source-zh": "将拒绝无效或不受信证书"
   },
   "settingsSegmentSpeedLimitTitle": "Sectional speed limit",
   "@settingsSegmentSpeedLimitTitle": {
@@ -1576,15 +1618,32 @@
     "x-auto-source-zh": "系统状态",
     "x-auto-synced-at": "2026-04-17T16:57:46.639595"
   },
-  "settingsStatusKernelNsfx": "NSFX Kernel",
-  "@settingsStatusKernelNsfx": {
-    "x-auto-source-zh": "NSFX Kernel",
-    "x-auto-synced-at": "2026-04-17T16:57:46.639595"
+  "settingsStatusDownloadService": "Download service",
+  "@settingsStatusDownloadService": {
+    "x-auto-source-zh": "下载服务"
   },
-  "settingsStatusBrowserExtension": "Browser Extension",
+  "settingsStatusBrowserBridge": "Browser bridge",
+  "@settingsStatusBrowserBridge": {
+    "x-auto-source-zh": "浏览器桥接"
+  },
+  "settingsStatusBrowserExtension": "Browser extension",
   "@settingsStatusBrowserExtension": {
-    "x-auto-source-zh": "Browser Extension",
-    "x-auto-synced-at": "2026-04-17T16:57:46.639595"
+    "x-auto-source-zh": "浏览器扩展"
+  },
+  "settingsStatusNoBrowserExtensions": "No extensions connected",
+  "@settingsStatusNoBrowserExtensions": {
+    "x-auto-source-zh": "暂无扩展连接"
+  },
+  "settingsStatusBrowserExtensionsUnavailable": "The browser bridge is offline, so connection status is unavailable",
+  "@settingsStatusBrowserExtensionsUnavailable": {
+    "x-auto-source-zh": "浏览器桥接离线，暂时无法获取连接状态"
+  },
+  "settingsStatusConnectedCount": "{count} connected",
+  "@settingsStatusConnectedCount": {
+    "placeholders": {
+      "count": {}
+    },
+    "x-auto-source-zh": "已连接 {count} 个"
   },
   "settingsModeDescriptionAuto": "Dynamic segments, automatically optimized by file size (recommended)",
   "@settingsModeDescriptionAuto": {
@@ -3252,8 +3311,8 @@
       "currentChannel": {},
       "targetChannel": {}
     },
-    "x-auto-source-zh": "新版本: {newVersion}\\n当前版本: {currentVersion}\\n变更: {change}\\n渠道: {currentChannel} -> {targetChannel}\\n准备更新？",
-    "x-auto-synced-at": "2026-04-17T16:57:46.639595"
+    "x-auto-source-zh": "新版本: {newVersion}\n当前版本: {currentVersion}\n变更: {change}\n渠道: {currentChannel} -> {targetChannel}\n准备更新？",
+    "x-auto-synced-at": "2026-07-19T13:24:48.315038"
   },
   "updateConfirmCancelButton": "Cancel",
   "@updateConfirmCancelButton": {
@@ -3561,6 +3620,26 @@
   "@popupDownloadProgressHint": {
     "x-auto-source-zh": "Powered by NSFX Kernel",
     "x-auto-synced-at": "2026-04-25T15:16:49.094588"
+  },
+  "settingsPopupNsfxTextModeTitle": "Popup Footer Text",
+  "@settingsPopupNsfxTextModeTitle": {
+    "x-auto-source-zh": "悬浮窗底部文案",
+    "x-auto-synced-at": "2026-07-19T13:24:48.315038"
+  },
+  "settingsPopupNsfxTextModeDefault": "Default (With NSFX version)",
+  "@settingsPopupNsfxTextModeDefault": {
+    "x-auto-source-zh": "Default NSFX附带版本号",
+    "x-auto-synced-at": "2026-07-19T13:24:48.315038"
+  },
+  "settingsPopupNsfxTextModeOld": "Old (Without version)",
+  "@settingsPopupNsfxTextModeOld": {
+    "x-auto-source-zh": "Old 老文案不带版本号",
+    "x-auto-synced-at": "2026-07-19T13:24:48.315038"
+  },
+  "settingsPopupNsfxTextModeHidden": "Hidden",
+  "@settingsPopupNsfxTextModeHidden": {
+    "x-auto-source-zh": "不显示",
+    "x-auto-synced-at": "2026-07-19T13:24:48.315038"
   },
   "popupDownloadCompletedHint": "The file is saved and ready to open from the file or its folder",
   "@popupDownloadCompletedHint": {

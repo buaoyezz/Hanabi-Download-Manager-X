@@ -35,17 +35,75 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   g_main_thread_id = ::GetCurrentThreadId();
   crash_reporter::Install();
 
+  std::vector<std::string> command_line_arguments =
+      GetCommandLineArguments();
+  const bool launch_hidden =
+      std::find(command_line_arguments.begin(), command_line_arguments.end(),
+                "--autostart") != command_line_arguments.end();
+
   // Check if another instance is already running
   HANDLE hMutex = single_instance::AcquireMutexHandle();
   if (hMutex == NULL) {
     return EXIT_FAILURE;
   }
-  single_instance::SetMutexHandle(hMutex);
+  const DWORD mutex_status = ::GetLastError();
 
-  if (::GetLastError() == ERROR_ALREADY_EXISTS) {
-    HWND existingWnd = ::FindWindowW(nullptr, single_instance::kWindowTitle);
-    single_instance::MarkStartupConflict(existingWnd);
+  bool owns_mutex = mutex_status != ERROR_ALREADY_EXISTS;
+  if (!owns_mutex) {
+    HWND existingWnd = nullptr;
+    constexpr int kExistingWindowPollAttempts = 40;
+    for (int attempt = 0; attempt < kExistingWindowPollAttempts; ++attempt) {
+      const DWORD wait_result = ::WaitForSingleObject(hMutex, 0);
+      if (wait_result == WAIT_OBJECT_0 || wait_result == WAIT_ABANDONED) {
+        owns_mutex = true;
+        break;
+      }
+      if (wait_result == WAIT_FAILED) {
+        ::CloseHandle(hMutex);
+        return EXIT_FAILURE;
+      }
+
+      existingWnd = ::FindWindowW(nullptr, single_instance::kWindowTitle);
+      if (existingWnd != nullptr) {
+        break;
+      }
+      ::Sleep(50);
+    }
+    if (!owns_mutex && existingWnd != nullptr) {
+      bool existing_is_exiting =
+          single_instance::IsWindowExiting(existingWnd);
+      if (!existing_is_exiting) {
+        if (!launch_hidden) {
+          single_instance::RequestExistingWindowActivation(existingWnd);
+        }
+        // Catch an exit that began concurrently with the activation request.
+        existing_is_exiting = single_instance::IsWindowExiting(existingWnd);
+        if (!existing_is_exiting) {
+          ::CloseHandle(hMutex);
+          return EXIT_SUCCESS;
+        }
+      }
+    }
+
+    if (!owns_mutex) {
+      // Normal shutdown can spend up to three seconds stopping the kernel,
+      // followed by the native close fallback. Wait long enough to inherit the
+      // mutex instead of allowing both the old and new process to disappear.
+      const DWORD handoff_result = ::WaitForSingleObject(hMutex, 7000);
+      owns_mutex = handoff_result == WAIT_OBJECT_0 ||
+                   handoff_result == WAIT_ABANDONED;
+      if (handoff_result == WAIT_FAILED) {
+        ::CloseHandle(hMutex);
+        return EXIT_FAILURE;
+      }
+    }
+
+    if (!owns_mutex) {
+      ::CloseHandle(hMutex);
+      return EXIT_SUCCESS;
+    }
   }
+  single_instance::SetMutexHandle(hMutex);
 
   ::AttachConsole(ATTACH_PARENT_PROCESS);
   ::SetConsoleCtrlHandler(ConsoleControlHandler, TRUE);
@@ -56,12 +114,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
       ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
   flutter::DartProject project(L"data");
-
-  std::vector<std::string> command_line_arguments =
-      GetCommandLineArguments();
-  const bool launch_hidden =
-      std::find(command_line_arguments.begin(), command_line_arguments.end(),
-                "--autostart") != command_line_arguments.end();
 
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 

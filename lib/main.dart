@@ -30,6 +30,7 @@ import 'services/quick_path_service.dart';
 import 'services/font_service.dart';
 import 'services/update_service.dart';
 import 'services/window_effect_service.dart';
+import 'services/window_size_persistence_service.dart';
 import 'services/user_profile_service.dart';
 import 'services/notification_settings_service.dart';
 import 'services/notice_service.dart';
@@ -86,7 +87,6 @@ Future<void> _loadCustomFonts(FontService fontService) async {
 Future<void> _configureMainWindowLaunch({
   required ClientConfigService clientConfig,
   required WindowEffectService windowEffectService,
-  required bool isAutoStart,
 }) async {
   if (!Platform.isWindows) {
     return;
@@ -118,8 +118,7 @@ Future<void> _configureMainWindowLaunch({
         (savedWidth == 1200.0 && savedHeight == 800.0);
 
     if (isOldConfig) {
-      await clientConfig.setWindowWidth(defaultWidth);
-      await clientConfig.setWindowHeight(defaultHeight);
+      await clientConfig.setWindowSize(defaultWidth, defaultHeight);
     } else {
       targetWidth = savedWidth;
       targetHeight = savedHeight;
@@ -135,20 +134,11 @@ Future<void> _configureMainWindowLaunch({
     size: initialSize,
     minimumSize: const Size(600, 400),
     center: true,
-    backgroundColor: Colors.transparent,
-    titleBarStyle: TitleBarStyle.hidden,
     title: 'Hanabi Download ManagerX',
   );
 
-  windowManager.waitUntilReadyToShow(windowOptions, () async {
-    await windowEffectService.applyWindowEffect();
-    if (!isAutoStart) {
-      await windowManager.show();
-      await windowManager.focus();
-      await Future<void>.delayed(const Duration(milliseconds: 80));
-      await windowEffectService.applyWindowEffect();
-    }
-  });
+  await windowManager.waitUntilReadyToShow(windowOptions);
+  await windowEffectService.applyWindowEffect(force: true);
 }
 
 @pragma('vm:entry-point')
@@ -389,12 +379,6 @@ void main(List<String> args) async {
       debugPrint('Failed to load speed history: $e');
     });
 
-    await _configureMainWindowLaunch(
-      clientConfig: clientConfig,
-      windowEffectService: windowEffectService,
-      isAutoStart: isAutoStart,
-    );
-
     runApp(
       MultiProvider(
         providers: [
@@ -447,6 +431,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   bool _isBackgroundMode = false;
   bool _syncingPopupBridge = false;
   bool _oobeDialogShown = false;
+  bool _isShuttingDown = false;
 
   @override
   void initState() {
@@ -469,18 +454,31 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
     _networkStatus = context.read<NetworkStatusService>();
     _noticeService = context.read<NoticeService>();
+    systemTrayService.onBeforeExit = _prepareForExit;
   }
 
   Future<void> _runStartupSequence() async {
     final canContinue = await _resolveExistingInstanceConflictIfNeeded();
-    if (!canContinue || !mounted) return;
+    if (!canContinue || !mounted || _isShuttingDown) return;
 
     final isAutoStart = context.read<bool>();
+    await _configureMainWindowLaunch(
+      clientConfig: context.read<ClientConfigService>(),
+      windowEffectService: context.read<WindowEffectService>(),
+    );
+    if (!mounted || _isShuttingDown) return;
+
     _configureTrayMenuTaskProvider();
     _configureBackgroundModeBridge();
     setState(() {
       _showClientUi = true;
     });
+    if (!isAutoStart) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        unawaited(_showMainWindow());
+      });
+    }
 
     await _initSystemTray();
     _handleMainWindowVisibilityChanged(!isAutoStart);
@@ -489,6 +487,26 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _initDownloadListener();
     _initClipboardListener();
     await _showOobeIfNeeded();
+  }
+
+  Future<void> _showMainWindow() async {
+    if (!mounted || _isShuttingDown) return;
+    try {
+      await systemTrayService.showMainWindow();
+    } catch (error, stackTrace) {
+      AppLoggerService().error(
+        'App',
+        'Failed to show main window: $error\n$stackTrace',
+      );
+    }
+  }
+
+  Future<void> _prepareForExit() async {
+    _isShuttingDown = true;
+    final config = _clientConfig;
+    if (config != null) {
+      await windowSizePersistenceService.save(config);
+    }
   }
 
   void _handleClientConfigChanged() {
@@ -533,6 +551,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         });
 
       return activeTasks
+          .take(4)
           .map(
             (task) => <String, dynamic>{
               'id': task.id,
@@ -576,6 +595,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   Future<Object?> _handleWindowChannelCall(MethodCall call) async {
+    if (call.method == 'windowEffectStateChanged') {
+      final arguments = call.arguments;
+      if (!mounted || arguments is! Map) return false;
+      context.read<WindowEffectService>().handleNativeStateChanged(
+            Map<Object?, Object?>.from(arguments),
+          );
+      return true;
+    }
+
     if (call.method != 'handleMainWindowAction') {
       return null;
     }
@@ -589,7 +617,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       return false;
     }
 
-    systemTrayService.showMainWindow();
+    if (action == 'exit_application') {
+      unawaited(systemTrayService.requestExit());
+      return true;
+    }
+
+    await systemTrayService.showMainWindow();
     switch (action) {
       case 'show_downloading_page':
         mainWindowCommandService.dispatch(
@@ -758,7 +791,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.detached) {
       // 应用即将退出，清理资源
-      _cleanup();
+      unawaited(_cleanup());
     }
   }
 
@@ -873,29 +906,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       systemTrayService.onMainWindowVisibilityChanged = null;
     }
 
-    // 保存窗口状态
+    // Save the normal restore bounds. The native WINDOWPLACEMENT query stays
+    // stable while the window is maximized, minimized, or full screen.
     try {
       final config = context.read<ClientConfigService>();
-
-      if (config.getWindowRememberSize()) {
-        final size = await windowManager.getSize();
-        final currentWidth = size.width;
-        final currentHeight = size.height;
-
-        // 验证窗口大小是否合理（防止保存异常值）
-        // 窗口最小化时，size 可能会变成很小的值（如 160x28），需要过滤掉
-        if (currentWidth >= 600 &&
-            currentHeight >= 400 &&
-            currentWidth <= 4096 &&
-            currentHeight <= 2160) {
-          debugPrint('Saving window size: $currentWidth x $currentHeight');
-          await config.setWindowWidth(currentWidth);
-          await config.setWindowHeight(currentHeight);
-        } else {
-          debugPrint(
-              'Invalid window size, not saving: $currentWidth x $currentHeight');
-        }
-      }
+      await windowSizePersistenceService.save(config);
     } catch (e) {
       debugPrint('Failed to save window size: $e');
     }
@@ -924,6 +939,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _windowChannel.setMethodCallHandler(null);
     _clientConfig?.removeListener(_handleClientConfigChanged);
+    if (identical(systemTrayService.onBeforeExit, _prepareForExit)) {
+      systemTrayService.onBeforeExit = null;
+    }
     systemTrayService.activeTaskPayloadProvider = null;
     // 同步清理，不等待异步操作
     _downloadListener?.stopListening();
@@ -1081,11 +1099,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               content = ExcludeSemantics(child: content);
             }
             content = _WindowCornerFrame(child: content);
+            final mediaQuery = MediaQuery.of(context);
             return MediaQuery(
-              data: MediaQuery.of(context).copyWith(
-                textScaler: TextScaler.linear(scaleFactor),
-              ),
-              child: content,
+              data: mediaQuery
+                  .removePadding(removeTop: true)
+                  .copyWith(textScaler: TextScaler.linear(scaleFactor)),
+              child: SizedBox.expand(child: content),
             );
           },
           home:
@@ -1101,12 +1120,13 @@ class _StartupShellScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final brightness = fluent.FluentTheme.of(context).brightness;
-    final backgroundColor = brightness == Brightness.dark
-        ? const Color(0xFF202020)
-        : const Color(0xFFF3F3F3);
+    final windowEffect = context.watch<WindowEffectService>();
+    final presentation = windowEffect.presentation(
+      solidShell: AppTheme.shellBackground,
+      solidContent: AppTheme.bgBase,
+    );
     return ColoredBox(
-      color: backgroundColor,
+      color: presentation.windowColor,
       child: const SizedBox.expand(),
     );
   }

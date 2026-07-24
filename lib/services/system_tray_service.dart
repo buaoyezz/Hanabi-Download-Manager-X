@@ -1,14 +1,18 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:convert';
-import 'package:tray_manager/tray_manager.dart';
-import 'package:window_manager/window_manager.dart';
+import 'dart:ffi';
+import 'dart:io';
+
+import 'package:ffi/ffi.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:tray_manager/tray_manager.dart';
+import 'package:win32/win32.dart' as win32;
+import 'package:window_manager/window_manager.dart';
 import 'package:path/path.dart' as path;
+
 import 'logger_service.dart';
 import 'client_config_service.dart';
-import 'package:win32/win32.dart';
 import 'kernel/kernel_manager.dart';
 
 class SystemTrayService with TrayListener {
@@ -16,7 +20,13 @@ class SystemTrayService with TrayListener {
       MethodChannel('com.hanabi.download/window');
   bool _isInitialized = false;
   bool _isExiting = false;
+  Timer? _trayMenuPrewarmTimer;
+  Future<void>? _trayMenuPreparation;
+  Future<void>? _trayMenuRequest;
+  DateTime? _lastTrayMenuRequestAt;
+  String? _lastTooltip;
   Future<bool> Function()? onExitRequested;
+  Future<void> Function()? onBeforeExit;
   void Function(bool isVisible)? onMainWindowVisibilityChanged;
   List<Map<String, dynamic>> Function()? activeTaskPayloadProvider;
   final _logger = LoggerService();
@@ -33,29 +43,57 @@ class SystemTrayService with TrayListener {
 
       await trayManager.setIcon(iconPath);
       await trayManager.setToolTip("Hanabi Download ManagerX");
+      _lastTooltip = "Hanabi Download ManagerX";
       trayManager.addListener(this);
 
       _isInitialized = true;
       _logger.info('System tray initialized with custom Fluent menu');
 
       if (showWindow) {
-        showMainWindow();
+        await showMainWindow();
       } else {
         updateToolTip(false);
       }
+      _scheduleTrayMenuPrewarm();
     } catch (e) {
       _logger.error('System tray init failed: $e');
     }
   }
 
   Future<void> _showCustomTrayMenu() async {
+    if (!_isInitialized || _isExiting) {
+      return;
+    }
+    final pendingRequest = _trayMenuRequest;
+    if (pendingRequest != null) {
+      return pendingRequest;
+    }
+
+    final request = _performShowCustomTrayMenu();
+    _trayMenuRequest = request;
     try {
+      await request;
+    } finally {
+      if (identical(_trayMenuRequest, request)) {
+        _trayMenuRequest = null;
+      }
+    }
+  }
+
+  Future<void> _performShowCustomTrayMenu() async {
+    try {
+      final preparation = _trayMenuPreparation;
+      if (preparation != null) {
+        await preparation;
+      }
       final cursorPos = await _getCursorPos();
 
       await _windowChannel.invokeMethod<bool>(
         'showTrayMenu',
         {
-          'payload': jsonEncode(_buildTrayMenuPayload(cursorPos)),
+          'payload': jsonEncode(
+            _buildTrayMenuPayload(cursorPos, showOnReady: true),
+          ),
           'title': 'Hanabi Tray Menu',
         },
       );
@@ -64,7 +102,41 @@ class SystemTrayService with TrayListener {
     }
   }
 
-  Map<String, dynamic> _buildTrayMenuPayload(Map<String, double> cursorPos) {
+  void _scheduleTrayMenuPrewarm() {
+    if (!Platform.isWindows || !_isInitialized || _isExiting) {
+      return;
+    }
+    _trayMenuPrewarmTimer?.cancel();
+    _trayMenuPrewarmTimer = Timer(const Duration(milliseconds: 500), () {
+      _trayMenuPrewarmTimer = null;
+      _trayMenuPreparation ??= _prepareCustomTrayMenu();
+    });
+  }
+
+  Future<void> _prepareCustomTrayMenu() async {
+    try {
+      await _windowChannel.invokeMethod<bool>(
+        'prepareTrayMenu',
+        {
+          'payload': jsonEncode(
+            _buildTrayMenuPayload(
+              const {'x': 0.0, 'y': 0.0},
+              showOnReady: false,
+            ),
+          ),
+          'title': 'Hanabi Tray Menu',
+        },
+      );
+      _logger.info('Custom tray menu prewarmed');
+    } catch (e) {
+      _logger.warning('Failed to prewarm custom tray menu: $e');
+    }
+  }
+
+  Map<String, dynamic> _buildTrayMenuPayload(
+    Map<String, double> cursorPos, {
+    required bool showOnReady,
+  }) {
     final localeTag =
         WidgetsBinding.instance.platformDispatcher.locale.toLanguageTag();
     List<Map<String, dynamic>> activeTasks = const <Map<String, dynamic>>[];
@@ -82,6 +154,7 @@ class SystemTrayService with TrayListener {
       'locale': localeTag,
       'mouse_x': cursorPos['x'] ?? 0.0,
       'mouse_y': cursorPos['y'] ?? 0.0,
+      'show_on_ready': showOnReady,
       'theme_mode': themeMode,
       'classic_control_visuals': classicControlVisuals,
       'active_tasks': activeTasks,
@@ -101,23 +174,18 @@ class SystemTrayService with TrayListener {
       _logger.warning('Failed to get cursor pos via method channel: $e');
     }
 
-    try {
-      if (Platform.isWindows) {
-        final result = await Process.run('powershell', [
-          '-Command',
-          r'Add-Type -AssemblyName System.Windows.Forms; $pos = [System.Windows.Forms.Cursor]::Position; Write-Output "$($pos.X),$($pos.Y)"'
-        ]);
-        final output = (result.stdout as String).trim();
-        final parts = output.split(',');
-        if (parts.length == 2) {
+    if (Platform.isWindows) {
+      final point = calloc.allocate<win32.POINT>(1);
+      try {
+        if (win32.GetCursorPos(point).value) {
           return {
-            'x': double.parse(parts[0]),
-            'y': double.parse(parts[1]),
+            'x': point.ref.x.toDouble(),
+            'y': point.ref.y.toDouble(),
           };
         }
+      } finally {
+        calloc.free(point);
       }
-    } catch (e) {
-      _logger.warning('Failed to get cursor pos via powershell: $e');
     }
 
     return {'x': 0.0, 'y': 0.0};
@@ -132,7 +200,21 @@ class SystemTrayService with TrayListener {
       tooltip += " - 正在后台运行";
     }
 
-    trayManager.setToolTip(tooltip);
+    unawaited(_setToolTipIfChanged(tooltip));
+  }
+
+  Future<void> _setToolTipIfChanged(String tooltip) async {
+    if (!_isInitialized || _lastTooltip == tooltip) {
+      return;
+    }
+    final previous = _lastTooltip;
+    _lastTooltip = tooltip;
+    try {
+      await trayManager.setToolTip(tooltip);
+    } catch (e) {
+      _lastTooltip = previous;
+      _logger.warning('Failed to update system tray tooltip: $e');
+    }
   }
 
   Future<String> _getIconPath() async {
@@ -156,12 +238,34 @@ class SystemTrayService with TrayListener {
     return '';
   }
 
-  void showMainWindow() {
+  Future<void> showMainWindow() async {
     _logger.info('Show main window');
-    windowManager.show();
-    windowManager.restore();
-    updateToolTip(true);
-    onMainWindowVisibilityChanged?.call(true);
+    try {
+      if (Platform.isWindows) {
+        await _windowChannel.invokeMethod<void>('bringToFront');
+      } else {
+        if (await windowManager.isMinimized()) {
+          await windowManager.restore();
+        }
+        await windowManager.show();
+        await windowManager.focus();
+      }
+      updateToolTip(true);
+      onMainWindowVisibilityChanged?.call(true);
+    } catch (e) {
+      _logger.warning('Native window restore failed, using fallback: $e');
+      try {
+        if (await windowManager.isMinimized()) {
+          await windowManager.restore();
+        }
+        await windowManager.show();
+        await windowManager.focus();
+        updateToolTip(true);
+        onMainWindowVisibilityChanged?.call(true);
+      } catch (fallbackError) {
+        _logger.error('Failed to show main window: $fallbackError');
+      }
+    }
   }
 
   void hideMainWindow() {
@@ -169,15 +273,6 @@ class SystemTrayService with TrayListener {
     windowManager.hide();
     updateToolTip(false);
     onMainWindowVisibilityChanged?.call(false);
-
-    PaintingBinding.instance.imageCache.clear();
-    PaintingBinding.instance.imageCache.clearLiveImages();
-
-    if (Platform.isWindows) {
-      final process = GetCurrentProcess();
-      SetProcessWorkingSetSize(process, -1, -1);
-      _logger.info('Trimmed working set memory for background operation');
-    }
   }
 
   Future<bool> _requestNativeQuit() async {
@@ -225,6 +320,23 @@ class SystemTrayService with TrayListener {
 
     _logger.info('Exit app from tray - beginning shutdown sequence...');
 
+    if (Platform.isWindows) {
+      try {
+        await _windowChannel.invokeMethod<bool>('beginApplicationExit');
+      } catch (e) {
+        _logger.warning('Failed to mark native window as exiting: $e');
+      }
+    }
+
+    final beforeExit = onBeforeExit;
+    if (beforeExit != null) {
+      try {
+        await beforeExit();
+      } catch (e) {
+        _logger.warning('Pre-exit persistence failed: $e');
+      }
+    }
+
     try {
       // 先销毁托盘图标，避免用户误以为应用只是退到后台。
       await trayManager.destroy();
@@ -262,17 +374,30 @@ class SystemTrayService with TrayListener {
 
   @override
   void onTrayIconMouseDown() {
-    showMainWindow();
+    unawaited(showMainWindow());
   }
 
   @override
   void onTrayIconRightMouseDown() {
-    _showCustomTrayMenu();
+    final now = DateTime.now();
+    final lastRequest = _lastTrayMenuRequestAt;
+    if (lastRequest != null &&
+        now.difference(lastRequest) < const Duration(milliseconds: 120)) {
+      return;
+    }
+    _lastTrayMenuRequestAt = now;
+    unawaited(_showCustomTrayMenu());
   }
 
   void dispose() {
+    _trayMenuPrewarmTimer?.cancel();
+    _trayMenuPrewarmTimer = null;
     trayManager.removeListener(this);
-    trayManager.destroy();
+    unawaited(trayManager.destroy());
+    _isInitialized = false;
+    _lastTooltip = null;
+    onBeforeExit = null;
     onMainWindowVisibilityChanged = null;
+    activeTaskPayloadProvider = null;
   }
 }

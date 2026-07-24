@@ -709,6 +709,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsMaxConcurrentSubtitle => '限制并发下载任务数量';
 
   @override
+  String get settingsGlobalMaxConnectionsTitle => '全局连接上限';
+
+  @override
+  String get settingsGlobalMaxConnectionsSubtitle => '限制所有任务同时占用的分段连接总数（1–128）';
+
+  @override
+  String get settingsAllowInsecureTlsTitle => '允许不安全 TLS';
+
+  @override
+  String get settingsAllowInsecureTlsSubtitle => '关闭证书校验以兼容自签/抓包环境（默认关闭）';
+
+  @override
+  String get settingsAllowInsecureTlsEnabledTitle => '已允许不安全 TLS';
+
+  @override
+  String get settingsAllowInsecureTlsEnabledMessage => '证书校验已关闭，仅在可信网络使用';
+
+  @override
+  String get settingsAllowInsecureTlsDisabledTitle => '已启用 TLS 校验';
+
+  @override
+  String get settingsAllowInsecureTlsDisabledMessage => '将拒绝无效或不受信证书';
+
+  @override
   String get settingsSegmentSpeedLimitTitle => '分段限速';
 
   @override
@@ -984,10 +1008,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsStatusTitle => '系统状态';
 
   @override
-  String get settingsStatusKernelNsfx => 'NSFX Kernel';
+  String get settingsStatusDownloadService => '下载服务';
 
   @override
-  String get settingsStatusBrowserExtension => 'Browser Extension';
+  String get settingsStatusBrowserBridge => '浏览器桥接';
+
+  @override
+  String get settingsStatusBrowserExtension => '浏览器扩展';
+
+  @override
+  String get settingsStatusNoBrowserExtensions => '暂无扩展连接';
+
+  @override
+  String get settingsStatusBrowserExtensionsUnavailable => '浏览器桥接离线，暂时无法获取连接状态';
+
+  @override
+  String settingsStatusConnectedCount(Object count) {
+    return '已连接 $count 个';
+  }
 
   @override
   String get settingsModeDescriptionAuto => '智能动态分段，根据文件大小自动优化 (推荐)';
@@ -2185,6 +2223,18 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get popupDownloadProgressHint => 'Powered by NSFX Kernel';
+
+  @override
+  String get settingsPopupNsfxTextModeTitle => '悬浮窗底部文案';
+
+  @override
+  String get settingsPopupNsfxTextModeDefault => 'Default NSFX附带版本号';
+
+  @override
+  String get settingsPopupNsfxTextModeOld => 'Old 老文案不带版本号';
+
+  @override
+  String get settingsPopupNsfxTextModeHidden => '不显示';
 
   @override
   String get popupDownloadCompletedHint => '文件已保存到目标目录，可直接打开文件或文件夹';

@@ -575,8 +575,13 @@ class _PerformanceMonitorPageState extends State<PerformanceMonitorPage> {
               ? Colors.orange
               : AppTheme.statusSuccess,
         ),
-        _buildStatRow(context, t.performanceMonitorSettingsAcrylicOpacityLabel,
-            '${windowEffect.alpha}'),
+        _buildStatRow(
+          context,
+          t.performanceMonitorSettingsAcrylicOpacityLabel,
+          windowEffect.supportsUserAlpha
+              ? '${windowEffect.blurAlpha}'
+              : 'fixed (${windowEffect.effectiveNativeAlpha})',
+        ),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(12),

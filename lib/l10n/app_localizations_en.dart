@@ -100,13 +100,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsTitle => 'Settings';
 
   @override
-  String get settingsSearchPlaceholder => '搜索设置...';
+  String get settingsSearchPlaceholder => 'Search settings...';
 
   @override
   String get settingsTabGeneral => 'General';
 
   @override
-  String get settingsTabNetwork => '网络与代理';
+  String get settingsTabNetwork => 'Networks and Agents';
 
   @override
   String get settingsTabDownload => 'Download';
@@ -527,21 +527,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsOnlineStatsSubtitle =>
-      'Participates in anonymous online and active-user stats, without UA, fingerprints, downloads, or the local source identifier';
+      'Participate in anonymous online population and activity statistics without uploading UA, fingerprints, downloaded content or original local identification';
 
   @override
   String get settingsOnlineStatsEnabledTitle => 'Online statistics is enabled';
 
   @override
   String get settingsOnlineStatsEnabledMessage =>
-      'An anonymous online heartbeat and period-based stats token will be sent for aggregated online and active-user dedupe';
+      'Anonymous online heartbeats and anonymous statistical tokens derived by period will be sent, only used for aggregating the number of online people and active deduplication.';
 
   @override
   String get settingsOnlineStatsDisabledTitle => 'Online statistics disabled';
 
   @override
   String get settingsOnlineStatsDisabledMessage =>
-      'Online heartbeats will stop, and the server-side online state will expire shortly';
+      'Online heartbeats will stop being sent and the online status will automatically expire within a short period of time.';
 
   @override
   String get settingsTrayHintTitle => 'Tray tip';
@@ -748,6 +748,35 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsMaxConcurrentSubtitle =>
       'Limit the number of concurrent download tasks';
+
+  @override
+  String get settingsGlobalMaxConnectionsTitle => 'Global connection limit';
+
+  @override
+  String get settingsGlobalMaxConnectionsSubtitle =>
+      'Cap total concurrent segment connections across all tasks (1–128)';
+
+  @override
+  String get settingsAllowInsecureTlsTitle => 'Allow insecure TLS';
+
+  @override
+  String get settingsAllowInsecureTlsSubtitle =>
+      'Disable certificate verification for self-signed or MITM proxies (off by default)';
+
+  @override
+  String get settingsAllowInsecureTlsEnabledTitle => 'Insecure TLS enabled';
+
+  @override
+  String get settingsAllowInsecureTlsEnabledMessage =>
+      'Certificate verification is off. Use only on trusted networks.';
+
+  @override
+  String get settingsAllowInsecureTlsDisabledTitle =>
+      'TLS verification enabled';
+
+  @override
+  String get settingsAllowInsecureTlsDisabledMessage =>
+      'Invalid or untrusted certificates will be rejected.';
 
   @override
   String get settingsSegmentSpeedLimitTitle => 'Sectional speed limit';
@@ -1041,10 +1070,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsStatusTitle => 'System status';
 
   @override
-  String get settingsStatusKernelNsfx => 'NSFX Kernel';
+  String get settingsStatusDownloadService => 'Download service';
 
   @override
-  String get settingsStatusBrowserExtension => 'Browser Extension';
+  String get settingsStatusBrowserBridge => 'Browser bridge';
+
+  @override
+  String get settingsStatusBrowserExtension => 'Browser extension';
+
+  @override
+  String get settingsStatusNoBrowserExtensions => 'No extensions connected';
+
+  @override
+  String get settingsStatusBrowserExtensionsUnavailable =>
+      'The browser bridge is offline, so connection status is unavailable';
+
+  @override
+  String settingsStatusConnectedCount(Object count) {
+    return '$count connected';
+  }
 
   @override
   String get settingsModeDescriptionAuto =>
@@ -2353,6 +2397,18 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get popupDownloadProgressHint =>
       'Live speed, remaining time and segment state stay visible here';
+
+  @override
+  String get settingsPopupNsfxTextModeTitle => 'Popup Footer Text';
+
+  @override
+  String get settingsPopupNsfxTextModeDefault => 'Default (With NSFX version)';
+
+  @override
+  String get settingsPopupNsfxTextModeOld => 'Old (Without version)';
+
+  @override
+  String get settingsPopupNsfxTextModeHidden => 'Hidden';
 
   @override
   String get popupDownloadCompletedHint =>

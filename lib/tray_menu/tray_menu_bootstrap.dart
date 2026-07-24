@@ -17,6 +17,17 @@ import '../utils/fluent_icons.dart' as CustomIcons;
 const MethodChannel _windowChannel =
     MethodChannel('com.hanabi.download/window');
 
+@visibleForTesting
+const EdgeInsets kTrayMenuWindowInsets = EdgeInsets.fromLTRB(12, 8, 12, 20);
+
+@visibleForTesting
+Size calculateTrayMenuWindowSize(Size contentSize) {
+  return Size(
+    contentSize.width.ceilToDouble() + kTrayMenuWindowInsets.horizontal,
+    contentSize.height.ceilToDouble() + kTrayMenuWindowInsets.vertical,
+  );
+}
+
 bool get _disableWindowsSemanticsWorkaround =>
     !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
 
@@ -63,6 +74,7 @@ class TrayMenuLaunchData {
     required this.localeTag,
     required this.mousePositionX,
     required this.mousePositionY,
+    this.showOnReady = true,
     this.themeMode,
     this.classicControlVisuals,
     this.activeTasks = const [],
@@ -71,6 +83,7 @@ class TrayMenuLaunchData {
   final String? localeTag;
   final double mousePositionX;
   final double mousePositionY;
+  final bool showOnReady;
   final String? themeMode;
   final bool? classicControlVisuals;
   final List<TrayMenuActiveTaskPreview> activeTasks;
@@ -85,6 +98,8 @@ class TrayMenuLaunchData {
       mousePositionY: (json['mouse_y'] is num)
           ? (json['mouse_y'] as num).toDouble()
           : double.tryParse(json['mouse_y']?.toString() ?? '') ?? 0.0,
+      showOnReady:
+          json['show_on_ready'] is bool ? json['show_on_ready'] as bool : true,
       themeMode: json['theme_mode']?.toString(),
       classicControlVisuals: json['classic_control_visuals'] is bool
           ? json['classic_control_visuals'] as bool
@@ -127,6 +142,30 @@ class TrayMenuLaunchData {
       );
     }
   }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is TrayMenuLaunchData &&
+            other.localeTag == localeTag &&
+            other.mousePositionX == mousePositionX &&
+            other.mousePositionY == mousePositionY &&
+            other.showOnReady == showOnReady &&
+            other.themeMode == themeMode &&
+            other.classicControlVisuals == classicControlVisuals &&
+            listEquals(other.activeTasks, activeTasks);
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        localeTag,
+        mousePositionX,
+        mousePositionY,
+        showOnReady,
+        themeMode,
+        classicControlVisuals,
+        Object.hashAll(activeTasks),
+      );
 }
 
 class TrayMenuActiveTaskPreview {
@@ -152,6 +191,19 @@ class TrayMenuActiveTaskPreview {
           : double.tryParse(json['progress']?.toString() ?? '') ?? 0,
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is TrayMenuActiveTaskPreview &&
+            other.id == id &&
+            other.fileName == fileName &&
+            other.status == status &&
+            other.progress == progress;
+  }
+
+  @override
+  int get hashCode => Object.hash(id, fileName, status, progress);
 }
 
 Locale? parseTrayLocaleTag(String? tag) {
@@ -339,11 +391,10 @@ class _TrayMenuAppState extends State<TrayMenuApp> with WidgetsBindingObserver {
         if (_disableWindowsSemanticsWorkaround) {
           content = ExcludeSemantics(child: content);
         }
+        final scaleFactor = widget.themeConfig?.safeTextScaleFactor ?? 1.0;
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
-            textScaler: TextScaler.linear(
-              widget.themeConfig?.safeTextScaleFactor ?? 1.0,
-            ),
+            textScaler: TextScaler.linear(scaleFactor),
           ),
           child: content,
         );
@@ -366,12 +417,12 @@ class TrayMenuWindowPage extends StatefulWidget {
 }
 
 class _TrayMenuWindowPageState extends State<TrayMenuWindowPage> {
-  static const int _windowOuterPadding = 16;
-
   final GlobalKey _contentKey = GlobalKey();
   bool _isClosing = false;
   bool _isActionRunning = false;
   bool _windowSizeSyncScheduled = false;
+  bool _windowSizeSyncRunning = false;
+  bool _windowSizeSyncPending = false;
   late TrayMenuLaunchData _currentLaunchData;
   int _contentSessionId = 0;
   bool _needsPrecisePosition = true;
@@ -384,20 +435,14 @@ class _TrayMenuWindowPageState extends State<TrayMenuWindowPage> {
     super.initState();
     _currentLaunchData = widget.launchData;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scheduleWindowSizeSync(force: true);
-      Future<void>.delayed(const Duration(milliseconds: 120), () {
-        if (!mounted) {
-          return;
-        }
-        _scheduleWindowSizeSync(force: true);
-      });
+      _scheduleWindowSizeSync();
     });
   }
 
   @override
   void didUpdateWidget(TrayMenuWindowPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.launchData != oldWidget.launchData) {
+    if (!identical(widget.launchData, oldWidget.launchData)) {
       _applyUpdatedLaunchData(widget.launchData);
     }
   }
@@ -417,13 +462,7 @@ class _TrayMenuWindowPageState extends State<TrayMenuWindowPage> {
       _reportedContentSize = null;
       _needsPrecisePosition = true;
     });
-    _scheduleWindowSizeSync(force: true);
-    Future<void>.delayed(const Duration(milliseconds: 120), () {
-      if (!mounted) {
-        return;
-      }
-      _scheduleWindowSizeSync(force: true);
-    });
+    _scheduleWindowSizeSync();
   }
 
   Future<void> _closeWindow() async {
@@ -498,7 +537,12 @@ class _TrayMenuWindowPageState extends State<TrayMenuWindowPage> {
   Future<void> _onExit() async {
     await _runAction(() async {
       try {
-        await _windowChannel.invokeMethod('exitApp');
+        await _windowChannel.invokeMethod(
+          'showMainWindowWithAction',
+          const <String, Object>{
+            'action': 'exit_application',
+          },
+        );
       } catch (e) {
         debugPrint('Failed to exit app: $e');
       }
@@ -562,15 +606,37 @@ class _TrayMenuWindowPageState extends State<TrayMenuWindowPage> {
     });
   }
 
-  void _scheduleWindowSizeSync({bool force = false}) {
-    if (!Platform.isWindows || _windowSizeSyncScheduled) {
+  void _scheduleWindowSizeSync() {
+    if (!Platform.isWindows) {
+      return;
+    }
+    if (_windowSizeSyncRunning) {
+      _windowSizeSyncPending = true;
+      return;
+    }
+    if (_windowSizeSyncScheduled) {
       return;
     }
     _windowSizeSyncScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _windowSizeSyncScheduled = false;
-      unawaited(_syncWindowSize(force: force));
+      unawaited(_drainWindowSizeSync());
     });
+  }
+
+  Future<void> _drainWindowSizeSync() async {
+    if (_windowSizeSyncRunning || !mounted) {
+      return;
+    }
+    _windowSizeSyncRunning = true;
+    try {
+      do {
+        _windowSizeSyncPending = false;
+        await _syncWindowSize();
+      } while (mounted && _windowSizeSyncPending);
+    } finally {
+      _windowSizeSyncRunning = false;
+    }
   }
 
   void _handleDesiredContentSizeChanged(Size size) {
@@ -581,10 +647,11 @@ class _TrayMenuWindowPageState extends State<TrayMenuWindowPage> {
       return;
     }
     _reportedContentSize = size;
-    _scheduleWindowSizeSync(force: true);
+    _needsPrecisePosition = true;
+    _scheduleWindowSizeSync();
   }
 
-  Future<void> _syncWindowSize({bool force = false}) async {
+  Future<void> _syncWindowSize() async {
     if (!mounted || !Platform.isWindows) {
       return;
     }
@@ -617,30 +684,29 @@ class _TrayMenuWindowPageState extends State<TrayMenuWindowPage> {
 
     final contentWidth = _reportedContentSize?.width ?? laidOutSize.width;
     final contentHeight = _reportedContentSize?.height ?? measuredHeight;
-    final desiredHeight = contentHeight.ceil() + _windowOuterPadding;
-    final desiredWidth = contentWidth.ceil() + _windowOuterPadding;
+    final desiredSize = calculateTrayMenuWindowSize(
+      Size(contentWidth, contentHeight),
+    );
+    final desiredHeight = desiredSize.height.toInt();
+    final desiredWidth = desiredSize.width.toInt();
     final heightUnchanged = _lastRequestedWindowHeight != null &&
         (_lastRequestedWindowHeight! - desiredHeight).abs() <= 1;
     final widthUnchanged = _lastRequestedWindowWidth != null &&
         (_lastRequestedWindowWidth! - desiredWidth).abs() <= 1;
 
-    if (!force && heightUnchanged && widthUnchanged) {
-      return;
-    }
-
-    _lastRequestedWindowHeight = desiredHeight;
-    _lastRequestedWindowWidth = desiredWidth;
     try {
-      await _windowChannel.invokeMethod<void>(
-        'resizeWindow',
-        <String, Object>{
-          'width': desiredWidth,
-          'height': desiredHeight,
-        },
-      );
-      if (_needsPrecisePosition &&
-          (_currentLaunchData.mousePositionX > 0 ||
-              _currentLaunchData.mousePositionY > 0)) {
+      if (!heightUnchanged || !widthUnchanged) {
+        _lastRequestedWindowHeight = desiredHeight;
+        _lastRequestedWindowWidth = desiredWidth;
+        await _windowChannel.invokeMethod<void>(
+          'resizeWindow',
+          <String, Object>{
+            'width': desiredWidth,
+            'height': desiredHeight,
+          },
+        );
+      }
+      if (_needsPrecisePosition && _currentLaunchData.showOnReady) {
         await _windowChannel.invokeMethod<void>(
           'positionTrayMenu',
           <String, Object>{
@@ -669,28 +735,31 @@ class _TrayMenuWindowPageState extends State<TrayMenuWindowPage> {
           color: Colors.transparent,
           child: Align(
             alignment: Alignment.topLeft,
-            child: NotificationListener<SizeChangedLayoutNotification>(
-              onNotification: (_) {
-                _scheduleWindowSizeSync();
-                return false;
-              },
-              child: SizeChangedLayoutNotifier(
-                child: KeyedSubtree(
-                  key: _contentKey,
-                  child: TrayMenuContent(
-                    key: ValueKey(_contentSessionId),
-                    onShowWindow: _onShowWindow,
-                    onCreateDownload: _openMainWindowToAddDownload,
-                    onOpenDownloadingPage: _openMainWindowToDownloadingPage,
-                    onOpenDownloads: _openDownloadsFolder,
-                    onOpenLogs: _openLogsFolder,
-                    onOpenProject: _openProjectPage,
-                    onOpenOfficial: _openOfficialPage,
-                    onExit: _onExit,
-                    isBusy: _isActionRunning,
-                    activeTasks: _currentLaunchData.activeTasks,
-                    onDesiredContentSizeChanged:
-                        _handleDesiredContentSizeChanged,
+            child: Padding(
+              padding: kTrayMenuWindowInsets,
+              child: NotificationListener<SizeChangedLayoutNotification>(
+                onNotification: (_) {
+                  _scheduleWindowSizeSync();
+                  return false;
+                },
+                child: SizeChangedLayoutNotifier(
+                  child: KeyedSubtree(
+                    key: _contentKey,
+                    child: TrayMenuContent(
+                      key: ValueKey(_contentSessionId),
+                      onShowWindow: _onShowWindow,
+                      onCreateDownload: _openMainWindowToAddDownload,
+                      onOpenDownloadingPage: _openMainWindowToDownloadingPage,
+                      onOpenDownloads: _openDownloadsFolder,
+                      onOpenLogs: _openLogsFolder,
+                      onOpenProject: _openProjectPage,
+                      onOpenOfficial: _openOfficialPage,
+                      onExit: _onExit,
+                      isBusy: _isActionRunning,
+                      activeTasks: _currentLaunchData.activeTasks,
+                      onDesiredContentSizeChanged:
+                          _handleDesiredContentSizeChanged,
+                    ),
                   ),
                 ),
               ),
@@ -769,6 +838,8 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
   _TraySubmenuGroup? _activeSubmenu;
   Size? _lastReportedMeasuredSize;
   Timer? _submenuCloseTimer;
+  bool _measurementScheduled = false;
+  int? _lastMeasurementSignature;
 
   @override
   void dispose() {
@@ -852,7 +923,14 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
             resolvedLabelStyle,
           );
     final submenuOffset = _resolveSubmenuOffset(_activeSubmenu);
-    _scheduleMeasuredSizeReport();
+    _scheduleMeasuredSizeReport(
+      Object.hash(
+        mainMenuWidth,
+        submenuWidth,
+        submenuOffset,
+        submenuSpecs?.length ?? 0,
+      ),
+    );
 
     return OverflowBox(
       alignment: Alignment.topLeft,
@@ -1010,8 +1088,14 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
     );
   }
 
-  void _scheduleMeasuredSizeReport() {
+  void _scheduleMeasuredSizeReport(int measurementSignature) {
+    if (_measurementScheduled ||
+        _lastMeasurementSignature == measurementSignature) {
+      return;
+    }
+    _measurementScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _measurementScheduled = false;
       if (!mounted) {
         return;
       }
@@ -1024,7 +1108,7 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
         return;
       }
       final size = renderObject.size;
-      _syncTrayMenuRegion(renderObject);
+      _lastMeasurementSignature = measurementSignature;
 
       final previous = _lastReportedMeasuredSize;
       if (previous != null &&
@@ -1035,12 +1119,6 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
       _lastReportedMeasuredSize = size;
       widget.onDesiredContentSizeChanged(size);
     });
-  }
-
-  void _syncTrayMenuRegion(RenderBox layoutBox) {
-    // Disabled: Using SetWindowRgn causes jagged corners and clips the shadow.
-    // Flutter's DComp window already handles transparency and anti-aliasing perfectly.
-    return;
   }
 
   List<_MenuActionSpec>? _getActiveSubmenuSpecs(bool isDark) {
@@ -1192,6 +1270,7 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
   }
 
   void _toggleSubmenu(_TraySubmenuGroup group) {
+    _cancelSubmenuClose();
     setState(() {
       _activeSubmenu = _activeSubmenu == group ? null : group;
     });
@@ -1209,40 +1288,36 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
         key: panelKey,
         width: width,
         decoration: BoxDecoration(
-          color: AppTheme.bgLayer1.withValues(alpha: 0.98),
-          borderRadius: BorderRadius.circular(14),
+          color: AppTheme.bgLayer1.withValues(alpha: isDark ? 0.96 : 0.98),
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
           border: Border.all(
             color: isDark ? const Color(0x33FFFFFF) : const Color(0x1A000000),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.22),
-              blurRadius: 18,
+              color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.16),
+              blurRadius: 16,
               spreadRadius: 0,
-              offset: const Offset(0, 8),
+              offset: const Offset(0, 6),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.16 : 0.08),
+              blurRadius: 3,
+              offset: const Offset(0, 1),
             ),
           ],
         ),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(13),
-            border: Border.all(
-              color: isDark ? const Color(0x0FFFFFFF) : const Color(0x08000000),
-              width: 1,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg - 1),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              6,
+              _panelInnerTop,
+              6,
+              _panelInnerBottom,
             ),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                6,
-                _panelInnerTop,
-                6,
-                _panelInnerBottom,
-              ),
-              child: child,
-            ),
+            child: child,
           ),
         ),
       ),
@@ -1252,7 +1327,6 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
   Widget _buildMenuTile({
     required _MenuActionSpec spec,
     Widget? trailing,
-    bool isSubmenu = false,
     bool isSelected = false,
     _TraySubmenuGroup? submenuToActivateOnEnter,
     bool closeSubmenuOnEnter = false,
@@ -1265,9 +1339,9 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
               color: isDisabled ? AppTheme.textDisabled : AppTheme.textPrimary,
             );
     const tilePadding = EdgeInsets.fromLTRB(8, 5, 8, 5);
-    final tileRadius = isSubmenu ? 9.0 : 10.0;
+    final tileRadius = AppTheme.radiusSm;
     const iconBoxSize = 22.0;
-    final iconRadius = isSubmenu ? 7.0 : 8.0;
+    final iconRadius = AppTheme.radiusSm;
     const iconSize = 13.0;
     final hoverColor = AppTheme.surfaceCardHover;
 
@@ -1384,7 +1458,7 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
           decoration: BoxDecoration(
             color: isHovered ? AppTheme.bgLayer2 : AppTheme.bgLayer1,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             border: Border.all(
               color: isHovered
                   ? AppTheme.statusError.withValues(alpha: 0.55)
@@ -1398,7 +1472,7 @@ class _TrayMenuContentState extends State<TrayMenuContent> {
                 height: 22,
                 decoration: BoxDecoration(
                   color: AppTheme.statusError.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                 ),
                 child: Icon(
                   CustomIcons.FluentIcons.dismiss_20,

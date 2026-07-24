@@ -42,7 +42,16 @@ class ClientConfigService extends ChangeNotifier {
   static const String browserDownloadModeSmallFilesToBrowser =
       'small_files_to_browser';
   static const int defaultBrowserSmallFileThreshold = 8 * 1024 * 1024;
+  static const String downloadKernelAuto = 'auto';
+  static const String downloadKernelNsfx = 'nsfx_v1';
+  static const String downloadKernelNeoNsf = 'neo_nsf';
   static const String currentOobeVersion = '2026-05-initial-setup';
+  static const String currentVisualDefaultsVersion =
+      '2026-07-winui3-window-material';
+
+  static const String popupNsfxTextModeDefault = 'default';
+  static const String popupNsfxTextModeOld = 'old';
+  static const String popupNsfxTextModeHidden = 'hidden';
 
   final _logger = AppLoggerService();
   final _secureRandom = Random.secure();
@@ -62,6 +71,7 @@ class ClientConfigService extends ChangeNotifier {
   Map<String, dynamic> _appConfig = {};
   Map<String, dynamic> _uiConfig = {};
   Map<String, dynamic> _logConfig = {};
+  final Map<String, Future<void>> _configWriteTails = {};
   bool _isLoaded = false;
 
   /// 初始化配置服务
@@ -88,6 +98,7 @@ class ClientConfigService extends ChangeNotifier {
 
       // 加载配置
       await _loadAllConfigs();
+      await _migrateVisualDefaults();
       _isLoaded = true;
 
       _logger.info('App', '配置服务初始化完成');
@@ -120,6 +131,23 @@ class ClientConfigService extends ChangeNotifier {
     _logConfig = await _loadConfigFile(_logConfigPath, _getDefaultLogConfig());
   }
 
+  Future<void> _migrateVisualDefaults() async {
+    final rawTheme = _uiConfig['theme'];
+    final theme = rawTheme is Map
+        ? Map<String, dynamic>.from(rawTheme.cast<String, dynamic>())
+        : <String, dynamic>{};
+    if (theme['visual_defaults_version'] == currentVisualDefaultsVersion) {
+      return;
+    }
+
+    // Older releases seeded an opaque classic palette. Migrate once to the
+    // Fluent/WinUI 3 palette; the compatibility toggle remains available.
+    theme['classic_control_visuals'] = false;
+    theme['visual_defaults_version'] = currentVisualDefaultsVersion;
+    _uiConfig['theme'] = theme;
+    await _saveConfigFile(_uiConfigPath, _uiConfig);
+  }
+
   /// 加载单个配置文件
   Future<Map<String, dynamic>> _loadConfigFile(
       String filePath, Map<String, dynamic> defaultConfig) async {
@@ -144,13 +172,24 @@ class ClientConfigService extends ChangeNotifier {
   /// 保存单个配置文件
   Future<void> _saveConfigFile(
       String filePath, Map<String, dynamic> config) async {
+    final content = const JsonEncoder.withIndent('  ').convert(config);
+    final previous = _configWriteTails[filePath] ?? Future<void>.value();
+    late final Future<void> write;
+    write = previous.then((_) async {
+      try {
+        await File(filePath).writeAsString(content);
+        _logger.debug('App', '保存配置: ${path.basename(filePath)}');
+      } catch (e) {
+        _logger.error('App', '保存配置失败 ${path.basename(filePath)}: $e');
+      }
+    });
+    _configWriteTails[filePath] = write;
     try {
-      final file = File(filePath);
-      final content = const JsonEncoder.withIndent('  ').convert(config);
-      await file.writeAsString(content);
-      _logger.debug('App', '保存配置: ${path.basename(filePath)}');
-    } catch (e) {
-      _logger.error('App', '保存配置失败 ${path.basename(filePath)}: $e');
+      await write;
+    } finally {
+      if (identical(_configWriteTails[filePath], write)) {
+        _configWriteTails.remove(filePath);
+      }
     }
   }
 
@@ -168,6 +207,9 @@ class ClientConfigService extends ChangeNotifier {
         'software_activity_daily_id': '',
       },
       'task_tags': <String, dynamic>{},
+      'download': {
+        'selected_kernel': downloadKernelNsfx,
+      },
       'behavior': {
         'auto_start_download': true,
         'notify_on_complete': true,
@@ -192,7 +234,8 @@ class ClientConfigService extends ChangeNotifier {
       'language': 'system', // system | en | zh | <plugin locale>
       'theme': {
         'mode': 'system', // system | light | dark
-        'classic_control_visuals': true, // 暗色模式默认保留旧版控件视觉
+        'classic_control_visuals': false,
+        'visual_defaults_version': currentVisualDefaultsVersion,
       },
       'window': {
         'effect_mode': 'acrylic',
@@ -317,8 +360,8 @@ class ClientConfigService extends ChangeNotifier {
 
   bool getLogShowStats() {
     return _getFromConfig<bool>(_logConfig, 'display.show_stats',
-            defaultValue: true) ??
-        true;
+            defaultValue: false) ??
+        false;
   }
 
   Future<void> setLogShowStats(bool value) async {
@@ -364,6 +407,16 @@ class ClientConfigService extends ChangeNotifier {
         defaultValue: {});
     if (states == null) return {};
     return states.map((key, value) => MapEntry(key.toString(), value as bool));
+  }
+
+  // --- 悬浮窗文案设置 ---
+  String get popupNsfxTextMode =>
+      _uiConfig['popup_nsfx_text_mode'] as String? ?? popupNsfxTextModeDefault;
+
+  Future<void> setPopupNsfxTextMode(String mode) async {
+    _uiConfig['popup_nsfx_text_mode'] = mode;
+    notifyListeners();
+    await _saveConfigFile(_uiConfigPath, _uiConfig);
   }
 
   /// 保存内置高亮规则的启用状态
@@ -452,6 +505,18 @@ class ClientConfigService extends ChangeNotifier {
 
   Future<void> setWindowWidth(double width) async {
     await _setToConfig(_uiConfig, _uiConfigPath, 'window.width', width);
+  }
+
+  Future<void> setWindowSize(double width, double height) async {
+    final rawWindow = _uiConfig['window'];
+    final window =
+        rawWindow is Map<String, dynamic> ? rawWindow : <String, dynamic>{};
+    window['width'] = width;
+    window['height'] = height;
+    _uiConfig['window'] = window;
+    _uiConfig['last_updated'] = DateTime.now().toIso8601String();
+    await _saveConfigFile(_uiConfigPath, _uiConfig);
+    notifyListeners();
   }
 
   double getWindowHeight() {
@@ -823,6 +888,34 @@ class ClientConfigService extends ChangeNotifier {
   Future<void> setShowTrayRunningStatus(bool value) async {
     await _setToConfig(
         _appConfig, _appConfigPath, 'behavior.show_tray_running_status', value);
+  }
+
+  static String normalizeDownloadKernelId(String? value) {
+    return switch (value?.trim().toLowerCase()) {
+      downloadKernelNsfx => downloadKernelNsfx,
+      downloadKernelNeoNsf => downloadKernelNeoNsf,
+      downloadKernelAuto => downloadKernelAuto,
+      _ => downloadKernelNsfx,
+    };
+  }
+
+  String getDownloadKernelId() {
+    return normalizeDownloadKernelId(
+      _getFromConfig<String>(
+        _appConfig,
+        'download.selected_kernel',
+        defaultValue: downloadKernelNsfx,
+      ),
+    );
+  }
+
+  Future<void> setDownloadKernelId(String value) async {
+    await _setToConfig(
+      _appConfig,
+      _appConfigPath,
+      'download.selected_kernel',
+      normalizeDownloadKernelId(value),
+    );
   }
 
   static bool isSupportedBrowserDownloadHandlingMode(String? value) {

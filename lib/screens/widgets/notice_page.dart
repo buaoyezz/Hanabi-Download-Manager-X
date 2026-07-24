@@ -12,6 +12,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/fluent_icons.dart' as CustomIcons;
 import '../../widgets/animated_notifications.dart';
 import '../../widgets/smooth_scroll_wrapper.dart';
+import '../../widgets/interactive_animations.dart';
 
 String _normalizeNoticeMarkdown(String source) {
   return source
@@ -324,14 +325,17 @@ class _NoticePageState extends State<NoticePage> {
                       itemBuilder: (context, index) {
                         final notice = notices[index];
                         final isSelected = _selectedNotice?.id == notice.id;
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: _NoticeListTile(
-                            notice: notice,
-                            isSelected: isSelected,
-                            onTap: () {
-                              setState(() => _selectedNotice = notice);
-                            },
+                        return StaggeredEntrance(
+                          index: index,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: _NoticeListTile(
+                              notice: notice,
+                              isSelected: isSelected,
+                              onTap: () {
+                                setState(() => _selectedNotice = notice);
+                              },
+                            ),
                           ),
                         );
                       },
@@ -358,11 +362,29 @@ class _NoticePageState extends State<NoticePage> {
                   boxShadow: AppTheme.shadowSm,
                 ),
                 clipBehavior: Clip.antiAlias,
-                child: _NoticeDetailPane(
-                  key: ValueKey(_selectedNotice!.id),
-                  notice: _selectedNotice!,
-                  onLinkTap: _launchUrl,
-                  onClose: () => setState(() => _selectedNotice = null),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  transitionBuilder: (Widget child, Animation<double> animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0.02, 0),
+                          end: Offset.zero,
+                        ).animate(CurvedAnimation(
+                          parent: animation,
+                          curve: Curves.easeOutCubic,
+                        )),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: _NoticeDetailPane(
+                    key: ValueKey(_selectedNotice!.id),
+                    notice: _selectedNotice!,
+                    onLinkTap: _launchUrl,
+                    onClose: () => setState(() => _selectedNotice = null),
+                  ),
                 ),
               ),
             ),
@@ -381,13 +403,20 @@ class _NoticePageState extends State<NoticePage> {
         children: [
           _buildSyncInfo(service),
           const SizedBox(height: 16),
-          ...notices.map((notice) => Padding(
+          ...notices.asMap().entries.map((entry) {
+            final index = entry.key;
+            final notice = entry.value;
+            return StaggeredEntrance(
+              index: index,
+              child: Padding(
                 padding: const EdgeInsets.only(bottom: 16),
                 child: _ModernNoticeCard(
                   notice: notice,
                   onLinkTap: _launchUrl,
                 ),
-              )),
+              ),
+            );
+          }),
         ],
       ),
     );
@@ -435,10 +464,12 @@ class _NoticePageState extends State<NoticePage> {
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(CustomIcons.FluentIcons.getIcon('alert_off_20'),
+      child: StaggeredEntrance(
+        index: 0,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(CustomIcons.FluentIcons.getIcon('alert_off_20'),
               size: 48, color: AppTheme.textTertiary),
           const SizedBox(height: 16),
           Text(
@@ -452,6 +483,7 @@ class _NoticePageState extends State<NoticePage> {
             child: Text(t.noticeRefresh),
           ),
         ],
+      ),
       ),
     );
   }
@@ -530,14 +562,11 @@ class _NoticeListTile extends StatelessWidget {
     final levelColor = _levelColor(notice.level);
     final isDark = AppTheme.isDarkContext(context);
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.all(14),
+    return AnimatedPressable(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: isSelected
                 ? AppTheme.accentPrimary.withValues(alpha: isDark ? 0.15 : 0.08)
@@ -613,21 +642,20 @@ class _NoticeListTile extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                    Text(
-                      _formatDate(notice.publishedAt ?? notice.createdAt),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppTheme.textTertiary.withValues(alpha: 0.7),
+                      Text(
+                        _formatDate(notice.publishedAt ?? notice.createdAt),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.textTertiary.withValues(alpha: 0.7),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ),
-    );
+        );
   }
 }
 
@@ -829,13 +857,14 @@ class _ModernNoticeCardState extends State<_ModernNoticeCard> {
     final isDark = AppTheme.isDarkContext(context);
     final t = AppLocalizations.of(context)!;
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: () => setState(() => _isExpanded = !_isExpanded),
-        behavior: HitTestBehavior.opaque,
+    return AnimatedPressable(
+      onTap: () => setState(() => _isExpanded = !_isExpanded),
+      enableHoverScale: true,
+      hoverScale: 1.01,
+      pressScale: 0.98,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           decoration: BoxDecoration(
@@ -979,8 +1008,17 @@ class _ModernNoticeCardState extends State<_ModernNoticeCard> {
                   ],
                 ),
               ),
-              if (_isExpanded && notice.content != null)
-                _buildExpandedContent(notice, isDark, t),
+              AnimatedCrossFade(
+                firstChild: const SizedBox(width: double.infinity, height: 0),
+                secondChild: notice.content != null
+                    ? _buildExpandedContent(notice, isDark, t)
+                    : const SizedBox(width: double.infinity, height: 0),
+                crossFadeState: _isExpanded
+                    ? CrossFadeState.showSecond
+                    : CrossFadeState.showFirst,
+                duration: const Duration(milliseconds: 300),
+                sizeCurve: Curves.easeOutCubic,
+              ),
             ],
           ),
         ),

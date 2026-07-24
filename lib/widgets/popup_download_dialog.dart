@@ -23,6 +23,7 @@ class PopupDownloadDialog extends StatefulWidget {
   final String? userAgent;
   final String? cookies;
   final Map<String, dynamic>? headers;
+  final int? expectedSizeHint;
   final bool isFromBrowser;
 
   const PopupDownloadDialog({
@@ -33,6 +34,7 @@ class PopupDownloadDialog extends StatefulWidget {
     this.userAgent,
     this.cookies,
     this.headers,
+    this.expectedSizeHint,
     this.isFromBrowser = false,
   });
 
@@ -508,6 +510,7 @@ class _PopupDownloadDialogState extends State<PopupDownloadDialog> {
         userAgent: widget.userAgent,
         cookies: widget.cookies ?? lookupHeaderValue(widget.headers, 'cookie'),
         headers: widget.headers,
+        expectedSizeHint: widget.expectedSizeHint,
       );
       if (taskId == null) {
         throw StateError(

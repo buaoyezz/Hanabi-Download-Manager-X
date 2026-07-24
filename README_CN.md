@@ -75,10 +75,11 @@ flutter build windows --release
 | 分类 | 文档 |
 | --- | --- |
 | 总目录 | [文档目录](docs/Menu.md) |
-| 插件 | [插件市场设计方案](docs/plugin/PLUGIN_MARKET_DESIGN_CN.md) |
-| 插件 | [插件 API 文档](docs/plugin/PLUGIN_API_CN.md) |
-| 插件 | [插件发布流程](docs/plugin/PLUGIN_PUBLISH_FLOW_CN.md) |
-| 插件 | [插件商店签名方案](docs/plugin/PLUGIN_STORE_SIGNATURE_CN.md) |
+| 插件 | [插件开发文档](docs/plugin/README_CN.md) |
+| 插件 | [快速开始](docs/plugin/QUICKSTART_CN.md) |
+| 插件 | [插件 API 参考](docs/plugin/PLUGIN_API_CN.md) |
+| 插件 | [发布与市场](docs/plugin/PLUGIN_PUBLISH_FLOW_CN.md) |
+| 插件 | [安全模型](docs/plugin/SECURITY_CN.md) |
 | 开发 | [添加新语言](docs/i18n/ADD_NEW_LANGUAGE_CN.md) |
 | 开发 | [更新器构建](docs/UPDATER_BUILD_CN.md) |
 | 开发 | [常见问题](docs/faq/FAQ.md) |

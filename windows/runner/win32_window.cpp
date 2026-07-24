@@ -21,50 +21,6 @@ namespace {
 #define DWMWA_USE_IMMERSIVE_DARK_MODE 20
 #endif
 
-#ifndef DWMWA_NCRENDERING_POLICY
-#define DWMWA_NCRENDERING_POLICY 2
-#endif
-
-#ifndef DWMWA_EXCLUDED_FROM_PEEK
-#define DWMWA_EXCLUDED_FROM_PEEK 12
-#endif
-
-#ifndef DWMWA_TRANSITIONS_FORCEDISABLED
-#define DWMWA_TRANSITIONS_FORCEDISABLED 3
-#endif
-
-#ifndef DWMNCRP_DISABLED
-#define DWMNCRP_DISABLED 2
-#endif
-
-#ifndef DWMWA_ALLOW_NCPAINT
-#define DWMWA_ALLOW_NCPAINT 4
-#endif
-
-#ifndef DWMWA_BORDER_COLOR
-#define DWMWA_BORDER_COLOR 34
-#endif
-
-#ifndef DWMWA_CAPTION_COLOR
-#define DWMWA_CAPTION_COLOR 35
-#endif
-
-#ifndef DWMWA_TEXT_COLOR
-#define DWMWA_TEXT_COLOR 36
-#endif
-
-#ifndef DWMWA_WINDOW_CORNER_PREFERENCE
-#define DWMWA_WINDOW_CORNER_PREFERENCE 33
-#endif
-
-#ifndef DWM_COLOR_DEFAULT
-#define DWM_COLOR_DEFAULT 0xFFFFFFFF
-#endif
-
-#ifndef DWM_COLOR_NONE
-#define DWM_COLOR_NONE 0xFFFFFFFE
-#endif
-
 constexpr const wchar_t kWindowClassName[] = L"FLUTTER_RUNNER_WIN32_WINDOW";
 
 /// Registry key for app theme preference.
@@ -141,68 +97,27 @@ void LogWindowStyles(const char* prefix, HWND hwnd) {
     return;
   }
 
-  char buffer[256];
+  RECT window_rect{};
+  RECT client_rect{};
+  GetWindowRect(hwnd, &window_rect);
+  GetClientRect(hwnd, &client_rect);
+
+  char buffer[512];
   const auto style = static_cast<unsigned long long>(
       GetWindowLongPtr(hwnd, GWL_STYLE));
   const auto ex_style = static_cast<unsigned long long>(
       GetWindowLongPtr(hwnd, GWL_EXSTYLE));
   const BOOL enabled = IsWindowEnabled(hwnd);
   const BOOL visible = IsWindowVisible(hwnd);
-  sprintf_s(buffer, sizeof(buffer),
-            "%s hwnd=%p style=0x%llX exStyle=0x%llX enabled=%d visible=%d",
-            prefix, hwnd, style, ex_style, enabled, visible);
+  sprintf_s(
+      buffer, sizeof(buffer),
+      "%s hwnd=%p style=0x%llX exStyle=0x%llX enabled=%d visible=%d "
+      "window=%dx%d client=%dx%d dpi=%u",
+      prefix, hwnd, style, ex_style, enabled, visible,
+      window_rect.right - window_rect.left, window_rect.bottom - window_rect.top,
+      client_rect.right - client_rect.left,
+      client_rect.bottom - client_rect.top, GetDpiForWindow(hwnd));
   LogRenderA(buffer);
-}
-
-void PaintCustomFrameBackground(HWND hwnd) {
-  if (!hwnd) {
-    return;
-  }
-
-  RECT window_rect{};
-  RECT client_rect{};
-  if (!GetWindowRect(hwnd, &window_rect) || !GetClientRect(hwnd, &client_rect)) {
-    return;
-  }
-
-  POINT client_origin{client_rect.left, client_rect.top};
-  ClientToScreen(hwnd, &client_origin);
-
-  const int window_width = window_rect.right - window_rect.left;
-  const int window_height = window_rect.bottom - window_rect.top;
-  const int client_left = client_origin.x - window_rect.left;
-  const int client_top = client_origin.y - window_rect.top;
-  const int client_width = client_rect.right - client_rect.left;
-  const int client_height = client_rect.bottom - client_rect.top;
-  const int client_right = client_left + client_width;
-  const int client_bottom = client_top + client_height;
-
-  HDC dc = GetWindowDC(hwnd);
-  if (!dc) {
-    return;
-  }
-
-  HBRUSH brush = CreateSolidBrush(RGB(0, 0, 0));
-  if (!brush) {
-    ReleaseDC(hwnd, dc);
-    return;
-  }
-
-  auto fill = [&](int left, int top, int right, int bottom) {
-    if (right <= left || bottom <= top) {
-      return;
-    }
-    RECT rect{left, top, right, bottom};
-    FillRect(dc, &rect, brush);
-  };
-
-  fill(0, 0, client_left, window_height);
-  fill(client_right, 0, window_width, window_height);
-  fill(client_left, 0, client_right, client_top);
-  fill(client_left, client_bottom, client_right, window_height);
-
-  DeleteObject(brush);
-  ReleaseDC(hwnd, dc);
 }
 
 // Dynamically loads the |EnableNonClientDpiScaling| from the User32 module.
@@ -322,70 +237,27 @@ bool Win32Window::Create(const std::wstring& title,
     return false;
   }
 
-  {
-    char buf[128];
-    
-    // Get Windows build number first
-    DWORD buildNumber = 0;
-    HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
-    if (ntdll) {
-      typedef LONG(WINAPI* RtlGetVersionPtr)(PRTL_OSVERSIONINFOW);
-      RtlGetVersionPtr rtlGetVersion = (RtlGetVersionPtr)GetProcAddress(ntdll, "RtlGetVersion");
-      if (rtlGetVersion) {
-        RTL_OSVERSIONINFOW rovi = {0};
-        rovi.dwOSVersionInfoSize = sizeof(rovi);
-        if (rtlGetVersion(&rovi) == 0) {
-          buildNumber = rovi.dwBuildNumber;
-        }
-      }
-    }
-    sprintf_s(buf, sizeof(buf), "Win32Window Create: Windows build=%lu", buildNumber);
-    LogRenderA(buf);
-    
-    // Dark mode
-    BOOL dark = TRUE;
-    DwmSetWindowAttribute(window, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
-    
-    if (HasCustomFrame()) {
-      const COLORREF caption_color = DWM_COLOR_NONE;
-      const COLORREF border_color = RGB(0, 0, 0);
-      DwmSetWindowAttribute(window, DWMWA_CAPTION_COLOR, &caption_color,
-                            sizeof(caption_color));
-      DwmSetWindowAttribute(window, DWMWA_BORDER_COLOR, &border_color,
-                            sizeof(border_color));
-
-      if (buildNumber >= 22000) {
-        // Windows 11: Use native DWM features with rounded corners
-        MARGINS margins = {-1, -1, -1, -1};
-        DwmExtendFrameIntoClientArea(window, &margins);
-
-        DWORD corner = 2; // DWMWCP_ROUND
-        DwmSetWindowAttribute(window, DWMWA_WINDOW_CORNER_PREFERENCE, &corner,
-                              sizeof(corner));
-        LogRenderA("Win32Window Create: Win11 native rounded corners");
-      } else {
-        // Windows 10: Extend frame for acrylic, accept square corners
-        // Native rounded corners are not supported on Win10
-        MARGINS margins = {-1, -1, -1, -1};
-        DwmExtendFrameIntoClientArea(window, &margins);
-        LogRenderA("Win32Window Create: Win10 - no native rounded corners");
-      }
-
-      BOOL transitionsDisabled = TRUE;
-      DwmSetWindowAttribute(window, DWMWA_TRANSITIONS_FORCEDISABLED,
-                            &transitionsDisabled,
-                            sizeof(transitionsDisabled));
-    } else {
-      if (buildNumber >= 22000) {
-        DWORD corner = 2; // DWMWCP_ROUND
-        DwmSetWindowAttribute(window, DWMWA_WINDOW_CORNER_PREFERENCE, &corner,
-                              sizeof(corner));
-      }
-      LogRenderA("Win32Window Create: native window frame");
+  // CreateWindowEx can normalize an overlapped style by adding WS_CAPTION
+  // back even when the caller deliberately omitted it. Normalize the style
+  // once while the window is still hidden and before Flutter creates its
+  // child surface. Repeating this after Flutter starts would force unnecessary
+  // non-client recalculations and can invalidate the transparent swap chain.
+  if (HasCustomFrame()) {
+    const LONG_PTR style = GetWindowLongPtr(window, GWL_STYLE);
+    if ((style & WS_CAPTION) != 0) {
+      SetWindowLongPtr(window, GWL_STYLE, style & ~WS_CAPTION);
+      SetWindowPos(window, nullptr, 0, 0, 0, 0,
+                   SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_NOMOVE |
+                       SWP_NOOWNERZORDER | SWP_NOSIZE | SWP_NOZORDER);
+      LogWindowStyles("Normalized custom frame", window);
     }
   }
 
-  UpdateTheme(window);
+  // Custom-frame visuals are configured by WindowBackdropController after the
+  // HWND exists. Native-frame windows keep the Flutter template theme path.
+  if (!HasCustomFrame()) {
+    UpdateTheme(window);
+  }
 
   return OnCreate();
 }
@@ -455,7 +327,6 @@ Win32Window::MessageHandler(HWND hwnd,
           minmax_info->ptMaxPosition.y = work_area.top - monitor_area.top;
           minmax_info->ptMaxSize.x = work_area.right - work_area.left;
           minmax_info->ptMaxSize.y = work_area.bottom - work_area.top;
-          minmax_info->ptMaxTrackSize = minmax_info->ptMaxSize;
         }
         return 0;
       }
@@ -511,19 +382,16 @@ Win32Window::MessageHandler(HWND hwnd,
         sprintf_s(buffer, sizeof(buffer), "Win32Window WM_NCACTIVATE active=%d",
                   wparam != FALSE);
         LogRenderA(buffer);
-        PaintCustomFrameBackground(hwnd);
-        // The Flutter content owns the full frame. Letting DefWindowProc handle
-        // activation paints the native caption for a frame, causing a brief
-        // classic title bar flash when focus changes.
-        return TRUE;
+        // Preserve DWM activation state without asking it to repaint a classic
+        // caption over the client-owned title bar.
+        return DefWindowProc(hwnd, message, wparam, -1);
       }
       break;
 
     case WM_NCPAINT:
       if (HasCustomFrame()) {
         LogRenderA("Win32Window WM_NCPAINT");
-        PaintCustomFrameBackground(hwnd);
-        return 0;
+        return DefWindowProc(hwnd, message, wparam, lparam);
       }
       break;
 
@@ -573,7 +441,9 @@ Win32Window::MessageHandler(HWND hwnd,
     }
 
     case WM_DWMCOLORIZATIONCOLORCHANGED:
-      UpdateTheme(hwnd);
+      if (!HasCustomFrame()) {
+        UpdateTheme(hwnd);
+      }
       return 0;
   }
 

@@ -76,10 +76,11 @@ flutter build windows --release
 | Category | Document |
 | --- | --- |
 | Index | [Documentation menu](docs/Menu.md) |
-| Plugins | [Plugin marketplace design](docs/plugin/PLUGIN_MARKET_DESIGN_CN.md) |
-| Plugins | [Plugin API documentation](docs/plugin/PLUGIN_API_CN.md) |
-| Plugins | [Plugin publishing flow](docs/plugin/PLUGIN_PUBLISH_FLOW_CN.md) |
-| Plugins | [Plugin store signature design](docs/plugin/PLUGIN_STORE_SIGNATURE_CN.md) |
+| Plugins | [Plugin documentation (Chinese)](docs/plugin/README_CN.md) |
+| Plugins | [Quickstart (Chinese)](docs/plugin/QUICKSTART_CN.md) |
+| Plugins | [API reference (Chinese)](docs/plugin/PLUGIN_API_CN.md) |
+| Plugins | [Publishing and marketplace (Chinese)](docs/plugin/PLUGIN_PUBLISH_FLOW_CN.md) |
+| Plugins | [Security model (Chinese)](docs/plugin/SECURITY_CN.md) |
 | Development | [Add a new language](docs/i18n/ADD_NEW_LANGUAGE.md) |
 | Development | [Updater build](docs/UPDATER_BUILD_CN.md) |
 | Development | [FAQ](docs/faq/FAQ.md) |

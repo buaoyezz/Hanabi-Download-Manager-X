@@ -1382,6 +1382,54 @@ abstract class AppLocalizations {
   /// **'限制并发下载任务数量'**
   String get settingsMaxConcurrentSubtitle;
 
+  /// No description provided for @settingsGlobalMaxConnectionsTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'全局连接上限'**
+  String get settingsGlobalMaxConnectionsTitle;
+
+  /// No description provided for @settingsGlobalMaxConnectionsSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'限制所有任务同时占用的分段连接总数（1–128）'**
+  String get settingsGlobalMaxConnectionsSubtitle;
+
+  /// No description provided for @settingsAllowInsecureTlsTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'允许不安全 TLS'**
+  String get settingsAllowInsecureTlsTitle;
+
+  /// No description provided for @settingsAllowInsecureTlsSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'关闭证书校验以兼容自签/抓包环境（默认关闭）'**
+  String get settingsAllowInsecureTlsSubtitle;
+
+  /// No description provided for @settingsAllowInsecureTlsEnabledTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'已允许不安全 TLS'**
+  String get settingsAllowInsecureTlsEnabledTitle;
+
+  /// No description provided for @settingsAllowInsecureTlsEnabledMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'证书校验已关闭，仅在可信网络使用'**
+  String get settingsAllowInsecureTlsEnabledMessage;
+
+  /// No description provided for @settingsAllowInsecureTlsDisabledTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'已启用 TLS 校验'**
+  String get settingsAllowInsecureTlsDisabledTitle;
+
+  /// No description provided for @settingsAllowInsecureTlsDisabledMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'将拒绝无效或不受信证书'**
+  String get settingsAllowInsecureTlsDisabledMessage;
+
   /// No description provided for @settingsSegmentSpeedLimitTitle.
   ///
   /// In zh, this message translates to:
@@ -1892,17 +1940,41 @@ abstract class AppLocalizations {
   /// **'系统状态'**
   String get settingsStatusTitle;
 
-  /// No description provided for @settingsStatusKernelNsfx.
+  /// No description provided for @settingsStatusDownloadService.
   ///
   /// In zh, this message translates to:
-  /// **'NSFX Kernel'**
-  String get settingsStatusKernelNsfx;
+  /// **'下载服务'**
+  String get settingsStatusDownloadService;
+
+  /// No description provided for @settingsStatusBrowserBridge.
+  ///
+  /// In zh, this message translates to:
+  /// **'浏览器桥接'**
+  String get settingsStatusBrowserBridge;
 
   /// No description provided for @settingsStatusBrowserExtension.
   ///
   /// In zh, this message translates to:
-  /// **'Browser Extension'**
+  /// **'浏览器扩展'**
   String get settingsStatusBrowserExtension;
+
+  /// No description provided for @settingsStatusNoBrowserExtensions.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无扩展连接'**
+  String get settingsStatusNoBrowserExtensions;
+
+  /// No description provided for @settingsStatusBrowserExtensionsUnavailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'浏览器桥接离线，暂时无法获取连接状态'**
+  String get settingsStatusBrowserExtensionsUnavailable;
+
+  /// No description provided for @settingsStatusConnectedCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'已连接 {count} 个'**
+  String settingsStatusConnectedCount(Object count);
 
   /// No description provided for @settingsModeDescriptionAuto.
   ///
@@ -4184,6 +4256,30 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'Powered by NSFX Kernel'**
   String get popupDownloadProgressHint;
+
+  /// No description provided for @settingsPopupNsfxTextModeTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'悬浮窗底部文案'**
+  String get settingsPopupNsfxTextModeTitle;
+
+  /// No description provided for @settingsPopupNsfxTextModeDefault.
+  ///
+  /// In zh, this message translates to:
+  /// **'Default NSFX附带版本号'**
+  String get settingsPopupNsfxTextModeDefault;
+
+  /// No description provided for @settingsPopupNsfxTextModeOld.
+  ///
+  /// In zh, this message translates to:
+  /// **'Old 老文案不带版本号'**
+  String get settingsPopupNsfxTextModeOld;
+
+  /// No description provided for @settingsPopupNsfxTextModeHidden.
+  ///
+  /// In zh, this message translates to:
+  /// **'不显示'**
+  String get settingsPopupNsfxTextModeHidden;
 
   /// No description provided for @popupDownloadCompletedHint.
   ///

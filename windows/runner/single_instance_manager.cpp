@@ -6,6 +6,8 @@ namespace {
 HANDLE g_mutex_handle = nullptr;
 HWND g_existing_window = nullptr;
 bool g_has_startup_conflict = false;
+constexpr wchar_t kWindowExitingProperty[] =
+    L"HanabiDownloadManagerX.ApplicationExiting";
 
 bool IsWindowHandleUsable(HWND window_handle) {
   return window_handle != nullptr && ::IsWindow(window_handle) != FALSE;
@@ -30,20 +32,30 @@ void MarkStartupConflict(HWND existing_window) {
   g_has_startup_conflict = true;
 }
 
-bool FocusExistingWindow() {
-  if (!IsWindowHandleUsable(g_existing_window)) {
+bool RequestExistingWindowActivation(HWND existing_window) {
+  if (!IsWindowHandleUsable(existing_window)) {
     return false;
   }
 
-  if (::IsIconic(g_existing_window)) {
-    ::ShowWindow(g_existing_window, SW_RESTORE);
-  } else {
-    ::ShowWindow(g_existing_window, SW_SHOW);
-  }
+  return ::PostMessageW(existing_window, kActivateExistingWindowMessage, 0, 0) !=
+         FALSE;
+}
 
-  ::SetForegroundWindow(g_existing_window);
-  ::BringWindowToTop(g_existing_window);
-  return true;
+bool MarkWindowExiting(HWND window_handle) {
+  if (!IsWindowHandleUsable(window_handle)) {
+    return false;
+  }
+  return ::SetPropW(window_handle, kWindowExitingProperty,
+                    reinterpret_cast<HANDLE>(1)) != FALSE;
+}
+
+bool IsWindowExiting(HWND window_handle) {
+  return IsWindowHandleUsable(window_handle) &&
+         ::GetPropW(window_handle, kWindowExitingProperty) != nullptr;
+}
+
+bool FocusExistingWindow() {
+  return RequestExistingWindowActivation(g_existing_window);
 }
 
 bool CloseExistingInstanceAndAcquireLock() {

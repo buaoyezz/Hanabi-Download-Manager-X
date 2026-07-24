@@ -6,9 +6,11 @@
 #include <flutter/method_result.h>
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "win32_window.h"
+#include "window_backdrop_controller.h"
 
 // A window that does nothing but host a Flutter view.
 class FlutterWindow : public Win32Window {
@@ -55,10 +57,13 @@ class FlutterWindow : public Win32Window {
   void SetClipboardListenerEnabled(bool enabled);
   void DispatchClipboardChanged();
   void RestorePreviousForegroundWindow();
+  void FinishInteractiveMoveResize();
+  bool RefreshFlutterSurface();
+  void RefreshWindowEffectState();
+  void NotifyWindowEffectStateChanged(
+      const WindowBackdropApplyResult& apply_result);
   const char* WindowKindName() const;
-  void ApplyWindowEffect(HWND hwnd, bool force = false);
-  void ScheduleWindowEffectRefresh(HWND hwnd);
-  void ApplyRoundedCorners(HWND hwnd, DWORD buildNumber, int width, int height);
+  WindowBackdropApplyResult ApplyWindowEffect(HWND hwnd, bool force = false);
   void ApplyTrayMenuWindowRegion(HWND hwnd);
   void SendPopupPayloadToFlutter(const std::string& payload_json);
   void SendTrayMenuPayloadToFlutter(const std::string& payload_json);
@@ -84,13 +89,6 @@ class FlutterWindow : public Win32Window {
   static constexpr UINT kPopupMinimizeMessage = WM_APP + 3;
   static constexpr UINT kPopupStartDragMessage = WM_APP + 4;
   static constexpr UINT kTrayMenuCloseMessage = WM_APP + 5;
-  static constexpr UINT_PTR kPopupInitialEffectTimer = 1;
-  static constexpr UINT_PTR kWindowResizeEffectTimer = 2;
-  static constexpr UINT_PTR kWindowEffectShowTimer = 10;
-  static constexpr UINT_PTR kWindowEffectActivateTimer = 11;
-  static constexpr UINT_PTR kWindowEffectSettledTimer = 12;
-  static constexpr UINT_PTR kWindowFramePaintTimer = 13;
-  static constexpr UINT_PTR kWindowFramePaintSettledTimer = 14;
   struct TrayMenuRegionRect {
     double x = 0;
     double y = 0;
@@ -104,19 +102,17 @@ class FlutterWindow : public Win32Window {
   int corner_radius_ = 6;
   int tray_menu_region_radius_ = 14;
   std::vector<TrayMenuRegionRect> tray_menu_region_rects_;
-  DWORD last_apply_time_ = 0;
-  int last_effect_mode_ = -1;
-  int last_effect_alpha_ = -1;
-  bool last_dark_mode_ = true;
-  bool last_rounded_corners_enabled_ = true;
-  int last_corner_radius_ = 14;
-  RECT last_window_rect_ = {0, 0, 0, 0};
-  // Win10 drag: disable effect during drag for smooth movement
   bool drag_suspend_ = true;
-  bool is_suspended_ = false;
   bool launch_hidden_ = false;
+  bool is_interactive_resize_ = false;
+  bool interactive_resize_observed_ = false;
+  bool flutter_surface_refresh_pending_ = true;
+  bool first_frame_rendered_ = false;
+  std::string pending_tray_payload_json_;
+  WPARAM last_window_size_state_ = SIZE_RESTORED;
   bool clipboard_listener_registered_ = false;
   bool effect_configured_ = false;
+  std::unique_ptr<WindowBackdropController> backdrop_controller_;
   WindowKind kind_ = WindowKind::kMain;
   HWND previous_foreground_window_ = nullptr;
 };

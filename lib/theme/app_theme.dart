@@ -193,7 +193,7 @@ class AppTheme {
 
   static AppThemePalette _activePalette = _darkPalette;
   static double _activeLightProgress = 0.0;
-  static bool _classicControlVisuals = true;
+  static bool _classicControlVisuals = false;
 
   static const Color _lightShellBackground = Color(0xFFF3F8FC);
   static const Color _lightShellHoverBackground = Color(0xFFEAF1F6);
@@ -211,7 +211,7 @@ class AppTheme {
   static const double radiusSm = 4.0;
   static const double radiusMd = 6.0;
   static const double radiusLg = 8.0;
-  static const double radiusXl = 12.0;
+  static const double radiusXl = 8.0;
   static const double radiusRound = 999.0;
 
   static bool get classicControlVisuals => _classicControlVisuals;

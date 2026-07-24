@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <thread>
+#include <utility>
 #include <vector>
 #include <stdio.h>
 #include <string.h>
@@ -20,179 +21,11 @@
 #include "flutter/generated_plugin_registrant.h"
 #include "single_instance_manager.h"
 
-#ifndef DWMWA_SYSTEMBACKDROP_TYPE
-#define DWMWA_SYSTEMBACKDROP_TYPE 38
-#endif
-
-#ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
-#define DWMWA_USE_IMMERSIVE_DARK_MODE 20
-#endif
-
-#ifndef DWMWA_NCRENDERING_POLICY
-#define DWMWA_NCRENDERING_POLICY 2
-#endif
-
-#ifndef DWMWA_ALLOW_NCPAINT
-#define DWMWA_ALLOW_NCPAINT 4
-#endif
-
-#ifndef DWMNCRP_DISABLED
-#define DWMNCRP_DISABLED 2
-#endif
-
-#ifndef DWMWA_WINDOW_CORNER_PREFERENCE
-#define DWMWA_WINDOW_CORNER_PREFERENCE 33
-#endif
-
-#ifndef DWMWA_MICA_EFFECT
-#define DWMWA_MICA_EFFECT 1029
-#endif
-
-#ifndef DWMWA_BORDER_COLOR
-#define DWMWA_BORDER_COLOR 34
-#endif
-
-#ifndef DWMWA_CAPTION_COLOR
-#define DWMWA_CAPTION_COLOR 35
-#endif
-
-#ifndef DWMWA_COLOR_NONE
-#define DWMWA_COLOR_NONE 0xFFFFFFFE
-#endif
-
-// Windows version detection
-typedef LONG NTSTATUS;
-#define STATUS_SUCCESS ((NTSTATUS)0x00000000L)
-typedef NTSTATUS(WINAPI* RtlGetVersionPtr)(PRTL_OSVERSIONINFOW);
-
-static DWORD GetWindowsBuildNumber() {
-  static DWORD buildNumber = 0;
-  if (buildNumber == 0) {
-    HMODULE hmodule = ::GetModuleHandleW(L"ntdll.dll");
-    if (hmodule) {
-      RtlGetVersionPtr rtl_get_version = (RtlGetVersionPtr)::GetProcAddress(hmodule, "RtlGetVersion");
-      if (rtl_get_version) {
-        RTL_OSVERSIONINFOW rovi = {0};
-        rovi.dwOSVersionInfoSize = sizeof(rovi);
-        if (STATUS_SUCCESS == rtl_get_version(&rovi)) {
-          buildNumber = rovi.dwBuildNumber;
-        }
-      }
-    }
-  }
-  return buildNumber;
-}
-
-typedef enum ACCENT_STATE {
-  ACCENT_DISABLED = 0,
-  ACCENT_ENABLE_GRADIENT = 1,
-  ACCENT_ENABLE_TRANSPARENTGRADIENT = 2,
-  ACCENT_ENABLE_BLURBEHIND = 3,
-  ACCENT_ENABLE_ACRYLICBLURBEHIND = 4,
-  ACCENT_ENABLE_HOSTBACKDROP = 5
-} ACCENT_STATE;
-
-typedef struct ACCENT_POLICY {
-  int AccentState;
-  int AccentFlags;
-  int GradientColor;
-  int AnimationId;
-} ACCENT_POLICY;
-
-typedef struct WINDOWCOMPOSITIONATTRIBUTEDATA {
-  int Attribute;
-  void* Data;
-  size_t SizeOfData;
-} WINDOWCOMPOSITIONATTRIBUTEDATA;
-
-static BOOL (WINAPI* pSetWindowCompositionAttribute)(HWND, WINDOWCOMPOSITIONATTRIBUTEDATA*) = nullptr;
-
-constexpr int kEffectNone = 0;
-constexpr int kEffectBlur = 1;
-constexpr int kEffectAcrylic = 2;
-constexpr int kEffectMica = 3;
-constexpr int kEffectMicaAlt = 4;
-
-constexpr DWORD kWin11Build = 22000;
-constexpr DWORD kSystemBackdropBuild = 22621;
-
-constexpr INT kDwmSystemBackdropNone = 1;
-constexpr INT kDwmSystemBackdropMainWindow = 2;
-constexpr INT kDwmSystemBackdropTransientWindow = 3;
-constexpr INT kDwmSystemBackdropTabbedWindow = 4;
-
-constexpr DWORD kDwmCornerDoNotRound = 1;
-constexpr DWORD kDwmCornerRound = 2;
-
-constexpr COLORREF kDwmColorNone = 0xFFFFFFFE;
-constexpr COLORREF kDwmBorderFallbackColor = RGB(0, 0, 0);
-
-static bool LoadAccentPolicyApi() {
-  if (pSetWindowCompositionAttribute) {
-    return true;
-  }
-
-  HMODULE user32 = ::GetModuleHandleA("user32.dll");
-  if (!user32) {
-    user32 = ::LoadLibraryA("user32.dll");
-  }
-  if (!user32) {
-    return false;
-  }
-
-  pSetWindowCompositionAttribute =
-      reinterpret_cast<BOOL(WINAPI*)(HWND, WINDOWCOMPOSITIONATTRIBUTEDATA*)>(
-          ::GetProcAddress(user32, "SetWindowCompositionAttribute"));
-  return pSetWindowCompositionAttribute != nullptr;
-}
-
-static BOOL DisableAccentPolicy(HWND hwnd) {
-  if (!LoadAccentPolicyApi()) {
-    return FALSE;
-  }
-  ACCENT_POLICY policy{};
-  policy.AccentState = ACCENT_DISABLED;
-  policy.AccentFlags = 0;
-  policy.GradientColor = 0;
-  policy.AnimationId = 0;
-  WINDOWCOMPOSITIONATTRIBUTEDATA data{};
-  data.Attribute = 19;
-  data.Data = &policy;
-  data.SizeOfData = sizeof(policy);
-  return pSetWindowCompositionAttribute(hwnd, &data);
-}
-
-static DWORD MakeAccentGradientColor(unsigned int alpha, COLORREF rgb) {
-  const unsigned int r = GetRValue(rgb);
-  const unsigned int g = GetGValue(rgb);
-  const unsigned int b = GetBValue(rgb);
-  return ((alpha & 0xFF) << 24) | (b << 16) | (g << 8) | r;
-}
-
-static COLORREF EffectTintColor(bool dark_mode) {
-  return dark_mode ? RGB(32, 32, 32) : RGB(243, 248, 252);
-}
-
-static INT DwmBackdropForEffect(int effect_mode) {
-  switch (effect_mode) {
-    case kEffectAcrylic:
-      return kDwmSystemBackdropTransientWindow;
-    case kEffectMica:
-      return kDwmSystemBackdropMainWindow;
-    case kEffectMicaAlt:
-      return kDwmSystemBackdropTabbedWindow;
-    default:
-      return kDwmSystemBackdropNone;
-  }
-}
-
-static bool IsDwmBackdropEffect(int effect_mode) {
-  return effect_mode == kEffectMica || effect_mode == kEffectMicaAlt;
-}
-
-static bool IsAccentEffect(int effect_mode) {
-  return effect_mode == kEffectBlur || effect_mode == kEffectAcrylic;
-}
+constexpr int kEffectNone = static_cast<int>(WindowBackdropKind::kNone);
+constexpr int kEffectBlur = static_cast<int>(WindowBackdropKind::kBlur);
+constexpr int kEffectAcrylic = static_cast<int>(WindowBackdropKind::kAcrylic);
+constexpr int kEffectMica = static_cast<int>(WindowBackdropKind::kMica);
+constexpr int kEffectMicaAlt = static_cast<int>(WindowBackdropKind::kMicaAlt);
 
 static int ScaleForWindowDpi(HWND hwnd, int logical_pixels) {
   if (!hwnd || logical_pixels <= 0) {
@@ -202,130 +35,6 @@ static int ScaleForWindowDpi(HWND hwnd, int logical_pixels) {
   return std::max(1, ::MulDiv(logical_pixels, dpi == 0 ? 96 : dpi, 96));
 }
 
-static void ExtendFrameForEffect(HWND hwnd, bool transparent_frame) {
-  if (!hwnd) {
-    return;
-  }
-
-  MARGINS margins = transparent_frame ? MARGINS{-1, -1, -1, -1}
-                                      : MARGINS{0, 0, 1, 0};
-  ::DwmExtendFrameIntoClientArea(hwnd, &margins);
-}
-
-static void ResetDwmBackdrop(HWND hwnd, DWORD buildNumber) {
-  if (!hwnd) {
-    return;
-  }
-
-  if (buildNumber >= kSystemBackdropBuild) {
-    INT backdropType = kDwmSystemBackdropNone;
-    ::DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, &backdropType,
-                            sizeof(backdropType));
-  }
-  if (buildNumber >= kWin11Build) {
-    BOOL mica = FALSE;
-    ::DwmSetWindowAttribute(hwnd, DWMWA_MICA_EFFECT, &mica, sizeof(mica));
-  }
-}
-
-static void ConfigureDwmFrame(HWND hwnd, bool dark_mode) {
-  if (!hwnd) {
-    return;
-  }
-
-  BOOL dark = dark_mode ? TRUE : FALSE;
-  ::DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark,
-                          sizeof(dark));
-  ::DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, &kDwmColorNone,
-                          sizeof(kDwmColorNone));
-  COLORREF borderColor = kDwmBorderFallbackColor;
-  ::DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, &borderColor,
-                          sizeof(borderColor));
-}
-
-static void PaintNativeFrameStrips(HWND hwnd) {
-  if (!hwnd) {
-    return;
-  }
-
-  RECT windowRect{};
-  RECT clientRect{};
-  if (!GetWindowRect(hwnd, &windowRect) || !GetClientRect(hwnd, &clientRect)) {
-    return;
-  }
-
-  POINT clientOrigin{clientRect.left, clientRect.top};
-  ClientToScreen(hwnd, &clientOrigin);
-
-  const int windowWidth = windowRect.right - windowRect.left;
-  const int windowHeight = windowRect.bottom - windowRect.top;
-  const int clientLeft = clientOrigin.x - windowRect.left;
-  const int clientTop = clientOrigin.y - windowRect.top;
-  const int clientRight = clientLeft + (clientRect.right - clientRect.left);
-  const int clientBottom = clientTop + (clientRect.bottom - clientRect.top);
-
-  HDC dc = GetWindowDC(hwnd);
-  if (!dc) {
-    return;
-  }
-
-  HBRUSH brush = CreateSolidBrush(RGB(0, 0, 0));
-  if (!brush) {
-    ReleaseDC(hwnd, dc);
-    return;
-  }
-
-  auto fill = [&](int left, int top, int right, int bottom) {
-    if (right <= left || bottom <= top) {
-      return;
-    }
-    RECT rect{left, top, right, bottom};
-    FillRect(dc, &rect, brush);
-  };
-
-  fill(0, 0, clientLeft, windowHeight);
-  fill(clientRight, 0, windowWidth, windowHeight);
-  fill(clientLeft, 0, clientRight, clientTop);
-  fill(clientLeft, clientBottom, clientRight, windowHeight);
-
-  DeleteObject(brush);
-  ReleaseDC(hwnd, dc);
-}
-
-static bool ApplyAccentEffect(HWND hwnd,
-                              int effect_mode,
-                              int effect_alpha,
-                              bool dark_mode,
-                              bool limit_popup_alpha) {
-  if (!hwnd || !LoadAccentPolicyApi() || !IsAccentEffect(effect_mode)) {
-    return false;
-  }
-
-  ACCENT_POLICY policy{};
-  policy.AccentState = effect_mode == kEffectBlur
-                           ? ACCENT_ENABLE_BLURBEHIND
-                           : ACCENT_ENABLE_ACRYLICBLURBEHIND;
-  policy.AccentFlags = 2;
-  unsigned int alpha =
-      static_cast<unsigned int>(std::max(0, std::min(effect_alpha, 255)));
-  if (limit_popup_alpha) {
-    alpha = std::min(alpha, 120u);
-  }
-  if (effect_mode == kEffectBlur) {
-    alpha = std::max(32u, std::min(alpha, 140u));
-  } else if (effect_mode == kEffectAcrylic && limit_popup_alpha) {
-    alpha = std::max(48u, alpha);
-  }
-  policy.GradientColor =
-      MakeAccentGradientColor(alpha, EffectTintColor(dark_mode));
-  policy.AnimationId = 0;
-
-  WINDOWCOMPOSITIONATTRIBUTEDATA data{};
-  data.Attribute = 19;
-  data.Data = &policy;
-  data.SizeOfData = sizeof(policy);
-  return pSetWindowCompositionAttribute(hwnd, &data) != FALSE;
-}
 
 static void LogA(const char* s) {
   if (!IsNativeRenderLoggingEnabled()) {
@@ -369,6 +78,35 @@ std::vector<std::unique_ptr<FlutterWindow>> g_popup_windows;
 std::unique_ptr<FlutterWindow> g_tray_menu_window;
 HWND g_main_window_handle = nullptr;
 FlutterWindow* g_main_flutter_window = nullptr;
+
+flutter::EncodableMap BuildWindowEffectPayload(
+    const WindowBackdropApplyResult& apply_result,
+    const WindowBackdropCapabilities& capabilities) {
+  flutter::EncodableMap payload;
+  payload[flutter::EncodableValue("requestedMode")] =
+      flutter::EncodableValue(
+          WindowBackdropController::KindName(apply_result.requested_kind));
+  payload[flutter::EncodableValue("appliedMode")] =
+      flutter::EncodableValue(
+          WindowBackdropController::KindName(apply_result.applied_kind));
+  payload[flutter::EncodableValue("usedFallback")] =
+      flutter::EncodableValue(apply_result.used_fallback);
+  payload[flutter::EncodableValue("hresult")] = flutter::EncodableValue(
+      static_cast<int64_t>(apply_result.hresult));
+  payload[flutter::EncodableValue("windowsBuild")] = flutter::EncodableValue(
+      static_cast<int32_t>(capabilities.windows_build));
+  payload[flutter::EncodableValue("isWindows11")] =
+      flutter::EncodableValue(capabilities.is_windows_11);
+  payload[flutter::EncodableValue("supportsSystemBackdrop")] =
+      flutter::EncodableValue(capabilities.supports_system_backdrop);
+  payload[flutter::EncodableValue("compositionEnabled")] =
+      flutter::EncodableValue(capabilities.composition_enabled);
+  payload[flutter::EncodableValue("transparencyEnabled")] =
+      flutter::EncodableValue(capabilities.transparency_enabled);
+  payload[flutter::EncodableValue("highContrast")] =
+      flutter::EncodableValue(capabilities.high_contrast);
+  return payload;
+}
 
 std::wstring Utf8ToWide(const std::string& value) {
   if (value.empty()) {
@@ -431,36 +169,6 @@ void CleanupClosedPopupWindows() {
       g_popup_windows.end());
 }
 
-bool TryExtractPayloadDouble(const std::string& payload_json,
-                             const char* key,
-                             double& out_value) {
-  const std::string search = std::string("\"") + key + "\":";
-  size_t pos = payload_json.find(search);
-  if (pos == std::string::npos) {
-    return false;
-  }
-
-  pos += search.size();
-  while (pos < payload_json.size() &&
-         (payload_json[pos] == ' ' || payload_json[pos] == '\t')) {
-    pos++;
-  }
-  if (pos >= payload_json.size()) {
-    return false;
-  }
-
-  const size_t end = payload_json.find_first_of(",} \t\n\r", pos);
-  const std::string value = payload_json.substr(pos, end - pos);
-  char* endptr = nullptr;
-  const double parsed = std::strtod(value.c_str(), &endptr);
-  if (endptr == value.c_str()) {
-    return false;
-  }
-
-  out_value = parsed;
-  return true;
-}
-
 void PositionTrayMenuWindow(HWND hwnd, double target_x, double target_y) {
   if (!hwnd) {
     return;
@@ -471,26 +179,44 @@ void PositionTrayMenuWindow(HWND hwnd, double target_x, double target_y) {
   const int menu_width = menu_rect.right - menu_rect.left;
   const int menu_height = menu_rect.bottom - menu_rect.top;
 
-  int pos_x = static_cast<int>(target_x) - (menu_width / 2);
-  int pos_y = static_cast<int>(target_y) - menu_height + 8;
+  POINT anchor{static_cast<LONG>(std::lround(target_x)),
+               static_cast<LONG>(std::lround(target_y))};
+  if (anchor.x == 0 && anchor.y == 0) {
+    GetCursorPos(&anchor);
+  }
+  MONITORINFO monitor_info{};
+  monitor_info.cbSize = sizeof(monitor_info);
+  const HMONITOR monitor =
+      MonitorFromPoint(anchor, MONITOR_DEFAULTTONEAREST);
+  if (!GetMonitorInfo(monitor, &monitor_info)) {
+    return;
+  }
 
-  RECT work_area{};
-  SystemParametersInfo(SPI_GETWORKAREA, 0, &work_area, 0);
-  if (pos_x + menu_width > work_area.right) {
-    pos_x = work_area.right - menu_width;
+  const RECT& work_area = monitor_info.rcWork;
+  const int gap = ScaleForWindowDpi(hwnd, 6);
+  const int edge_margin = ScaleForWindowDpi(hwnd, 2);
+  int pos_x = anchor.x - (menu_width / 2);
+  const int position_above = anchor.y - menu_height - gap;
+  const int position_below = anchor.y + gap;
+  int pos_y = position_above >= work_area.top + edge_margin
+                  ? position_above
+                  : position_below;
+
+  if (pos_x + menu_width > work_area.right - edge_margin) {
+    pos_x = work_area.right - edge_margin - menu_width;
   }
-  if (pos_x < work_area.left) {
-    pos_x = work_area.left;
+  if (pos_x < work_area.left + edge_margin) {
+    pos_x = work_area.left + edge_margin;
   }
-  if (pos_y + menu_height > work_area.bottom) {
-    pos_y = work_area.bottom - menu_height;
+  if (pos_y + menu_height > work_area.bottom - edge_margin) {
+    pos_y = work_area.bottom - edge_margin - menu_height;
   }
-  if (pos_y < work_area.top) {
-    pos_y = work_area.top;
+  if (pos_y < work_area.top + edge_margin) {
+    pos_y = work_area.top + edge_margin;
   }
 
   SetWindowPos(hwnd, HWND_TOPMOST, pos_x, pos_y, 0, 0,
-               SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+               SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
 }
 
 void CenterWindowOnWorkArea(HWND hwnd) {
@@ -564,11 +290,20 @@ bool FlutterWindow::OnCreate() {
   LogA(create_log);
 
   RECT frame = GetClientArea();
+  const WindowBackdropRole backdrop_role =
+      kind_ == WindowKind::kMain
+          ? WindowBackdropRole::kMain
+          : (kind_ == WindowKind::kPopup ? WindowBackdropRole::kPopup
+                                         : WindowBackdropRole::kTrayMenu);
+  backdrop_controller_ = std::make_unique<WindowBackdropController>(
+      GetHandle(), backdrop_role);
 
-  // Call DwmExtendFrameIntoClientArea BEFORE creating FlutterViewController
-  // This tells the Flutter 3.x engine on Windows to natively use a transparent
-  // swapchain without needing the toxic WS_EX_LAYERED attribute!
-  ExtendFrameForEffect(GetHandle(), true);
+  const HRESULT prepare_surface_result =
+      backdrop_controller_->PrepareTransparentHost();
+  char surface_log[128];
+  sprintf_s(surface_log, "PrepareTransparentHost kind=%s hr=0x%08lX",
+            WindowKindName(), prepare_surface_result);
+  LogA(surface_log);
 
   // The size here must match the window dimensions to avoid unnecessary surface
   // creation / destruction in the startup path.
@@ -588,20 +323,36 @@ bool FlutterWindow::OnCreate() {
   SetupMethodChannel();
   LogA("SetupMethodChannel done");
 
+  // Secondary windows receive their material snapshot before Create(). The
+  // main window is configured once by Dart after window_manager finishes its
+  // size/title-bar setup.
+  if (kind_ != WindowKind::kMain) {
+    ApplyWindowEffect(GetHandle(), true);
+  }
+
   flutter_controller_->engine()->SetNextFrameCallback([this]() {
     LogA("NextFrameCallback begin");
-    HWND hwnd = GetHandle();
+    first_frame_rendered_ = true;
     if (!launch_hidden_) {
       if (kind_ == WindowKind::kPopup) {
         BringWindowToFront();
       } else if (kind_ == WindowKind::kTrayMenu) {
         this->Show();
+        const HWND hwnd = GetHandle();
+        if (hwnd) {
+          SetForegroundWindow(hwnd);
+          SetFocus(hwnd);
+        }
       }
     } else {
       LogA("NextFrameCallback: skipping native show for auto-start launch");
     }
-    ApplyWindowEffect(hwnd, true);
-    ScheduleWindowEffectRefresh(hwnd);
+    if (kind_ == WindowKind::kTrayMenu &&
+        !pending_tray_payload_json_.empty()) {
+      std::string pending_payload = std::move(pending_tray_payload_json_);
+      pending_tray_payload_json_.clear();
+      SendTrayMenuPayloadToFlutter(pending_payload);
+    }
     LogA("NextFrameCallback end");
   });
 
@@ -619,27 +370,6 @@ void FlutterWindow::OnDestroy() {
   sprintf_s(destroy_log, "=== FlutterWindow::OnDestroy START kind=%s hwnd=%p ===",
             WindowKindName(), GetHandle());
   LogA(destroy_log);
-
-  KillTimer(GetHandle(), kPopupInitialEffectTimer);
-  KillTimer(GetHandle(), kWindowResizeEffectTimer);
-  KillTimer(GetHandle(), kWindowEffectShowTimer);
-  KillTimer(GetHandle(), kWindowEffectActivateTimer);
-  KillTimer(GetHandle(), kWindowEffectSettledTimer);
-  KillTimer(GetHandle(), kWindowFramePaintTimer);
-  KillTimer(GetHandle(), kWindowFramePaintSettledTimer);
-
-  if (pSetWindowCompositionAttribute) {
-    ACCENT_POLICY policy{};
-    policy.AccentState = 0; // ACCENT_DISABLED
-    policy.AccentFlags = 0;
-    policy.GradientColor = 0;
-    policy.AnimationId = 0;
-    WINDOWCOMPOSITIONATTRIBUTEDATA data{};
-    data.Attribute = 19; // WCA_ACCENT_POLICY
-    data.Data = &policy;
-    data.SizeOfData = sizeof(policy);
-    pSetWindowCompositionAttribute(GetHandle(), &data);
-  }
 
   if (kind_ == WindowKind::kPopup) {
     RestorePreviousForegroundWindow();
@@ -659,6 +389,7 @@ void FlutterWindow::OnDestroy() {
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }
+  backdrop_controller_.reset();
 
   Win32Window::OnDestroy();
 }
@@ -681,6 +412,17 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
         flutter_controller_->HandleTopLevelWindowProc(hwnd, message, wparam,
                                                       lparam);
     if (result) {
+      // window_manager consumes WM_GETMINMAXINFO after applying its configured
+      // track limits. Let the runner merge in the monitor work-area bounds for
+      // the custom frame before returning the plugin result.
+      if (message == WM_GETMINMAXINFO) {
+        Win32Window::MessageHandler(hwnd, message, wparam, lparam);
+      } else if (message == WM_EXITSIZEMOVE) {
+        // window_manager returns an engaged LRESULT for this message after
+        // emitting its resize/move events. Complete the native material and
+        // Flutter-surface transition before returning that plugin result.
+        FinishInteractiveMoveResize();
+      }
       return *result;
     }
   }
@@ -699,85 +441,77 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
         flutter_controller_->engine()->ReloadSystemFonts();
       }
       break;
-    case WM_SHOWWINDOW:
-      if (wparam == TRUE) {
-        ScheduleWindowEffectRefresh(hwnd);
+    case single_instance::kActivateExistingWindowMessage:
+      if (kind_ == WindowKind::kMain) {
+        BringWindowToFront();
       }
-      break;
+      return 0;
     case WM_ACTIVATE:
       if (kind_ == WindowKind::kTrayMenu && LOWORD(wparam) == WA_INACTIVE) {
         ShowWindow(hwnd, SW_HIDE);
         return 0;
       }
-      if (LOWORD(wparam) != WA_INACTIVE) {
-        ScheduleWindowEffectRefresh(hwnd);
+      break;
+    case WM_SHOWWINDOW:
+      if (wparam == TRUE) {
+        RefreshWindowEffectState();
+        if (flutter_controller_) {
+          flutter_controller_->ForceRedraw();
+        }
       }
       break;
     case WM_DWMCOMPOSITIONCHANGED:
+    case WM_DWMCOLORIZATIONCOLORCHANGED:
     case WM_THEMECHANGED:
     case WM_SETTINGCHANGE:
     case WM_DPICHANGED:
     case WM_DISPLAYCHANGE:
     {
-      // Re-apply effect on system-level changes
-      ApplyWindowEffect(hwnd, true);
-      ScheduleWindowEffectRefresh(hwnd);
+      RefreshWindowEffectState();
       break;
     }
     case WM_SIZE:
     {
-      // Debounce rapid size changes before refreshing corners/effects.
-      SetTimer(hwnd, kWindowResizeEffectTimer, 50, NULL);
-      break;
+      const LRESULT resize_result =
+          Win32Window::MessageHandler(hwnd, message, wparam, lparam);
+      if (backdrop_controller_) {
+        backdrop_controller_->UpdateWindowGeometry();
+      }
+      const bool placement_transition =
+          (wparam == SIZE_MAXIMIZED &&
+           last_window_size_state_ != SIZE_MAXIMIZED) ||
+          (wparam == SIZE_RESTORED &&
+           (last_window_size_state_ == SIZE_MAXIMIZED ||
+            last_window_size_state_ == SIZE_MINIMIZED));
+      last_window_size_state_ = wparam;
+
+      // A same-size child HWND update is only needed for the first
+      // programmatic layout and placement-state transitions. Applying the
+      // width nudge to every WM_SIZE doubles resize traffic and can visibly
+      // stutter around responsive-layout breakpoints.
+      if (flutter_controller_ && wparam != SIZE_MINIMIZED &&
+          !is_interactive_resize_ &&
+          (flutter_surface_refresh_pending_ || placement_transition)) {
+        RefreshFlutterSurface();
+        flutter_surface_refresh_pending_ = false;
+      }
+      return resize_result;
     }
-    // Win10: use opaque tinted gradient during drag (no blur cost, no transparency)
     case WM_ENTERSIZEMOVE:
     {
-      if (GetWindowsBuildNumber() < kWin11Build && drag_suspend_ &&
-          IsAccentEffect(effect_mode_) && !is_suspended_) {
-        if (LoadAccentPolicyApi()) {
-          ACCENT_POLICY policy{};
-          policy.AccentState = ACCENT_ENABLE_TRANSPARENTGRADIENT;
-          policy.AccentFlags = 2;
-          policy.GradientColor =
-              MakeAccentGradientColor(0xF0, EffectTintColor(dark_mode_));
-          policy.AnimationId = 0;
-          WINDOWCOMPOSITIONATTRIBUTEDATA data{};
-          data.Attribute = 19;
-          data.Data = &policy;
-          data.SizeOfData = sizeof(policy);
-          pSetWindowCompositionAttribute(hwnd, &data);
-          is_suspended_ = true;
-        }
+      is_interactive_resize_ = true;
+      interactive_resize_observed_ = false;
+      if (drag_suspend_ && backdrop_controller_) {
+        backdrop_controller_->SuspendLegacyEffectForMove();
       }
       break;
     }
+    case WM_SIZING:
+      interactive_resize_observed_ = true;
+      break;
     case WM_EXITSIZEMOVE:
-    {
-      if (GetWindowsBuildNumber() < kWin11Build && is_suspended_) {
-        is_suspended_ = false;
-        ApplyWindowEffect(hwnd, true);
-      }
+      FinishInteractiveMoveResize();
       break;
-    }
-    case WM_TIMER:
-    {
-      if (wparam == kPopupInitialEffectTimer ||
-          wparam == kWindowResizeEffectTimer ||
-          wparam == kWindowEffectShowTimer ||
-          wparam == kWindowEffectActivateTimer ||
-          wparam == kWindowEffectSettledTimer) {
-        KillTimer(hwnd, static_cast<UINT_PTR>(wparam));
-        ApplyWindowEffect(hwnd, true);
-      } else if (wparam == kWindowFramePaintTimer) {
-        KillTimer(hwnd, kWindowFramePaintTimer);
-        PaintNativeFrameStrips(hwnd);
-      } else if (wparam == kWindowFramePaintSettledTimer) {
-        KillTimer(hwnd, kWindowFramePaintSettledTimer);
-        PaintNativeFrameStrips(hwnd);
-      }
-      break;
-    }
     case WM_CLIPBOARDUPDATE:
     {
       if (clipboard_listener_registered_) {
@@ -1070,6 +804,46 @@ void FlutterWindow::SetupMethodChannel() {
               flutter::EncodableValue(WideToUtf8(GetWindowTitle(hwnd)));
           result->Success(flutter::EncodableValue(payload));
           return;
+        } else if (call.method_name() == "getWindowPlacement") {
+          const HWND hwnd = GetHandle();
+          WINDOWPLACEMENT placement{};
+          placement.length = sizeof(placement);
+          if (hwnd == nullptr ||
+              ::GetWindowPlacement(hwnd, &placement) == FALSE) {
+            result->Error("FAILED", "GetWindowPlacement failed");
+            return;
+          }
+
+          RECT normal_rect = placement.rcNormalPosition;
+          int normal_width = normal_rect.right - normal_rect.left;
+          int normal_height = normal_rect.bottom - normal_rect.top;
+          if (normal_width <= 0 || normal_height <= 0) {
+            RECT current_rect{};
+            if (::GetWindowRect(hwnd, &current_rect) == FALSE) {
+              result->Error("FAILED", "GetWindowRect failed");
+              return;
+            }
+            normal_width = current_rect.right - current_rect.left;
+            normal_height = current_rect.bottom - current_rect.top;
+          }
+
+          const UINT dpi = ::GetDpiForWindow(hwnd);
+          const double scale =
+              static_cast<double>(dpi == 0 ? USER_DEFAULT_SCREEN_DPI : dpi) /
+              USER_DEFAULT_SCREEN_DPI;
+          flutter::EncodableMap payload;
+          payload[flutter::EncodableValue("normalWidth")] =
+              flutter::EncodableValue(normal_width / scale);
+          payload[flutter::EncodableValue("normalHeight")] =
+              flutter::EncodableValue(normal_height / scale);
+          payload[flutter::EncodableValue("isMaximized")] =
+              flutter::EncodableValue(::IsZoomed(hwnd) != FALSE);
+          payload[flutter::EncodableValue("isMinimized")] =
+              flutter::EncodableValue(::IsIconic(hwnd) != FALSE);
+          payload[flutter::EncodableValue("isVisible")] =
+              flutter::EncodableValue(::IsWindowVisible(hwnd) != FALSE);
+          result->Success(flutter::EncodableValue(payload));
+          return;
         } else if (call.method_name() == "closeWindow") {
           const HWND hwnd = GetHandle();
           result->Success(flutter::EncodableValue(hwnd != nullptr));
@@ -1159,46 +933,55 @@ void FlutterWindow::SetupMethodChannel() {
               kind_ == WindowKind::kTrayMenu ? 600 : 900;
           const int safe_width = std::max(min_width, std::min(max_width, width));
           const int safe_height = std::max(min_height, std::min(max_height, height));
+          const int target_width = kind_ == WindowKind::kTrayMenu
+                                       ? ScaleForWindowDpi(hwnd, safe_width)
+                                       : safe_width;
+          const int target_height = kind_ == WindowKind::kTrayMenu
+                                        ? ScaleForWindowDpi(hwnd, safe_height)
+                                        : safe_height;
 
-          bool suspended_here = false;
-          if (IsAccentEffect(effect_mode_) && !is_suspended_) {
-            if (LoadAccentPolicyApi()) {
-              ACCENT_POLICY policy{};
-              policy.AccentState = ACCENT_ENABLE_TRANSPARENTGRADIENT;
-              policy.AccentFlags = 2;
-              policy.GradientColor =
-                  MakeAccentGradientColor(0xF0, EffectTintColor(dark_mode_));
-              policy.AnimationId = 0;
-              WINDOWCOMPOSITIONATTRIBUTEDATA data{};
-              data.Attribute = 19;
-              data.Data = &policy;
-              data.SizeOfData = sizeof(policy);
-              pSetWindowCompositionAttribute(hwnd, &data);
-              suspended_here = true;
-            }
-          }
+          const bool suspended_here = backdrop_controller_ &&
+                                      backdrop_controller_
+                                          ->SuspendLegacyEffectForMove();
 
           const BOOL ok = SetWindowPos(
-              hwnd, nullptr, 0, 0, safe_width, safe_height,
+              hwnd, nullptr, 0, 0, target_width, target_height,
               SWP_NOMOVE | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOZORDER);
 
           if (suspended_here) {
-            ApplyWindowEffect(hwnd, true);
+            backdrop_controller_->ResumeLegacyEffectAfterMove();
+          }
+          if (backdrop_controller_) {
+            backdrop_controller_->UpdateWindowGeometry();
           }
 
           result->Success(flutter::EncodableValue(ok != FALSE));
           return;
+        } else if (call.method_name() == "getWindowCapabilities") {
+          const WindowBackdropCapabilities capabilities =
+              backdrop_controller_
+                  ? backdrop_controller_->capabilities()
+                  : WindowBackdropController::DetectCapabilities();
+          flutter::EncodableMap response;
+          response[flutter::EncodableValue("windowsBuild")] =
+              flutter::EncodableValue(
+                  static_cast<int32_t>(capabilities.windows_build));
+          response[flutter::EncodableValue("isWindows11")] =
+              flutter::EncodableValue(capabilities.is_windows_11);
+          response[flutter::EncodableValue("supportsSystemBackdrop")] =
+              flutter::EncodableValue(capabilities.supports_system_backdrop);
+          response[flutter::EncodableValue("compositionEnabled")] =
+              flutter::EncodableValue(capabilities.composition_enabled);
+          response[flutter::EncodableValue("transparencyEnabled")] =
+              flutter::EncodableValue(capabilities.transparency_enabled);
+          response[flutter::EncodableValue("highContrast")] =
+              flutter::EncodableValue(capabilities.high_contrast);
+          result->Success(flutter::EncodableValue(response));
+          return;
         } else if (call.method_name() == "setWindowEffect") {
           const auto* arguments = std::get_if<flutter::EncodableMap>(call.arguments());
           if (arguments) {
-            const bool was_effect_configured = effect_configured_;
-            const int previous_effect_mode = effect_mode_;
-            const int previous_effect_alpha = effect_alpha_;
-            const bool previous_dark_mode = dark_mode_;
-            const bool previous_rounded_corners_enabled =
-                rounded_corners_enabled_;
-            const int previous_corner_radius = corner_radius_;
-
+            const bool first_effect_configuration = !effect_configured_;
             auto itMode = arguments->find(flutter::EncodableValue("mode"));
             auto itAlpha = arguments->find(flutter::EncodableValue("alpha"));
             auto itRoundedCorners =
@@ -1207,6 +990,9 @@ void FlutterWindow::SetupMethodChannel() {
                 arguments->find(flutter::EncodableValue("cornerRadius"));
             auto itDarkMode =
                 arguments->find(flutter::EncodableValue("darkMode"));
+            auto itForce =
+                arguments->find(flutter::EncodableValue("force"));
+            bool force = false;
             if (itMode != arguments->end()) {
               if (const std::string* s = std::get_if<std::string>(&itMode->second)) {
                 if (*s == "none") effect_mode_ = kEffectNone;
@@ -1240,20 +1026,28 @@ void FlutterWindow::SetupMethodChannel() {
                 corner_radius_ = std::max(0, std::min(32, *radius));
               }
             }
-            effect_configured_ = true;
-            const bool only_alpha_changed =
-                was_effect_configured &&
-                previous_effect_mode == effect_mode_ &&
-                previous_effect_alpha != effect_alpha_ &&
-                previous_dark_mode == dark_mode_ &&
-                previous_rounded_corners_enabled ==
-                    rounded_corners_enabled_ &&
-                previous_corner_radius == corner_radius_;
-            ApplyWindowEffect(GetHandle(), !only_alpha_changed);
-            if (!only_alpha_changed) {
-              ScheduleWindowEffectRefresh(GetHandle());
+            if (itForce != arguments->end()) {
+              if (const bool* requested_force =
+                      std::get_if<bool>(&itForce->second)) {
+                force = *requested_force;
+              }
             }
-            result->Success();
+            effect_configured_ = true;
+            const WindowBackdropApplyResult apply_result =
+                ApplyWindowEffect(GetHandle(), force);
+            // Dart applies the initial material only after window_manager has
+            // committed the launch size. Refreshing here avoids consuming the
+            // one-shot surface correction on an earlier bootstrap WM_SIZE.
+            if (kind_ == WindowKind::kMain && flutter_controller_ &&
+                (force || first_effect_configuration)) {
+              RefreshFlutterSurface();
+              flutter_surface_refresh_pending_ = false;
+            }
+            const WindowBackdropCapabilities capabilities =
+                backdrop_controller_->capabilities();
+            flutter::EncodableMap response =
+                BuildWindowEffectPayload(apply_result, capabilities);
+            result->Success(flutter::EncodableValue(response));
           } else {
             result->Error("INVALID_ARGUMENT", "Missing map");
           }
@@ -1284,6 +1078,9 @@ void FlutterWindow::SetupMethodChannel() {
         } else if (call.method_name() == "focusExistingInstance") {
           result->Success(
               flutter::EncodableValue(single_instance::FocusExistingWindow()));
+        } else if (call.method_name() == "beginApplicationExit") {
+          result->Success(flutter::EncodableValue(
+              single_instance::MarkWindowExiting(g_main_window_handle)));
         } else if (call.method_name() ==
                    "closeExistingInstanceAndAcquireLock") {
           auto request = std::make_unique<CloseExistingInstanceRequest>();
@@ -1330,6 +1127,7 @@ void FlutterWindow::SetupMethodChannel() {
                 double target_x = std::get<double>(x_it->second);
                 double target_y = std::get<double>(y_it->second);
                 PositionTrayMenuWindow(hwnd, target_x, target_y);
+                ::ShowWindow(hwnd, SW_SHOWNORMAL);
                 SetForegroundWindow(hwnd);
                 SetFocus(hwnd);
               }
@@ -1415,15 +1213,8 @@ void FlutterWindow::SetupMethodChannel() {
           result->Success(flutter::EncodableValue(true));
           return;
         } else if (call.method_name() == "showMainWindow") {
-          if (g_main_window_handle && ::IsWindow(g_main_window_handle)) {
-            ::ShowWindow(g_main_window_handle, SW_RESTORE);
-            ::SetForegroundWindow(g_main_window_handle);
-            if (g_main_flutter_window != nullptr) {
-              g_main_flutter_window->ApplyWindowEffect(g_main_window_handle,
-                                                       true);
-              g_main_flutter_window->ScheduleWindowEffectRefresh(
-                  g_main_window_handle);
-            }
+          if (g_main_flutter_window != nullptr) {
+            g_main_flutter_window->BringWindowToFront();
           }
           result->Success();
           return;
@@ -1442,15 +1233,9 @@ void FlutterWindow::SetupMethodChannel() {
             }
           }
 
-          if (g_main_window_handle && ::IsWindow(g_main_window_handle)) {
-            ::ShowWindow(g_main_window_handle, SW_RESTORE);
-            ::SetForegroundWindow(g_main_window_handle);
-            if (g_main_flutter_window != nullptr) {
-              g_main_flutter_window->ApplyWindowEffect(g_main_window_handle,
-                                                       true);
-              g_main_flutter_window->ScheduleWindowEffectRefresh(
-                  g_main_window_handle);
-            }
+          const bool should_show_main = action != "exit_application";
+          if (should_show_main && g_main_flutter_window != nullptr) {
+            g_main_flutter_window->BringWindowToFront();
           }
 
           if (!action.empty() && g_main_flutter_window != nullptr &&
@@ -1469,6 +1254,31 @@ void FlutterWindow::SetupMethodChannel() {
           }
 
           result->Success();
+          return;
+        } else if (call.method_name() == "setNativeRenderLoggingEnabled") {
+          const auto* arguments =
+              std::get_if<flutter::EncodableMap>(call.arguments());
+          if (arguments == nullptr) {
+            result->Error("INVALID_ARGUMENT", "Missing map");
+            return;
+          }
+
+          const auto enabled_it =
+              arguments->find(flutter::EncodableValue("enabled"));
+          if (enabled_it == arguments->end()) {
+            result->Error("INVALID_ARGUMENT", "Missing enabled parameter");
+            return;
+          }
+
+          const bool* enabled = std::get_if<bool>(&enabled_it->second);
+          if (enabled == nullptr) {
+            result->Error("INVALID_ARGUMENT", "Enabled must be bool");
+            return;
+          }
+
+          SetNativeRenderLoggingEnabled(*enabled);
+          result->Success(
+              flutter::EncodableValue(IsNativeRenderLoggingEnabled()));
           return;
         } else if (call.method_name() == "exitApp") {
           if (g_main_window_handle && ::IsWindow(g_main_window_handle)) {
@@ -1533,10 +1343,24 @@ void FlutterWindow::BringWindowToFront() {
         target_thread != 0 && target_thread != current_thread &&
         AttachThreadInput(current_thread, target_thread, TRUE) != FALSE;
 
-    // Show window
-    ShowWindow(hwnd, SW_SHOW);
-    // Restore window if minimized
-    ShowWindow(hwnd, SW_RESTORE);
+    // Preserve maximized placement; restoring is only valid for an iconified
+    // window. Calling SW_RESTORE unconditionally turns a hidden maximized main
+    // window back into a normal window.
+    const bool was_visible = IsWindowVisible(hwnd) != FALSE;
+    const bool was_iconic = IsIconic(hwnd) != FALSE;
+    ShowWindow(hwnd, was_iconic ? SW_RESTORE : SW_SHOW);
+    // Hidden windows refresh synchronously from WM_SHOWWINDOW. Minimized or
+    // already-visible windows do not, so refresh them explicitly here.
+    if (was_visible || was_iconic) {
+      RefreshWindowEffectState();
+    }
+    // A hidden transparent host can accept child WM_SIZE messages without DWM
+    // committing the new Flutter swapchain. Refresh once the parent is visible
+    // so cold-start and tray-restore frames use the current client bounds.
+    if (kind_ == WindowKind::kMain && flutter_controller_) {
+      RefreshFlutterSurface();
+      flutter_surface_refresh_pending_ = false;
+    }
     SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
                  SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
     SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0,
@@ -1548,8 +1372,6 @@ void FlutterWindow::BringWindowToFront() {
     const HWND active_result = SetActiveWindow(hwnd);
     // Set focus
     const HWND focus_result = SetFocus(hwnd);
-    ApplyWindowEffect(hwnd, true);
-    ScheduleWindowEffectRefresh(hwnd);
 
     if (attached_target) {
       AttachThreadInput(current_thread, target_thread, FALSE);
@@ -1617,6 +1439,90 @@ void FlutterWindow::RestorePreviousForegroundWindow() {
   LogA(buffer);
 }
 
+bool FlutterWindow::RefreshFlutterSurface() {
+  if (!flutter_controller_) {
+    return false;
+  }
+
+  if (kind_ != WindowKind::kMain) {
+    flutter_controller_->ForceRedraw();
+    return true;
+  }
+
+  const HWND host = GetHandle();
+  const HWND view = flutter_controller_->view()->GetNativeWindow();
+  RECT client{};
+  if (!host || !view || !::GetClientRect(host, &client)) {
+    return false;
+  }
+
+  const int width = client.right - client.left;
+  const int height = client.bottom - client.top;
+  if (width <= 0 || height <= 0 || ::IsIconic(host)) {
+    return false;
+  }
+
+  constexpr UINT flags = SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOOWNERZORDER |
+                         SWP_NOZORDER | SWP_FRAMECHANGED;
+  const BOOL expanded =
+      ::SetWindowPos(view, nullptr, 0, 0, width + 1, height, flags);
+  const BOOL restored =
+      ::SetWindowPos(view, nullptr, 0, 0, width, height, flags);
+  flutter_controller_->ForceRedraw();
+
+  char buffer[192];
+  sprintf_s(buffer, sizeof(buffer),
+            "RefreshFlutterSurface size=%dx%d expanded=%d restored=%d", width,
+            height, expanded != FALSE, restored != FALSE);
+  LogA(buffer);
+  return expanded != FALSE && restored != FALSE;
+}
+
+void FlutterWindow::RefreshWindowEffectState() {
+  if (!backdrop_controller_ ||
+      (kind_ == WindowKind::kMain && !effect_configured_)) {
+    return;
+  }
+
+  const WindowBackdropApplyResult apply_result =
+      ApplyWindowEffect(GetHandle(), true);
+  NotifyWindowEffectStateChanged(apply_result);
+}
+
+void FlutterWindow::NotifyWindowEffectStateChanged(
+    const WindowBackdropApplyResult& apply_result) {
+  if (kind_ == WindowKind::kTrayMenu || !flutter_controller_ ||
+      !flutter_controller_->engine()) {
+    return;
+  }
+
+  flutter::MethodChannel<> channel(
+      flutter_controller_->engine()->messenger(),
+      "com.hanabi.download/window",
+      &flutter::StandardMethodCodec::GetInstance());
+  const WindowBackdropCapabilities capabilities =
+      backdrop_controller_->capabilities();
+  channel.InvokeMethod(
+      "windowEffectStateChanged",
+      std::make_unique<flutter::EncodableValue>(
+          BuildWindowEffectPayload(apply_result, capabilities)));
+}
+
+void FlutterWindow::FinishInteractiveMoveResize() {
+  const bool resized = interactive_resize_observed_;
+  is_interactive_resize_ = false;
+  interactive_resize_observed_ = false;
+
+  if (backdrop_controller_) {
+    backdrop_controller_->ResumeLegacyEffectAfterMove();
+    backdrop_controller_->UpdateWindowGeometry();
+  }
+  if (resized && flutter_controller_) {
+    RefreshFlutterSurface();
+    flutter_surface_refresh_pending_ = false;
+  }
+}
+
 void FlutterWindow::SetAlwaysOnTop(bool alwaysOnTop) {
   HWND hwnd = GetHandle();
   if (hwnd) {
@@ -1679,6 +1585,13 @@ void FlutterWindow::SendTrayMenuPayloadToFlutter(
     const std::string& payload_json) {
   if (kind_ != WindowKind::kTrayMenu || payload_json.empty() ||
       !flutter_controller_ || !flutter_controller_->engine()) {
+    return;
+  }
+  if (!first_frame_rendered_) {
+    // The main engine can request the prewarmed menu before the secondary Dart
+    // isolate has registered its channel handler. Keep only the latest request;
+    // it contains the newest cursor position, theme, and task snapshot.
+    pending_tray_payload_json_ = payload_json;
     return;
   }
 
@@ -1745,7 +1658,6 @@ bool FlutterWindow::CreatePopupWindow(
       popup_window->SendPopupPayloadToFlutter(payload_json);
       CenterWindowOnWorkArea(existing_hwnd);
       popup_window->ApplyWindowEffect(existing_hwnd, true);
-      popup_window->ScheduleWindowEffectRefresh(existing_hwnd);
       InvalidateRect(existing_hwnd, nullptr, TRUE);
       ::ShowWindow(existing_hwnd, SW_SHOW);
       SetForegroundWindow(existing_hwnd);
@@ -1787,9 +1699,6 @@ bool FlutterWindow::CreatePopupWindow(
 
   popup_window->SetQuitOnClose(false);
   CenterWindowOnWorkArea(popup_window->GetHandle());
-  if (popup_window->GetHandle()) {
-    SetTimer(popup_window->GetHandle(), kPopupInitialEffectTimer, 180, NULL);
-  }
   LogA("CreatePopupWindow waiting for first Flutter frame before showing");
   g_popup_windows.push_back(std::move(popup_window));
   return true;
@@ -1800,20 +1709,15 @@ bool FlutterWindow::CreateTrayMenuWindow(const std::string& payload_json,
                                          bool show_immediately) {
   CleanupClosedPopupWindows();
 
-  double target_x = 0.0;
-  double target_y = 0.0;
-  TryExtractPayloadDouble(payload_json, "mouse_x", target_x);
-  TryExtractPayloadDouble(payload_json, "mouse_y", target_y);
-
   if (g_tray_menu_window && g_tray_menu_window->GetHandle()) {
-    g_tray_menu_window->SendTrayMenuPayloadToFlutter(payload_json);
+    const HWND existing_hwnd = g_tray_menu_window->GetHandle();
     if (show_immediately) {
-      const HWND existing_hwnd = g_tray_menu_window->GetHandle();
-      PositionTrayMenuWindow(existing_hwnd, target_x, target_y);
-      ::ShowWindow(existing_hwnd, SW_SHOW);
-      SetForegroundWindow(existing_hwnd);
-      SetFocus(existing_hwnd);
+      // Do not expose the previous payload while Flutter is rebuilding and
+      // measuring the new flyout. Dart shows the window atomically through
+      // positionTrayMenu once the final size is known.
+      ::ShowWindow(existing_hwnd, SW_HIDE);
     }
+    g_tray_menu_window->SendTrayMenuPayloadToFlutter(payload_json);
     return true;
   }
 
@@ -1832,14 +1736,7 @@ bool FlutterWindow::CreateTrayMenuWindow(const std::string& payload_json,
   }
 
   tray_window->SetQuitOnClose(false);
-  HWND hwnd = tray_window->GetHandle();
   g_tray_menu_window = std::move(tray_window);
-  if (show_immediately && hwnd) {
-    PositionTrayMenuWindow(hwnd, target_x, target_y);
-    ::ShowWindow(hwnd, SW_SHOW);
-    SetForegroundWindow(hwnd);
-    SetFocus(hwnd);
-  }
   return true;
 }
 
@@ -1847,161 +1744,51 @@ void FlutterWindow::CleanupPopupWindows() {
   CleanupClosedPopupWindows();
 }
 
-void FlutterWindow::ScheduleWindowEffectRefresh(HWND hwnd) {
-  if (!hwnd || kind_ == WindowKind::kTrayMenu) {
-    return;
+WindowBackdropApplyResult FlutterWindow::ApplyWindowEffect(HWND hwnd,
+                                                           bool force) {
+  if (!hwnd || !backdrop_controller_ ||
+      (kind_ == WindowKind::kMain && !effect_configured_)) {
+    return {WindowBackdropKind::kNone, WindowBackdropKind::kNone, S_FALSE,
+            false};
   }
 
-  SetTimer(hwnd, kWindowEffectShowTimer, 120, NULL);
-  SetTimer(hwnd, kWindowEffectActivateTimer, 360, NULL);
-  SetTimer(hwnd, kWindowEffectSettledTimer, 900, NULL);
-}
+  WindowBackdropConfig config;
+  config.kind = static_cast<WindowBackdropKind>(effect_mode_);
+  config.alpha = effect_alpha_;
+  config.dark_mode = dark_mode_;
+  config.rounded_corners_enabled = rounded_corners_enabled_;
+  config.corner_radius = corner_radius_;
 
-void FlutterWindow::ApplyWindowEffect(HWND hwnd, bool force) {
-  if (!hwnd) return;
-  if (kind_ == WindowKind::kMain && !effect_configured_) return;
+  const WindowBackdropApplyResult apply_result =
+      backdrop_controller_->Apply(config, force);
+  const WindowBackdropCapabilities capabilities =
+      backdrop_controller_->capabilities();
 
-  // Debounce per window: popup windows may be created in quick succession and
-  // must not inherit the last apply state from the main window or another popup.
-  DWORD currentTime = GetTickCount();
-
-  // Get current window size for Win10 rounded corners
-  RECT windowRect;
-  GetWindowRect(hwnd, &windowRect);
-  int width = windowRect.right - windowRect.left;
-  int height = windowRect.bottom - windowRect.top;
-
-  // Allow immediate update if effect mode, tint alpha, theme, or window size
-  // changed. Alpha-only updates should not tear down the current Accent/DWM
-  // state, otherwise DWM can present a fully transparent intermediate frame.
-  bool effectModeChanged = last_effect_mode_ != effect_mode_;
-  bool alphaChanged = last_effect_alpha_ != effect_alpha_;
-  bool modeChanged = effectModeChanged || (last_dark_mode_ != dark_mode_);
-  bool cornerSettingChanged =
-      (last_rounded_corners_enabled_ != rounded_corners_enabled_) ||
-      (last_corner_radius_ != corner_radius_);
-  bool sizeChanged = (width != (last_window_rect_.right - last_window_rect_.left) ||
-                      height != (last_window_rect_.bottom - last_window_rect_.top));
-  if (!force && !modeChanged && !alphaChanged && !sizeChanged &&
-      !cornerSettingChanged &&
-      (currentTime - last_apply_time_ < 100)) {
-    return;
-  }
-  last_apply_time_ = currentTime;
-  last_effect_mode_ = effect_mode_;
-  last_effect_alpha_ = effect_alpha_;
-  last_dark_mode_ = dark_mode_;
-  last_rounded_corners_enabled_ = rounded_corners_enabled_;
-  last_corner_radius_ = corner_radius_;
-  last_window_rect_ = windowRect;
+  char log_buffer[320];
+  sprintf_s(
+      log_buffer,
+      "WindowBackdrop apply kind=%s requested=%s applied=%s build=%lu "
+      "hr=0x%08lX fallback=%d transparency=%d",
+      WindowKindName(),
+      WindowBackdropController::KindName(apply_result.requested_kind),
+      WindowBackdropController::KindName(apply_result.applied_kind),
+      capabilities.windows_build, apply_result.hresult,
+      apply_result.used_fallback ? 1 : 0,
+      capabilities.transparency_enabled ? 1 : 0);
+  LogA(log_buffer);
 
   if (kind_ == WindowKind::kTrayMenu) {
-    ConfigureDwmFrame(hwnd, true);
-
-    // Tray menu windows must NOT use any DWM backdrop effects.
-    // The menu panels are entirely Flutter-painted; DWM acrylic/mica
-    // would bleed through and cause visual artifacts.
-    const DWORD buildNumber = GetWindowsBuildNumber();
-    ResetDwmBackdrop(hwnd, buildNumber);
-    DisableAccentPolicy(hwnd);
-    ExtendFrameForEffect(hwnd, false);
-
-    // Use region clipping instead of DWM rounded corners
     ApplyTrayMenuWindowRegion(hwnd);
-    return;
   }
-
-  DWORD buildNumber = GetWindowsBuildNumber();
-  char logBuf[256];
-  const char* kindName = WindowKindName();
-  sprintf_s(logBuf,
-            "ApplyWindowEffect: kind=%s mode=%d alpha=%d build=%lu changed=%d alphaChanged=%d force=%d size=%dx%d",
-            kindName, effect_mode_, effect_alpha_, buildNumber, modeChanged,
-            alphaChanged, force, width, height);
-  LogA(logBuf);
-
-  const bool supportsSystemBackdrop = buildNumber >= kSystemBackdropBuild;
-  const bool useDwmAcrylicBackdrop =
-      kind_ == WindowKind::kPopup && effect_mode_ == kEffectAcrylic;
-  const bool useDwmBackdrop =
-      supportsSystemBackdrop &&
-      (IsDwmBackdropEffect(effect_mode_) || useDwmAcrylicBackdrop);
-  const bool useLegacyMica =
-      !supportsSystemBackdrop && buildNumber >= kWin11Build &&
-      (effect_mode_ == kEffectMica || effect_mode_ == kEffectMicaAlt);
-  const bool useAccent =
-      !useDwmBackdrop && !useLegacyMica && IsAccentEffect(effect_mode_);
-  const bool needsTransparentFrame =
-      effect_mode_ != kEffectNone || kind_ == WindowKind::kPopup;
-
-  const bool alphaOnlyChanged =
-      !force && alphaChanged && !modeChanged && !sizeChanged &&
-      !cornerSettingChanged;
-  if (alphaOnlyChanged) {
-    if (useAccent) {
-      const bool ok = ApplyAccentEffect(hwnd, effect_mode_, effect_alpha_,
-                                        dark_mode_,
-                                        kind_ == WindowKind::kPopup);
-      sprintf_s(logBuf,
-                "Accent alpha-only update mode=%d ok=%d alpha=%d build=%lu",
-                effect_mode_, ok ? 1 : 0, effect_alpha_, buildNumber);
-      LogA(logBuf);
-    }
-    return;
-  }
-
-  ConfigureDwmFrame(hwnd, dark_mode_);
-
-  if (effectModeChanged) {
-    ResetDwmBackdrop(hwnd, buildNumber);
-    DisableAccentPolicy(hwnd);
-  }
-
-  ExtendFrameForEffect(hwnd, needsTransparentFrame);
-
-  if (useDwmBackdrop) {
-    const INT backdropType = DwmBackdropForEffect(effect_mode_);
-    const HRESULT hrBackdrop =
-        DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, &backdropType,
-                              sizeof(backdropType));
-    sprintf_s(logBuf,
-              "DWM system backdrop=%d hr=0x%08lX build=%lu",
-              backdropType, hrBackdrop, buildNumber);
-    LogA(logBuf);
-  } else if (useLegacyMica) {
-    BOOL mica = TRUE;
-    const HRESULT hrMica =
-        DwmSetWindowAttribute(hwnd, DWMWA_MICA_EFFECT, &mica, sizeof(mica));
-    sprintf_s(logBuf, "Legacy MICA_EFFECT hr=0x%08lX build=%lu", hrMica,
-              buildNumber);
-    LogA(logBuf);
-  } else if (useAccent) {
-    const bool ok = ApplyAccentEffect(hwnd, effect_mode_, effect_alpha_,
-                                      dark_mode_,
-                                      kind_ == WindowKind::kPopup);
-    sprintf_s(logBuf,
-              "Accent effect mode=%d ok=%d alpha=%d build=%lu",
-              effect_mode_, ok ? 1 : 0, effect_alpha_, buildNumber);
-    LogA(logBuf);
-  }
-
-  ApplyRoundedCorners(hwnd, buildNumber, width, height);
-
-  // Force window redraw
-  if (modeChanged || cornerSettingChanged || force) {
-    SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
-                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE |
-                     SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-    RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW | RDW_FRAME);
-    PaintNativeFrameStrips(hwnd);
-    SetTimer(hwnd, kWindowFramePaintTimer, 120, NULL);
-    SetTimer(hwnd, kWindowFramePaintSettledTimer, 900, NULL);
-  }
+  return apply_result;
 }
 
 DWORD FlutterWindow::WindowStyle() const {
   if (kind_ == WindowKind::kMain) {
-    return WS_POPUP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
+    // Retain the resize frame, system menu, and min/max capabilities needed by
+    // Snap Layouts while leaving the caption entirely client-owned.
+    return (WS_OVERLAPPEDWINDOW & ~WS_CAPTION) | WS_CLIPCHILDREN |
+           WS_CLIPSIBLINGS;
   }
   if (kind_ == WindowKind::kPopup) {
     return WS_POPUP | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
@@ -2013,6 +1800,11 @@ DWORD FlutterWindow::WindowStyle() const {
 }
 
 DWORD FlutterWindow::WindowExStyle() const {
+  if (kind_ == WindowKind::kTrayMenu) {
+    // Tray flyouts should never create a taskbar button or Alt+Tab entry, but
+    // they must remain activatable so focus loss can dismiss them reliably.
+    return WS_EX_TOOLWINDOW;
+  }
   return Win32Window::WindowExStyle();
 }
 
@@ -2079,48 +1871,6 @@ void FlutterWindow::ApplyTrayMenuWindowRegion(HWND hwnd) {
   }
 
   SetWindowRgn(hwnd, combined, TRUE);
-}
-
-void FlutterWindow::ApplyRoundedCorners(HWND hwnd,
-                                        DWORD buildNumber,
-                                        int width,
-                                        int height) {
-  if (!hwnd || width <= 0 || height <= 0) return;
-
-  if (kind_ == WindowKind::kTrayMenu) {
-    ApplyTrayMenuWindowRegion(hwnd);
-    return;
-  }
-
-  WINDOWPLACEMENT wp;
-  wp.length = sizeof(WINDOWPLACEMENT);
-  GetWindowPlacement(hwnd, &wp);
-  const bool isMaximized = wp.showCmd == SW_MAXIMIZE;
-
-  // Windows 11 (build 22000+) native rounded corners
-  if (buildNumber >= kWin11Build) {
-    SetWindowRgn(hwnd, NULL, TRUE);
-    DWORD corner =
-        rounded_corners_enabled_ && !isMaximized ? kDwmCornerRound
-                                                 : kDwmCornerDoNotRound;
-    DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner,
-                          sizeof(corner));
-    return;
-  }
-
-  // Windows 10 (build < 22000)
-  if (!rounded_corners_enabled_ || isMaximized) {
-    SetWindowRgn(hwnd, NULL, TRUE);
-    return;
-  }
-
-  const int radius = ScaleForWindowDpi(hwnd, std::max(4, corner_radius_));
-  const int diameter = radius * 2;
-  HRGN hRgn =
-      CreateRoundRectRgn(0, 0, width + 1, height + 1, diameter, diameter);
-  if (hRgn) {
-    SetWindowRgn(hwnd, hRgn, TRUE);
-  }
 }
 
 std::string FlutterWindow::PickFolder() {

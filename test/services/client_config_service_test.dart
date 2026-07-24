@@ -45,4 +45,29 @@ void main() {
       );
     });
   });
+
+  group('ClientConfigService.normalizeDownloadKernelId', () {
+    test('keeps all supported kernel routing modes', () {
+      expect(
+        ClientConfigService.normalizeDownloadKernelId(
+          ClientConfigService.downloadKernelAuto,
+        ),
+        ClientConfigService.downloadKernelAuto,
+      );
+      expect(
+        ClientConfigService.normalizeDownloadKernelId(
+          ClientConfigService.downloadKernelNeoNsf,
+        ),
+        ClientConfigService.downloadKernelNeoNsf,
+      );
+      expect(
+        ClientConfigService.normalizeDownloadKernelId('unknown'),
+        ClientConfigService.downloadKernelNsfx,
+      );
+      expect(
+        ClientConfigService.normalizeDownloadKernelId(null),
+        ClientConfigService.downloadKernelNsfx,
+      );
+    });
+  });
 }

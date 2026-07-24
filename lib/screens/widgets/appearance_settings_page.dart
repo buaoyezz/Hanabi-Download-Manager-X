@@ -1449,12 +1449,29 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
     PerformanceMonitorService().trackRebuild('AppearanceSettingsPage');
 
     final windowEffect = context.watch<WindowEffectService>();
-    final alpha = windowEffect.alpha;
     final clientConfig = context.watch<ClientConfigService>();
     final localizationService = context.watch<LocalizationService>();
     final fontService = context.watch<FontService>();
     final t = AppLocalizations.of(context)!;
     final uiLocale = Localizations.localeOf(context);
+    final isChinese = uiLocale.languageCode.toLowerCase() == 'zh';
+    final nativeResult = windowEffect.lastApplyResult;
+    final effectStatusColor = !windowEffect.effectEnabled
+        ? AppTheme.textTertiary
+        : windowEffect.nativeMaterialReady
+            ? AppTheme.statusSuccess
+            : AppTheme.statusError;
+    final effectStatusText = !windowEffect.effectEnabled
+        ? (isChinese ? '窗口材质已关闭' : 'Window material is off')
+        : nativeResult == null
+            ? (isChinese ? '正在应用原生窗口材质' : 'Applying native material')
+            : windowEffect.nativeMaterialReady
+                ? (isChinese
+                    ? '原生材质已应用 · Windows ${nativeResult.windowsBuild} · ${nativeResult.appliedMode.nativeName}'
+                    : 'Native material active · Windows ${nativeResult.windowsBuild} · ${nativeResult.appliedMode.nativeName}')
+                : (isChinese
+                    ? '原生材质未生效，界面已回退为纯色'
+                    : 'Native material failed; using the solid fallback');
 
     final packs = [...localizationService.languagePacks]
       ..sort((a, b) => a.localeTag.compareTo(b.localeTag));
@@ -2152,33 +2169,6 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                     onChanged: (value) async {
                       if (value == null) return;
 
-                      if (windowEffect.isWindows11 &&
-                          (value == 'acrylic' || value == 'blur')) {
-                        final isZh = Localizations.localeOf(context)
-                            .languageCode
-                            .startsWith('zh');
-                        final confirmed = await showDialog<bool>(
-                          context: context,
-                          builder: (context) => ContentDialog(
-                            title: Text(isZh ? '警告 (Warning)' : 'Warning'),
-                            content: Text(isZh
-                                ? '在 Windows 11 上开启 亚克力(Acrylic) 或 模糊(Blur) 可能会导致部分设备发生严重的底层崩溃。\n如果您遇到闪退，应用将在下次启动时自动为您恢复到 云母(Mica) 效果。\n\n是否继续开启？'
-                                : 'Enabling Acrylic or Blur on Windows 11 may cause severe native crashes on some devices.\nIf the app crashes, it will automatically recover to Mica effect on the next launch.\n\nDo you want to continue?'),
-                            actions: [
-                              Button(
-                                child: Text(isZh ? '取消' : 'Cancel'),
-                                onPressed: () => Navigator.pop(context, false),
-                              ),
-                              FilledButton(
-                                child: Text(isZh ? '继续开启' : 'Continue'),
-                                onPressed: () => Navigator.pop(context, true),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (confirmed != true) return;
-                      }
-
                       await windowEffect.setEffectMode(value);
                       if (mounted) {
                         NotificationManager.of(context)?.showSuccess(
@@ -2191,48 +2181,52 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-            Opacity(
-              opacity: windowEffect.effectEnabled ? 1.0 : 0.5,
-              child: IgnorePointer(
-                ignoring: !windowEffect.effectEnabled,
-                child: _buildSettingItem(
-                  context,
-                  searchId: 'appearanceWindowEffectsAcrylicOpacity',
-                  title: t.appearanceWindowEffectsAcrylicOpacityTitle,
-                  subtitle: t.appearanceWindowEffectsAcrylicOpacityHint,
-                  trailing: SizedBox(
-                    width: 250,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Slider(
-                            value: alpha.toDouble(),
-                            min: 0,
-                            max: 255,
-                            divisions: 255,
-                            label: alpha.toString(),
-                            onChanged: (v) async {
-                              await windowEffect.setAlpha(v.toInt());
-                            },
+            // Acrylic / Mica / Mica Alt: fixed transparency — no slider.
+            // Only Win10 Blur exposes adjustable tint alpha.
+            if (windowEffect.supportsUserAlpha) ...[
+              const SizedBox(height: 12),
+              Opacity(
+                opacity: windowEffect.effectEnabled ? 1.0 : 0.5,
+                child: IgnorePointer(
+                  ignoring: !windowEffect.effectEnabled,
+                  child: _buildSettingItem(
+                    context,
+                    searchId: 'appearanceWindowEffectsAcrylicOpacity',
+                    title: t.appearanceWindowEffectsAcrylicOpacityTitle,
+                    subtitle: t.appearanceWindowEffectsAcrylicOpacityHint,
+                    trailing: SizedBox(
+                      width: 250,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Slider(
+                              value: windowEffect.blurAlpha.toDouble(),
+                              min: 32,
+                              max: 200,
+                              divisions: 168,
+                              label: windowEffect.blurAlpha.toString(),
+                              onChanged: (v) async {
+                                await windowEffect.setAlpha(v.toInt());
+                              },
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        SizedBox(
-                          width: 40,
-                          child: Text(
-                            '$alpha',
-                            style:
-                                FluentTheme.of(context).typography.bodyStrong,
+                          const SizedBox(width: 12),
+                          SizedBox(
+                            width: 40,
+                            child: Text(
+                              '${windowEffect.blurAlpha}',
+                              style:
+                                  FluentTheme.of(context).typography.bodyStrong,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            // Win10: suspend effect during drag (only show on Win10 with effect enabled)
+            ],
+            // Win10: suspend effect during drag (acrylic/blur lag while moving)
             if (!windowEffect.isWindows11 && windowEffect.effectEnabled) ...[
               const SizedBox(height: 12),
               _buildSettingItem(
@@ -2269,52 +2263,31 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: windowEffect.isMicaEffect
-                    ? FluentTheme.of(context).accentColor.withValues(alpha: 0.1)
-                    : windowEffect.effectEnabled
-                        ? Colors.orange.withValues(alpha: 0.1)
-                        : AppTheme.statusSuccess.withValues(alpha: 0.1),
+                color: effectStatusColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
-                  color: windowEffect.isMicaEffect
-                      ? FluentTheme.of(context)
-                          .accentColor
-                          .withValues(alpha: 0.3)
-                      : windowEffect.effectEnabled
-                          ? Colors.orange.withValues(alpha: 0.3)
-                          : AppTheme.statusSuccess.withValues(alpha: 0.3),
+                  color: effectStatusColor.withValues(alpha: 0.3),
                 ),
               ),
               child: Row(
                 children: [
                   Icon(
-                    windowEffect.isMicaEffect
-                        ? CustomIcons.FluentIcons.info
+                    windowEffect.effectEnabled &&
+                            windowEffect.nativeMaterialReady
+                        ? CustomIcons.FluentIcons.completed_solid
                         : windowEffect.effectEnabled
-                            ? CustomIcons.FluentIcons.warning
-                            : CustomIcons.FluentIcons.completed_solid,
+                            ? CustomIcons.FluentIcons.error_badge
+                            : CustomIcons.FluentIcons.info,
                     size: 16,
-                    color: windowEffect.isMicaEffect
-                        ? FluentTheme.of(context).accentColor
-                        : windowEffect.effectEnabled
-                            ? Colors.orange
-                            : AppTheme.statusSuccess,
+                    color: effectStatusColor,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      windowEffect.isMicaEffect
-                          ? t.appearanceWindowEffectsMicaHint
-                          : windowEffect.effectEnabled
-                              ? t.appearanceWindowEffectsAcrylicHint
-                              : t.appearanceWindowEffectsDisabledHint,
+                      effectStatusText,
                       style:
                           FluentTheme.of(context).typography.caption?.copyWith(
-                                color: windowEffect.isMicaEffect
-                                    ? FluentTheme.of(context).accentColor
-                                    : windowEffect.effectEnabled
-                                        ? Colors.orange
-                                        : AppTheme.statusSuccess,
+                                color: effectStatusColor,
                               ),
                     ),
                   ),
@@ -2845,8 +2818,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                           // 同时更新默认大小和当前保存的大小
                           await config.setWindowDefaultWidth(safeWidth);
                           await config.setWindowDefaultHeight(safeHeight);
-                          await config.setWindowWidth(safeWidth);
-                          await config.setWindowHeight(safeHeight);
+                          await config.setWindowSize(safeWidth, safeHeight);
 
                           if (mounted) {
                             NotificationManager.of(context)?.showSuccess(
@@ -2880,8 +2852,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettingsPage> {
                           // 同时重置默认大小和当前保存的大小
                           await config.setWindowDefaultWidth(889.0);
                           await config.setWindowDefaultHeight(586.0);
-                          await config.setWindowWidth(889.0);
-                          await config.setWindowHeight(586.0);
+                          await config.setWindowSize(889.0, 586.0);
 
                           if (mounted) {
                             NotificationManager.of(context)?.showInfo(

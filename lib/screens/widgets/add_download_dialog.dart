@@ -1,12 +1,11 @@
-import 'dart:ui';
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:provider/provider.dart';
-import '../../models/download_intent.dart';
-import '../../services/integrated_download_service.dart';
-import '../../models/download_task.dart';
-import '../../theme/app_theme.dart';
-import '../../l10n/app_localizations.dart';
 
+import '../../l10n/app_localizations.dart';
+import '../../models/download_intent.dart';
+import '../../models/download_task.dart';
+import '../../services/integrated_download_service.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/animated_notifications.dart';
 import '../../widgets/smooth_scroll_wrapper.dart';
 
@@ -32,19 +31,19 @@ class AddDownloadDialog extends StatefulWidget {
   State<AddDownloadDialog> createState() => _AddDownloadDialogState();
 }
 
-class _AddDownloadDialogState extends State<AddDownloadDialog>
-    with SingleTickerProviderStateMixin {
+class _AddDownloadDialogState extends State<AddDownloadDialog> {
   final _urlController = TextEditingController();
   final _fileNameController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
+  final _urlFocusNode = FocusNode();
+  final _fileNameFocusNode = FocusNode();
+
   bool _isLoading = false;
   bool _showAdvanced = false;
-  String? _parsedFileName;
-  String? _lastSuggestedFileName;
   bool _hasUserEditedFileName = false;
   bool _isUpdatingFileNameProgrammatically = false;
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
+  String? _parsedFileName;
+  String? _urlError;
+  String? _lastSuggestedFileName;
 
   AppLocalizations get t => AppLocalizations.of(context)!;
 
@@ -59,23 +58,12 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
       _fileNameController.text = widget.initialFileName!.trim();
       _hasUserEditedFileName = true;
     }
-    // 监听 URL 变化，自动解析文件名
+
     _urlController.addListener(_onUrlChanged);
     _fileNameController.addListener(_onFileNameChanged);
     if (_urlController.text.trim().isNotEmpty) {
       _onUrlChanged();
     }
-
-    // 初始化动画
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 400),
-      vsync: this,
-    );
-    _fadeAnimation = CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    );
-    _animationController.forward();
   }
 
   void _onUrlChanged() {
@@ -84,7 +72,10 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
       final shouldClearSuggestedName = !_hasUserEditedFileName &&
           (_fileNameController.text.trim().isEmpty ||
               _fileNameController.text.trim() == _lastSuggestedFileName);
-      setState(() => _parsedFileName = null);
+      setState(() {
+        _parsedFileName = null;
+        _urlError = null;
+      });
       if (shouldClearSuggestedName) {
         _setFileNameFromSuggestion('');
       }
@@ -99,7 +90,10 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
         !_hasUserEditedFileName ||
         (previousSuggestion != null && currentFileName == previousSuggestion);
 
-    setState(() => _parsedFileName = nextSuggestedName);
+    setState(() {
+      _parsedFileName = nextSuggestedName;
+      _urlError = null;
+    });
     _lastSuggestedFileName = nextSuggestedName;
 
     if (shouldApplySuggestion) {
@@ -108,9 +102,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
   }
 
   void _onFileNameChanged() {
-    if (_isUpdatingFileNameProgrammatically) {
-      return;
-    }
+    if (_isUpdatingFileNameProgrammatically) return;
 
     final text = _fileNameController.text.trim();
     final suggestion = _lastSuggestedFileName?.trim();
@@ -132,299 +124,190 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
     _fileNameController.removeListener(_onFileNameChanged);
     _urlController.dispose();
     _fileNameController.dispose();
-    _animationController.dispose();
+    _urlFocusNode.dispose();
+    _fileNameFocusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final dialogWidth =
-        (MediaQuery.sizeOf(context).width - 32).clamp(320.0, 520.0).toDouble();
-    final dialogMaxHeight =
-        (MediaQuery.sizeOf(context).height - 48).clamp(340.0, 760.0).toDouble();
+    final size = MediaQuery.sizeOf(context);
+    final availableWidth =
+        (size.width - 48).clamp(0.0, double.infinity).toDouble();
+    final dialogWidth = availableWidth.clamp(0.0, 480.0).toDouble();
+    final dialogMaxHeight = (size.height - 48).clamp(0.0, 720.0).toDouble();
+    final theme = FluentTheme.of(context);
 
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: ContentDialog(
-        constraints: BoxConstraints(
-          minWidth: dialogWidth,
-          maxWidth: dialogWidth,
-          maxHeight: dialogMaxHeight,
-        ),
-        style: ContentDialogThemeData(
-          decoration: BoxDecoration(
-            color: AppTheme.cardBackground(darkAlpha: 0.88, lightAlpha: 0.95),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: AppTheme.borderSubtle.withValues(alpha: 0.5),
-              width: 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 40,
-                offset: const Offset(0, 20),
-              ),
-            ],
-          ),
-        ),
-        title: _buildHeader(context),
-        content: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: (dialogMaxHeight * 0.6).clamp(220.0, 420.0).toDouble(),
-          ),
-          child: _buildContent(context),
-        ),
-        actions: _buildActions(context),
+    return ContentDialog(
+      constraints: BoxConstraints(
+        minWidth: dialogWidth,
+        maxWidth: dialogWidth,
+        maxHeight: dialogMaxHeight,
       ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: AppTheme.borderSubtle,
-            width: 1,
+      style: ContentDialogThemeData(
+        titleStyle: theme.typography.subtitle?.copyWith(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
+        actionsDecoration: BoxDecoration(
+          color: theme.resources.layerFillColorAlt,
+          borderRadius: const BorderRadius.vertical(
+            bottom: Radius.circular(AppTheme.radiusLg),
           ),
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
       ),
-      child: Row(
-        children: [
-          // 图标容器
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppTheme.accentPrimary.withValues(alpha: 0.2),
-                  AppTheme.accentLight.withValues(alpha: 0.1),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppTheme.accentPrimary.withValues(alpha: 0.3),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.accentPrimary.withValues(alpha: 0.2),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Icon(
-              FluentIcons.download,
-              size: 20,
-              color: AppTheme.accentLight,
-            ),
-          ),
-          const SizedBox(width: 14),
-          // 标题和描述
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  t.addDownloadTitle,
-                  style: FluentTheme.of(context).typography.subtitle?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 18,
-                        color: AppTheme.textPrimary,
-                      ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  t.addDownloadSubtitle,
-                  style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: AppTheme.textTertiary,
-                        fontSize: 12,
-                      ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      title: Text(t.addDownloadTitle),
+      content: _buildContent(context),
+      actions: _buildActions(),
     );
   }
 
   Widget _buildContent(BuildContext context) {
-    return Form(
-      key: _formKey,
-      child: SmoothSingleChildScrollView(
-        config: SmoothScrollConfig.fast,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 14),
-            // URL 输入框
-            _buildUrlInput(context),
-            const SizedBox(height: 14),
-            // 自动解析的文件名提示
-            if (_parsedFileName != null && _fileNameController.text.isEmpty)
-              _buildParsedFileNameHint(context),
-            // 高级选项切换
-            _buildAdvancedToggle(context),
-            // 高级选项内容
-            if (_showAdvanced) ...[
-              const SizedBox(height: 12),
-              _buildFileNameInput(context),
-            ],
-          ],
-        ),
+    final theme = FluentTheme.of(context);
+
+    return SmoothSingleChildScrollView(
+      config: SmoothScrollConfig.fast,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            t.addDownloadSubtitle,
+            style: theme.typography.body?.copyWith(
+              color: theme.resources.textFillColorSecondary,
+            ),
+          ),
+          const SizedBox(height: 20),
+          _buildUrlInput(context),
+          AnimatedSwitcher(
+            duration: theme.fastAnimationDuration,
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            child: _buildUrlFeedback(context),
+          ),
+          const SizedBox(height: 16),
+          _buildAdvancedOptions(context),
+        ],
       ),
     );
   }
 
-  Widget _buildUrlInput(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  InlineSpan _requiredLabel(BuildContext context, String label) {
+    final theme = FluentTheme.of(context);
+    return TextSpan(
       children: [
-        Row(
-          children: [
-            Icon(
-              FluentIcons.link,
-              size: 14,
-              color: AppTheme.accentLight,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              t.addDownloadUrlLabel,
-              style: FluentTheme.of(context).typography.body?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
-                    fontSize: 13,
-                  ),
-            ),
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppTheme.statusError.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                t.addDownloadRequiredBadge,
-                style: FluentTheme.of(context).typography.caption?.copyWith(
-                      color: AppTheme.statusError,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Container(
-          decoration: BoxDecoration(
-            color: AppTheme.bgLayer2.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: _urlController.text.isNotEmpty
-                  ? AppTheme.accentPrimary.withValues(alpha: 0.4)
-                  : AppTheme.borderSubtle.withValues(alpha: 0.5),
-              width: 1.5,
-            ),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-              child: TextBox(
-                controller: _urlController,
-                placeholder: t.addDownloadUrlPlaceholder,
-                maxLines: 2,
-                minLines: 1,
-                style: FluentTheme.of(context).typography.body?.copyWith(
-                      fontSize: 13,
-                      height: 1.5,
-                    ),
-                placeholderStyle:
-                    FluentTheme.of(context).typography.body?.copyWith(
-                          color: AppTheme.textTertiary.withValues(alpha: 0.6),
-                          fontSize: 13,
-                        ),
-                decoration: WidgetStateProperty.all(
-                  BoxDecoration(
-                    color: Colors.transparent,
-                  ),
-                ),
-                padding: const EdgeInsets.all(12),
-              ),
-            ),
+        TextSpan(text: label),
+        TextSpan(
+          text: ' *',
+          style: TextStyle(
+            color: theme.resources.systemFillColorCritical,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildParsedFileNameHint(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppTheme.statusSuccess.withValues(alpha: 0.1),
-            AppTheme.statusSuccess.withValues(alpha: 0.05),
+  Widget _buildUrlInput(BuildContext context) {
+    final theme = FluentTheme.of(context);
+    final errorColor = theme.resources.systemFillColorCritical;
+
+    return InfoLabel.rich(
+      label: _requiredLabel(context, t.addDownloadUrlLabel),
+      child: TextBox(
+        controller: _urlController,
+        focusNode: _urlFocusNode,
+        autofocus: widget.initialUrl == null,
+        enabled: !_isLoading,
+        placeholder: t.addDownloadUrlPlaceholder,
+        highlightColor: _urlError == null ? null : errorColor,
+        unfocusedColor: _urlError == null ? null : errorColor,
+        suffix: _urlController.text.isEmpty
+            ? null
+            : SmallIconButton(
+                child: Tooltip(
+                  message: t.logClearFiltersButton,
+                  child: IconButton(
+                    icon: const Icon(FluentIcons.clear, size: 12),
+                    onPressed: _isLoading
+                        ? null
+                        : () {
+                            _urlController.clear();
+                            _urlFocusNode.requestFocus();
+                          },
+                  ),
+                ),
+              ),
+        textInputAction: TextInputAction.done,
+        onSubmitted: (_) {
+          if (!_isLoading) _handleSubmit();
+        },
+      ),
+    );
+  }
+
+  Widget _buildUrlFeedback(BuildContext context) {
+    final theme = FluentTheme.of(context);
+
+    if (_urlError != null) {
+      return Padding(
+        key: const ValueKey('url-error'),
+        padding: const EdgeInsets.only(top: 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(
+                FluentIcons.error_badge,
+                size: 12,
+                color: theme.resources.systemFillColorCritical,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                _urlError!,
+                style: theme.typography.caption?.copyWith(
+                  color: theme.resources.systemFillColorCritical,
+                ),
+              ),
+            ),
           ],
         ),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: AppTheme.statusSuccess.withValues(alpha: 0.3),
-          width: 1,
-        ),
-      ),
+      );
+    }
+
+    if (_parsedFileName == null || _showAdvanced) {
+      return const SizedBox.shrink(key: ValueKey('url-feedback-empty'));
+    }
+
+    return Padding(
+      key: const ValueKey('parsed-file-name'),
+      padding: const EdgeInsets.only(top: 6),
       child: Row(
         children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: AppTheme.statusSuccess.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Icon(
-              FluentIcons.check_mark,
-              size: 14,
-              color: AppTheme.statusSuccess,
+          Icon(
+            FluentIcons.document_approval,
+            size: 12,
+            color: theme.resources.systemFillColorSuccess,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '${t.addDownloadParsedFileNameTitle}:',
+            style: theme.typography.caption?.copyWith(
+              color: theme.resources.textFillColorSecondary,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 4),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  t.addDownloadParsedFileNameTitle,
-                  style: FluentTheme.of(context).typography.caption?.copyWith(
-                        color: AppTheme.statusSuccess,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _parsedFileName!,
-                  style: FluentTheme.of(context).typography.body?.copyWith(
-                        color: AppTheme.textPrimary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+            child: Text(
+              _parsedFileName!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.typography.caption?.copyWith(
+                color: theme.resources.textFillColorPrimary,
+              ),
             ),
           ),
         ],
@@ -432,203 +315,91 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
     );
   }
 
-  Widget _buildAdvancedToggle(BuildContext context) {
-    return GestureDetector(
-      onTap: () => setState(() => _showAdvanced = !_showAdvanced),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: _showAdvanced
-              ? AppTheme.accentPrimary.withValues(alpha: 0.1)
-              : AppTheme.bgLayer2.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: _showAdvanced
-                ? AppTheme.accentPrimary.withValues(alpha: 0.3)
-                : AppTheme.borderSubtle.withValues(alpha: 0.3),
-          ),
+  Widget _buildAdvancedOptions(BuildContext context) {
+    final theme = FluentTheme.of(context);
+
+    return Expander(
+      leading: Icon(
+        FluentIcons.rename,
+        size: 16,
+        color: theme.resources.textFillColorSecondary,
+      ),
+      header: Text(t.addDownloadAdvancedToggle),
+      trailing: Text(
+        _showAdvanced
+            ? t.addDownloadAdvancedExpandedHint
+            : t.addDownloadAdvancedCollapsedHint,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: theme.typography.caption?.copyWith(
+          color: theme.resources.textFillColorTertiary,
         ),
-        child: Row(
-          children: [
-            Icon(
-              _showAdvanced
-                  ? FluentIcons.chevron_down
-                  : FluentIcons.chevron_right,
-              size: 12,
-              color:
-                  _showAdvanced ? AppTheme.accentLight : AppTheme.textSecondary,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              t.addDownloadAdvancedToggle,
-              style: FluentTheme.of(context).typography.body?.copyWith(
-                    color: _showAdvanced
-                        ? AppTheme.accentLight
-                        : AppTheme.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-            ),
-            const Spacer(),
-            Text(
-              _showAdvanced
-                  ? t.addDownloadAdvancedExpandedHint
-                  : t.addDownloadAdvancedCollapsedHint,
-              style: FluentTheme.of(context).typography.caption?.copyWith(
-                    color: AppTheme.textTertiary,
-                    fontSize: 11,
-                  ),
-            ),
-          ],
+      ),
+      enabled: !_isLoading,
+      initiallyExpanded: false,
+      onStateChanged: (expanded) {
+        setState(() => _showAdvanced = expanded);
+        if (expanded && widget.initialFileName != null) {
+          _fileNameFocusNode.requestFocus();
+        }
+      },
+      contentPadding: const EdgeInsets.all(16),
+      content: InfoLabel(
+        label: '${t.addDownloadFileNameLabel} (${t.addDownloadOptionalBadge})',
+        child: TextBox(
+          controller: _fileNameController,
+          focusNode: _fileNameFocusNode,
+          enabled: !_isLoading,
+          placeholder: t.addDownloadFileNamePlaceholder,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) {
+            if (!_isLoading) _handleSubmit();
+          },
         ),
       ),
     );
   }
 
-  Widget _buildFileNameInput(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              FluentIcons.document,
-              size: 14,
-              color: AppTheme.textSecondary,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              t.addDownloadFileNameLabel,
-              style: FluentTheme.of(context).typography.body?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
-                    fontSize: 13,
-                  ),
-            ),
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppTheme.textTertiary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                t.addDownloadOptionalBadge,
-                style: FluentTheme.of(context).typography.caption?.copyWith(
-                      color: AppTheme.textTertiary,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Container(
-          decoration: BoxDecoration(
-            color: AppTheme.bgLayer2.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: AppTheme.borderSubtle.withValues(alpha: 0.5),
-              width: 1.5,
-            ),
-          ),
-          child: TextBox(
-            controller: _fileNameController,
-            placeholder: t.addDownloadFileNamePlaceholder,
-            style: FluentTheme.of(context).typography.body?.copyWith(
-                  fontSize: 13,
-                ),
-            placeholderStyle: FluentTheme.of(context).typography.body?.copyWith(
-                  color: AppTheme.textTertiary.withValues(alpha: 0.6),
-                  fontSize: 13,
-                ),
-            decoration: WidgetStateProperty.all(
-              const BoxDecoration(
-                color: Colors.transparent,
-              ),
-            ),
-            padding: const EdgeInsets.all(14),
-          ),
-        ),
-      ],
-    );
-  }
-
-  List<Widget> _buildActions(BuildContext context) {
+  List<Widget> _buildActions() {
     return [
       if (widget.onMuteClipboardForSession != null)
         Button(
           onPressed: _isLoading ? null : _handleMuteClipboardForSession,
-          style: ButtonStyle(
-            padding: WidgetStateProperty.all(
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            ),
-          ),
           child: FittedBox(
             fit: BoxFit.scaleDown,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(FluentIcons.volume_disabled, size: 14),
-                const SizedBox(width: 8),
+                const Icon(FluentIcons.volume_disabled, size: 13),
+                const SizedBox(width: 7),
                 Text(t.clipboardListenerMuteSessionButton),
               ],
             ),
           ),
         ),
       Button(
-        onPressed: _isLoading ? null : () => Navigator.pop(context),
-        style: ButtonStyle(
-          padding: WidgetStateProperty.all(
-            const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
-          ),
-        ),
+        onPressed: _isLoading ? null : () => Navigator.pop(context, false),
         child: Text(t.addDownloadCancelButton),
       ),
       FilledButton(
         onPressed: _isLoading ? null : _handleSubmit,
-        style: ButtonStyle(
-          padding: WidgetStateProperty.all(
-            const EdgeInsets.symmetric(horizontal: 22, vertical: 9),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_isLoading) ...[
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: ProgressRing(strokeWidth: 2),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Text(_isLoading ? t.addDownloadAdding : t.addDownloadStart),
+            ],
           ),
-          backgroundColor: WidgetStateProperty.resolveWith((states) {
-            if (states.isDisabled) {
-              return AppTheme.accentPrimary.withValues(alpha: 0.3);
-            }
-            if (states.isHovered) {
-              return AppTheme.accentLight;
-            }
-            return AppTheme.accentPrimary;
-          }),
         ),
-        child: _isLoading
-            ? FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: ProgressRing(strokeWidth: 2),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(t.addDownloadAdding),
-                  ],
-                ),
-              )
-            : FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(FluentIcons.download, size: 16),
-                    const SizedBox(width: 8),
-                    Text(t.addDownloadStart),
-                  ],
-                ),
-              ),
       ),
     ];
   }
@@ -686,21 +457,26 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
     return result ?? _DuplicateAction.cancel;
   }
 
+  void _showUrlError(String message) {
+    setState(() => _urlError = message);
+    _urlFocusNode.requestFocus();
+  }
+
   Future<void> _handleSubmit() async {
-    // 验证 URL
-    if (_urlController.text.trim().isEmpty) {
-      await _showErrorDialog(t.addDownloadErrorMissingUrl);
+    final url = _urlController.text.trim();
+    if (url.isEmpty) {
+      _showUrlError(t.addDownloadErrorMissingUrl);
       return;
     }
 
-    final url = _urlController.text.trim();
     final intent = DownloadIntent.parse(url);
     if (!url.startsWith('test_task_') && !intent.isRecognized) {
-      await _showErrorDialog(t.addDownloadErrorInvalidUrl);
+      _showUrlError(t.addDownloadErrorInvalidUrl);
       return;
     }
 
-    // 获取文件名：优先使用用户输入，否则使用自动解析的，最后使用默认名称
+    setState(() => _urlError = null);
+
     String fileName = _fileNameController.text.trim();
     if (fileName.isEmpty) {
       fileName = _parsedFileName ??
@@ -713,18 +489,14 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
     if (duplicate != null) {
       final action = await _showDuplicateDialog(duplicate);
       if (!mounted) return;
-      if (action == _DuplicateAction.cancel) {
-        return;
-      }
+      if (action == _DuplicateAction.cancel) return;
       if (action == _DuplicateAction.useExisting) {
         if (duplicate.status == DownloadStatus.paused ||
             duplicate.status == DownloadStatus.failed ||
             duplicate.status == DownloadStatus.pending) {
           await downloadService.resumeTask(duplicate.id);
         }
-        if (mounted) {
-          Navigator.pop(context);
-        }
+        if (mounted) Navigator.pop(context, true);
         return;
       }
     }
@@ -740,7 +512,7 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
       }
 
       if (mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context, true);
         _showSuccessMessage(fileName);
       }
     } catch (e) {
@@ -752,39 +524,28 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
   }
 
   Future<void> _showErrorDialog(String message) async {
+    final theme = FluentTheme.of(context);
     await showDialog(
       context: context,
       builder: (context) => ContentDialog(
-        title: Row(
+        title: Text(t.addDownloadErrorTitle),
+        content: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: AppTheme.statusError.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(
                 FluentIcons.error_badge,
                 size: 16,
-                color: AppTheme.statusError,
+                color: theme.resources.systemFillColorCritical,
               ),
             ),
-            const SizedBox(width: 12),
-            Text(t.addDownloadErrorTitle),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message)),
           ],
-        ),
-        content: Text(
-          message,
-          style: FluentTheme.of(context).typography.body?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
         ),
         actions: [
           FilledButton(
-            style: ButtonStyle(
-              backgroundColor: WidgetStateProperty.all(AppTheme.statusError),
-            ),
             onPressed: () => Navigator.pop(context),
             child: Text(t.addDownloadErrorConfirm),
           ),
@@ -794,11 +555,10 @@ class _AddDownloadDialogState extends State<AddDownloadDialog>
   }
 
   void _showSuccessMessage(String fileName) {
-    if (mounted) {
-      NotificationManager.of(context)?.showSuccess(
-        t.addDownloadSuccessTitle,
-        message: t.addDownloadSuccessMessage(fileName),
-      );
-    }
+    if (!mounted) return;
+    NotificationManager.of(context)?.showSuccess(
+      t.addDownloadSuccessTitle,
+      message: t.addDownloadSuccessMessage(fileName),
+    );
   }
 }

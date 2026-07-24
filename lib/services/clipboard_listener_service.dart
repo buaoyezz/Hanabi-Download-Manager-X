@@ -97,8 +97,10 @@ class ClipboardDownloadUrlHeuristics {
 
   static String? extractUrl(String text) {
     final trimmed = text.trim();
-    final regex =
-        RegExp(r'(https?://[^\s]+|magnet:\?[^\s]+)', caseSensitive: false);
+    final regex = RegExp(
+      r'(https?://[^\s]+|magnet:\?[^\s]+|ed2k://\|file\|[^\s]+)',
+      caseSensitive: false,
+    );
     final matches = regex.allMatches(trimmed).toList();
     if (matches.length != 1) {
       return null;
@@ -138,7 +140,7 @@ class ClipboardDownloadUrlHeuristics {
     if (intent.isHttp) {
       return intent.normalizedValue;
     }
-    if (intent.isMagnet) {
+    if (intent.isMagnet || intent.isEd2k) {
       return intent.normalizedValue.toLowerCase();
     }
     return normalized.toLowerCase();
@@ -146,7 +148,7 @@ class ClipboardDownloadUrlHeuristics {
 
   static bool looksLikeDownloadUrl(String url) {
     final intent = DownloadIntent.parse(url);
-    if (intent.isMagnet) {
+    if (intent.isMagnet || intent.isEd2k) {
       return true;
     }
     if (!intent.isHttp) {
@@ -330,7 +332,7 @@ class ClipboardListenerService {
         _checkClipboard();
       }
     });
-    
+
     // Enable C++ side clipboard listener
     _clipboardChannel.invokeMethod('setListenerEnabled', {'enabled': true}).catchError((e) {
       _logger.warning('Clipboard', 'Failed to enable native clipboard listener: $e');

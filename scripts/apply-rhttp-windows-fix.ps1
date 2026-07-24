@@ -89,6 +89,32 @@ function Update-File {
     return $true
 }
 
+function Update-ResolveSymlinksFile {
+    param(
+        [Parameter(Mandatory)]
+        [string] $Path
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        throw "Missing resolve_symlinks.ps1 file: $Path"
+    }
+
+    $content = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
+    $updatedContent = $content.
+        Replace('Get-Item -Force $realPath -Force', 'Get-Item -Force $realPath').
+        Replace('Get-Item $realPath -Force', 'Get-Item -Force $realPath').
+        Replace('Get-Item $realPath', 'Get-Item -Force $realPath')
+
+    if ($updatedContent -eq $content) {
+        Write-Host "[ok] resolve_symlinks.ps1 already patched"
+        return $false
+    }
+
+    Write-Utf8NoBom -Path $Path -Content $updatedContent
+    Write-Host "[patch] resolve_symlinks.ps1 updated"
+    return $true
+}
+
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $packageConfigPath = Join-Path $repoRoot '.dart_tool\package_config.json'
 
@@ -123,12 +149,7 @@ $dartFallbackBlock = @(
 
 $changedFiles = 0
 
-if (Update-File `
-    -Path $resolveSymlinksPath `
-    -OldText 'Get-Item $realPath' `
-    -NewText 'Get-Item -Force $realPath' `
-    -AlreadyPatchedText 'Get-Item -Force $realPath' `
-    -Label 'resolve_symlinks.ps1') {
+if (Update-ResolveSymlinksFile -Path $resolveSymlinksPath) {
     $changedFiles++
 }
 

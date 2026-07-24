@@ -109,21 +109,13 @@ class SettingsSection extends StatelessWidget {
         : null;
 
     final isDark = AppTheme.isDarkContext(context);
-    final sectionBackground = AppTheme.cardBackground(
-      darkAlpha: 0.44,
-      lightAlpha: 0.68,
-    );
     return Container(
       key: searchKey,
       margin: margin,
       decoration: BoxDecoration(
-        color: sectionBackground,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(
-          color: isDark
-              ? AppTheme.borderSubtle.withValues(alpha: 0.44)
-              : AppTheme.borderSubtle.withValues(alpha: 0.22),
-        ),
+        color: AppTheme.surfaceCard,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(color: AppTheme.borderDefault),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
@@ -294,13 +286,9 @@ class _SettingsItemState extends State<SettingsItem> {
         ? SettingsSearchRegistry.getKey('item:${widget.searchId!}')
         : null;
 
-    final isDark = AppTheme.isDarkContext(context);
     final radius = BorderRadius.circular(AppTheme.radiusSm);
-    final background = _isHovered
-        ? (isDark
-            ? AppTheme.bgLayer2.withValues(alpha: 0.40)
-            : AppTheme.surfaceCardHover.withValues(alpha: 0.58))
-        : Colors.transparent;
+    final background =
+        _isHovered ? AppTheme.surfaceCardHover : Colors.transparent;
 
     return MouseRegion(
       onEnter: (_) => _setHovered(true),
@@ -351,103 +339,6 @@ class _SettingsItemState extends State<SettingsItem> {
   }
 }
 
-/// 状态指示器组件
-class StatusIndicator extends StatelessWidget {
-  final String title;
-  final bool isOnline;
-  final IconData icon;
-
-  const StatusIndicator({
-    super.key,
-    required this.title,
-    required this.isOnline,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppLocalizations.of(context)!;
-    final isDark = AppTheme.isDarkContext(context);
-    final color = isOnline ? AppTheme.statusSuccess : AppTheme.statusError;
-
-    final baseColor = Color.lerp(
-          AppTheme.surfaceCard,
-          color,
-          isDark ? 0.10 : 0.06,
-        ) ??
-        color.withValues(alpha: isDark ? 0.10 : 0.06);
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: baseColor,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(
-          color: color.withValues(alpha: isDark ? 0.30 : 0.18),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            ),
-            child: Icon(icon, size: 18, color: color),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: FluentTheme.of(context).typography.caption?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: AppTheme.textPrimary,
-                        fontSize: 12,
-                      ),
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: color.withValues(alpha: isDark ? 0.4 : 0.22),
-                            blurRadius: 3,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      isOnline ? t.statusOnline : t.statusOffline,
-                      style:
-                          FluentTheme.of(context).typography.caption?.copyWith(
-                                color: color,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 12,
-                              ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// 危险操作区域
 class DangerZone extends StatelessWidget {
   final List<Widget> children;
@@ -465,45 +356,49 @@ class DangerZone extends StatelessWidget {
     final isDark = AppTheme.isDarkContext(context);
     return Container(
       margin: margin,
-      padding: const EdgeInsets.fromLTRB(16, 15, 16, 16),
       decoration: BoxDecoration(
-        color: AppTheme.statusError.withValues(alpha: isDark ? 0.06 : 0.04),
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(
-          color: AppTheme.statusError.withValues(alpha: isDark ? 0.3 : 0.18),
-        ),
+        color: AppTheme.surfaceCard,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(color: AppTheme.borderDefault),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: AppTheme.statusError.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(
-                  CustomIcons.FluentIcons.warning,
-                  size: 14,
-                  color: AppTheme.statusError,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                t.settingsDangerZoneTitle,
-                style: FluentTheme.of(context).typography.body?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.statusError,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppTheme.statusError.withValues(
+                      alpha: isDark ? 0.10 : 0.08,
                     ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ...children,
-        ],
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(
+                    CustomIcons.FluentIcons.warning,
+                    size: 13,
+                    color: AppTheme.statusError,
+                  ),
+                ),
+                const SizedBox(width: 9),
+                Text(
+                  t.settingsDangerZoneTitle,
+                  style: FluentTheme.of(context).typography.body?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textPrimary,
+                        fontSize: 13,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ...children,
+          ],
+        ),
       ),
     );
   }

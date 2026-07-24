@@ -75,6 +75,7 @@ class AppLoggerService extends ChangeNotifier {
   final Queue<LogEntry> _logs = Queue();
   final int _maxLogs = 1000;
   bool _consoleOutputEnabled = kDebugMode;
+  bool _persistenceEnabled = true;
 
   // 节流：最多每 100ms 通知一次
   Timer? _notifyTimer;
@@ -130,6 +131,15 @@ class AppLoggerService extends ChangeNotifier {
 
   void setConsoleOutputEnabled(bool enabled) {
     _consoleOutputEnabled = enabled;
+  }
+
+  void setPersistenceEnabled(bool enabled) {
+    _persistenceEnabled = enabled;
+    if (!enabled) {
+      _fullLogFlushTimer?.cancel();
+      _fullLogFlushTimer = null;
+      _fullLogBuffer.clear();
+    }
   }
 
   Future<void> initialize() async {
@@ -400,7 +410,7 @@ class AppLoggerService extends ChangeNotifier {
     }
     _version++;
 
-    if (!_isFlutterTest && persist) {
+    if (!_isFlutterTest && persist && _persistenceEnabled) {
       _fullLogBuffer.writeln(entry.format(fullTimestamp: true));
       final shouldFlushImmediately = immediateFlush || !_hasPersistedEntry;
       _hasPersistedEntry = true;

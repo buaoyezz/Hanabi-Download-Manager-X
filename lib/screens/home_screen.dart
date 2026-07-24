@@ -13,6 +13,7 @@ import '../services/app_logger_service.dart';
 import '../services/kernel/kernel_manager.dart';
 import '../services/plugin_diagnostic_logger.dart';
 import '../services/window_effect_service.dart';
+import '../services/window_size_persistence_service.dart';
 import '../services/crash_report_service.dart';
 import '../services/client_config_service.dart';
 import '../services/update_service.dart';
@@ -114,8 +115,6 @@ class _HomeScreenState extends State<HomeScreen>
 
   // 窗口大小监听
   Timer? _windowSizeCheckTimer;
-  double _lastSavedWidth = 0;
-  double _lastSavedHeight = 0;
   bool _forcedUpdateDialogShown = false;
   int _lastHandledMainWindowCommandToken = 0;
   final PluginDiagnosticLogger _diag = PluginDiagnosticLogger();
@@ -669,28 +668,9 @@ class _HomeScreenState extends State<HomeScreen>
 
   /// 启动窗口大小监听
   void _startWindowSizeMonitoring() {
-    // 初始化上次保存的大小
-    windowManager.getSize().then((s) {
-      if (mounted) {
-        _lastSavedWidth = s.width;
-        _lastSavedHeight = s.height;
-      }
-    });
-
-    // 优化：从 3 秒提升到 10 秒，窗口大小变化极少发生，不需要频繁检查
     _windowSizeCheckTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (!mounted) return;
-
-      final currentWidth = MediaQuery.of(context).size.width;
-      final currentHeight = MediaQuery.of(context).size.height;
-
-      // 快速判断：大小没变就跳过，避免不必要的 Provider 查询
-      if ((currentWidth - _lastSavedWidth).abs() <= 1 &&
-          (currentHeight - _lastSavedHeight).abs() <= 1) {
-        return;
-      }
-
-      _checkAndSaveWindowSize();
+      unawaited(_checkAndSaveWindowSize());
     });
   }
 
@@ -700,39 +680,7 @@ class _HomeScreenState extends State<HomeScreen>
 
     try {
       final config = Provider.of<ClientConfigService>(context, listen: false);
-      final rememberSize = config.getWindowRememberSize();
-
-      // 只有在启用记忆大小时才保存
-      if (!rememberSize) return;
-
-      final currentWidth = MediaQuery.of(context).size.width;
-      final currentHeight = MediaQuery.of(context).size.height;
-
-      // 验证窗口大小是否合理（防止保存异常值）
-      // 最小尺寸 600x400，最大尺寸 4096x2160
-      // 窗口最小化时，size 可能会变成很小的值（如 160x28），需要过滤掉
-      if (currentWidth < 600 ||
-          currentHeight < 400 ||
-          currentWidth > 4096 ||
-          currentHeight > 2160) {
-        AppLoggerService().warning('App',
-            'Invalid window size detected: ${currentWidth.toInt()}x${currentHeight.toInt()}, skipping save');
-        return;
-      }
-
-      // 检查大小是否有变化（允许1像素的误差）
-      if ((currentWidth - _lastSavedWidth).abs() > 1 ||
-          (currentHeight - _lastSavedHeight).abs() > 1) {
-        // 保存新的窗口大小
-        await config.setWindowWidth(currentWidth);
-        await config.setWindowHeight(currentHeight);
-
-        _lastSavedWidth = currentWidth;
-        _lastSavedHeight = currentHeight;
-
-        AppLoggerService().debug('App',
-            'Window size saved: ${currentWidth.toInt()}x${currentHeight.toInt()}');
-      }
+      await windowSizePersistenceService.save(config);
     } catch (e) {
       AppLoggerService().error('App', 'Failed to save window size: $e');
     }
@@ -766,7 +714,7 @@ class _HomeScreenState extends State<HomeScreen>
 
     final wasVisible = await windowManager.isVisible();
     if (!wasVisible) {
-      systemTrayService.showMainWindow();
+      await systemTrayService.showMainWindow();
       await Future<void>.delayed(const Duration(milliseconds: 80));
     }
 
@@ -818,44 +766,26 @@ class _HomeScreenState extends State<HomeScreen>
     final kernelManagerIsRunning =
         context.select<KernelManager, bool>((s) => s.isRunning);
 
-    // 合并 WindowEffectService 的多个 select 为单次读取
     final windowEffect = context.watch<WindowEffectService>();
-    final isTransparent = windowEffect.isTransparentBackground;
-    final effectEnabled = windowEffect.effectEnabled;
-    final isWin11Effect = windowEffect.isWindows11 && effectEnabled;
-    final isMica = windowEffect.isMicaEffect;
-    final isAcrylic = windowEffect.effectMode == 'acrylic';
-    final isBlur = windowEffect.effectMode == 'blur';
-    final effectOpacity = (windowEffect.alpha / 255.0).clamp(0.0, 1.0);
+    final material = windowEffect.presentation(
+      solidShell: AppTheme.shellBackground,
+      solidContent: AppTheme.bgBase,
+    );
+    final isWin11Effect =
+        windowEffect.isWindows11 && material.usesNativeBackdrop;
 
-    // 根据窗口效果调整背景透明度
-    final isWindowBackdrop = isTransparent && effectEnabled;
-    final shellMaterialAlpha = isWindowBackdrop
-        ? (isMica
-            ? (isWin11Effect ? 0.05 : 0.22)
-            : isAcrylic
-                ? (isWin11Effect ? 0.035 : 0.12 + effectOpacity * 0.18)
-                : isBlur
-                    ? (isWin11Effect ? 0.04 : 0.10 + effectOpacity * 0.18)
-                    : 0.18)
-        : 0.65;
-    final sidebarOpacity = shellMaterialAlpha;
+    // The title bar, navigation rail, and content pane consume one immutable
+    // material snapshot so a rebuild cannot put them in different modes.
+    final commandingColor = material.commandingLayerColor;
+    final shellColor = material.windowColor;
 
-    // 计算统一的 shell 背景色（标题栏+侧边栏共用）
-    final shellBgAlpha = isWindowBackdrop
-        ? shellMaterialAlpha
-        : lerpDouble(1.0, 0.98, AppTheme.lightProgress)!;
-
-    // 核心修复逻辑：确保 _currentIndex 与 _currentPageId 同步
-    // 这解决了列表项动态增减（如在线统计出现/消失）导致的索引错位
+    // Keep nav index in sync when items are added/removed.
     final correctIndex =
         navItems.indexWhere((item) => item.id == _currentPageId);
 
     if (correctIndex != -1) {
-      // 找到了当前标题对应的页面，更新索引
       _currentIndex = correctIndex;
     } else {
-      // 当前页面不在列表里了（可能是相关功能开关关闭了）
       if (_currentPageId.startsWith('plugin_')) {
         final pluginsIndex =
             navItems.indexWhere((item) => item.id == _pagePlugins);
@@ -864,11 +794,9 @@ class _HomeScreenState extends State<HomeScreen>
           _currentPageId = _pagePlugins;
         }
       }
-      // 检查索引越界情况
       if (_currentIndex >= navItems.length) {
         _currentIndex = navItems.isNotEmpty ? navItems.length - 1 : 0;
       }
-      // 更新当前页面标识
       if (navItems.isNotEmpty) {
         _currentPageId = navItems[_currentIndex].id;
       }
@@ -879,104 +807,105 @@ class _HomeScreenState extends State<HomeScreen>
             !_isMaximized
         ? windowEffect.windowCornerRadius
         : 0.0;
-    Widget shellContent = ClipRRect(
-      borderRadius: BorderRadius.circular(shellCornerRadius),
-      child: Container(
-        // 统一的 shell 背景色（标题栏 + 侧边栏一体）
-        color: AppTheme.shellBackground.withValues(alpha: shellBgAlpha),
-        child: Column(
-          children: [
-            // 顶部标题栏（横跨整个窗口）
-            _buildUnifiedTitleBar(context, sidebarOpacity),
-            // 下方：侧边栏 + 内容区
-            Expanded(
-              child: Row(
-                children: [
-                  // 左侧：侧边栏（无独立背景，继承 shell 背景）
-                  _buildEdgeSidebar(context, navItems, sidebarOpacity),
-                  // 右侧：内容区（左上角圆角，覆盖在 shell 背景上）
-                  Expanded(
-                    child: _buildContentArea(context, isTransparent,
-                        kernelManagerIsRunning, navItems),
-                  ),
-                ],
-              ),
-            ),
-          ],
+
+    // Avoid ClipRRect when radius is 0 — saveLayer can kill DWM transparency.
+    Widget shellBody = Column(
+      children: [
+        ColoredBox(
+          color: commandingColor,
+          child: _buildUnifiedTitleBar(context),
         ),
-      ),
+        Expanded(
+          child: Row(
+            children: [
+              _buildEdgeSidebar(context, navItems, commandingColor),
+              Expanded(
+                child: _buildContentArea(
+                  context,
+                  material,
+                  kernelManagerIsRunning,
+                  navItems,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
 
-    // 统一的模糊效果，覆盖标题栏+侧边栏区域，消除割裂感
-    // 优化：降低 BackdropFilter 的 sigma 值，从 4 降到 2
-    // BackdropFilter 是 GPU 最昂贵的操作之一，sigma 越大开销越大
-    // sigma=2 在视觉上仍有模糊效果，但 GPU 开销降低约 75%
-    if (effectEnabled && isTransparent && !isWin11Effect) {
+    Widget shellContent = ColoredBox(
+      color: shellColor,
+      child: shellBody,
+    );
+
+    if (shellCornerRadius > 0) {
+      shellContent = ClipRRect(
+        borderRadius: BorderRadius.circular(shellCornerRadius),
+        child: shellContent,
+      );
+    }
+
+    // Win10 only: light BackdropFilter. Never on Win11.
+    final shellSigma = material.legacyBlurSigma;
+    if (shellSigma > 0 && !isWin11Effect) {
       shellContent = RepaintBoundary(
         child: BackdropFilter(
-          filter: ImageFilter.blur(
-            sigmaX: isBlur ? 7 : 2,
-            sigmaY: isBlur ? 7 : 2,
-          ),
+          filter: ImageFilter.blur(sigmaX: shellSigma, sigmaY: shellSigma),
           child: shellContent,
         ),
       );
     }
 
-    return Container(child: shellContent);
+    return shellContent;
   }
 
   /// 内容区域 - 根据窗口效果设置决定是否使用模糊
-  Widget _buildContentArea(BuildContext context, bool isTransparent,
-      bool kernelManagerIsRunning, List<NavigationItem> navItems) {
-    // 优化：使用 read 而非 select，因为 build() 中已经 select 了这些值
-    // 这里只需要读取当前值，不需要再次订阅监听
-    final effectService = context.read<WindowEffectService>();
-    final effectEnabled = effectService.effectEnabled;
-    final isMica = effectService.isMicaEffect;
-    final useBlur = effectEnabled && isTransparent;
-    final isWin11Effect = effectService.isWindows11 && effectEnabled;
-    final isAcrylic = effectService.effectMode == 'acrylic';
-    final isBlur = effectService.effectMode == 'blur';
-    final effectOpacity = (effectService.alpha / 255.0).clamp(0.0, 1.0);
+  Widget _buildContentArea(
+    BuildContext context,
+    WindowMaterialPresentation material,
+    bool kernelManagerIsRunning,
+    List<NavigationItem> navItems,
+  ) {
+    final useBackdrop = material.usesNativeBackdrop;
+    final contentColor = material.contentLayerColor;
 
-    // Mica 效果需要更透明的背景
-    final transparentBgAlpha = isMica
-        ? (isWin11Effect ? 0.08 : 0.34)
-        : (useBlur
-            ? (isAcrylic
-                ? (isWin11Effect ? 0.045 : 0.18 + effectOpacity * 0.22)
-                : isBlur
-                    ? (isWin11Effect ? 0.055 : 0.20 + effectOpacity * 0.24)
-                    : 0.24)
-            : 0.95);
-    final bgAlpha = isWin11Effect && useBlur
-        ? transparentBgAlpha
-        : lerpDouble(transparentBgAlpha, 0.98, AppTheme.lightProgress)!;
-
-    final contentContainer = Container(
-      decoration: BoxDecoration(
-        color: AppTheme.bgBase.withValues(alpha: bgAlpha),
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(8),
-        ),
-      ),
-      clipBehavior: Clip.hardEdge,
-      child: PageTransition(
-        pageKey: _currentPageId,
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOutCubic,
-        child: _buildPageContent(kernelManagerIsRunning, navItems),
-      ),
+    const contentBorderRadius = BorderRadius.only(
+      topLeft: Radius.circular(8),
     );
+    final pageContent = PageTransition(
+      pageKey: _currentPageId,
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      child: _buildPageContent(kernelManagerIsRunning, navItems),
+    );
+
+    if (!useBackdrop) {
+      return Container(
+        decoration: BoxDecoration(
+          color: AppTheme.bgBase,
+          borderRadius: contentBorderRadius,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: pageContent,
+      );
+    }
 
     // 优化：移除内容区独立的 BackdropFilter，由外层 shell 统一处理模糊
     // 双层 BackdropFilter 是 GPU 卡顿的主要原因
+    final contentContainer = Container(
+      decoration: BoxDecoration(
+        color: contentColor,
+        borderRadius: contentBorderRadius,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: pageContent,
+    );
+
     return contentContainer;
   }
 
   /// 统一的顶部标题栏 - 横跨整个窗口
-  Widget _buildUnifiedTitleBar(BuildContext context, double opacity) {
+  Widget _buildUnifiedTitleBar(BuildContext context) {
     final windowWidth = MediaQuery.of(context).size.width;
     final isMicroWidth = windowWidth < 200;
     final menuWidth = isMicroWidth ? 40.0 : 44.0;
@@ -1379,7 +1308,10 @@ class _HomeScreenState extends State<HomeScreen>
 
   /// Edge 风格侧边栏 - 只包含导航项（优化版，减少重建）
   Widget _buildEdgeSidebar(
-      BuildContext context, List<NavigationItem> navItems, double opacity) {
+    BuildContext context,
+    List<NavigationItem> navItems,
+    Color commandingColor,
+  ) {
     return RepaintBoundary(
       child: AnimatedBuilder(
         animation: _widthAnimation,
@@ -1434,7 +1366,10 @@ class _HomeScreenState extends State<HomeScreen>
                   child: SizedBox(
                     width: width,
                     // 不再单独模糊侧边栏，由外层 shell 统一处理
-                    child: sidebarContent,
+                    child: ColoredBox(
+                      color: commandingColor,
+                      child: sidebarContent,
+                    ),
                   ),
                 ),
               ),
@@ -1857,7 +1792,6 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
   late Animation<double> _selectAnimation;
   late AnimationController _hoverController;
   bool _isHovered = false;
-  bool _isPressed = false;
   bool _loggedBuild = false;
   final PluginDiagnosticLogger _diag = PluginDiagnosticLogger();
 
@@ -1954,19 +1888,6 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
     }
   }
 
-  void _onTapDown(TapDownDetails _) {
-    setState(() => _isPressed = true);
-  }
-
-  void _onTapUp(TapUpDetails _) {
-    setState(() => _isPressed = false);
-    widget.onTap();
-  }
-
-  void _onTapCancel() {
-    setState(() => _isPressed = false);
-  }
-
   @override
   Widget build(BuildContext context) {
     if (widget.pluginId != null && !_loggedBuild) {
@@ -1989,26 +1910,14 @@ class _NavItemState extends State<_NavItem> with TickerProviderStateMixin {
         onEnter: _onEnter,
         onExit: _onExit,
         child: GestureDetector(
-          onTapDown: _onTapDown,
-          onTapUp: _onTapUp,
-          onTapCancel: _onTapCancel,
+          onTap: widget.onTap,
+          behavior: HitTestBehavior.opaque,
           child: AnimatedBuilder(
             animation: Listenable.merge([_selectAnimation, _hoverController]),
             builder: (context, child) {
               final selectValue = _selectAnimation.value;
               final hoverValue = _hoverController.value;
-              final pressValue = _isPressed ? 1.0 : 0.0;
-
-              // 悬停时轻微放大 (1.0 → 1.025)，按压时保持原样
-              final hoverScale = 1.0 + (hoverValue * 0.025);
-              final pressScale = 1.0 - (pressValue * 0.02);
-              final scale = hoverScale * pressScale;
-
-              return Transform.scale(
-                scale: scale,
-                alignment: Alignment.center,
-                child: _buildNavContent(hoverValue, selectValue),
-              );
+              return _buildNavContent(hoverValue, selectValue);
             },
           ),
         ),
