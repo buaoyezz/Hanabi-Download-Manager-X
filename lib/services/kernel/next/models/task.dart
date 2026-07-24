@@ -16,6 +16,8 @@ class Task {
   int threadCount;
   double peakSpeed;
   double averageSpeed;
+  int measuredTransferBytes;
+  int activeTransferMicros;
   DateTime? startTime;
   DateTime? endTime;
   DateTime createdTime;
@@ -38,6 +40,7 @@ class Task {
   String? resumeDecisionReason;
   int? hostConcurrencyCap;
   String? hostConcurrencyReason;
+  int? expectedSizeHint;
 
   Task({
     required this.id,
@@ -54,6 +57,8 @@ class Task {
     this.threadCount = 1,
     this.peakSpeed = 0,
     this.averageSpeed = 0,
+    this.measuredTransferBytes = 0,
+    this.activeTransferMicros = 0,
     this.startTime,
     this.endTime,
     DateTime? createdTime,
@@ -75,6 +80,7 @@ class Task {
     this.resumeDecisionReason,
     this.hostConcurrencyCap,
     this.hostConcurrencyReason,
+    this.expectedSizeHint,
   })  : createdTime = createdTime ?? DateTime.now(),
         segments = segments ?? [];
 
@@ -111,6 +117,8 @@ class Task {
         'threadCount': threadCount,
         'peakSpeed': peakSpeed,
         'averageSpeed': averageSpeed,
+        'measuredTransferBytes': measuredTransferBytes,
+        'activeTransferMicros': activeTransferMicros,
         'startTime': startTime?.toIso8601String(),
         'endTime': endTime?.toIso8601String(),
         'createdTime': createdTime.toIso8601String(),
@@ -123,10 +131,12 @@ class Task {
         'ifRangeValidator': ifRangeValidator,
         'httpConnectionType': httpConnectionType,
         'resumeSafetyLevel': resumeSafetyLevel,
+        'resumeDataOrigin': resumeDataOrigin,
         'resumeDecisionLabel': resumeDecisionLabel,
         'resumeDecisionReason': resumeDecisionReason,
         'hostConcurrencyCap': hostConcurrencyCap,
         'hostConcurrencyReason': hostConcurrencyReason,
+        'expectedSizeHint': expectedSizeHint,
       };
 }
 

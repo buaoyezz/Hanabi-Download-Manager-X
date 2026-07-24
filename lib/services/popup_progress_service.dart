@@ -5,6 +5,11 @@ import '../models/download_task.dart';
 import 'integrated_download_service.dart';
 import 'logger_service.dart';
 
+int? _readPositiveInt(Object? raw) {
+  final value = raw is num ? raw.toInt() : int.tryParse('$raw');
+  return value != null && value > 0 ? value : null;
+}
+
 /// 下载进度数据，用于推送给弹窗
 class DownloadProgressData {
   final String taskId;
@@ -49,17 +54,20 @@ class SegmentProgressData {
   final int index;
   final double progress;
   final String status;
+  final int size;
 
   SegmentProgressData({
     required this.index,
     required this.progress,
     required this.status,
+    required this.size,
   });
 
   Map<String, dynamic> toJson() => {
         'index': index,
         'progress': progress,
         'status': status,
+        'size': size,
       };
 }
 
@@ -107,8 +115,9 @@ class PopupProgressService {
     if (_clients.isEmpty) {
       _broadcastTimer?.cancel();
       _broadcastTimer = null;
-    } else if (_broadcastTimer == null) {
-      _broadcastTimer = Timer.periodic(const Duration(milliseconds: 200), (_) {
+    } else {
+      _broadcastTimer ??=
+          Timer.periodic(const Duration(milliseconds: 200), (_) {
         _broadcastProgress();
       });
     }
@@ -273,6 +282,9 @@ class PopupProgressService {
                 (key, value) => MapEntry(key.toString(), value),
               )
             : null;
+        final expectedSizeHint = _readPositiveInt(
+          json['file_size'] ?? json['fileSize'] ?? json['total_bytes'],
+        );
 
         if (url != null && filename != null) {
           _logger.info('Received download request via HTTP: $filename');
@@ -284,6 +296,7 @@ class PopupProgressService {
             cookies: cookies,
             headers: headers,
             saveDir: (savePath?.isNotEmpty ?? false) ? savePath : null,
+            expectedSizeHint: expectedSizeHint,
           );
           if (taskId == null) {
             throw StateError(
@@ -510,6 +523,7 @@ class PopupProgressService {
                   index: e.key,
                   progress: e.value.progress,
                   status: e.value.status,
+                  size: e.value.endByte - e.value.startByte,
                 ))
             .toList() ??
         [];

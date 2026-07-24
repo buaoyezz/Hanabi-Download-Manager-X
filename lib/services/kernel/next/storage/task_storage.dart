@@ -116,26 +116,33 @@ class TaskStorage {
     final json = await _readJsonMapWithRecovery(_tasksFile, label: 'tasks');
     if (json == null) return {};
 
-    try {
-      final tasks = <String, Task>{};
-      for (final entry in json.entries) {
-        tasks[entry.key] = _taskFromJson(entry.value);
+    final tasks = <String, Task>{};
+    for (final entry in json.entries) {
+      try {
+        final value = entry.value;
+        if (value is! Map) continue;
+        tasks[entry.key] = _taskFromJson(Map<String, dynamic>.from(value));
+      } catch (error) {
+        // One malformed legacy task must not hide every other recoverable
+        // download in the file.
+        print('[TaskStorage] Skipped invalid task ${entry.key}: $error');
       }
-      return tasks;
-    } catch (_) {
-      return {};
     }
+    return tasks;
   }
 
   Future<void> saveTasks(Map<String, Task> tasks) async {
+    // Capture an immutable point-in-time snapshot before the write is queued.
+    // Active download tasks keep mutating while an earlier atomic write is in
+    // progress; serializing inside the queued callback could otherwise persist
+    // a mixture of states from different moments.
+    final json = <String, dynamic>{};
+    for (final entry in tasks.entries) {
+      json[entry.key] = _taskToJson(entry.value);
+    }
+
     await _enqueueWrite(() async {
       await init();
-
-      final json = <String, dynamic>{};
-      for (final entry in tasks.entries) {
-        json[entry.key] = _taskToJson(entry.value);
-      }
-
       await _writeJsonAtomic(_tasksFile, json);
     });
   }
@@ -149,10 +156,18 @@ class TaskStorage {
       final config = NsfxConfig.fromJson(json);
       var shouldPersist = false;
 
-      // 确保 maxRetries 至少为 200（IDM 风格）
-      // 旧配置可能保存了较小的值
-      if (config.maxRetries < 200) {
-        config.maxRetries = 200;
+      // Clamp extreme legacy values (e.g. forced 200+) to the stability budget.
+      final normalizedRetries =
+          NsfxRetryPolicy.effectiveMaxRetries(config.maxRetries);
+      if (config.maxRetries != normalizedRetries) {
+        config.maxRetries = normalizedRetries;
+        shouldPersist = true;
+      }
+
+      final normalizedConnections =
+          NsfxConnectionBudget.normalize(config.globalMaxConnections);
+      if (config.globalMaxConnections != normalizedConnections) {
+        config.globalMaxConnections = normalizedConnections;
         shouldPersist = true;
       }
 
@@ -211,8 +226,11 @@ class TaskStorage {
   }
 
   Future<void> _enqueueWrite(Future<void> Function() action) {
-    _writeQueue = _writeQueue.then((_) => action()).catchError((_) {});
-    return _writeQueue;
+    final operation = _writeQueue.then((_) => action());
+    // Keep the serialization tail alive after an error, but return the real
+    // operation so callers can log or react to persistence failures.
+    _writeQueue = operation.catchError((_) {});
+    return operation;
   }
 
   Future<void> _writeJsonAtomic(File target, Map<String, dynamic> json) async {
@@ -320,6 +338,7 @@ class TaskStorage {
           } catch (_) {}
         }
         print('[TaskStorage] Failed to write file: $e');
+        rethrow;
       }
     }
   }
@@ -360,6 +379,8 @@ class TaskStorage {
         'threadCount': task.threadCount,
         'peakSpeed': task.peakSpeed,
         'averageSpeed': task.averageSpeed,
+        'measuredTransferBytes': task.measuredTransferBytes,
+        'activeTransferMicros': task.activeTransferMicros,
         'startTime': task.startTime?.toIso8601String(),
         'endTime': task.endTime?.toIso8601String(),
         'createdTime': task.createdTime.toIso8601String(),
@@ -380,6 +401,7 @@ class TaskStorage {
         'resumeDecisionReason': task.resumeDecisionReason,
         'hostConcurrencyCap': task.hostConcurrencyCap,
         'hostConcurrencyReason': task.hostConcurrencyReason,
+        'expectedSizeHint': task.expectedSizeHint,
         'segments': task.segments
             .map((s) => {
                   'index': s.index,
@@ -388,6 +410,7 @@ class TaskStorage {
                   'downloadedBytes': s.downloadedBytes,
                   'status': s.status.name,
                   'retryCount': s.retryCount,
+                  'lastError': s.lastError,
                 })
             .toList(),
       };
@@ -411,6 +434,10 @@ class TaskStorage {
       threadCount: json['threadCount'] ?? 1,
       peakSpeed: (json['peakSpeed'] ?? 0).toDouble(),
       averageSpeed: (json['averageSpeed'] ?? 0).toDouble(),
+      measuredTransferBytes:
+          (json['measuredTransferBytes'] as num?)?.toInt() ?? 0,
+      activeTransferMicros:
+          (json['activeTransferMicros'] as num?)?.toInt() ?? 0,
       startTime:
           json['startTime'] != null ? DateTime.parse(json['startTime']) : null,
       endTime: json['endTime'] != null ? DateTime.parse(json['endTime']) : null,
@@ -438,6 +465,7 @@ class TaskStorage {
       resumeDecisionReason: json['resumeDecisionReason']?.toString(),
       hostConcurrencyCap: (json['hostConcurrencyCap'] as num?)?.toInt(),
       hostConcurrencyReason: json['hostConcurrencyReason']?.toString(),
+      expectedSizeHint: (json['expectedSizeHint'] as num?)?.toInt(),
     );
 
     if (json['segments'] != null) {
@@ -452,6 +480,7 @@ class TaskStorage {
             orElse: () => SegmentStatus.pending,
           ),
           retryCount: s['retryCount'] ?? 0,
+          lastError: s['lastError']?.toString(),
         ));
       }
     }

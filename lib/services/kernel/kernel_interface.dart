@@ -11,6 +11,9 @@ enum DownloadStatus {
 }
 
 class DownloadTask {
+  static const String nsfxKernelId = 'nsfx_v1';
+  static const String neoNsfKernelId = 'neo_nsf';
+
   final String id;
   final String url;
   final String filename;
@@ -38,6 +41,7 @@ class DownloadTask {
   int? hostConcurrencyCap;
   String? hostConcurrencyReason;
   List<SegmentInfo> segments;
+  final String kernelId;
 
   DownloadTask({
     required this.id,
@@ -65,6 +69,7 @@ class DownloadTask {
     this.resumeDecisionReason,
     this.hostConcurrencyCap,
     this.hostConcurrencyReason,
+    this.kernelId = nsfxKernelId,
     DateTime? createdTime, // optional persisted creation time
     List<SegmentInfo>? segments,
   })  : createdTime = createdTime ?? DateTime.now(),
@@ -97,6 +102,8 @@ class DownloadTask {
         'resumeDecisionReason': resumeDecisionReason,
         'hostConcurrencyCap': hostConcurrencyCap,
         'hostConcurrencyReason': hostConcurrencyReason,
+        'kernelId': kernelId,
+        'downloadCore': kernelId == neoNsfKernelId ? 'NeoNSFX' : 'NSFX',
         'segments': segments.map((s) => s.toJson()).toList(),
       };
 
@@ -142,6 +149,7 @@ class DownloadTask {
         resumeDecisionReason: json['resumeDecisionReason']?.toString(),
         hostConcurrencyCap: (json['hostConcurrencyCap'] as num?)?.toInt(),
         hostConcurrencyReason: json['hostConcurrencyReason']?.toString(),
+        kernelId: json['kernelId']?.toString() ?? nsfxKernelId,
         createdTime: json['createdTime'] != null
             ? DateTime.tryParse(json['createdTime'].toString())
             : null, // parse creation time
@@ -238,6 +246,10 @@ class DownloadConfig {
   String conflictStrategy;
   String defaultUserAgent;
   String httpVersionPolicy;
+  bool allowInsecureTls;
+  int globalMaxConnections;
+  int connectionTimeout;
+  int readTimeout;
   ProxyConfig? proxy;
 
   DownloadConfig({
@@ -251,6 +263,10 @@ class DownloadConfig {
     this.conflictStrategy = 'increment',
     this.defaultUserAgent = defaultUserAgentFallback,
     this.httpVersionPolicy = 'auto',
+    this.allowInsecureTls = false,
+    this.globalMaxConnections = 32,
+    this.connectionTimeout = 30,
+    this.readTimeout = 120,
     this.proxy,
   });
 
@@ -265,6 +281,10 @@ class DownloadConfig {
         'conflict_strategy': conflictStrategy,
         'default_user_agent': defaultUserAgent,
         'http_version_policy': httpVersionPolicy,
+        'allow_insecure_tls': allowInsecureTls,
+        'global_max_connections': globalMaxConnections,
+        'connection_timeout': connectionTimeout,
+        'read_timeout': readTimeout,
         'proxy': proxy?.toJson(),
       };
 
@@ -296,6 +316,14 @@ class DownloadConfig {
           (json['http_version_policy'] ?? json['httpVersionPolicy'])
               ?.toString(),
         ),
+        allowInsecureTls:
+            json['allow_insecure_tls'] ?? json['allowInsecureTls'] ?? false,
+        globalMaxConnections: json['global_max_connections'] ??
+            json['globalMaxConnections'] ??
+            32,
+        connectionTimeout:
+            json['connection_timeout'] ?? json['connectionTimeout'] ?? 30,
+        readTimeout: json['read_timeout'] ?? json['readTimeout'] ?? 120,
         proxy:
             json['proxy'] != null ? ProxyConfig.fromJson(json['proxy']) : null,
       );
@@ -392,6 +420,7 @@ abstract class KernelInterface {
     Map<String, dynamic>? headers,
     String? saveDir,
     bool startPaused = false,
+    int? expectedSizeHint,
   });
 
   Future<bool> pauseDownload(String taskId);

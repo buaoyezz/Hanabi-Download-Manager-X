@@ -142,24 +142,20 @@ class IntegratedDownloadService extends ChangeNotifier {
 
       // 监听进度更新
       final progressStream = _kernelManager.onProgress;
-      if (progressStream != null) {
-        _progressSubscription = progressStream.listen((task) {
-          _appLogger.debug('App',
-              'Stream progress: ${task.filename} - ${task.progress.toStringAsFixed(1)}%');
-          _handleStreamUpdate(task);
-        });
-        _appLogger.info('App', 'Subscribed to progress stream');
-      }
+      _progressSubscription = progressStream.listen((task) {
+        _appLogger.debug('App',
+            'Stream progress: ${task.filename} - ${task.progress.toStringAsFixed(1)}%');
+        _handleStreamUpdate(task);
+      });
+      _appLogger.info('App', 'Subscribed to progress stream');
 
       // 监听完成事件
       final completeStream = _kernelManager.onComplete;
-      if (completeStream != null) {
-        _completeSubscription = completeStream.listen((task) {
-          _appLogger.info('App', 'Stream complete: ${task.filename}');
-          _handleStreamUpdate(task);
-        });
-        _appLogger.info('App', 'Subscribed to complete stream');
-      }
+      _completeSubscription = completeStream.listen((task) {
+        _appLogger.info('App', 'Stream complete: ${task.filename}');
+        _handleStreamUpdate(task);
+      });
+      _appLogger.info('App', 'Subscribed to complete stream');
     }
   }
 
@@ -554,6 +550,10 @@ class IntegratedDownloadService extends ChangeNotifier {
       'resumeDecisionReason': task.resumeDecisionReason,
       'hostConcurrencyCap': task.hostConcurrencyCap,
       'hostConcurrencyReason': task.hostConcurrencyReason,
+      'kernelId': task.kernelId,
+      'downloadCore': task.kernelId == kernel.DownloadTask.neoNsfKernelId
+          ? 'NeoNSFX'
+          : 'NSFX',
       'segments': task.segments
           .map((s) => {
                 'index': s.index,
@@ -649,7 +649,10 @@ class IntegratedDownloadService extends ChangeNotifier {
         : null;
     final threadCount = kernelTask['threadCount'] as int?;
     final segmentCount = segments?.length;
-    final downloadCore = kernelTask['downloadCore'] as String? ?? 'NSF-X';
+    final kernelId =
+        kernelTask['kernelId']?.toString() ?? kernel.DownloadTask.nsfxKernelId;
+    final downloadCore = kernelTask['downloadCore']?.toString() ??
+        (kernelId == kernel.DownloadTask.neoNsfKernelId ? 'NeoNSFX' : 'NSFX');
     final effectiveHttpVersionPolicy =
         kernelTask['effectiveHttpVersionPolicy']?.toString();
     final negotiatedHttpVersion =
@@ -743,6 +746,7 @@ class IntegratedDownloadService extends ChangeNotifier {
     Map<String, dynamic>? headers,
     String? saveDir,
     bool startPaused = false,
+    int? expectedSizeHint,
   }) async {
     _lastAddTaskError = null;
     // 检查是否是测试任务
@@ -784,6 +788,7 @@ class IntegratedDownloadService extends ChangeNotifier {
         headers: headers,
         saveDir: saveDir,
         startPaused: startPaused,
+        expectedSizeHint: expectedSizeHint,
       ),
     );
 
@@ -848,6 +853,7 @@ class IntegratedDownloadService extends ChangeNotifier {
     Map<String, dynamic>? headers,
     String? saveDir,
     bool startPaused = false,
+    int? expectedSizeHint,
   }) async {
     final result = await _intentDispatcher.dispatch(
       DownloadDispatchRequest(
@@ -859,6 +865,7 @@ class IntegratedDownloadService extends ChangeNotifier {
         headers: headers,
         saveDir: saveDir,
         startPaused: startPaused,
+        expectedSizeHint: expectedSizeHint,
       ),
     );
     _lastAddTaskError = result.accepted ? null : result.message;
@@ -1169,6 +1176,8 @@ class IntegratedDownloadService extends ChangeNotifier {
       'conflict_strategy': config.conflictStrategy,
       'default_user_agent': config.defaultUserAgent,
       'http_version_policy': config.httpVersionPolicy,
+      'allow_insecure_tls': config.allowInsecureTls,
+      'global_max_connections': config.globalMaxConnections,
       'proxy': config.proxy != null
           ? {
               'enabled': config.proxy!.enabled,
@@ -1194,6 +1203,8 @@ class IntegratedDownloadService extends ChangeNotifier {
     String? conflictStrategy,
     String? defaultUserAgent,
     String? httpVersionPolicy,
+    bool? allowInsecureTls,
+    int? globalMaxConnections,
     Map<String, dynamic>? proxyConfig,
   }) async {
     final existing = await _kernelManager.getConfig();
@@ -1229,13 +1240,16 @@ class IntegratedDownloadService extends ChangeNotifier {
           kernel.DownloadConfig.defaultUserAgentFallback,
       httpVersionPolicy:
           httpVersionPolicy ?? existing?.httpVersionPolicy ?? 'auto',
+      allowInsecureTls: allowInsecureTls ?? existing?.allowInsecureTls ?? false,
+      globalMaxConnections:
+          globalMaxConnections ?? existing?.globalMaxConnections ?? 32,
       proxy: proxy ?? existing?.proxy,
     );
     final success = await _kernelManager.setConfig(config);
 
     if (success) {
       _appLogger.info('App',
-          'Download config updated: threads=$threads, segments=$segments, mode=$mode, concurrent=$maxConcurrentTasks, segLimit=$segmentSpeedLimit, globalLimit=$globalSpeedLimit, dynamicSegments=$enableDynamicSegments, proxy=${proxyConfig != null ? 'enabled' : 'unchanged'}');
+          'Download config updated: threads=$threads, segments=$segments, mode=$mode, concurrent=$maxConcurrentTasks, segLimit=$segmentSpeedLimit, globalLimit=$globalSpeedLimit, dynamicSegments=$enableDynamicSegments, allowInsecureTls=$allowInsecureTls, globalMaxConnections=$globalMaxConnections, proxy=${proxyConfig != null ? 'enabled' : 'unchanged'}');
     }
     return success;
   }

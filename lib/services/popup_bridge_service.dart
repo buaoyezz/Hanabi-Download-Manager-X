@@ -57,6 +57,7 @@ class PopupBridgeService {
         cookies: request.cookies,
         headers: request.headers,
         saveDir: saveDir.isEmpty ? null : saveDir,
+        expectedSizeHint: request.expectedSizeHint,
       );
 
       if (taskId == null) {

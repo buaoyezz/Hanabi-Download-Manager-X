@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import '../nsfx_kernel.dart';
 import '../../kernel_interface.dart';
 import '../../../app_logger_service.dart';
 import '../../../client_config_service.dart';
@@ -9,7 +8,7 @@ import '../../../client_config_service.dart';
 class NsfxHttpServer {
   HttpServer? _primaryServer;
   final List<HttpServer> _compatibilityServers = [];
-  final NsfxKernel _kernel;
+  final KernelInterface _kernel;
   final int port;
   final Set<int> compatibilityPorts;
   bool _isRunning = false;
@@ -372,6 +371,7 @@ class NsfxHttpServer {
       headers: headers,
       saveDir: (saveDir?.trim().isNotEmpty ?? false) ? saveDir!.trim() : null,
       startPaused: !clientConfig.getAutoStartDownload(),
+      expectedSizeHint: (downloadData['file_size'] as num?)?.toInt(),
     );
 
     if (taskId == null) {
@@ -544,6 +544,8 @@ class NsfxHttpServer {
               'conflict_strategy': config.conflictStrategy,
               'default_user_agent': config.defaultUserAgent,
               'http_version_policy': config.httpVersionPolicy,
+              'allow_insecure_tls': config.allowInsecureTls,
+              'global_max_connections': config.globalMaxConnections,
               'proxy': config.proxy != null
                   ? {
                       'enabled': config.proxy!.enabled,
@@ -604,6 +606,10 @@ class NsfxHttpServer {
       httpVersionPolicy:
           (body['http_version_policy'] ?? current?.httpVersionPolicy ?? 'auto')
               .toString(),
+      allowInsecureTls:
+          body['allow_insecure_tls'] ?? current?.allowInsecureTls ?? false,
+      globalMaxConnections:
+          body['global_max_connections'] ?? current?.globalMaxConnections ?? 32,
       proxy: proxy,
     );
 
@@ -876,36 +882,7 @@ class NsfxHttpServer {
   }
 
   Map<String, dynamic> _taskToJson(DownloadTask task) {
-    return {
-      'id': task.id,
-      'url': task.url,
-      'filename': task.filename,
-      'filepath': task.filepath,
-      'status': task.status.name,
-      'totalSize': task.totalSize,
-      'downloadedSize': task.downloadedSize,
-      'speed': task.speed,
-      'progress': task.progress,
-      'eta': task.eta,
-      'errorMessage': task.errorMessage,
-      'threadCount': task.threadCount,
-      'peakSpeed': task.peakSpeed,
-      'averageSpeed': task.averageSpeed,
-      'startTime': task.startTime?.toIso8601String(),
-      'endTime': task.endTime?.toIso8601String(),
-      'segments': task.segments
-          .map((s) => {
-                'index': s.index,
-                'startByte': s.startByte,
-                'endByte': s.endByte,
-                'downloadedBytes': s.downloadedBytes,
-                'speed': s.speed,
-                'status': s.status,
-                'retryCount': s.retryCount,
-                'progress': s.progress,
-              })
-          .toList(),
-    };
+    return task.toJson();
   }
 
   Future<Map<String, dynamic>> _readBody(HttpRequest request) async {

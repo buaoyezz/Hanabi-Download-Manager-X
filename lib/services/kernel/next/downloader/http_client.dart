@@ -144,6 +144,7 @@ class NsfxHttpClient {
     int? maxConnectionsPerHost,
     bool autoUncompress = false,
     String? userAgent,
+    bool allowInsecureTls = false,
   }) {
     final normalizedPolicy =
         NsfxHttpVersionPolicy.fallbackChainForDartIo(httpVersionPolicy).first;
@@ -176,7 +177,11 @@ class NsfxHttpClient {
       client.maxConnectionsPerHost = maxConnectionsPerHost;
     }
     client.autoUncompress = autoUncompress;
-    client.badCertificateCallback = (cert, host, port) => true;
+    if (allowInsecureTls) {
+      client.badCertificateCallback = (cert, host, port) => true;
+    } else {
+      client.badCertificateCallback = null;
+    }
 
     final normalizedAgent = (userAgent ?? '').trim();
     if (normalizedAgent.isNotEmpty) {
@@ -357,8 +362,8 @@ class NsfxHttpClient {
       maxConnectionsPerHost: maxConnectionsPerHost,
       autoUncompress: autoUncompress,
       userAgent: config.defaultUserAgent,
+      allowInsecureTls: config.allowInsecureTls,
     );
-
     _applyProxy(httpClient, proxy: proxy);
     return Future<HttpClient>.value(httpClient);
   }
@@ -401,12 +406,24 @@ class NsfxHttpClient {
       }
     }
     if (requestedPolicy != activePolicy) {
-      _logger.warning(
-        'NSFX-HTTP',
-        'HTTP policy fallback chain activated: '
-            'requested=$requestedPolicy, active=$activePolicy, '
-            'chain=${_httpPolicyFallbackChain.join(' -> ')}',
-      );
+      final scheme =
+          Uri.tryParse(_activeRequestUrl ?? '')?.scheme.toLowerCase();
+      final isSchemeResolution =
+          scheme == 'http' && activePolicy == NsfxHttpVersionPolicy.http1Only;
+      final message = isSchemeResolution
+          ? 'HTTP policy resolved for cleartext URL: '
+              'requested=$requestedPolicy, active=$activePolicy'
+          : 'HTTP policy fallback chain activated: '
+              'requested=$requestedPolicy, active=$activePolicy, '
+              'chain=${_httpPolicyFallbackChain.join(' -> ')}';
+      if (isSchemeResolution) {
+        _logger.info('NSFX-HTTP', message);
+      } else {
+        _logger.warning(
+          'NSFX-HTTP',
+          message,
+        );
+      }
     }
     _logger.info('NSFX-HTTP', 'HTTP policy active: $activePolicy');
 
@@ -441,8 +458,21 @@ class NsfxHttpClient {
     Map<String, String> headers, {
     Duration? probeDeadline,
     Duration? strictProbeTimeoutCap,
+    bool allowCached = true,
   }) async {
     adoptAdaptivePolicyHint(url);
+    if (allowCached) {
+      final cached = NsfxHostMetadataCache.get(url);
+      if (cached != null && cached.size > 0) {
+        _logger.debug(
+          'NSFX-HTTP',
+          'Using cached host metadata for probe: size=${cached.size}, '
+              'range=${cached.supportsRange}',
+        );
+        return cached;
+      }
+    }
+
     final result = await _getFileInfoInternal(
       url,
       headers,
@@ -457,14 +487,21 @@ class NsfxHttpClient {
         'Proxy probe failed (proxyError=${result.proxyError}), falling back to direct connection',
       );
       _switchToDirectConnection();
-      return _getFileInfoInternal(
+      final fallback = await _getFileInfoInternal(
         url,
         headers,
         probeDeadline: probeDeadline,
         strictProbeTimeoutCap: strictProbeTimeoutCap,
       );
+      if (fallback.size > 0) {
+        NsfxHostMetadataCache.put(url, fallback);
+      }
+      return fallback;
     }
 
+    if (result.size > 0) {
+      NsfxHostMetadataCache.put(url, result);
+    }
     return result;
   }
 
@@ -552,8 +589,8 @@ class NsfxHttpClient {
         connectTimeout: connectionTimeout,
         keepAliveTimeout: idleTimeout,
       ),
-      tlsSettings: const rhttp.TlsSettings(
-        verifyCertificates: false,
+      tlsSettings: rhttp.TlsSettings(
+        verifyCertificates: !config.allowInsecureTls,
       ),
       proxySettings: proxySettings,
       userAgent: userAgent.isEmpty ? null : userAgent,
@@ -1961,6 +1998,15 @@ class NsfxHttpClient {
   NsfxResolvedProxy getActiveProxySettings([String? url]) =>
       _resolveProxyForUrl(url);
 
+  Future<void> abortActiveRequests() async {
+    // `HttpClient.close(force: true)` destroys active and idle connections.
+    // Do not call `HttpClientResponse.detachSocket()` here: dart:io removes the
+    // connection from its client before the detach future completes. If that
+    // future waits for an in-flight parser and times out, the client can no
+    // longer find (and therefore cannot force-close) the live socket.
+    _resetClientState();
+  }
+
   void close() {
     _resetClientState();
     _lastNegotiatedHttpVersion = null;
@@ -2496,4 +2542,47 @@ class _RhttpHttpHeaders implements HttpHeaders {
     }
     return values.first;
   }
+}
+
+/// Warm-host metadata cache to skip repeated size/range probes.
+class NsfxHostMetadataCache {
+  static const Duration ttl = Duration(minutes: 30);
+  static final Map<String, _HostMetadataEntry> _entries = {};
+
+  static String cacheKey(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return url;
+    return '${uri.scheme}://${uri.host}${uri.path}';
+  }
+
+  static FileInfo? get(String url) {
+    final key = cacheKey(url);
+    final entry = _entries[key];
+    if (entry == null) return null;
+    if (DateTime.now().isAfter(entry.expiresAt)) {
+      _entries.remove(key);
+      return null;
+    }
+    return entry.info;
+  }
+
+  static void put(String url, FileInfo info) {
+    if (info.size <= 0) return;
+    _entries[cacheKey(url)] = _HostMetadataEntry(
+      info: info,
+      expiresAt: DateTime.now().add(ttl),
+    );
+  }
+
+  static void clear() => _entries.clear();
+}
+
+class _HostMetadataEntry {
+  final FileInfo info;
+  final DateTime expiresAt;
+
+  _HostMetadataEntry({
+    required this.info,
+    required this.expiresAt,
+  });
 }

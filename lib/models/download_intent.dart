@@ -2,6 +2,7 @@ enum DownloadIntentType {
   http,
   magnet,
   torrentFile,
+  ed2k,
   resolver,
   custom,
   unsupported,
@@ -16,6 +17,8 @@ extension DownloadIntentTypeName on DownloadIntentType {
         return 'magnet';
       case DownloadIntentType.torrentFile:
         return 'torrent_file';
+      case DownloadIntentType.ed2k:
+        return 'ed2k';
       case DownloadIntentType.resolver:
         return 'resolver';
       case DownloadIntentType.custom:
@@ -35,6 +38,9 @@ extension DownloadIntentTypeName on DownloadIntentType {
       case 'torrentfile':
       case 'torrent':
         return DownloadIntentType.torrentFile;
+      case 'ed2k':
+      case 'edonkey':
+        return DownloadIntentType.ed2k;
       case 'resolver':
         return DownloadIntentType.resolver;
       case 'custom':
@@ -67,6 +73,7 @@ class DownloadIntent {
   bool get isHttp => type == DownloadIntentType.http;
   bool get isMagnet => type == DownloadIntentType.magnet;
   bool get isTorrentFile => type == DownloadIntentType.torrentFile;
+  bool get isEd2k => type == DownloadIntentType.ed2k;
   bool get isResolver => type == DownloadIntentType.resolver;
   bool get isCustom => type == DownloadIntentType.custom;
 
@@ -127,6 +134,17 @@ class DownloadIntent {
         normalizedValue: '',
         type: DownloadIntentType.unsupported,
         uri: null,
+        sourceMeta: meta,
+        pluginHint: hint,
+      );
+    }
+
+    if (_looksLikeEd2kFileLink(value)) {
+      return DownloadIntent._(
+        rawValue: value,
+        normalizedValue: _normalizeEd2kFileLink(value),
+        type: DownloadIntentType.ed2k,
+        uri: Uri.tryParse(value),
         sourceMeta: meta,
         pluginHint: hint,
       );
@@ -239,6 +257,8 @@ class DownloadIntent {
         return _sanitizeFileName(_magnetDisplayName(uri));
       case DownloadIntentType.torrentFile:
         return _sanitizeFileName(_fileNameFromPath(normalizedValue));
+      case DownloadIntentType.ed2k:
+        return _sanitizeFileName(_ed2kFileName(normalizedValue));
       case DownloadIntentType.resolver:
         return _sanitizeFileName(_resolverDisplayName(uri));
       case DownloadIntentType.custom:
@@ -314,6 +334,23 @@ class DownloadIntent {
     return value.trim().replaceAll('/', '\\');
   }
 
+  static bool _looksLikeEd2kFileLink(String value) {
+    return RegExp(
+      r'^ed2k://\|file\|[^\r\n|]+\|[1-9]\d*\|[0-9a-f]{32}\|(?:[^\r\n|]*\|)*/$',
+      caseSensitive: false,
+    ).hasMatch(value.trim());
+  }
+
+  static String _normalizeEd2kFileLink(String value) {
+    final parts = value.trim().split('|');
+    if (parts.length >= 6) {
+      parts[0] = 'ed2k://';
+      parts[1] = 'file';
+      parts[4] = parts[4].toUpperCase();
+    }
+    return parts.join('|');
+  }
+
   static bool _looksLikeTorrentFilePath(String value) {
     final lower = value.trim().toLowerCase();
     if (!lower.endsWith('.torrent')) {
@@ -369,6 +406,18 @@ class DownloadIntent {
       return normalized;
     }
     return normalized.substring(index + 1);
+  }
+
+  static String? _ed2kFileName(String? value) {
+    final parts = value?.split('|') ?? const <String>[];
+    if (parts.length < 6 || parts[1].toLowerCase() != 'file') {
+      return null;
+    }
+    try {
+      return Uri.decodeComponent(parts[2]);
+    } catch (_) {
+      return parts[2];
+    }
   }
 
   static String? _pluginHintFromUri(Uri uri, String? fallback) {

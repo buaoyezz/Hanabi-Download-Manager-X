@@ -34,6 +34,7 @@ class PopupWindowService {
     String? userAgent,
     String? cookies,
     Map<String, dynamic>? headers,
+    int? expectedSizeHint,
     bool isFromBrowser = false,
   }) async {
     final opened = await _openNativePopupWindow(
@@ -43,6 +44,7 @@ class PopupWindowService {
       userAgent: userAgent,
       cookies: cookies,
       headers: headers,
+      expectedSizeHint: expectedSizeHint,
     );
     if (opened) {
       return;
@@ -65,6 +67,7 @@ class PopupWindowService {
       userAgent: userAgent,
       cookies: cookies,
       headers: headers,
+      expectedSizeHint: expectedSizeHint,
       isFromBrowser: isFromBrowser,
     );
   }
@@ -96,6 +99,7 @@ class PopupWindowService {
     String? userAgent,
     String? cookies,
     Map<String, dynamic>? headers,
+    int? expectedSizeHint,
     PopupWindowPreviewStage? previewStage,
   }) async {
     if (!Platform.isWindows) return false;
@@ -124,6 +128,8 @@ class PopupWindowService {
           'user_agent': userAgent!.trim(),
         if (cookies?.trim().isNotEmpty ?? false) 'cookies': cookies!.trim(),
         if (headers != null && headers.isNotEmpty) 'headers': headers,
+        if (expectedSizeHint != null && expectedSizeHint > 0)
+          'file_size': expectedSizeHint,
         if (windowEffectPayload != null) 'window_effect': windowEffectPayload,
         if (previewStage != null)
           'debug_preview': <String, dynamic>{'stage': previewStage.name},
@@ -202,13 +208,23 @@ class PopupWindowService {
           windowsBuildNumber: effect.windowsBuildNumber,
         );
         final effectEnabled = resolvedMode != 'none';
-        final alpha = followsMainWindow
-            ? effect.alpha
-            : config.getPopupWindowEffectAlpha();
+        final nativeMaterialReady = effectEnabled &&
+            effect.windowEffectsAvailable &&
+            effect.systemTransparencyEnabled &&
+            !effect.systemHighContrast;
+        // Acrylic/Mica use fixed tint; blur may use stored blur alpha.
+        final alpha = WindowEffectService.nativeAlphaForMode(
+          resolvedMode,
+          blurAlpha: followsMainWindow
+              ? effect.blurAlpha
+              : config.getPopupWindowEffectAlpha(),
+          popup: true,
+        );
         return <String, dynamic>{
           'enabled': effectEnabled,
           'mode': resolvedMode,
           'alpha': effectEnabled ? alpha : 255,
+          'native_material_ready': nativeMaterialReady,
           'is_windows11': effect.isWindows11,
           'windows_build_number': effect.windowsBuildNumber,
           'rounded_corners_enabled': effect.roundedCornersEnabled,
@@ -251,19 +267,31 @@ class PopupWindowService {
         windowsBuildNumber: windowsBuildNumber,
       );
       final effectEnabled = resolvedMode != 'none';
+      final capabilities = await platform
+          .invokeMapMethod<Object?, Object?>('getWindowCapabilities');
+      final nativeMaterialReady = effectEnabled &&
+          capabilities?['compositionEnabled'] == true &&
+          capabilities?['transparencyEnabled'] == true &&
+          capabilities?['highContrast'] != true;
       final darkMode =
           WidgetsBinding.instance.platformDispatcher.platformBrightness ==
               Brightness.dark;
-      final mainAlpha =
+      final storedBlurAlpha =
           (prefs.getInt('window_effect_alpha') ?? config.getWindowEffectAlpha())
-              .clamp(0, 255)
+              .clamp(32, 200)
               .toInt();
-      final alpha =
-          followsMainWindow ? mainAlpha : config.getPopupWindowEffectAlpha();
+      final alpha = WindowEffectService.nativeAlphaForMode(
+        resolvedMode,
+        blurAlpha: followsMainWindow
+            ? storedBlurAlpha
+            : config.getPopupWindowEffectAlpha(),
+        popup: true,
+      );
       return <String, dynamic>{
         'enabled': effectEnabled,
         'mode': resolvedMode,
         'alpha': effectEnabled ? alpha : 255,
+        'native_material_ready': nativeMaterialReady,
         'is_windows11': isWindows11,
         'windows_build_number': windowsBuildNumber,
         'rounded_corners_enabled':
@@ -343,6 +371,7 @@ class PopupWindowService {
     String? userAgent,
     String? cookies,
     Map<String, dynamic>? headers,
+    int? expectedSizeHint,
     bool isFromBrowser = false,
   }) async {
     _logger.info('Popup request: url=$url, filename=$suggestedFilename');
@@ -371,6 +400,7 @@ class PopupWindowService {
           userAgent: userAgent,
           cookies: cookies,
           headers: headers,
+          expectedSizeHint: expectedSizeHint,
           isFromBrowser: isFromBrowser,
         ),
       ),
@@ -383,10 +413,8 @@ class PopupWindowService {
     if (!Platform.isWindows) return;
 
     try {
-      _logger.debug('Restore window');
-      windowManager.restore();
       _logger.debug('Show window');
-      windowManager.show();
+      await windowManager.show();
 
       _logger.debug('Delay before bringToFront');
       await Future.delayed(const Duration(milliseconds: 50));

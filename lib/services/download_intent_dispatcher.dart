@@ -23,6 +23,7 @@ class DownloadDispatchRequest {
     this.headers,
     this.saveDir,
     this.startPaused = false,
+    this.expectedSizeHint,
   });
 
   final DownloadIntent intent;
@@ -33,6 +34,7 @@ class DownloadDispatchRequest {
   final Map<String, dynamic>? headers;
   final String? saveDir;
   final bool startPaused;
+  final int? expectedSizeHint;
 
   Map<String, dynamic> toPluginJson() => {
         'intent': intent.toJson(),
@@ -43,6 +45,7 @@ class DownloadDispatchRequest {
         if (headers != null && headers!.isNotEmpty) 'headers': headers,
         if (saveDir != null && saveDir!.isNotEmpty) 'saveDir': saveDir,
         'startPaused': startPaused,
+        if (expectedSizeHint != null) 'expectedSizeHint': expectedSizeHint,
       };
 }
 
@@ -148,6 +151,7 @@ class BuiltinHttpDownloadHandler implements DownloadIntentHandler {
       headers: request.headers,
       saveDir: request.saveDir,
       startPaused: request.startPaused,
+      expectedSizeHint: request.expectedSizeHint,
     );
 
     if (taskId == null) {

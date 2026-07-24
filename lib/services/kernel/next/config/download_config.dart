@@ -104,6 +104,12 @@ class NsfxConfig {
   String defaultUserAgent;
   String httpVersionPolicy;
 
+  /// When true, TLS certificate verification is disabled (compatibility mode).
+  bool allowInsecureTls;
+
+  /// Max concurrent segment connections across all active tasks.
+  int globalMaxConnections;
+
   NsfxConfig({
     this.threads = 8,
     this.segments,
@@ -120,6 +126,9 @@ class NsfxConfig {
     this.enableDynamicSegments = true,
     this.defaultUserAgent = defaultUserAgentFallback,
     this.httpVersionPolicy = NsfxHttpVersionPolicy.auto,
+    this.allowInsecureTls = false,
+    this.globalMaxConnections =
+        NsfxConnectionBudget.defaultGlobalMaxConnections,
   }) : proxy = proxy ?? NsfxProxyConfig();
 
   Map<String, dynamic> toJson() => {
@@ -139,6 +148,8 @@ class NsfxConfig {
         'default_user_agent': defaultUserAgent,
         'http_version_policy':
             NsfxHttpVersionPolicy.normalize(httpVersionPolicy),
+        'allow_insecure_tls': allowInsecureTls,
+        'global_max_connections': globalMaxConnections,
       };
 
   factory NsfxConfig.fromJson(Map<String, dynamic> json) => NsfxConfig(
@@ -179,6 +190,11 @@ class NsfxConfig {
           (json['http_version_policy'] ?? json['httpVersionPolicy'])
               ?.toString(),
         ),
+        allowInsecureTls:
+            json['allow_insecure_tls'] ?? json['allowInsecureTls'] ?? false,
+        globalMaxConnections: json['global_max_connections'] ??
+            json['globalMaxConnections'] ??
+            NsfxConnectionBudget.defaultGlobalMaxConnections,
       );
 }
 
@@ -333,8 +349,9 @@ class NsfxResumeSafetyLevel {
 }
 
 class NsfxRetryPolicy {
-  static const int defaultMaxRetries = 64;
-  static const int defaultMaxGlobalRetryRounds = 8;
+  static const int defaultMaxRetries = 32;
+  static const int maxTransientRetriesPerSegment = 32;
+  static const int defaultMaxGlobalRetryRounds = 6;
 
   /// Deterministic exponential backoff with bounded jitter.
   static int segmentRetryDelayMs(int retryCount) {
@@ -344,19 +361,97 @@ class NsfxRetryPolicy {
     final jitter = (attempt * 137) % 250;
     return (baseDelay + jitter).clamp(500, 15000);
   }
+
+  static int effectiveMaxRetries(int configured) {
+    final normalized = configured < 1 ? defaultMaxRetries : configured;
+    return normalized.clamp(1, maxTransientRetriesPerSegment);
+  }
+}
+
+class NsfxConnectionBudget {
+  static const int defaultGlobalMaxConnections = 32;
+  static const int minGlobalMaxConnections = 1;
+  static const int maxGlobalMaxConnections = 128;
+
+  static int normalize(int value) {
+    if (value < minGlobalMaxConnections) return defaultGlobalMaxConnections;
+    return value.clamp(minGlobalMaxConnections, maxGlobalMaxConnections);
+  }
+}
+
+/// Classifies transfer errors so permanent failures fail fast.
+class NsfxErrorClassifier {
+  static final RegExp _httpStatusPattern =
+      RegExp(r'http(?:exception:)?\s*(\d{3})', caseSensitive: false);
+
+  static const Set<int> permanentHttpStatuses = {
+    400,
+    401,
+    403,
+    404,
+    405,
+    410,
+    416,
+    451,
+  };
+
+  static bool isPermanent(String? errorText) {
+    if (errorText == null || errorText.trim().isEmpty) return false;
+    final message = errorText.toLowerCase();
+
+    if (message.contains('range_not_supported') ||
+        message.contains('range_not_satisfiable') ||
+        message.contains('range_response_invalid') ||
+        message.contains('certificate_verify_failed') ||
+        message.contains('certificate_verify') ||
+        message.contains('certificateverifyfailed') ||
+        message.contains('handshakeexception') &&
+            (message.contains('certificate') || message.contains('ssl'))) {
+      return true;
+    }
+
+    final match = _httpStatusPattern.firstMatch(message);
+    if (match != null) {
+      final code = int.tryParse(match.group(1) ?? '');
+      if (code != null && permanentHttpStatuses.contains(code)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  static bool isTransient(String? errorText) {
+    if (errorText == null || errorText.trim().isEmpty) return true;
+    if (isPermanent(errorText)) return false;
+    final message = errorText.toLowerCase();
+    return message.contains('timeout') ||
+        message.contains('timed out') ||
+        message.contains('connection reset') ||
+        message.contains('connection closed') ||
+        message.contains('connection aborted') ||
+        message.contains('connection refused') ||
+        message.contains('broken pipe') ||
+        message.contains('network is unreachable') ||
+        message.contains('no route to host') ||
+        message.contains('failed host lookup') ||
+        message.contains('proxy_error_') ||
+        message.contains('http 429') ||
+        message.contains('http 502') ||
+        message.contains('http 503') ||
+        message.contains('http 504') ||
+        message.contains('incomplete transfer') ||
+        message.contains('unexpected end') ||
+        message.contains('temporarily');
+  }
 }
 
 class NsfxStartupProbePolicy {
-  static const Duration quickMetadataProbeDeadline = Duration(
-    milliseconds: 900,
-  );
-  static const Duration quickStrictProbeTimeoutCap = Duration(
-    milliseconds: 450,
-  );
+  static const int knownSmallFileImmediateTransferLimit = 8 * 1024 * 1024;
 
-  /// Fresh downloads can skip the long metadata preflight and start the real
-  /// transfer immediately. Persisted or runtime partial data must stay on the
-  /// strict path so resume safety checks still run before writing.
+  /// Fresh downloads start a real GET immediately and may promote that
+  /// response to a segmented transfer after inspecting its headers. Persisted
+  /// or runtime partial data stays on the strict metadata path.
   static bool shouldUseFastStart({
     required bool hasPartialProgress,
     required int configuredThreads,
@@ -365,6 +460,12 @@ class NsfxStartupProbePolicy {
       return false;
     }
     return configuredThreads > 1;
+  }
+
+  static bool shouldStartKnownSizeImmediately(int? expectedSize) {
+    return expectedSize != null &&
+        expectedSize > 0 &&
+        expectedSize <= knownSmallFileImmediateTransferLimit;
   }
 }
 

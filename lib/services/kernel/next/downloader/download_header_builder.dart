@@ -42,6 +42,10 @@ Map<String, String> buildDownloadHeaders(Task task, NsfxConfig config) {
         _taskHeaderValue(task.headers, 'user-agent') ??
         config.defaultUserAgent,
     'Accept': '*/*',
+    // Byte ranges are defined over the selected representation.  Asking for
+    // identity prevents transparent gzip/br compression from changing byte
+    // offsets and corrupting segmented/resumed downloads.
+    'Accept-Encoding': 'identity',
     'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
   };
 

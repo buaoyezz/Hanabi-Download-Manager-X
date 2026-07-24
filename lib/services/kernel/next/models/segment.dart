@@ -25,15 +25,16 @@ class Segment {
   bool get isCompleted => downloadedBytes >= size;
 
   Map<String, dynamic> toJson() => {
-    'index': index,
-    'startByte': startByte,
-    'endByte': endByte,
-    'downloadedBytes': downloadedBytes,
-    'speed': speed,
-    'status': status.name,
-    'retryCount': retryCount,
-    'progress': progress,
-  };
+        'index': index,
+        'startByte': startByte,
+        'endByte': endByte,
+        'downloadedBytes': downloadedBytes,
+        'speed': speed,
+        'status': status.name,
+        'retryCount': retryCount,
+        'lastError': lastError,
+        'progress': progress,
+      };
 }
 
 enum SegmentStatus {

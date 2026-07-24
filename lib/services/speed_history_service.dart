@@ -21,6 +21,11 @@ class SpeedHistoryService {
 
   /// 是否已加载
   bool _loaded = false;
+  bool _persistenceEnabled = true;
+
+  void setPersistenceEnabled(bool enabled) {
+    _persistenceEnabled = enabled;
+  }
 
   /// 获取持久化文件路径
   Future<String> _getFilePath() async {
@@ -57,6 +62,7 @@ class SpeedHistoryService {
   /// 保存到磁盘（节流：不会每次 record 都写）
   int _saveCounter = 0;
   Future<void> _saveToDisk() async {
+    if (!_persistenceEnabled) return;
     // 每 10 次 record 保存一次，减少 IO
     _saveCounter++;
     if (_saveCounter < 10) return;
@@ -66,6 +72,7 @@ class SpeedHistoryService {
 
   /// 强制保存到磁盘
   Future<void> forceSave() async {
+    if (!_persistenceEnabled) return;
     try {
       final path = await _getFilePath();
       final Map<String, List<double>> data = {};

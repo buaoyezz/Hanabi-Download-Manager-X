@@ -144,6 +144,7 @@ class DownloadListenerService {
           (downloadData['user_agent'] ?? downloadData['userAgent'])?.toString(),
       cookies: downloadData['cookies']?.toString(),
       headers: headers,
+      expectedSizeHint: _readPositiveSize(downloadData),
     );
 
     if (taskId == null) {
@@ -182,6 +183,7 @@ class DownloadListenerService {
         userAgent: downloadData['user_agent'],
         cookies: downloadData['cookies']?.toString(),
         headers: downloadData['headers'] as Map<String, dynamic>?,
+        expectedSizeHint: _readPositiveSize(downloadData),
         isFromBrowser: true,
       );
     } catch (e) {
@@ -192,6 +194,20 @@ class DownloadListenerService {
         _isShowingPopup = false;
       });
     }
+  }
+
+  int? _readPositiveSize(Map<String, dynamic> data) {
+    for (final key in const [
+      'file_size',
+      'fileSize',
+      'total_bytes',
+      'totalBytes',
+    ]) {
+      final raw = data[key];
+      final value = raw is num ? raw.toInt() : int.tryParse('$raw');
+      if (value != null && value > 0) return value;
+    }
+    return null;
   }
 
   String _popupSignatureFor(Map<String, dynamic> downloadData) {

@@ -5,6 +5,11 @@ import 'package:ffi/ffi.dart';
 import 'package:win32/win32.dart';
 import 'package:flutter/foundation.dart';
 
+int? _readPositiveInt(Object? raw) {
+  final value = raw is num ? raw.toInt() : int.tryParse('$raw');
+  return value != null && value > 0 ? value : null;
+}
+
 /// Download request received from the popup application
 class PopupDownloadRequest {
   final String url;
@@ -14,6 +19,7 @@ class PopupDownloadRequest {
   final String? userAgent;
   final String? cookies;
   final Map<String, dynamic>? headers;
+  final int? expectedSizeHint;
 
   PopupDownloadRequest({
     required this.url,
@@ -23,6 +29,7 @@ class PopupDownloadRequest {
     this.userAgent,
     this.cookies,
     this.headers,
+    this.expectedSizeHint,
   });
 
   factory PopupDownloadRequest.fromJson(Map<String, dynamic> json) {
@@ -39,6 +46,9 @@ class PopupDownloadRequest {
               (key, value) => MapEntry(key.toString(), value),
             )
           : null,
+      expectedSizeHint: _readPositiveInt(
+        json['file_size'] ?? json['fileSize'] ?? json['total_bytes'],
+      ),
     );
   }
 
@@ -50,6 +60,7 @@ class PopupDownloadRequest {
         'user_agent': userAgent,
         'cookies': cookies,
         'headers': headers,
+        if (expectedSizeHint != null) 'file_size': expectedSizeHint,
       };
 
   @override
@@ -95,7 +106,8 @@ class PipeListenerService with ChangeNotifier {
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
 
-    if (_pipeHandleAddress != 0 && _pipeHandleAddress != INVALID_HANDLE_VALUE.address) {
+    if (_pipeHandleAddress != 0 &&
+        _pipeHandleAddress != INVALID_HANDLE_VALUE.address) {
       CloseHandle(HANDLE(Pointer.fromAddress(_pipeHandleAddress)));
       _pipeHandleAddress = 0;
     }
@@ -125,7 +137,8 @@ class PipeListenerService with ChangeNotifier {
         nullptr, // Default security
       ).address;
 
-      if (_pipeHandleAddress == 0 || _pipeHandleAddress == INVALID_HANDLE_VALUE.address) {
+      if (_pipeHandleAddress == 0 ||
+          _pipeHandleAddress == INVALID_HANDLE_VALUE.address) {
         final error = GetLastError();
         debugPrint('[PipeListener] Failed to create pipe, error: $error');
         _scheduleReconnect();
@@ -149,7 +162,8 @@ class PipeListenerService with ChangeNotifier {
       }
 
       // Close current handle and create new pipe for next connection
-      if (_pipeHandleAddress != 0 && _pipeHandleAddress != INVALID_HANDLE_VALUE.address) {
+      if (_pipeHandleAddress != 0 &&
+          _pipeHandleAddress != INVALID_HANDLE_VALUE.address) {
         CloseHandle(HANDLE(Pointer.fromAddress(_pipeHandleAddress)));
         _pipeHandleAddress = 0;
       }
@@ -168,7 +182,8 @@ class PipeListenerService with ChangeNotifier {
 
   static String? _connectAndRead(int pipeHandleAddress) {
     // Wait for a client to connect
-    final connected = ConnectNamedPipe(HANDLE(Pointer.fromAddress(pipeHandleAddress)), nullptr);
+    final connected = ConnectNamedPipe(
+        HANDLE(Pointer.fromAddress(pipeHandleAddress)), nullptr);
     final error = GetLastError();
 
     if (connected.value == false && error != ERROR_PIPE_CONNECTED) {
