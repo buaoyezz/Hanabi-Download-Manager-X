@@ -64,6 +64,8 @@ void main(List<String> args) async {
           : '';
 
       entries.add({
+        'manifestVersion': manifest.manifestVersion,
+        'apiVersion': manifest.apiVersion,
         'id': manifest.id,
         'name': manifest.name,
         'version': manifest.version,
@@ -75,8 +77,15 @@ void main(List<String> args) async {
         if (manifest.minAppVersion != null &&
             manifest.minAppVersion!.trim().isNotEmpty)
           'minAppVersion': manifest.minAppVersion,
+        if (manifest.maxAppVersion != null &&
+            manifest.maxAppVersion!.trim().isNotEmpty)
+          'maxAppVersion': manifest.maxAppVersion,
         'channel': source.channel,
         'capabilities': manifest.capabilities,
+        if (manifest.intentSchemes.isNotEmpty)
+          'intentSchemes': manifest.intentSchemes,
+        if (manifest.permissions.isNotEmpty)
+          'permissions': manifest.permissions,
         'reviewStatus': reviewStatus,
         'source': {
           'repo': source.repo,
@@ -206,7 +215,12 @@ class PluginManifestDoc {
     required this.description,
     required this.category,
     required this.capabilities,
+    required this.manifestVersion,
+    required this.apiVersion,
+    required this.intentSchemes,
+    required this.permissions,
     this.minAppVersion,
+    this.maxAppVersion,
   });
 
   final String id;
@@ -216,7 +230,12 @@ class PluginManifestDoc {
   final String description;
   final String category;
   final List<String> capabilities;
+  final int manifestVersion;
+  final String apiVersion;
+  final List<String> intentSchemes;
+  final List<String> permissions;
   final String? minAppVersion;
+  final String? maxAppVersion;
 
   factory PluginManifestDoc.fromJson(
     Map<String, dynamic> json,
@@ -228,6 +247,24 @@ class PluginManifestDoc {
             .where((value) => value.isNotEmpty)
             .toList(growable: false)
         : const <String>[];
+    final intentSchemes = (json['intentSchemes'] is List)
+        ? (json['intentSchemes'] as List)
+            .map((value) => value.toString().trim().toLowerCase())
+            .where((value) => value.isNotEmpty)
+            .toList(growable: false)
+        : const <String>[];
+    final permissionsRaw = json['permissions'];
+    final permissions = permissionsRaw is List
+        ? permissionsRaw
+            .map((value) => value.toString().trim())
+            .where((value) => value.isNotEmpty)
+            .toList(growable: false)
+        : permissionsRaw is Map
+            ? permissionsRaw.entries
+                .where((entry) => entry.value == true)
+                .map((entry) => entry.key.toString())
+                .toList(growable: false)
+            : const <String>[];
     final id = json['id']?.toString().trim() ?? '';
     final name = json['name']?.toString().trim() ?? '';
     final version = json['version']?.toString().trim() ?? '';
@@ -247,7 +284,21 @@ class PluginManifestDoc {
       description: json['description']?.toString().trim() ?? '',
       category: json['category']?.toString().trim() ?? 'other',
       capabilities: capabilities,
+      manifestVersion: _parseInt(json['manifestVersion'], 1),
+      apiVersion: json['apiVersion']?.toString().trim().isNotEmpty == true
+          ? json['apiVersion']!.toString().trim()
+          : '1.0',
+      intentSchemes: intentSchemes,
+      permissions: permissions,
       minAppVersion: json['minAppVersion']?.toString().trim(),
+      maxAppVersion: json['maxAppVersion']?.toString().trim(),
     );
   }
+}
+
+int _parseInt(Object? value, int fallback) {
+  if (value is num) {
+    return value.toInt();
+  }
+  return int.tryParse(value?.toString() ?? '') ?? fallback;
 }

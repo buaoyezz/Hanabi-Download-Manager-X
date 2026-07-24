@@ -1,0 +1,10 @@
+{
+  "id": "hanabi.official.ed2k",
+  "repo": "https://github.com/buaoyezz/Hanabi-Download-Manager-X",
+  "branch": "main",
+  "pluginPath": "plugins/official/ed2k",
+  "channel": "stable",
+  "reviewStatus": "published",
+  "submitter": "github:buaoyezz",
+  "notes": "Official ED2K plugin maintained by the Hanabi project. Uses a verified isolated aMule backend."
+}

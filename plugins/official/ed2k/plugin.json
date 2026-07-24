@@ -1,0 +1,28 @@
+{
+  "$schema": "https://x.zzbuaoye.net/schemas/hanabi/plugin-manifest-v1.schema.json",
+  "manifestVersion": 1,
+  "apiVersion": "1.0",
+  "id": "hanabi.official.ed2k",
+  "name": "Hanabi ED2K",
+  "version": "0.1.0",
+  "author": "Hanabi Download Manager X",
+  "description": "Official ED2K file download support powered by an isolated aMule backend.",
+  "category": "download",
+  "entry": "main.py",
+  "homepage": "https://github.com/buaoyezz/Hanabi-Download-Manager-X/tree/main/plugins/official/ed2k",
+  "repository": "https://github.com/buaoyezz/Hanabi-Download-Manager-X",
+  "license": "MIT",
+  "capabilities": [
+    "download:ed2k"
+  ],
+  "priority": 100,
+  "permissions": [
+    "network",
+    "file_write",
+    "system_command"
+  ],
+  "minAppVersion": "1.5.0",
+  "runtime": {
+    "timeoutSeconds": 300
+  }
+}

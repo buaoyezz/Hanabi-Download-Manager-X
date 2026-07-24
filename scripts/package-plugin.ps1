@@ -34,7 +34,26 @@ if (-not (Test-Path -LiteralPath $pluginJsonPath)) {
     throw "plugin.json not found: $pluginJsonPath"
 }
 
-$manifest = Get-Content -LiteralPath $pluginJsonPath -Raw | ConvertFrom-Json
+$repoRoot = Split-Path -Parent $PSScriptRoot
+$validatorPath = Join-Path $repoRoot 'tool\validate_plugin.dart'
+$dartCommand = Get-Command dart -ErrorAction SilentlyContinue
+if ($null -ne $dartCommand -and (Test-Path -LiteralPath $validatorPath)) {
+    Push-Location $repoRoot
+    try {
+        & $dartCommand.Source run 'tool\validate_plugin.dart' $resolvedPluginDir
+        if ($LASTEXITCODE -ne 0) {
+            throw "plugin validation failed with exit code $LASTEXITCODE"
+        }
+    }
+    finally {
+        Pop-Location
+    }
+}
+else {
+    Write-Warning 'Dart SDK or plugin validator not found; only basic package validation will run.'
+}
+
+$manifest = Get-Content -LiteralPath $pluginJsonPath -Encoding UTF8 -Raw | ConvertFrom-Json
 $pluginId = Require-Value 'id' $manifest.id
 $pluginName = Require-Value 'name' $manifest.name
 $pluginVersion = Require-Value 'version' $manifest.version
@@ -85,6 +104,8 @@ try {
     }
 
     $entry = [ordered]@{
+        manifestVersion = if ($null -eq $manifest.manifestVersion) { 1 } else { [int]$manifest.manifestVersion }
+        apiVersion = if ([string]::IsNullOrWhiteSpace($manifest.apiVersion)) { '1.0' } else { $manifest.apiVersion.ToString() }
         id = $pluginId
         name = $pluginName
         version = $pluginVersion
@@ -100,6 +121,32 @@ try {
     $minAppVersion = ($manifest.minAppVersion | ForEach-Object { $_.ToString() }) -join ''
     if (-not [string]::IsNullOrWhiteSpace($minAppVersion)) {
         $entry.minAppVersion = $minAppVersion
+    }
+
+    $maxAppVersion = if ($null -eq $manifest.maxAppVersion) {
+        ''
+    }
+    else {
+        $manifest.maxAppVersion.ToString()
+    }
+    if (-not [string]::IsNullOrWhiteSpace($maxAppVersion)) {
+        $entry.maxAppVersion = $maxAppVersion
+    }
+
+    $intentSchemes = @($manifest.intentSchemes | Where-Object {
+        $null -ne $_ -and -not [string]::IsNullOrWhiteSpace($_.ToString())
+    })
+    if ($intentSchemes.Count -gt 0) {
+        $entry.intentSchemes = $intentSchemes
+    }
+
+    $permissionsProperty = $manifest.PSObject.Properties['permissions']
+    $hasPermissions = $null -ne $permissionsProperty -and $null -ne $manifest.permissions
+    if ($hasPermissions -and $manifest.permissions -is [System.Array]) {
+        $hasPermissions = $manifest.permissions.Count -gt 0
+    }
+    if ($hasPermissions) {
+        $entry.permissions = $manifest.permissions
     }
 
     Write-Host ''

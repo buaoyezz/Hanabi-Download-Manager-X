@@ -1,15 +1,31 @@
 {
+  "manifestVersion": 1,
+  "apiVersion": "1.0",
   "id": "hanabi.example.demo",
   "name": "Demo Plugin",
   "version": "0.1.0",
   "author": "Your Name",
   "description": "Describe what this plugin does.",
   "entry": "main.py",
+  "homepage": "https://example.com/hanabi-demo",
+  "repository": "https://github.com/example/hanabi-demo",
+  "license": "MIT",
   "capabilities": [
-    "download:custom"
+    "download:custom:demo"
   ],
+  "intentSchemes": [
+    "hanabi+demo",
+    "plugin+demo"
+  ],
+  "priority": 0,
   "permissions": [
     "network"
   ],
-  "minAppVersion": "1.3.2"
+  "minAppVersion": "1.5.0",
+  "runtime": {
+    "timeoutSeconds": 30,
+    "environment": {
+      "PLUGIN_MODE": "production"
+    }
+  }
 }

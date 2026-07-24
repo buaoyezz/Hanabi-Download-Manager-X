@@ -1,0 +1,400 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://x.zzbuaoye.net/schemas/hanabi/plugin-manifest-v1.schema.json",
+  "title": "Hanabi Plugin Manifest",
+  "description": "Hanabi Download Manager X 插件清单格式（manifestVersion 1）。",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "version",
+    "author",
+    "entry",
+    "capabilities"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "format": "uri-reference"
+    },
+    "manifestVersion": {
+      "type": "integer",
+      "const": 1,
+      "default": 1,
+      "description": "清单结构版本。"
+    },
+    "apiVersion": {
+      "type": "string",
+      "pattern": "^1(?:\\.[0-9]+)?$",
+      "default": "1.0",
+      "description": "宿主 JSON-RPC API 版本。"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{1,62}$",
+      "description": "全局唯一插件 ID，建议使用反向域名。"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "description": "插件版本，推荐遵循 Semantic Versioning。"
+    },
+    "author": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 500
+    },
+    "category": {
+      "type": "string",
+      "default": "other"
+    },
+    "entry": {
+      "$ref": "#/$defs/relativePath",
+      "description": "相对于插件根目录的入口文件。"
+    },
+    "icon": {
+      "$ref": "#/$defs/relativePath"
+    },
+    "homepage": {
+      "type": "string",
+      "format": "uri"
+    },
+    "repository": {
+      "type": "string",
+      "format": "uri"
+    },
+    "license": {
+      "type": "string",
+      "minLength": 1,
+      "description": "推荐填写 SPDX 许可证标识。"
+    },
+    "minAppVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "maxAppVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9._-]*(?::[a-z0-9][a-z0-9._+-]*)*$"
+      }
+    },
+    "intentSchemes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^(hanabi|plugin)\\+[a-z0-9][a-z0-9+.-]*$"
+      }
+    },
+    "priority": {
+      "type": "integer",
+      "minimum": -1000,
+      "maximum": 1000,
+      "default": 0
+    },
+    "permissions": {
+      "oneOf": [
+        {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "network",
+              "file_write",
+              "system_command"
+            ]
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "network": {
+              "type": "boolean"
+            },
+            "file_write": {
+              "type": "boolean"
+            },
+            "system_command": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "default": []
+    },
+    "runtime": {
+      "$ref": "#/$defs/runtime"
+    },
+    "sidebar_placement": {
+      "enum": [
+        "top",
+        "bottom"
+      ]
+    },
+    "theme_overrides": {
+      "type": "object"
+    },
+    "ui_extensions": {
+      "$ref": "#/$defs/uiExtensions"
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "anyOf": [
+          {
+            "pattern": "^(?:[A-Za-z]:|[\\\\/])"
+          },
+          {
+            "pattern": "(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)"
+          }
+        ]
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "properties": {
+        "executable": {
+          "type": "string",
+          "minLength": 1,
+          "description": "运行命令。省略时由 entry 扩展名自动选择。"
+        },
+        "arguments": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "type": "string"
+          },
+          "description": "支持 {entry} 和 {pluginDir} 占位符。"
+        },
+        "environment": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^(?!HANABI_)[A-Za-z_][A-Za-z0-9_]*$"
+          },
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "workingDirectory": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300,
+          "default": 30
+        }
+      },
+      "additionalProperties": false
+    },
+    "uiElement": {
+      "type": "object",
+      "required": [
+        "type",
+        "id",
+        "label"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "switch",
+            "toggle",
+            "switch_toggle",
+            "text_input",
+            "textInput",
+            "input",
+            "button",
+            "text",
+            "slider",
+            "dropdown"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "default": {},
+        "action": {
+          "type": "string",
+          "minLength": 1
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "divisions": {
+          "type": "number",
+          "minimum": 1
+        },
+        "options": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "label"
+                ],
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "value": {}
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "button"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "action"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "dropdown"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "options"
+            ]
+          }
+        }
+      ]
+    },
+    "uiExtensionList": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/uiElement"
+      }
+    },
+    "uiExtensionGroup": {
+      "type": "object",
+      "properties": {
+        "placement": {
+          "enum": [
+            "top",
+            "bottom"
+          ]
+        },
+        "elements": {
+          "$ref": "#/$defs/uiExtensionList"
+        },
+        "items": {
+          "$ref": "#/$defs/uiExtensionList"
+        },
+        "controls": {
+          "$ref": "#/$defs/uiExtensionList"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "elements"
+          ]
+        },
+        {
+          "required": [
+            "items"
+          ]
+        },
+        {
+          "required": [
+            "controls"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "uiExtensions": {
+      "type": "object",
+      "properties": {
+        "settings": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/uiExtensionList"
+            },
+            {
+              "$ref": "#/$defs/uiExtensionGroup"
+            }
+          ]
+        },
+        "sidebar": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/uiExtensionList"
+            },
+            {
+              "$ref": "#/$defs/uiExtensionGroup"
+            }
+          ]
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

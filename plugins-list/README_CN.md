@@ -17,4 +17,9 @@
 
 最小示例见：
 
-- [plugin-source.example.json](/e:/HanabiDownloadManagerX/Hanabi-Download-Manager-X/plugins-list/plugin-source.example.json)
+- [plugin-source.example.json](plugin-source.example.json)
+
+完整的审核、构建与部署流程见：
+
+- [插件市场设计](../docs/plugin/PLUGIN_MARKET_DESIGN_CN.md)
+- [插件发布指南](../docs/plugin/PLUGIN_PUBLISH_FLOW_CN.md)

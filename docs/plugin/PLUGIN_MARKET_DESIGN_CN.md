@@ -1,195 +1,181 @@
-# HDMX 插件市场方案
+# 插件市场设计
 
-目标是：
-- 对插件作者足够简单
-- 对官方市场足够可控
+Hanabi 官方插件市场采用“作者维护源码、市场 CI 统一构建、客户端只消费签名产物”的分发模型。
 
-## 1. 设计结论
+## 设计目标
 
-HDMX 官方市场不接受“客户端直接上传 zip 包”。
+- 插件作者只维护自己的仓库和 `plugin.json`；
+- 市场维护者可以审计来源、权限和构建过程；
+- 相同源码可以重复构建和回滚；
+- 客户端只负责浏览、下载、验证、安装和更新；
+- 静态文件服务器即可承载索引与插件包。
 
-官方推荐流程改成：
+## 架构
 
-1. 插件作者在自己的 GitHub 仓库维护插件源码
-2. 插件目录内包含 `plugin.json`
-3. 作者在 HDMX 官方插件市场仓库提交插件来源
-4. 审核通过后，CI 自动拉取插件源码
-5. CI 自动打包 `.hdmx-plugin.zip`
-6. CI 自动生成官方 `plugins.json`
-7. HDMX 客户端只消费官方索引和官方打包产物
+```text
+作者仓库
+  -> 来源声明 PR
+  -> 市场审核
+  -> CI 拉取源码
+  -> 校验 plugin.json
+  -> 构建 .hanabi-plugin.zip
+  -> 计算 SHA-256 / Ed25519 签名
+  -> 生成 store_index.json
+  -> 发布到静态服务器
+  -> Hanabi 客户端验证并安装
+```
 
-## 2. 为什么不用客户端直接上传
+## 为什么不直接接收 ZIP
 
-直接上传二进制包的问题很明确：
+直接上传二进制包会带来：
 
-- 包内容不可审计
-- manifest 来源不稳定
-- 难做重建和复现
-- 下架、回滚、重打包都很麻烦
-- 后续签名体系会越来越复杂
+- 源码与发布物无法对应；
+- 难以审计新增二进制和依赖；
+- 无法稳定重建、撤回和回滚；
+- 作者私钥、市场签名和包哈希难以统一治理；
+- 同版本包可能被静默替换。
 
-所以客户端应当是：
+因此官方市场接受“来源声明”，由可信 CI 生成正式包。自建市场仍可使用本地打包脚本，但应遵守相同的不可变版本原则。
 
-- 浏览器
-- 安装器
-- 更新器
-
-而不是发布器。
-
-## 4. 中心仓库建议结构
-
-官方插件市场仓库建议长这样：
+## 仓库结构
 
 ```text
 .github/
-  ISSUE_TEMPLATE/
-    plugin-market-submit.yml
   workflows/
     plugin-market-build.yml
 plugins-list/
   plugin-source.example.json
   <plugin-id>.json
-tool/
-  generate_plugin_market_index.dart
 scripts/
   sync-plugin-sources.ps1
   package-plugin-sources.ps1
-dist/
-  plugins/
-  plugin-market-index.json
+  package-plugin.ps1
+tool/
+  validate_plugin.dart
+  generate_plugin_market_index.dart
+plugins/
+  packages/
+  store_index.json
 ```
 
-说明：
+`plugins-list/` 只保存来源和审核状态，不复制第三方插件源码。
 
-- `plugins-list/` 存“来源声明”，不是插件源码
-- 插件源码始终在作者自己的仓库
-- `dist/plugins/` 和索引是 CI 构建产物
-
-## 5. 来源声明文件
-
-每个已收录插件在 `plugins-list/` 下对应一个 JSON 文件。
-
-示例见：
-
-- [plugins-list/plugin-source.example.json](/e:/HDMXDownloadManagerX/HDMX-Download-Manager-X/plugins-list/plugin-source.example.json)
-
-建议字段：
+## 来源声明
 
 ```json
 {
-  "id": "hdmx.example.demo",
-  "repo": "https://github.com/example/hdmx-plugin-demo",
+  "id": "hanabi.example.demo",
+  "repo": "https://github.com/example/hanabi-plugin-demo",
   "branch": "main",
   "pluginPath": ".",
   "channel": "stable",
   "reviewStatus": "draft",
   "submitter": "github:example",
-  "notes": "Optional review notes"
+  "notes": "Initial review"
 }
 ```
 
-字段约定：
+| 字段 | 说明 |
+| --- | --- |
+| `id` | 必须与来源目录中的 `plugin.json.id` 一致。 |
+| `repo` | 可公开读取的源码仓库。 |
+| `branch` | 构建分支，默认 `main`。正式系统建议扩展为固定 commit。 |
+| `pluginPath` | 插件目录相对于仓库根目录的位置。 |
+| `channel` | `stable`、`beta` 等发布通道。 |
+| `reviewStatus` | `draft`、`published` 或 `removed`。 |
+| `submitter` | 提交者身份。 |
+| `notes` | 审核记录或构建备注。 |
 
-- `id` 必须和插件仓库中的 `plugin.json.id` 一致
-- `repo` 当前优先支持 GitHub 仓库地址
-- `branch` 默认 `main`
-- `pluginPath` 表示插件在仓库内的相对目录，默认 `.`
-- `reviewStatus` 允许 `draft`、`published`、`removed`
+## 审核流程
 
-## 6. 插件作者仓库要求
+### 自动检查
 
-作者仓库至少要满足：
+- JSON Schema 与宿主校验器通过；
+- 插件 ID、来源声明和目录一致；
+- 入口、图标、SDK 和许可证文件存在；
+- 版本号没有倒退或复用；
+- 不包含路径穿越、凭据和异常大文件；
+- `permissions` 与静态扫描结果没有明显冲突；
+- 构建产物 SHA-256 可复现。
 
-- 插件目录里存在 `plugin.json`
-- `plugin.json` 满足 HDMX 宿主校验规则
-- `entry` 指向实际入口文件
-- 仓库是公开可访问的
+### 人工检查
 
-本地 `plugin.json` 模板见：
+- 插件用途、作者和仓库可信；
+- 网络、文件和命令行为与说明一致；
+- 外部下载地址和更新机制不会绕过市场；
+- UI 文案不会冒充 Hanabi 系统提示；
+- 第三方许可证允许再分发；
+- 错误处理不会泄露凭据或用户数据。
 
-- [plugins/plugin.json.example](/e:/HDMXDownloadManagerX/HDMX-Download-Manager-X/plugins/plugin.json.example)
+通过后把 `reviewStatus` 改为 `published`。需要撤回时改为 `removed`，保留历史记录。
 
-## 7. 审核流
+## CI 阶段
 
-推荐流程：
+### 1. Sync
 
-1. 作者提交 Issue
-2. 维护者检查仓库地址、许可证、`plugin.json`、基本功能说明
-3. 通过后在 `plugins-list/` 新增或更新一个来源声明 JSON
-4. 合并后触发 CI
-5. CI 生成包和索引
-6. 客户端读取最新索引后可安装
+读取 `plugins-list/*.json`，拉取来源仓库并复制 `pluginPath` 到隔离工作区。
 
-如果插件需要下架：
+### 2. Validate
 
-- 不删除历史记录
-- 只把 `reviewStatus` 改成 `removed`
+对每个目录执行：
 
-## 8. CI 流程
+```powershell
+dart run tool/validate_plugin.dart <plugin-directory> --json
+```
 
-建议 CI 分三步：
+错误阻止发布；警告进入审核报告。
 
-1. `sync`
-   拉取 `plugins-list` 指向的源码仓库，把插件目录同步到临时工作区
+### 3. Package
 
-2. `package`
-   对每个同步到的插件目录执行打包，生成 `.hdmx-plugin.zip`
+生成：
 
-3. `index`
-   读取同步后的 `plugin.json` 和打包结果，生成官方 `plugins.json`
+```text
+<plugin-id>-<version>.hanabi-plugin.zip
+```
 
-本仓库已提供对应骨架：
+包名、清单版本和来源 commit 应写入构建溯源记录。
 
-- [scripts/sync-plugin-sources.ps1](/e:/HDMXDownloadManagerX/HDMX-Download-Manager-X/scripts/sync-plugin-sources.ps1)
-- [scripts/package-plugin-sources.ps1](/e:/HDMXDownloadManagerX/HDMX-Download-Manager-X/scripts/package-plugin-sources.ps1)
-- [tool/generate_plugin_market_index.dart](/e:/HDMXDownloadManagerX/HDMX-Download-Manager-X/tool/generate_plugin_market_index.dart)
-- [plugin-market-build.yml](/e:/HDMXDownloadManagerX/HDMX-Download-Manager-X/.github/workflows/plugin-market-build.yml)
+### 4. Sign
 
-## 9. 客户端职责
+计算 SHA-256，使用市场 Ed25519 密钥签名。私钥不进入源码仓库和普通构建日志。
 
-HDMX 客户端只做这些事：
+### 5. Index
 
-- 拉取官方 `plugins.json`
-- 展示插件列表
-- 下载官方打包产物
-- 安装、更新、卸载插件
+从已校验的包内清单生成索引，而不是信任作者单独提交的市场元数据。
 
-客户端不负责：
+### 6. Publish
 
-- 审核
-- 直接上传二进制插件包
-- 直接信任第三方仓库里的任意压缩包
+先发布不可变插件包，最后原子替换索引。失败时旧索引继续可用。
 
-## 10. 安全边界
+## 客户端职责
 
-当前推荐边界：
+Hanabi 客户端负责：
 
-- 官方市场只安装官方 CI 产出的包
-- `plugin.json` 以作者仓库中的源码版本为准
-- 商店索引可以继续配合哈希和签名使用
+- 从官方或用户选择的镜像加载索引；
+- 只展示 `published` 条目；
+- 下载包并验证哈希和签名；
+- 校验包内清单并执行带回滚的安装；
+- 比较版本并提供更新；
+- 保留本地日志和插件设置。
 
-以后如果继续增强：
+客户端不负责审核源码、上传包或替市场生成元数据。
 
-- 可对官方打包产物统一签名
-- 可增加自动化审查和风险扫描
-- 可增加来源仓库白名单和维护者信誉规则
+## 通道与镜像
 
-## 11. 适合 HDMX 的原因
+索引根级 `channel` 表示索引通道，条目也可以单独声明通道。正式部署建议不同通道使用不同 URL：
 
-这套方案比“客户端上传 zip”更适合 HDMX，因为：
+```text
+/stable/store_index.json
+/beta/store_index.json
+```
 
-- 你已经有 `plugin.json` 和本地打包逻辑
-- 你已经有插件商店索引模型
-- 你现在差的是“官方市场仓库工作流”
-- 这套方案正好补的是发布治理，不会推翻现有宿主代码
+镜像必须同步相同字节的包和索引。签名验证允许客户端在不信任镜像传输层的情况下发现篡改，但仍应使用 HTTPS。
 
-## 12. 最终结论
+## 撤回与密钥轮换
 
-HDMX 应采用：
+- 普通下架：条目标记 `removed`，保留包和审核记录。
+- 恶意版本：立即从索引移除，发布公告，必要时阻断包下载。
+- 私钥泄露：新增签名密钥 ID、用新密钥重签可信版本、撤销旧密钥并发布客户端信任策略更新。
+- 哈希冲突或包不一致：停止发布流水线，不能通过重新上传同版本包修复。
 
-- `AstrBot` 的提交入口
-- `BNCM` 的审核、打包、索引发布链路
-
-也就是：
-
-`提交仓库地址，不提交 zip；官方 CI 统一打包，客户端只消费官方产物。`
+签名技术细节见[商店签名约定](PLUGIN_STORE_SIGNATURE_CN.md)，操作步骤见[发布指南](PLUGIN_PUBLISH_FLOW_CN.md)。

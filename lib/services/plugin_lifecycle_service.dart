@@ -35,6 +35,7 @@ class PluginLifecycleService extends ChangeNotifier {
   late String _installedDir;
   late String _cacheDir;
   late String _logsDir;
+  late String _dataDir;
   late String _statePath;
   late String _storeIndexPath;
 
@@ -46,6 +47,7 @@ class PluginLifecycleService extends ChangeNotifier {
   String get installedDir => _installedDir;
   String get cacheDir => _cacheDir;
   String get logsDir => _logsDir;
+  String get dataDir => _dataDir;
   String get storeIndexPath => _storeIndexPath;
   List<InstalledPlugin> get plugins => List.unmodifiable(_plugins);
 
@@ -63,6 +65,7 @@ class PluginLifecycleService extends ChangeNotifier {
       _installedDir = path.join(_pluginsRootDir, 'installed');
       _cacheDir = path.join(_pluginsRootDir, 'cache');
       _logsDir = path.join(_pluginsRootDir, 'logs');
+      _dataDir = path.join(_pluginsRootDir, 'data');
       _statePath = path.join(_pluginsRootDir, 'plugins_state.json');
       _storeIndexPath = path.join(_pluginsRootDir, 'store_index.json');
       _diag.mark('lifecycle.initialize.paths', data: <String, Object?>{
@@ -70,6 +73,7 @@ class PluginLifecycleService extends ChangeNotifier {
         'installed': _installedDir,
         'cache': _cacheDir,
         'logs': _logsDir,
+        'data': _dataDir,
         'state': _statePath,
       });
 
@@ -101,7 +105,13 @@ class PluginLifecycleService extends ChangeNotifier {
   }
 
   Future<void> _createDirectories() async {
-    for (final dir in [_pluginsRootDir, _installedDir, _cacheDir, _logsDir]) {
+    for (final dir in [
+      _pluginsRootDir,
+      _installedDir,
+      _cacheDir,
+      _logsDir,
+      _dataDir,
+    ]) {
       final directory = Directory(dir);
       if (!await directory.exists()) {
         _diag.mark('lifecycle.directory.create', data: <String, Object?>{
@@ -249,11 +259,11 @@ class PluginLifecycleService extends ChangeNotifier {
       final errors = manifest.validate();
       final entryPath =
           path.normalize(path.join(directory.path, manifest.entry));
-      if (!await File(entryPath).exists() &&
-          !await Directory(entryPath).exists()) {
+      if (!await File(entryPath).exists()) {
         errors.add('entry does not exist: ${manifest.entry}');
       }
-      final compatible = _isCompatible(manifest.minAppVersion);
+      final compatibilityError = _compatibilityError(manifest);
+      final compatible = compatibilityError == null;
       final enabled = _enabledState[manifest.id] ?? false;
       final state = errors.isNotEmpty
           ? PluginInstallState.invalid
@@ -280,8 +290,8 @@ class PluginLifecycleService extends ChangeNotifier {
         manifest: manifest,
         directory: directory.path,
         state: state,
-        enabled: enabled && state != PluginInstallState.invalid,
-        lastError: errors.isEmpty ? null : errors.join('; '),
+        enabled: enabled && state == PluginInstallState.enabled,
+        lastError: errors.isNotEmpty ? errors.join('; ') : compatibilityError,
       );
     } catch (e) {
       _diag.error(
@@ -580,14 +590,31 @@ class PluginLifecycleService extends ChangeNotifier {
     final errors = manifest.validate();
     final entryPath =
         path.normalize(path.join(sourceDirectory.path, manifest.entry));
-    if (!await File(entryPath).exists() &&
-        !await Directory(entryPath).exists()) {
+    if (!await File(entryPath).exists()) {
       errors.add('entry does not exist: ${manifest.entry}');
     }
-    if (!_isCompatible(manifest.minAppVersion)) {
-      errors.add(
-        'requires app version >= ${manifest.minAppVersion}, current ${AppConstants.version}',
-      );
+    final workingDirectory = manifest.runtime.workingDirectory;
+    if (workingDirectory != null) {
+      final workingPath =
+          path.normalize(path.join(sourceDirectory.path, workingDirectory));
+      if (!await Directory(workingPath).exists()) {
+        errors
+            .add('runtime.workingDirectory does not exist: $workingDirectory');
+      }
+    }
+    final executable = manifest.runtime.executable;
+    if (executable != null &&
+        !path.isAbsolute(executable) &&
+        (executable.contains('/') || executable.contains('\\'))) {
+      final executablePath =
+          path.normalize(path.join(sourceDirectory.path, executable));
+      if (!await File(executablePath).exists()) {
+        errors.add('runtime.executable does not exist: $executable');
+      }
+    }
+    final compatibilityError = _compatibilityError(manifest);
+    if (compatibilityError != null) {
+      errors.add(compatibilityError);
     }
     if (errors.isNotEmpty) {
       _diag.mark(
@@ -942,12 +969,21 @@ class PluginLifecycleService extends ChangeNotifier {
 
   List<InstalledPlugin> pluginsForIntent(DownloadIntent intent) {
     final capabilities = _capabilitiesForIntent(intent);
-    return _plugins
+    final candidates = _plugins
         .where((plugin) =>
             plugin.enabled &&
             plugin.state == PluginInstallState.enabled &&
             capabilities.any(plugin.manifest.supportsCapability))
         .toList(growable: false);
+    candidates.sort((left, right) {
+      final scoreComparison =
+          _routingScore(right, intent).compareTo(_routingScore(left, intent));
+      if (scoreComparison != 0) {
+        return scoreComparison;
+      }
+      return left.id.compareTo(right.id);
+    });
+    return candidates;
   }
 
   InstalledPlugin? resolvePluginForIntent(DownloadIntent intent) {
@@ -971,6 +1007,10 @@ class PluginLifecycleService extends ChangeNotifier {
     return path.join(_logsDir, pluginId);
   }
 
+  String pluginDataDir(String pluginId) {
+    return path.join(_dataDir, pluginId);
+  }
+
   List<String> _capabilitiesForIntent(DownloadIntent intent) {
     final type = intent.type.wireName;
     switch (intent.type) {
@@ -980,21 +1020,63 @@ class PluginLifecycleService extends ChangeNotifier {
         return ['download:magnet', 'intent:magnet'];
       case DownloadIntentType.torrentFile:
         return ['download:torrent_file', 'intent:torrent_file'];
+      case DownloadIntentType.ed2k:
+        return ['download:ed2k', 'intent:ed2k'];
       case DownloadIntentType.resolver:
         return ['resolver', 'intent:resolver'];
       case DownloadIntentType.custom:
-        return ['custom', 'intent:custom', 'download:$type'];
+        final schemeSuffix = _customSchemeSuffix(intent.uri?.scheme);
+        return [
+          if (schemeSuffix != null) 'intent:custom:$schemeSuffix',
+          if (schemeSuffix != null) 'download:custom:$schemeSuffix',
+          'custom',
+          'intent:custom',
+          'download:$type',
+        ];
       case DownloadIntentType.unsupported:
         return const <String>[];
     }
   }
 
-  bool _isCompatible(String? minAppVersion) {
-    final minVersion = minAppVersion?.trim();
-    if (minVersion == null || minVersion.isEmpty) {
-      return true;
+  int _routingScore(InstalledPlugin plugin, DownloadIntent intent) {
+    var score = plugin.manifest.priority;
+    final scheme = intent.uri?.scheme.toLowerCase();
+    if (plugin.manifest.handlesIntentScheme(scheme)) {
+      score += 10000;
     }
-    return _compareVersion(AppConstants.version, minVersion) >= 0;
+    final suffix = _customSchemeSuffix(scheme);
+    if (suffix != null &&
+        (plugin.manifest.supportsCapability('intent:custom:$suffix') ||
+            plugin.manifest.supportsCapability('download:custom:$suffix'))) {
+      score += 5000;
+    }
+    return score;
+  }
+
+  String? _customSchemeSuffix(String? scheme) {
+    final normalized = scheme?.trim().toLowerCase() ?? '';
+    for (final prefix in const ['hanabi+', 'plugin+']) {
+      if (normalized.startsWith(prefix) && normalized.length > prefix.length) {
+        return normalized.substring(prefix.length);
+      }
+    }
+    return null;
+  }
+
+  String? _compatibilityError(PluginManifest manifest) {
+    final minVersion = manifest.minAppVersion?.trim();
+    if (minVersion != null &&
+        minVersion.isNotEmpty &&
+        _compareVersion(AppConstants.version, minVersion) < 0) {
+      return 'requires app version >= $minVersion, current ${AppConstants.version}';
+    }
+    final maxVersion = manifest.maxAppVersion?.trim();
+    if (maxVersion != null &&
+        maxVersion.isNotEmpty &&
+        _compareVersion(AppConstants.version, maxVersion) > 0) {
+      return 'requires app version <= $maxVersion, current ${AppConstants.version}';
+    }
+    return null;
   }
 
   int _compareVersion(String left, String right) {

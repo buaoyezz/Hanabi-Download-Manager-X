@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:path/path.dart' as path;
 
 import '../models/plugin_manifest.dart';
+import '../utils/constants.dart';
 import 'app_logger_service.dart';
 import 'plugin_diagnostic_logger.dart';
 import 'plugin_lifecycle_service.dart';
@@ -17,6 +18,8 @@ class PluginInvocationResult {
     this.exitCode,
     this.stdout = '',
     this.stderr = '',
+    this.errorCode,
+    this.errorData,
   });
 
   final bool success;
@@ -25,46 +28,86 @@ class PluginInvocationResult {
   final int? exitCode;
   final String stdout;
   final String stderr;
+  final Object? errorCode;
+  final Object? errorData;
 }
+
+typedef PluginDirectoryResolver = String Function(InstalledPlugin plugin);
 
 class _PluginProcessSpec {
   const _PluginProcessSpec({
     required this.executable,
     required this.arguments,
+    required this.workingDirectory,
   });
 
   final String executable;
   final List<String> arguments;
+  final String workingDirectory;
 }
 
 class PluginProcessRunner {
   PluginProcessRunner({
     PluginLifecycleService? pluginService,
     AppLoggerService? logger,
+    PluginDirectoryResolver? logDirectoryResolver,
+    PluginDirectoryResolver? dataDirectoryResolver,
   })  : _pluginService = pluginService ?? PluginLifecycleService(),
-        _logger = logger ?? AppLoggerService();
+        _logger = logger ?? AppLoggerService(),
+        _logDirectoryResolver = logDirectoryResolver,
+        _dataDirectoryResolver = dataDirectoryResolver;
 
   final PluginLifecycleService _pluginService;
   final AppLoggerService _logger;
+  final PluginDirectoryResolver? _logDirectoryResolver;
+  final PluginDirectoryResolver? _dataDirectoryResolver;
   final PluginDiagnosticLogger _diag = PluginDiagnosticLogger();
 
   Future<PluginInvocationResult> invoke(
     InstalledPlugin plugin, {
     required String method,
     required Map<String, dynamic> params,
-    Duration timeout = const Duration(seconds: 30),
+    Duration? timeout,
   }) async {
+    final effectiveTimeout =
+        timeout ?? Duration(seconds: plugin.manifest.runtime.timeoutSeconds);
     final spec = _buildProcessSpec(plugin);
     final id = DateTime.now().microsecondsSinceEpoch.toString();
+    final logDir = Directory(_resolveLogDirectory(plugin));
+    final dataDir = Directory(_resolveDataDirectory(plugin));
+    await Future.wait([
+      logDir.create(recursive: true),
+      dataDir.create(recursive: true),
+    ]);
     final request = {
       'jsonrpc': '2.0',
       'id': id,
       'method': method,
       'params': params,
+      'meta': {
+        'apiVersion': plugin.manifest.apiVersion,
+        'host': {
+          'name': 'Hanabi Download Manager X',
+          'version': AppConstants.version,
+          'platform': Platform.operatingSystem,
+        },
+        'plugin': {
+          'id': plugin.id,
+          'version': plugin.version,
+        },
+        'invocation': {
+          'method': method,
+          'requestedAt': DateTime.now().toUtc().toIso8601String(),
+          'timeoutMs': effectiveTimeout.inMilliseconds,
+        },
+        'paths': {
+          'plugin': plugin.directory,
+          'data': dataDir.path,
+          'logs': logDir.path,
+        },
+      },
     };
 
-    final logDir = Directory(_pluginService.pluginLogDir(plugin.id));
-    await logDir.create(recursive: true);
     final logFile = File(path.join(logDir.path, 'runtime.log'));
 
     Process? process;
@@ -79,17 +122,24 @@ class PluginProcessRunner {
           'executable': spec.executable,
           'arguments': spec.arguments,
           'params': params,
-          'timeoutMs': timeout.inMilliseconds,
+          'workingDirectory': spec.workingDirectory,
+          'timeoutMs': effectiveTimeout.inMilliseconds,
         },
       );
       process = await Process.start(
         spec.executable,
         spec.arguments,
-        workingDirectory: plugin.directory,
+        workingDirectory: spec.workingDirectory,
         environment: {
+          ...plugin.manifest.runtime.environment,
           'HANABI_PLUGIN_ID': plugin.id,
           'HANABI_PLUGIN_DIR': plugin.directory,
           'HANABI_PLUGIN_LOG_DIR': logDir.path,
+          'HANABI_PLUGIN_DATA_DIR': dataDir.path,
+          'HANABI_API_VERSION': plugin.manifest.apiVersion,
+          'HANABI_APP_VERSION': AppConstants.version,
+          'HANABI_REQUEST_ID': id,
+          'HANABI_REQUEST_METHOD': method,
         },
       );
       _diag.mark(
@@ -113,7 +163,8 @@ class PluginProcessRunner {
         data: <String, Object?>{'method': method, 'requestId': id},
       );
 
-      final exitCode = await process.exitCode.timeout(timeout, onTimeout: () {
+      final exitCode =
+          await process.exitCode.timeout(effectiveTimeout, onTimeout: () {
         _diag.mark(
           'process.timeout',
           pluginId: plugin.id,
@@ -125,7 +176,7 @@ class PluginProcessRunner {
         );
         process?.kill(ProcessSignal.sigkill);
         throw TimeoutException(
-          'Plugin ${plugin.id} timed out after ${timeout.inSeconds}s',
+          'Plugin ${plugin.id} timed out after ${effectiveTimeout.inSeconds}s',
         );
       });
 
@@ -177,6 +228,26 @@ class PluginProcessRunner {
         );
       }
 
+      final protocolError = _validateResponse(decoded, id);
+      if (protocolError != null) {
+        _diag.mark(
+          'process.response.invalid',
+          pluginId: plugin.id,
+          data: <String, Object?>{
+            'method': method,
+            'requestId': id,
+            'error': protocolError,
+          },
+        );
+        return PluginInvocationResult(
+          success: false,
+          error: protocolError,
+          exitCode: exitCode,
+          stdout: stdout,
+          stderr: stderr,
+        );
+      }
+
       final error = decoded['error'];
       if (error != null) {
         _diag.mark(
@@ -196,6 +267,8 @@ class PluginProcessRunner {
           exitCode: exitCode,
           stdout: stdout,
           stderr: stderr,
+          errorCode: error is Map ? error['code'] : null,
+          errorData: error is Map ? error['data'] : null,
         );
       }
 
@@ -245,19 +318,43 @@ class PluginProcessRunner {
       plugin.manifest.entry,
     ));
     final extension = path.extension(entryPath).toLowerCase();
+    final runtime = plugin.manifest.runtime;
+    final workingDirectory = runtime.workingDirectory == null
+        ? plugin.directory
+        : path.normalize(path.join(plugin.directory, runtime.workingDirectory));
+    final runtimeArguments = runtime.arguments
+        .map((argument) => argument
+            .replaceAll('{entry}', entryPath)
+            .replaceAll('{pluginDir}', plugin.directory))
+        .toList(growable: false);
+
+    if (runtime.executable != null) {
+      final executable = _resolveExecutable(plugin, runtime.executable!);
+      final hasEntryPlaceholder =
+          runtime.arguments.any((argument) => argument.contains('{entry}'));
+      return _PluginProcessSpec(
+        executable: executable,
+        arguments: hasEntryPlaceholder
+            ? runtimeArguments
+            : [entryPath, ...runtimeArguments],
+        workingDirectory: workingDirectory,
+      );
+    }
 
     switch (extension) {
       case '.py':
         return _PluginProcessSpec(
           executable: 'python',
-          arguments: [entryPath],
+          arguments: [entryPath, ...runtimeArguments],
+          workingDirectory: workingDirectory,
         );
       case '.js':
       case '.mjs':
       case '.cjs':
         return _PluginProcessSpec(
           executable: 'node',
-          arguments: [entryPath],
+          arguments: [entryPath, ...runtimeArguments],
+          workingDirectory: workingDirectory,
         );
       case '.ps1':
         return _PluginProcessSpec(
@@ -268,17 +365,44 @@ class PluginProcessRunner {
             'Bypass',
             '-File',
             entryPath,
+            ...runtimeArguments,
           ],
+          workingDirectory: workingDirectory,
         );
       case '.bat':
       case '.cmd':
         return _PluginProcessSpec(
           executable: 'cmd',
-          arguments: ['/c', entryPath],
+          arguments: ['/c', entryPath, ...runtimeArguments],
+          workingDirectory: workingDirectory,
         );
       default:
-        return _PluginProcessSpec(executable: entryPath, arguments: const []);
+        return _PluginProcessSpec(
+          executable: entryPath,
+          arguments: runtimeArguments,
+          workingDirectory: workingDirectory,
+        );
     }
+  }
+
+  String _resolveExecutable(InstalledPlugin plugin, String executable) {
+    if (path.isAbsolute(executable)) {
+      return path.normalize(executable);
+    }
+    if (executable.contains('/') || executable.contains('\\')) {
+      return path.normalize(path.join(plugin.directory, executable));
+    }
+    return executable;
+  }
+
+  String _resolveLogDirectory(InstalledPlugin plugin) {
+    return _logDirectoryResolver?.call(plugin) ??
+        _pluginService.pluginLogDir(plugin.id);
+  }
+
+  String _resolveDataDirectory(InstalledPlugin plugin) {
+    return _dataDirectoryResolver?.call(plugin) ??
+        _pluginService.pluginDataDir(plugin.id);
   }
 
   Map<String, dynamic>? _decodeResponse(String stdout) {
@@ -296,6 +420,26 @@ class PluginProcessRunner {
       } catch (_) {
         continue;
       }
+    }
+    return null;
+  }
+
+  String? _validateResponse(Map<String, dynamic> response, String requestId) {
+    final jsonrpc = response['jsonrpc'];
+    if (jsonrpc != null && jsonrpc.toString() != '2.0') {
+      return 'plugin returned unsupported JSON-RPC version: $jsonrpc';
+    }
+    final responseId = response['id'];
+    if (responseId != null && responseId.toString() != requestId) {
+      return 'plugin response id does not match request id';
+    }
+    final hasResult = response.containsKey('result');
+    final hasError = response.containsKey('error');
+    if (hasResult == hasError) {
+      return 'plugin response must contain exactly one of result or error';
+    }
+    if (hasError && response['error'] == null) {
+      return 'plugin error response cannot be null';
     }
     return null;
   }

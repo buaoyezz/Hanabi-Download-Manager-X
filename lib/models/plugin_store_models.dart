@@ -55,6 +55,11 @@ class PluginStoreEntry {
     this.reviewStatus = 'published',
     this.signature = '',
     this.signingKeyId,
+    this.manifestVersion = 1,
+    this.apiVersion = '1.0',
+    this.maxAppVersion,
+    this.intentSchemes = const <String>[],
+    this.permissions = const <String>[],
   });
 
   final String id;
@@ -73,9 +78,16 @@ class PluginStoreEntry {
   final String reviewStatus;
   final String signature;
   final String? signingKeyId;
+  final int manifestVersion;
+  final String apiVersion;
+  final String? maxAppVersion;
+  final List<String> intentSchemes;
+  final List<String> permissions;
 
   factory PluginStoreEntry.fromJson(Map<String, dynamic> json) {
     final capabilitiesRaw = json['capabilities'];
+    final intentSchemesRaw = json['intentSchemes'] ?? json['intent_schemes'];
+    final permissionsRaw = json['permissions'];
     return PluginStoreEntry(
       id: json['id']?.toString().trim() ?? '',
       name: json['name']?.toString().trim() ?? '',
@@ -107,10 +119,25 @@ class PluginStoreEntry {
       signature: json['signature']?.toString().trim() ?? '',
       signingKeyId: json['signingKeyId']?.toString().trim() ??
           json['signing_key_id']?.toString().trim(),
+      manifestVersion: _intValue(json['manifestVersion'], 1),
+      apiVersion: json['apiVersion']?.toString().trim().isNotEmpty == true
+          ? json['apiVersion']!.toString().trim()
+          : '1.0',
+      maxAppVersion: json['maxAppVersion']?.toString().trim() ??
+          json['max_app_version']?.toString().trim(),
+      intentSchemes: _stringList(intentSchemesRaw),
+      permissions: permissionsRaw is Map
+          ? permissionsRaw.entries
+              .where((entry) => entry.value == true)
+              .map((entry) => entry.key.toString())
+              .toList(growable: false)
+          : _stringList(permissionsRaw),
     );
   }
 
   Map<String, dynamic> toJson() => {
+        'manifestVersion': manifestVersion,
+        'apiVersion': apiVersion,
         'id': id,
         'name': name,
         'version': version,
@@ -122,8 +149,12 @@ class PluginStoreEntry {
         if (category.isNotEmpty && category != 'other') 'category': category,
         if (minAppVersion != null && minAppVersion!.isNotEmpty)
           'minAppVersion': minAppVersion,
+        if (maxAppVersion != null && maxAppVersion!.isNotEmpty)
+          'maxAppVersion': maxAppVersion,
         'channel': channel,
         'capabilities': capabilities,
+        if (intentSchemes.isNotEmpty) 'intentSchemes': intentSchemes,
+        if (permissions.isNotEmpty) 'permissions': permissions,
         if (changelog.isNotEmpty) 'changelog': changelog,
         'reviewStatus': reviewStatus,
         if (signature.isNotEmpty) 'signature': signature,
@@ -135,7 +166,27 @@ class PluginStoreEntry {
   bool get hasSignature =>
       signature.isNotEmpty && signingKeyId?.trim().isNotEmpty == true;
   bool get isInstallable =>
-      id.isNotEmpty && downloadUrl.isNotEmpty && isPublished;
+      id.isNotEmpty &&
+      downloadUrl.isNotEmpty &&
+      isPublished &&
+      manifestVersion == 1 &&
+      RegExp(r'^1(?:\.\d+)?$').hasMatch(apiVersion);
+}
+
+List<String> _stringList(Object? raw) {
+  return raw is List
+      ? raw
+          .map((value) => value.toString().trim())
+          .where((value) => value.isNotEmpty)
+          .toList(growable: false)
+      : const <String>[];
+}
+
+int _intValue(Object? raw, int fallback) {
+  if (raw is num) {
+    return raw.toInt();
+  }
+  return int.tryParse(raw?.toString() ?? '') ?? fallback;
 }
 
 class PluginStoreIndex {

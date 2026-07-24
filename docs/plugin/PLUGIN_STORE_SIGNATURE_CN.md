@@ -1,50 +1,49 @@
-# Hanabi 插件商店签名约定
+# 插件商店签名约定
 
-当前实现补的是“商店安装链路”的签名校验：
+Hanabi 商店使用 SHA-256 验证包内容，使用 Ed25519 验证发布者签名。签名覆盖稳定 payload，而不是整个索引 JSON。
 
-- 商店索引可以声明 `signingKeys`
-- 每个插件条目可以声明 `signature + signingKeyId`
-- 应用安装前会先做 `SHA-256` 校验，再做签名校验
-
-本地目录安装和手动导入未在这一版强制要求签名。
-
-## 1. 索引字段
-
-索引根对象新增：
+## 索引格式
 
 ```json
 {
   "channel": "stable",
   "signingKeys": [
     {
-      "id": "hanabi-official",
+      "id": "hanabi-official-2026",
+      "name": "Hanabi Official 2026",
       "algorithm": "ed25519",
       "publicKey": "base64:xxxxxxxx"
     }
   ],
   "plugins": [
     {
-      "id": "hanabi.example.magnet_torrent",
-      "name": "Example Magnet/Torrent Handler",
-      "version": "0.1.0",
-      "downloadUrl": "https://example.com/magnet_torrent.hanabi-plugin.zip",
-      "hash": "sha256:xxxxxxxx",
+      "id": "hanabi.example.demo",
+      "version": "1.2.0",
+      "downloadUrl": "https://plugins.example.com/hanabi.example.demo-1.2.0.hanabi-plugin.zip",
+      "hash": "sha256:0123456789abcdef...",
+      "minAppVersion": "1.5.0",
       "signature": "base64:xxxxxxxx",
-      "signingKeyId": "hanabi-official"
+      "signingKeyId": "hanabi-official-2026",
+      "reviewStatus": "published"
     }
   ]
 }
 ```
 
-说明：
+## 支持的编码
 
-- `algorithm` 当前只支持 `ed25519`
-- `publicKey` 支持 `base64:...`、`hex:...`，也兼容去掉前缀的纯 base64/hex
-- `signature` 的编码规则与 `publicKey` 相同
+`publicKey` 和 `signature` 支持：
 
-## 2. 签名 Payload
+- `base64:<value>`；
+- `hex:<value>`；
+- 无前缀的标准 Base64；
+- 无前缀的十六进制。
 
-验签时不会直接签整个索引 JSON，而是签下面这段稳定字符串：
+算法名称当前只支持小写 `ed25519`。
+
+## 签名 payload
+
+签名输入是 UTF-8 编码的以下字符串：
 
 ```text
 hanabi-plugin-store-signature-v1
@@ -54,24 +53,82 @@ sha256=<package-sha256-lowercase>
 minAppVersion=<min-app-version-if-present>
 ```
 
-注意：
+规则：
 
-- `minAppVersion` 只有在条目里存在时才会拼进去
-- 换行符使用 `\n`
-- `sha256` 用实际下载包的哈希小写值
+- 行分隔符固定为 `\n`；
+- 最后一行后不追加额外空行；
+- `sha256` 只写 64 位小写十六进制，不含 `sha256:` 前缀；
+- 只有索引存在 `minAppVersion` 时才添加对应行；
+- 字段值按索引原值使用，不做 Unicode 规范化或空白修剪之外的隐式变换。
 
-## 3. 安装行为
+示例：
 
-- `hash` 存在时，必须先通过哈希校验
-- `signature` 和 `signingKeyId` 同时存在时，必须通过签名校验
-- 找不到签名公钥、算法不支持、签名不匹配，安装会直接失败
+```text
+hanabi-plugin-store-signature-v1
+id=hanabi.example.demo
+version=1.2.0
+sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+minAppVersion=1.5.0
+```
 
-## 4. 当前边界
+## 客户端验证顺序
 
-这版解决的是“商店下载包在安装前可验签”。
+1. 下载包到本地缓存；
+2. 计算实际 SHA-256；
+3. 索引有 `hash` 时，比较声明哈希；
+4. 索引同时有 `signature` 和 `signingKeyId` 时，查找公钥；
+5. 使用实际包哈希构造 payload；
+6. 执行 Ed25519 验签；
+7. 通过后解压并校验包内 `plugin.json`；
+8. 安装插件。
 
-还没覆盖的内容：
+以下情况会停止安装：
 
-- 本地目录安装的强制签名策略
-- 插件包内嵌签名清单
-- 独立于商店索引的本地信任根管理
+- 哈希格式错误或不匹配；
+- 只有签名或只有密钥 ID；
+- 找不到签名密钥；
+- 算法不支持；
+- 公钥或签名编码错误；
+- Ed25519 验证失败。
+
+## 签名覆盖范围
+
+签名通过包哈希间接覆盖插件包内的全部文件，包括 `plugin.json`、入口、SDK 和资源。索引中的名称、描述、下载 URL 等展示字段不在 v1 payload 中。
+
+因此：
+
+- 客户端运行时以包内清单为准；
+- 索引仍必须通过 HTTPS 和受控发布流程保护；
+- 市场不能把签名当作整个索引的真实性证明。
+
+未来如需签名完整索引，应定义独立的索引签名版本，不能静默改变 v1 payload。
+
+## 密钥管理
+
+- 私钥存放在 CI 密钥服务、硬件安全模块或离线签名环境；
+- 每把密钥使用唯一且不可复用的 `id`；
+- 构建日志不得输出私钥、种子或完整签名命令环境；
+- 定期演练密钥轮换和已泄露密钥撤销；
+- 公钥可以随索引分发，但高安全部署应由客户端固定可信根或验证索引本身。
+
+## 密钥轮换
+
+推荐步骤：
+
+1. 生成新 Ed25519 密钥和新 `signingKeyId`；
+2. 在索引 `signingKeys` 中同时发布新旧公钥；
+3. 新版本改用新密钥签名；
+4. 为仍需分发的可信旧包生成新签名条目；
+5. 等待客户端获取新公钥；
+6. 从活动索引移除旧密钥和受影响签名。
+
+如果旧私钥泄露，不能继续信任旧签名。应同时撤回可疑版本并通过独立渠道发布安全公告。
+
+## 当前边界
+
+- 本地目录安装和手动导入不强制签名；
+- v1 没有包内嵌签名文件；
+- v1 不提供完整索引签名；
+- 当前索引中的公钥不是客户端内置的独立信任根。
+
+更完整的风险说明见[安全模型](SECURITY_CN.md)。

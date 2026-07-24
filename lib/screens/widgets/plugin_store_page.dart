@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:path/path.dart' as path;
 import 'package:provider/provider.dart';
 
 import '../../models/plugin_manifest.dart';
@@ -163,7 +164,7 @@ class _PluginStorePageState extends State<PluginStorePage> {
               _actionButton(
                 icon: custom_icons.FluentIcons.document,
                 label: _isChinese ? '安装包' : 'Install package',
-                onPressed: _busy ? null : () => _installFromPackage(context),
+                onPressed: _busy ? null : _installFromPackage,
               ),
               _actionButton(
                 icon: custom_icons.FluentIcons.refresh,
@@ -1410,15 +1411,18 @@ class _PluginStorePageState extends State<PluginStorePage> {
     }
   }
 
-  Future<String?> _showPathInputDialog({
+  Future<List<String>?> _showPathInputDialog({
     required String title,
     required String placeholder,
     String? description,
     bool isDirectory = false,
+    bool allowMultiple = false,
+    List<String> allowedFileExtensions = const <String>[],
   }) async {
+    assert(!allowMultiple || !isDirectory);
     final controller = TextEditingController();
     try {
-      return await showDialog<String>(
+      return await showDialog<List<String>>(
         context: context,
         builder: (dialogContext) => ContentDialog(
           title: Text(title),
@@ -1444,28 +1448,94 @@ class _PluginStorePageState extends State<PluginStorePage> {
                         controller: controller,
                         autofocus: true,
                         placeholder: placeholder,
+                        onFieldSubmitted: (value) {
+                          final normalized = _normalizeInputPath(value);
+                          if (_isAcceptedInputPath(
+                            normalized,
+                            allowedFileExtensions,
+                          )) {
+                            Navigator.pop(
+                              dialogContext,
+                              <String>[normalized],
+                            );
+                          }
+                        },
                       ),
                     ),
-                    if (isDirectory) ...[
+                    if (isDirectory || allowedFileExtensions.isNotEmpty) ...[
                       const SizedBox(width: 8),
                       _actionButton(
-                        icon: custom_icons.FluentIcons.folder_open,
+                        icon: isDirectory
+                            ? custom_icons.FluentIcons.folder_open
+                            : custom_icons.FluentIcons.document,
                         label: _isChinese ? '浏览' : 'Browse',
                         onPressed: () async {
+                          final picker = FolderPickerDialog(
+                            initialPath: controller.text,
+                            mode: isDirectory
+                                ? FileSystemPickerMode.directory
+                                : FileSystemPickerMode.file,
+                            allowMultiple: allowMultiple,
+                            allowedExtensions: allowedFileExtensions,
+                            title: isDirectory
+                                ? null
+                                : (_isChinese
+                                    ? '选择插件安装包'
+                                    : (allowMultiple
+                                        ? 'Select plugin packages'
+                                        : 'Select plugin package')),
+                            selectButtonLabel: isDirectory
+                                ? null
+                                : (allowMultiple
+                                    ? (_isChinese
+                                        ? '安装所选包'
+                                        : 'Install selected')
+                                    : (_isChinese ? '使用此文件' : 'Use this file')),
+                            emptyMessage: isDirectory
+                                ? null
+                                : (_isChinese
+                                    ? '此位置没有可安装的插件包'
+                                    : 'No installable plugin packages here'),
+                          );
+                          if (allowMultiple) {
+                            final selectedPaths =
+                                await showDialog<List<String>>(
+                              context: dialogContext,
+                              builder: (context) => picker,
+                            );
+                            if (selectedPaths != null &&
+                                selectedPaths.isNotEmpty &&
+                                dialogContext.mounted) {
+                              Navigator.pop(dialogContext, selectedPaths);
+                            }
+                            return;
+                          }
                           final selectedPath = await showDialog<String>(
-                            context: context,
-                            builder: (context) => FolderPickerDialog(
-                              initialPath: controller.text,
-                            ),
+                            context: dialogContext,
+                            builder: (context) => picker,
                           );
                           if (selectedPath != null && selectedPath.isNotEmpty) {
                             controller.text = selectedPath;
+                            controller.selection = TextSelection.collapsed(
+                              offset: selectedPath.length,
+                            );
                           }
                         },
                       ),
                     ],
                   ],
                 ),
+                if (allowedFileExtensions.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    '${_isChinese ? '支持格式' : 'Supported'}: '
+                    '${allowedFileExtensions.map((value) => '.$value').join(', ')}',
+                    style: FluentTheme.of(context).typography.caption?.copyWith(
+                          color: AppTheme.textTertiary,
+                          fontSize: 11,
+                        ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1474,12 +1544,24 @@ class _PluginStorePageState extends State<PluginStorePage> {
               onPressed: () => Navigator.pop(dialogContext),
               child: Text(_isChinese ? '取消' : 'Cancel'),
             ),
-            FilledButton(
-              onPressed: () {
-                final normalized = _normalizeInputPath(controller.text);
-                Navigator.pop(dialogContext, normalized);
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: controller,
+              builder: (context, value, child) {
+                final normalized = _normalizeInputPath(value.text);
+                final canSubmit = _isAcceptedInputPath(
+                  normalized,
+                  allowedFileExtensions,
+                );
+                return FilledButton(
+                  onPressed: !canSubmit
+                      ? null
+                      : () => Navigator.pop(
+                            dialogContext,
+                            <String>[normalized],
+                          ),
+                  child: Text(_isChinese ? '安装' : 'Install'),
+                );
               },
-              child: Text(_isChinese ? '安装' : 'Install'),
             ),
           ],
         ),
@@ -1499,9 +1581,22 @@ class _PluginStorePageState extends State<PluginStorePage> {
     return normalized;
   }
 
+  bool _isAcceptedInputPath(
+    String value,
+    List<String> allowedFileExtensions,
+  ) {
+    if (value.isEmpty) return false;
+    if (allowedFileExtensions.isEmpty) return true;
+    final lower = value.toLowerCase();
+    return allowedFileExtensions.any((extension) {
+      final normalized = extension.trim().toLowerCase().replaceFirst('.', '');
+      return normalized.isNotEmpty && lower.endsWith('.$normalized');
+    });
+  }
+
   Future<void> _installFromDirectory(BuildContext context) async {
     _diag.mark('storePage.installDirectory.pathDialog.open');
-    final selected = await _showPathInputDialog(
+    final selectedPaths = await _showPathInputDialog(
       title: _isChinese ? '安装本地插件目录' : 'Install local plugin folder',
       placeholder: r'E:\path\to\plugin',
       description: _isChinese
@@ -1512,14 +1607,15 @@ class _PluginStorePageState extends State<PluginStorePage> {
     _diag.mark(
       'storePage.installDirectory.pathDialog.result',
       data: <String, Object?>{
-        'selected': selected,
+        'selectedPaths': selectedPaths,
         'mounted': mounted,
       },
     );
-    if (selected == null || selected.trim().isEmpty) {
+    if (selectedPaths == null || selectedPaths.isEmpty) {
       _diag.mark('storePage.installDirectory.cancelled');
       return;
     }
+    final selected = selectedPaths.first;
     await _runAction(
       () =>
           context.read<PluginLifecycleService>().installFromDirectory(selected),
@@ -1529,34 +1625,141 @@ class _PluginStorePageState extends State<PluginStorePage> {
     );
   }
 
-  Future<void> _installFromPackage(BuildContext context) async {
+  Future<void> _installFromPackage() async {
     _diag.mark('storePage.installPackage.pathDialog.open');
-    final packagePath = await _showPathInputDialog(
+    final selectedPaths = await _showPathInputDialog(
       title: _isChinese ? '安装插件包' : 'Install plugin package',
       placeholder: r'E:\path\to\plugin.hanabi-plugin.zip',
       description: _isChinese
-          ? '输入或粘贴 .zip 或 .hanabi-plugin 插件包路径。'
-          : 'Enter or paste a .zip or .hanabi-plugin package path.',
+          ? '可浏览多选 .zip、.hanabi-plugin 插件包，或粘贴单个包路径。'
+          : 'Browse for multiple .zip or .hanabi-plugin packages, or paste one package path.',
+      allowMultiple: true,
+      allowedFileExtensions: const <String>['zip', 'hanabi-plugin'],
     );
     _diag.mark(
       'storePage.installPackage.pathDialog.result',
       data: <String, Object?>{
-        'packagePath': packagePath,
+        'selectedPaths': selectedPaths,
+        'packageCount': selectedPaths?.length ?? 0,
         'mounted': mounted,
       },
     );
-    if (packagePath == null || packagePath.trim().isEmpty) {
+    if (selectedPaths == null || selectedPaths.isEmpty) {
       _diag.mark('storePage.installPackage.cancelled');
       return;
     }
-    await _runAction(
-      () => context
-          .read<PluginLifecycleService>()
-          .installFromPackage(packagePath),
-      successTitle: _isChinese ? '插件包已安装' : 'Plugin package installed',
-      diagnosticName: 'storePage.installPackage',
-      diagnosticData: <String, Object?>{'packagePath': packagePath},
-    );
+    final packagePaths = selectedPaths
+        .map(_normalizeInputPath)
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    await _installPackages(packagePaths);
+  }
+
+  Future<void> _installPackages(List<String> packagePaths) async {
+    if (packagePaths.isEmpty || _busy) return;
+    final service = context.read<PluginLifecycleService>();
+    final installedPaths = <String>[];
+    final failures = <({String packagePath, Object error})>[];
+    final diagnosticData = <String, Object?>{
+      'packageCount': packagePaths.length,
+      'packagePaths': packagePaths,
+    };
+
+    _diag.mark('storePage.installPackage.start', data: diagnosticData);
+    setState(() => _busy = true);
+    try {
+      for (var index = 0; index < packagePaths.length; index++) {
+        final packagePath = packagePaths[index];
+        _diag.mark(
+          'storePage.installPackage.item.start',
+          data: <String, Object?>{
+            'index': index,
+            'packageCount': packagePaths.length,
+            'packagePath': packagePath,
+          },
+        );
+        try {
+          final installed = await service.installFromPackage(packagePath);
+          installedPaths.add(packagePath);
+          _diag.mark(
+            'storePage.installPackage.item.success',
+            pluginId: installed.id,
+            data: <String, Object?>{
+              'index': index,
+              'packagePath': packagePath,
+            },
+          );
+        } catch (error, stackTrace) {
+          failures.add((packagePath: packagePath, error: error));
+          _diag.error(
+            'storePage.installPackage.item.error',
+            error,
+            stackTrace: stackTrace,
+            data: <String, Object?>{
+              'index': index,
+              'packagePath': packagePath,
+            },
+          );
+        }
+      }
+
+      _diag.mark(
+        'storePage.installPackage.complete',
+        data: <String, Object?>{
+          ...diagnosticData,
+          'successCount': installedPaths.length,
+          'failureCount': failures.length,
+          'failedPaths':
+              failures.map((failure) => failure.packagePath).toList(),
+        },
+      );
+      if (!mounted) return;
+      if (failures.isEmpty) {
+        NotificationManager.of(context)?.showSuccess(
+          packagePaths.length == 1
+              ? (_isChinese ? '插件包已安装' : 'Plugin package installed')
+              : (_isChinese
+                  ? '已安装 ${installedPaths.length} 个插件包'
+                  : '${installedPaths.length} plugin packages installed'),
+        );
+        return;
+      }
+
+      final visibleFailures = failures.take(5).map(
+            (failure) =>
+                '${path.basename(failure.packagePath)}: ${failure.error}',
+          );
+      final hiddenFailureCount = failures.length - visibleFailures.length;
+      final failureDetails = <String>[
+        ...visibleFailures,
+        if (hiddenFailureCount > 0)
+          _isChinese
+              ? '还有 $hiddenFailureCount 个失败项，请查看诊断日志。'
+              : '$hiddenFailureCount more failures; see diagnostic logs.',
+      ].join('\n');
+      NotificationManager.of(context)?.showError(
+        packagePaths.length == 1
+            ? (_isChinese ? '插件包安装失败' : 'Plugin package install failed')
+            : (_isChinese
+                ? '批量安装完成：成功 ${installedPaths.length}，失败 ${failures.length}'
+                : 'Batch install complete: ${installedPaths.length} succeeded, ${failures.length} failed'),
+        message: failureDetails,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+      _diag.mark(
+        'storePage.installPackage.done',
+        data: <String, Object?>{
+          ...diagnosticData,
+          'successCount': installedPaths.length,
+          'failureCount': failures.length,
+          'mounted': mounted,
+        },
+      );
+    }
   }
 
   Future<void> _refreshStoreIndex(PluginStoreService storeService) async {

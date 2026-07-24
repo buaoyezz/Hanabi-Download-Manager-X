@@ -6,6 +6,7 @@ on:
     paths:
       - "plugins-list/**"
       - "plugins/examples/**"
+      - "plugins/official/**"
       - "scripts/package-plugin.ps1"
       - "scripts/package-plugin-sources.ps1"
       - "scripts/sync-plugin-sources.ps1"

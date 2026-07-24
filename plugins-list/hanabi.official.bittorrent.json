@@ -1,0 +1,10 @@
+{
+  "id": "hanabi.official.bittorrent",
+  "repo": "https://github.com/buaoyezz/Hanabi-Download-Manager-X",
+  "branch": "main",
+  "pluginPath": "plugins/official/bittorrent",
+  "channel": "stable",
+  "reviewStatus": "published",
+  "submitter": "github:buaoyezz",
+  "notes": "Official BitTorrent plugin maintained by the Hanabi project. Uses a verified isolated aria2 backend."
+}
