@@ -7,7 +7,6 @@ namespace Hanabi.Updater.App.ViewModels;
 
 public sealed class UpdaterViewModel : INotifyPropertyChanged
 {
-    private readonly string[] _args;
     private readonly ParseResult _parseResult;
     private CancellationTokenSource? _cancellation;
     private WizardPage _page = WizardPage.Welcome;
@@ -27,16 +26,30 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
     private UpdateStage _currentStage;
     private bool _isSkippingSpeedTest;
     private bool _currentSkipMirror;
+    private bool _isProgressIndeterminate;
 
+    public string WindowTitleText => "Hanabi Download Manager X Setup";
+    public string ShellTitleText => "Setup";
     public string SetupTitleText => "Hanabi Download Manager X";
-    public string SetupSubtitleText => _isEnglish ? "Fast and powerful download manager" : "快速、强大的下载管理器";
-    public string StartInstallText => _isEnglish ? "Start Install" : "开始安装";
+    public string SetupSubtitleText => _isEnglish ? "Install or update Hanabi Download Manager X" : "安装或更新 Hanabi Download Manager X";
+    public string StartInstallText => _isEnglish ? "Continue" : "继续";
+    public string StepProgressText => _isEnglish ? "SETUP STEPS" : "安装步骤";
+    public string FooterStatusText => _isEnglish ? "Keep this window open until setup completes" : "安装或更新完成前请保持此窗口开启";
+    public string SetupVersionText
+    {
+        get
+        {
+            var version = typeof(UpdaterViewModel).Assembly.GetName().Version;
+            return $"Setup v{version?.Major ?? 1}.{version?.Minor ?? 0}.{version?.Build ?? 0}";
+        }
+    }
     public string AboutText => _isEnglish ? "About" : "关于";
+    public string AboutToolTipText => _isEnglish ? "About Hanabi Download Manager X Setup" : "关于 Hanabi Download Manager X Setup";
     public string BackText => _isEnglish ? "Back" : "返回";
     public string AcceptLicenseText => _isEnglish ? "I accept the terms in the License Agreement" : "我接受许可协议中的条款";
     public string TargetDirText => _isEnglish ? "Target Directory" : "目标目录";
     public string ChangeDirText => _isEnglish ? "Browse..." : "浏览...";
-    public string LocationWarningText => _isEnglish ? "If your old process is still running, We will wait for the app to exit, then replace the files." : "若您的旧进程仍在运行,我们会等待主程序退出，然后在替换当前目录中的文件";
+    public string LocationWarningText => _isEnglish ? "Settings and download tasks are preserved. The app will close before application files are replaced." : "设置和下载任务会被保留；替换应用文件前会等待主程序安全退出。";
     public string InstallProgressText => _isEnglish ? "Install Progress" : "安装进度";
     public string SpecialThanksText => _isEnglish ? "Special Thanks: ghproxy.com, moeyy.cn (GitHub Mirrors)" : "特别鸣谢: ghproxy.com, moeyy.cn 提供下载加速支持";
 
@@ -48,6 +61,9 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
         {
             if (SetField(ref _installLocation, value))
             {
+                OnPropertyChanged(nameof(IsInstallLocationValid));
+                OnPropertyChanged(nameof(InstallLocationStatusText));
+                OnPropertyChanged(nameof(CanUsePrimaryButton));
                 if (_page == WizardPage.Location)
                 {
                     Detail = value;
@@ -58,8 +74,7 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
 
     public UpdaterViewModel(string[] args)
     {
-        _args = args;
-        _parseResult = UpdaterArguments.Parse(_args);
+        _parseResult = UpdaterArguments.Parse(args);
 
         _installLocation = _parseResult.Arguments is null
             ? "启动参数缺失，无法定位安装目录"
@@ -68,9 +83,9 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
         Steps =
         [
             new StepItem("许可协议", "\uE8A5"),
-            new StepItem("安装位置", "\uE838"),
+            new StepItem("安装位置", "\uE8B7"),
             new StepItem("正在安装", "\uE896"),
-            new StepItem("万事大吉", "\uE73E")
+            new StepItem("安装完成", "\uE73E")
         ];
 
         UpdateStepState(0);
@@ -94,7 +109,22 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
 
     public bool IsDoneVisible => _page == WizardPage.Done && !_isAboutVisibleOverlay;
 
-    public bool IsPrimaryButtonVisible => !_isAboutVisibleOverlay;
+    public bool IsPrimaryButtonVisible => !_isAboutVisibleOverlay && _page != WizardPage.Progress;
+
+    public bool IsCancelButtonVisible => !_isAboutVisibleOverlay &&
+        _page == WizardPage.Progress && IsRunning && CanCancel;
+
+    public bool IsFooterStatusVisible => !_isAboutVisibleOverlay && _page == WizardPage.Progress;
+
+    public bool CanAdjustPreferences => !IsRunning;
+
+    public bool IsSecondaryButtonVisible => !_isAboutVisibleOverlay &&
+        (_page is WizardPage.License or WizardPage.Location ||
+         _page == WizardPage.Done && HasFailed);
+
+    public string SecondaryButtonText => _page == WizardPage.Done && HasFailed
+        ? (_isEnglish ? "Close" : "关闭")
+        : (_isEnglish ? "Back" : "上一步");
 
     public bool IsAboutVisibleOverlay
     {
@@ -110,6 +140,14 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
     }
 
     public bool IsMainContentVisible => _page != WizardPage.Welcome && !_isAboutVisibleOverlay;
+
+    public bool IsSuccessResult => _page == WizardPage.Done && !HasFailed;
+
+    public bool IsFailureResult => _page == WizardPage.Done && HasFailed;
+
+    public string ResultLabelText => HasFailed
+        ? (_isEnglish ? "ACTION NEEDED" : "需要处理")
+        : (_isEnglish ? "UPDATE COMPLETE" : "更新完成");
 
     public string Title
     {
@@ -143,16 +181,38 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
 
     public string PercentText => $"{Percent}%";
 
+    public bool IsProgressIndeterminate
+    {
+        get => _isProgressIndeterminate;
+        private set => SetField(ref _isProgressIndeterminate, value);
+    }
+
     public bool IsRunning
     {
         get => _isRunning;
-        private set => SetField(ref _isRunning, value);
+        private set
+        {
+            if (SetField(ref _isRunning, value))
+            {
+                OnPropertyChanged(nameof(CanAdjustPreferences));
+                OnPropertyChanged(nameof(IsCancelButtonVisible));
+                OnPropertyChanged(nameof(IsFooterStatusVisible));
+            }
+        }
     }
 
     public bool HasFailed
     {
         get => _hasFailed;
-        private set => SetField(ref _hasFailed, value);
+        private set
+        {
+            if (SetField(ref _hasFailed, value))
+            {
+                OnPropertyChanged(nameof(IsSuccessResult));
+                OnPropertyChanged(nameof(IsFailureResult));
+                OnPropertyChanged(nameof(ResultLabelText));
+            }
+        }
     }
 
     public bool LicenseAccepted
@@ -171,9 +231,55 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
         _page switch
         {
             WizardPage.License => LicenseAccepted,
+            WizardPage.Location => IsInstallLocationValid && !IsRunning,
             WizardPage.Progress => IsRunning && CanCancel,
             _ => !IsRunning
         };
+
+    public bool IsInstallLocationValid
+    {
+        get
+        {
+            try
+            {
+                return !string.IsNullOrWhiteSpace(InstallLocation) &&
+                    !string.IsNullOrWhiteSpace(Path.GetPathRoot(Path.GetFullPath(InstallLocation)));
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
+
+    public string InstallLocationStatusText
+    {
+        get
+        {
+            if (!IsInstallLocationValid)
+            {
+                return _isEnglish ? "Choose a valid installation directory." : "请选择有效的安装目录。";
+            }
+
+            try
+            {
+                var root = Path.GetPathRoot(Path.GetFullPath(InstallLocation));
+                var drive = string.IsNullOrWhiteSpace(root) ? null : new DriveInfo(root);
+                if (drive?.IsReady == true)
+                {
+                    return _isEnglish
+                        ? $"{drive.AvailableFreeSpace / 1024d / 1024 / 1024:F1} GB available"
+                        : $"可用空间 {drive.AvailableFreeSpace / 1024d / 1024 / 1024:F1} GB";
+                }
+            }
+            catch
+            {
+                // Some network locations do not expose free-space information.
+            }
+
+            return _isEnglish ? "The directory will be created if needed." : "目录不存在时将自动创建。";
+        }
+    }
 
     public bool CanCancel
     {
@@ -183,6 +289,7 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
             if (SetField(ref _canCancel, value))
             {
                 OnPropertyChanged(nameof(CanUsePrimaryButton));
+                OnPropertyChanged(nameof(IsCancelButtonVisible));
             }
         }
     }
@@ -210,12 +317,42 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
         private set => SetField(ref _primaryButtonText, value);
     }
 
+    public bool RequestClose()
+    {
+        if (!IsRunning)
+        {
+            return true;
+        }
+
+        if (_cancellation?.IsCancellationRequested == true)
+        {
+            Detail = _isEnglish
+                ? "Stopping and cleaning temporary files..."
+                : "正在停止操作并清理临时文件...";
+            return false;
+        }
+
+        if (CanCancel)
+        {
+            Cancel();
+            Description = _isEnglish
+                ? "Waiting for the current operation to stop safely"
+                : "正在安全停止当前操作";
+            return false;
+        }
+
+        Detail = _isEnglish
+            ? "Application files are being replaced. Setup will close when this step finishes."
+            : "正在替换应用文件，此阶段不能强制退出，请等待安装完成。";
+        return false;
+    }
+
     public void ShowLicense()
     {
         _page = WizardPage.License;
         Title = _isEnglish ? "License Agreement" : "许可协议";
         Description = _isEnglish ? "Please read the following license terms" : "请仔细阅读以下许可条款";
-        PrimaryButtonText = _isEnglish ? "Next  >" : "下一步  >";
+        PrimaryButtonText = _isEnglish ? "Continue" : "继续";
         UpdateStepState(0);
         NotifyPageState();
     }
@@ -229,7 +366,7 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
 
         _page = WizardPage.Location;
         Title = _isEnglish ? "Install Location" : "安装位置";
-        Description = _isEnglish ? "The updater will install to the current Hanabi directory" : "更新器将安装到当前 Hanabi 目录";
+        Description = _isEnglish ? "Setup will use the current application directory" : "Setup 将使用当前程序目录";
         Detail = InstallLocation;
         PrimaryButtonText = _isEnglish ? "Install" : "开始安装";
         UpdateStepState(1);
@@ -247,7 +384,10 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(SetupTitleText));
         OnPropertyChanged(nameof(SetupSubtitleText));
         OnPropertyChanged(nameof(StartInstallText));
+        OnPropertyChanged(nameof(StepProgressText));
+        OnPropertyChanged(nameof(FooterStatusText));
         OnPropertyChanged(nameof(AboutText));
+        OnPropertyChanged(nameof(AboutToolTipText));
         OnPropertyChanged(nameof(BackText));
         OnPropertyChanged(nameof(AcceptLicenseText));
         OnPropertyChanged(nameof(TargetDirText));
@@ -257,11 +397,14 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(SpecialThanksText));
         OnPropertyChanged(nameof(AccelerationNodeText));
         OnPropertyChanged(nameof(SkipText));
+        OnPropertyChanged(nameof(SecondaryButtonText));
+        OnPropertyChanged(nameof(InstallLocationStatusText));
+        OnPropertyChanged(nameof(ResultLabelText));
 
         Steps[0].Label = _isEnglish ? "License" : "许可协议";
         Steps[1].Label = _isEnglish ? "Location" : "安装位置";
         Steps[2].Label = _isEnglish ? "Installing" : "正在安装";
-        Steps[3].Label = _isEnglish ? "Complete" : "万事大吉";
+        Steps[3].Label = _isEnglish ? "Complete" : "安装完成";
 
         switch (_page)
         {
@@ -281,17 +424,22 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
             case WizardPage.Done:
                 Title = HasFailed ? (_isEnglish ? "Update Failed" : "更新失败") : (_isEnglish ? "Complete" : "万事大吉");
                 Description = HasFailed ? (_isEnglish ? "An error occurred during update" : "安装过程中出现错误，已尝试回滚") : (_isEnglish ? "Hanabi Download Manager X has been successfully updated" : "Hanabi Download Manager X 已经更新完成");
-                PrimaryButtonText = HasFailed ? (_isEnglish ? "Close" : "关闭") : (_isEnglish ? "Finish" : "完成");
+                PrimaryButtonText = HasFailed ? (_isEnglish ? "Retry" : "重试") : (_isEnglish ? "Finish" : "完成");
                 break;
         }
     }
 
     public void ToggleAbout()
     {
+        if (IsRunning)
+        {
+            return;
+        }
+
         IsAboutVisibleOverlay = !IsAboutVisibleOverlay;
     }
 
-    public async Task HandlePrimaryAsync()
+    public async Task<bool> HandlePrimaryAsync()
     {
         switch (_page)
         {
@@ -305,7 +453,32 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
                 Cancel();
                 break;
             case WizardPage.Done:
-                break;
+                if (HasFailed)
+                {
+                    await StartInstallAsync(_currentSkipMirror);
+                    return false;
+                }
+                return true;
+        }
+
+        return false;
+    }
+
+    public bool HandleSecondary()
+    {
+        switch (_page)
+        {
+            case WizardPage.License:
+                _page = WizardPage.Welcome;
+                NotifyPageState();
+                return false;
+            case WizardPage.Location:
+                ShowLicense();
+                return false;
+            case WizardPage.Done when HasFailed:
+                return true;
+            default:
+                return false;
         }
     }
 
@@ -321,6 +494,7 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
         Description = _isEnglish ? "Applying update, please do not close this window" : "正在应用更新，请不要关闭此窗口";
         Detail = _isEnglish ? "Getting ready" : "准备开始";
         Percent = 0;
+        IsProgressIndeterminate = true;
         IsRunning = true;
         HasFailed = false;
         CanCancel = true;
@@ -332,24 +506,26 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
 
         if (!_parseResult.IsSuccess || _parseResult.Arguments is null)
         {
-            Fail(_isEnglish ? "Update Failed" : "更新失败", _isEnglish ? "Updater arguments incomplete" : "更新器启动参数不完整", _parseResult.Error ?? (_isEnglish ? "Cannot parse arguments" : "无法解析启动参数"));
+            Fail(_isEnglish ? "Setup Failed" : "安装失败", _isEnglish ? "Setup arguments are incomplete" : "安装程序启动参数不完整", _parseResult.Error ?? (_isEnglish ? "Cannot parse arguments" : "无法解析启动参数"));
             return;
         }
 
-        var actualAppPath = Path.Combine(InstallLocation, "HanabiDownloadManagerX.exe");
+        var executableName = Path.GetFileName(_parseResult.Arguments.AppPath);
+        var actualAppPath = Path.Combine(InstallLocation, executableName);
         var actualArgs = _parseResult.Arguments with
         {
             AppPath = actualAppPath,
             SkipMirror = skipMirror || !UseAccelerationNode
         };
 
-        _cancellation = new CancellationTokenSource();
+        var cancellation = new CancellationTokenSource();
+        _cancellation = cancellation;
         var engine = new UpdateEngine(actualArgs);
         var progress = new Progress<UpdateProgress>(ApplyProgress);
 
         try
         {
-            await engine.RunAsync(progress, _cancellation.Token);
+            await Task.Run(() => engine.RunAsync(progress, cancellation.Token));
             Succeed();
         }
         catch (OperationCanceledException)
@@ -357,6 +533,9 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
             if (_isSkippingSpeedTest)
             {
                 _isSkippingSpeedTest = false;
+                IsRunning = false;
+                _cancellation.Dispose();
+                _cancellation = null;
                 await StartInstallAsync(skipMirror: true);
                 return;
             }
@@ -380,7 +559,7 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
         _cancellation?.Cancel();
     }
 
-    public async void SkipSpeedTest()
+    public void SkipSpeedTest()
     {
         if (!IsRunning || !IsSkipVisible)
         {
@@ -400,8 +579,10 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
         Description = progress.Description;
         Detail = progress.Detail;
         Percent = Math.Clamp(progress.Percent, 0, 100);
+        IsProgressIndeterminate = progress.Stage is UpdateStage.Preparing ||
+            progress.Stage == UpdateStage.Downloading && progress.TotalBytes is null;
         CanCancel = progress.Stage is UpdateStage.Preparing or UpdateStage.Downloading or UpdateStage.WaitingForAppExit or UpdateStage.Extracting;
-        IsSkipVisible = !_currentSkipMirror && progress.Stage == UpdateStage.Downloading && Percent < 50;
+        IsSkipVisible = !_currentSkipMirror && progress.CanSkip;
     }
 
     private void Succeed()
@@ -412,11 +593,16 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
         _page = WizardPage.Done;
         Title = _isEnglish ? "Complete" : "万事大吉";
         Description = _isEnglish ? "Hanabi Download Manager X has been successfully updated" : "Hanabi Download Manager X 已经更新完成";
-        Detail = _isEnglish ? "New version has been launched" : "新版本已启动";
+        if (_currentStage != UpdateStage.Completed)
+        {
+            Detail = _isEnglish ? "The new version is ready" : "新版本已准备就绪";
+        }
         PrimaryButtonText = _isEnglish ? "Finish" : "完成";
         Percent = 100;
+        IsProgressIndeterminate = false;
         UpdateStepState(4);
         NotifyPageState();
+        DisposeCancellation();
     }
 
     private void Fail(string title, string description, string detail)
@@ -428,8 +614,10 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
         Title = title;
         Description = description;
         Detail = detail;
-        PrimaryButtonText = _isEnglish ? "Close" : "关闭";
+        PrimaryButtonText = _isEnglish ? "Retry" : "重试";
+        IsProgressIndeterminate = false;
         NotifyPageState();
+        DisposeCancellation();
     }
 
     private void UpdateStepState(int activeIndex)
@@ -463,6 +651,20 @@ public sealed class UpdaterViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(IsAboutVisibleOverlay));
         OnPropertyChanged(nameof(IsMainContentVisible));
         OnPropertyChanged(nameof(IsPrimaryButtonVisible));
+        OnPropertyChanged(nameof(IsCancelButtonVisible));
+        OnPropertyChanged(nameof(IsFooterStatusVisible));
+        OnPropertyChanged(nameof(IsSecondaryButtonVisible));
+        OnPropertyChanged(nameof(SecondaryButtonText));
+        OnPropertyChanged(nameof(CanAdjustPreferences));
+        OnPropertyChanged(nameof(IsSuccessResult));
+        OnPropertyChanged(nameof(IsFailureResult));
+        OnPropertyChanged(nameof(ResultLabelText));
+    }
+
+    private void DisposeCancellation()
+    {
+        _cancellation?.Dispose();
+        _cancellation = null;
     }
 
     private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

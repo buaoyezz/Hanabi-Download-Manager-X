@@ -70,7 +70,7 @@ public sealed record UpdaterArguments(
         {
             var updateZip = Path.Combine(AppContext.BaseDirectory, "update.zip");
             var hanabiZip = Path.Combine(AppContext.BaseDirectory, "Hanabi.zip");
-            
+
             if (File.Exists(updateZip))
             {
                 zipPath = updateZip;

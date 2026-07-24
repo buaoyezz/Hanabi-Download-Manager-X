@@ -1,13 +1,17 @@
 using System.Diagnostics;
 using System.IO.Compression;
+using System.Net;
 using System.Net.Http.Headers;
-using System.Text.Json;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json.Nodes;
 
 namespace Hanabi.Updater.Core;
 
 public sealed class UpdateEngine
 {
+    private const long DiskSpaceReserve = 64L * 1024 * 1024;
+    private const long MaxExpandedPackageSize = 4L * 1024 * 1024 * 1024;
     private readonly UpdaterArguments _arguments;
 
     public UpdateEngine(UpdaterArguments arguments)
@@ -27,6 +31,8 @@ public sealed class UpdateEngine
         var sessionRoot = Directory.CreateTempSubdirectory("hanabi_update_");
         var extractDirectory = Directory.CreateDirectory(Path.Combine(sessionRoot.FullName, "package"));
         var backupDirectory = Directory.CreateDirectory(Path.Combine(sessionRoot.FullName, "backup"));
+        var installationJournal = new InstallationJournal();
+        var ownsDownloadedPackage = false;
 
         try
         {
@@ -40,9 +46,19 @@ public sealed class UpdateEngine
             var zipPath = _arguments.ZipPath;
             if (string.IsNullOrWhiteSpace(zipPath) || !File.Exists(zipPath))
             {
-                zipPath = Path.Combine(sessionRoot.FullName, "download.zip");
-                await DownloadLatestReleaseAsync(zipPath, progress, cancellationToken);
+                zipPath = await DownloadLatestReleaseAsync(progress, cancellationToken);
+                ownsDownloadedPackage = true;
             }
+
+            var packageInfo = InspectPackage(zipPath);
+            EnsureDiskSpace(
+                sessionRoot.FullName,
+                checked(packageInfo.ExpandedSize * 2 + DiskSpaceReserve),
+                "临时目录");
+            EnsureDiskSpace(
+                appDirectory.FullName,
+                checked(packageInfo.ExpandedSize + DiskSpaceReserve),
+                "安装目录");
 
             if (_arguments.WaitPid > 0)
             {
@@ -56,7 +72,13 @@ public sealed class UpdateEngine
             cancellationToken.ThrowIfCancellationRequested();
 
             var sourceDirectory = FindSourceDirectory(extractDirectory.FullName);
-            ApplyPackage(sourceDirectory, appDirectory.FullName, backupDirectory.FullName, progress);
+            ApplyPackage(
+                sourceDirectory,
+                appDirectory.FullName,
+                backupDirectory.FullName,
+                installationJournal,
+                progress);
+            CleanupReplacedFiles(installationJournal);
 
             progress.Report(new UpdateProgress(
                 UpdateStage.Cleaning,
@@ -65,7 +87,10 @@ public sealed class UpdateEngine
                 "正在清理更新过程中产生的临时文件",
                 "清理下载包和安装缓存"));
 
-            TryDeleteFile(zipPath);
+            if (ownsDownloadedPackage)
+            {
+                TryDeleteFile(zipPath);
+            }
 
             progress.Report(new UpdateProgress(
                 UpdateStage.Launching,
@@ -74,18 +99,29 @@ public sealed class UpdateEngine
                 "正在为您打开全新的版本！",
                 appPath.Name));
 
-            LaunchApp(appPath.FullName, appDirectory.FullName);
+            var launchWarning = TryLaunchApp(appPath.FullName, appDirectory.FullName);
 
             progress.Report(new UpdateProgress(
                 UpdateStage.Completed,
                 100,
                 "更新完成",
                 "已成功安装新版本",
-                "您现在可以安全的关闭此程序"));
+                launchWarning ?? "新版本已经启动，您现在可以安全关闭更新器"));
         }
-        catch
+        catch (Exception installError)
         {
-            RestoreBackup(backupDirectory.FullName, appDirectory.FullName);
+            try
+            {
+                RestoreBackup(backupDirectory.FullName, appDirectory.FullName, installationJournal);
+            }
+            catch (Exception rollbackError)
+            {
+                throw new AggregateException(
+                    "更新失败，且未能完整恢复原版本文件。请重新运行安装器进行修复。",
+                    installError,
+                    rollbackError);
+            }
+
             throw;
         }
         finally
@@ -101,7 +137,9 @@ public sealed class UpdateEngine
             : $"正在安装 {_arguments.TargetVersion}";
     }
 
-    private async Task DownloadLatestReleaseAsync(string destination, IProgress<UpdateProgress> progress, CancellationToken cancellationToken)
+    private async Task<string> DownloadLatestReleaseAsync(
+        IProgress<UpdateProgress> progress,
+        CancellationToken cancellationToken)
     {
         progress.Report(new UpdateProgress(
             UpdateStage.Downloading,
@@ -110,14 +148,25 @@ public sealed class UpdateEngine
             "正在连接到服务器",
             "请求 GitHub Releases API"));
 
-        using var client = new HttpClient(new HttpClientHandler
+        using var client = new HttpClient(new SocketsHttpHandler
         {
             AllowAutoRedirect = true,
-            UseProxy = true
-        });
+            UseProxy = true,
+            ConnectTimeout = TimeSpan.FromSeconds(15),
+            MaxConnectionsPerServer = 8,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5)
+        })
+        {
+            // A complete package can legitimately take much longer than HttpClient's
+            // 100 second default on a weak connection. Per-operation timeouts below
+            // still detect dead connections.
+            Timeout = Timeout.InfiniteTimeSpan
+        };
         client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("HanabiUpdater", "1.0"));
-        
+
         var (downloadUrl, tagName) = await ResolveDownloadTargetAsync(client, cancellationToken);
+        var destination = BuildDownloadCachePath(downloadUrl);
+        CleanupStaleDownloadCache(Path.GetDirectoryName(destination)!, destination);
 
         progress.Report(new UpdateProgress(
             UpdateStage.Downloading,
@@ -140,30 +189,78 @@ public sealed class UpdateEngine
                 cancellationToken);
         }
 
+        var downloader = new ResilientHttpDownloader(client);
         Exception? lastDownloadError = null;
         foreach (var candidateUrl in rankedUrls)
         {
             try
             {
-                await DownloadPackageAsync(client, candidateUrl, destination, tagName, progress, cancellationToken);
-                return;
+                await DownloadPackageAsync(
+                    downloader,
+                    candidateUrl,
+                    destination,
+                    tagName,
+                    progress,
+                    cancellationToken);
+                return destination;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
                 lastDownloadError = ex;
-                TryDeleteFile(destination);
+                if (ex is InvalidDataException)
+                {
+                    // Invalid content cannot be resumed safely from another node.
+                    TryDeleteFile(destination);
+                }
                 progress.Report(new UpdateProgress(
                     UpdateStage.Downloading,
                     6,
                     "切换下载节点",
                     $"正在下载版本 {tagName}",
-                    $"节点 {new Uri(candidateUrl).Host} 失败，尝试下一个"));
+                    $"{new Uri(candidateUrl).Host} 暂时不可用，保留已下载内容并尝试下一节点"));
             }
         }
 
         throw new InvalidDataException(
             $"无法下载有效更新包：{lastDownloadError?.Message ?? "未知错误"}",
             lastDownloadError);
+    }
+
+    private static string BuildDownloadCachePath(string downloadUrl)
+    {
+        var cacheDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Hanabi",
+            "UpdaterCache");
+        Directory.CreateDirectory(cacheDirectory);
+
+        var urlHash = Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(downloadUrl)))[..16];
+        return Path.Combine(cacheDirectory, $"{urlHash}.zip.part");
+    }
+
+    private static void CleanupStaleDownloadCache(string cacheDirectory, string activeFile)
+    {
+        try
+        {
+            var staleBefore = DateTime.UtcNow.AddDays(-14);
+            foreach (var file in Directory.EnumerateFiles(cacheDirectory, "*.zip.part"))
+            {
+                if (!string.Equals(file, activeFile, StringComparison.OrdinalIgnoreCase) &&
+                    File.GetLastWriteTimeUtc(file) < staleBefore)
+                {
+                    TryDeleteFile(file);
+                }
+            }
+        }
+        catch
+        {
+            // Cache maintenance must not prevent an update.
+        }
     }
 
     private async Task<(string DownloadUrl, string TagName)> ResolveDownloadTargetAsync(
@@ -219,17 +316,30 @@ public sealed class UpdateEngine
             : BuildGitHubUrlCandidates(apiUrl);
         foreach (var candidateUrl in candidates)
         {
-            try
+            for (var attempt = 1; attempt <= 2; attempt++)
             {
-                using var apiRequest = new HttpRequestMessage(HttpMethod.Get, candidateUrl);
-                apiRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
-                using var response = await client.SendAsync(apiRequest, cancellationToken);
-                response.EnsureSuccessStatusCode();
-                return await response.Content.ReadAsStringAsync(cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                lastError = ex;
+                try
+                {
+                    using var apiRequest = new HttpRequestMessage(HttpMethod.Get, candidateUrl);
+                    apiRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+                    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    timeout.CancelAfter(TimeSpan.FromSeconds(15));
+                    using var response = await client.SendAsync(apiRequest, timeout.Token);
+                    response.EnsureSuccessStatusCode();
+                    return await response.Content.ReadAsStringAsync(cancellationToken);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex;
+                    if (attempt < 2)
+                    {
+                        await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
+                    }
+                }
             }
         }
 
@@ -298,7 +408,9 @@ public sealed class UpdateEngine
     private sealed record DownloadUrlProbe(
         string Url,
         int Index,
-        TimeSpan Elapsed,
+        TimeSpan Latency,
+        double BytesPerSecond,
+        long SampledBytes,
         bool IsSuccessful,
         string? Error = null);
 
@@ -308,6 +420,14 @@ public sealed class UpdateEngine
         IProgress<UpdateProgress> progress,
         CancellationToken cancellationToken)
     {
+        progress.Report(new UpdateProgress(
+            UpdateStage.Downloading,
+            5,
+            "正在选择下载节点",
+            "正在测试各节点的实际传输速度",
+            "可跳过测速并直接使用 GitHub 源",
+            CanSkip: true));
+
         var probeTasks = candidates
             .Select((url, index) => ProbeDownloadUrlAsync(client, url, index, cancellationToken))
             .ToArray();
@@ -315,7 +435,8 @@ public sealed class UpdateEngine
         var probes = await Task.WhenAll(probeTasks);
         var successful = probes
             .Where(probe => probe.IsSuccessful)
-            .OrderBy(probe => probe.Elapsed)
+            .OrderByDescending(probe => probe.BytesPerSecond)
+            .ThenBy(probe => probe.Latency)
             .ThenBy(probe => probe.Index)
             .ToArray();
 
@@ -332,7 +453,7 @@ public sealed class UpdateEngine
                 6,
                 "选择下载节点",
                 "已完成节点测速",
-                $"优先使用 {new Uri(fastest.Url).Host}，延迟 {fastest.Elapsed.TotalMilliseconds:F0} ms"));
+                $"优先使用 {new Uri(fastest.Url).Host} · {FormatSpeed(fastest.BytesPerSecond)} · 延迟 {fastest.Latency.TotalMilliseconds:F0} ms"));
         }
         else
         {
@@ -357,28 +478,56 @@ public sealed class UpdateEngine
         int index,
         CancellationToken cancellationToken)
     {
+        const int sampleSize = 256 * 1024;
         var stopwatch = Stopwatch.StartNew();
         try
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(4));
+            cts.CancelAfter(TimeSpan.FromSeconds(6));
 
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
-            request.Headers.Range = new RangeHeaderValue(0, 0);
+            request.Headers.Range = new RangeHeaderValue(0, sampleSize - 1);
 
             using var response = await client.SendAsync(
                 request,
                 HttpCompletionOption.ResponseHeadersRead,
                 cts.Token);
             response.EnsureSuccessStatusCode();
+            var latency = stopwatch.Elapsed;
+
+            await using var stream = await response.Content.ReadAsStreamAsync(cts.Token);
+            var buffer = new byte[32 * 1024];
+            var sampledBytes = 0L;
+            while (sampledBytes < sampleSize)
+            {
+                var readSize = (int)Math.Min(buffer.Length, sampleSize - sampledBytes);
+                var read = await stream.ReadAsync(buffer.AsMemory(0, readSize), cts.Token);
+                if (read == 0)
+                {
+                    break;
+                }
+
+                sampledBytes += read;
+            }
+
             stopwatch.Stop();
+            var transferDuration = stopwatch.Elapsed - latency;
+            var bytesPerSecond = transferDuration.TotalSeconds > 0
+                ? sampledBytes / transferDuration.TotalSeconds
+                : 0;
 
             return new DownloadUrlProbe(
                 url,
                 index,
-                stopwatch.Elapsed,
-                IsSuccessful: true);
+                latency,
+                bytesPerSecond,
+                sampledBytes,
+                IsSuccessful: sampledBytes > 0);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -387,13 +536,15 @@ public sealed class UpdateEngine
                 url,
                 index,
                 stopwatch.Elapsed,
+                0,
+                0,
                 IsSuccessful: false,
                 Error: ex.Message);
         }
     }
 
     private static async Task DownloadPackageAsync(
-        HttpClient client,
+        ResilientHttpDownloader downloader,
         string url,
         string destination,
         string tagName,
@@ -407,59 +558,95 @@ public sealed class UpdateEngine
             $"正在下载版本 {tagName}",
             $"连接到 {new Uri(url).Host}"));
 
-        using var downloadRequest = new HttpRequestMessage(HttpMethod.Get, url);
-        downloadRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
-        using var downloadResponse = await client.SendAsync(downloadRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        downloadResponse.EnsureSuccessStatusCode();
+        var transferProgress = new InlineProgress<DownloadTransferProgress>(transfer =>
+        {
+            var percent = transfer.TotalBytes is > 0
+                ? 6 + (int)Math.Clamp(
+                    transfer.BytesReceived * 44d / transfer.TotalBytes.Value,
+                    0,
+                    44)
+                : 6;
 
-        var totalBytes = downloadResponse.Content.Headers.ContentLength;
-        if (totalBytes is <= 0)
-        {
-            totalBytes = null;
-        }
-        var totalRead = 0L;
-        await using (var contentStream = await downloadResponse.Content.ReadAsStreamAsync(cancellationToken))
-        await using (var fileStream = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true))
-        {
-            var buffer = new byte[8192];
-            while (true)
+            string detail;
+            if (transfer.IsRetrying)
             {
-                var read = await contentStream.ReadAsync(buffer, cancellationToken);
-                if (read == 0)
-                {
-                    break;
-                }
-
-                await fileStream.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
-                totalRead += read;
-                if (totalBytes.HasValue)
-                {
-                    var percent = 6 + (int)(totalRead * 44d / totalBytes.Value); // 6% to 50%
-                    progress.Report(new UpdateProgress(
-                        UpdateStage.Downloading,
-                        percent,
-                        "正在下载更新",
-                        $"正在下载版本 {tagName}",
-                        $"已下载 {totalRead / 1024 / 1024.0:F1} MB / {totalBytes.Value / 1024 / 1024.0:F1} MB"));
-                }
-                else
-                {
-                    progress.Report(new UpdateProgress(
-                        UpdateStage.Downloading,
-                        6,
-                        "正在下载更新",
-                        $"正在下载版本 {tagName}",
-                        $"已下载 {totalRead / 1024 / 1024.0:F1} MB"));
-                }
+                var delay = Math.Max(1, (int)Math.Ceiling(transfer.RetryDelay?.TotalSeconds ?? 1));
+                detail = $"连接中断，{delay} 秒后自动续传 · 已保留 {FormatBytes(transfer.BytesReceived)} · 第 {transfer.Attempt + 1}/{transfer.MaxAttempts} 次尝试";
             }
-        }
+            else
+            {
+                detail = BuildTransferDetail(transfer);
+            }
 
-        if (totalRead <= 0)
-        {
-            throw new InvalidDataException("下载到的更新包为空");
-        }
+            progress.Report(new UpdateProgress(
+                UpdateStage.Downloading,
+                percent,
+                transfer.IsRetrying ? "网络波动，准备续传" : "正在下载更新",
+                $"版本 {tagName} · {transfer.SourceHost}",
+                detail,
+                BytesReceived: transfer.BytesReceived,
+                TotalBytes: transfer.TotalBytes,
+                BytesPerSecond: transfer.BytesPerSecond,
+                EstimatedRemaining: transfer.EstimatedRemaining,
+                SourceHost: transfer.SourceHost,
+                RetryAttempt: transfer.IsRetrying ? transfer.Attempt + 1 : transfer.Attempt));
+        });
+
+        await downloader.DownloadAsync(
+            new Uri(url),
+            destination,
+            transferProgress,
+            cancellationToken);
 
         ValidateDownloadedPackage(destination);
+    }
+
+    private static string BuildTransferDetail(DownloadTransferProgress transfer)
+    {
+        var downloaded = transfer.TotalBytes.HasValue
+            ? $"{FormatBytes(transfer.BytesReceived)} / {FormatBytes(transfer.TotalBytes.Value)}"
+            : FormatBytes(transfer.BytesReceived);
+        var speed = transfer.BytesPerSecond > 0
+            ? $" · {FormatSpeed(transfer.BytesPerSecond)}"
+            : string.Empty;
+        var remaining = transfer.EstimatedRemaining.HasValue
+            ? $" · 剩余约 {FormatDuration(transfer.EstimatedRemaining.Value)}"
+            : string.Empty;
+        return $"{downloaded}{speed}{remaining}";
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        string[] units = ["B", "KB", "MB", "GB"];
+        var value = (double)Math.Max(0, bytes);
+        var unit = 0;
+        while (value >= 1024 && unit < units.Length - 1)
+        {
+            value /= 1024;
+            unit++;
+        }
+
+        return unit == 0 ? $"{value:F0} {units[unit]}" : $"{value:F1} {units[unit]}";
+    }
+
+    private static string FormatSpeed(double bytesPerSecond)
+    {
+        return $"{FormatBytes((long)Math.Max(0, bytesPerSecond))}/s";
+    }
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        if (duration.TotalHours >= 1)
+        {
+            return $"{(int)duration.TotalHours} 小时 {duration.Minutes} 分";
+        }
+
+        if (duration.TotalMinutes >= 1)
+        {
+            return $"{(int)duration.TotalMinutes} 分 {duration.Seconds} 秒";
+        }
+
+        return $"{Math.Max(1, (int)Math.Ceiling(duration.TotalSeconds))} 秒";
     }
 
     private static JsonNode? SelectWindowsPackageAsset(JsonArray? assets)
@@ -516,15 +703,44 @@ public sealed class UpdateEngine
 
     private static void ValidateDownloadedPackage(string zipPath)
     {
+        _ = InspectPackage(zipPath);
+    }
+
+    private static PackageInfo InspectPackage(string zipPath)
+    {
         try
         {
             using var archive = ZipFile.OpenRead(zipPath);
-            var hasAppExecutable = archive.Entries.Any(entry =>
-                string.Equals(Path.GetFileName(entry.FullName), "HanabiDownloadManagerX.exe", StringComparison.OrdinalIgnoreCase));
+            var expandedSize = 0L;
+            var hasAppExecutable = false;
+            foreach (var entry in archive.Entries)
+            {
+                expandedSize = checked(expandedSize + entry.Length);
+                if (string.Equals(
+                    Path.GetFileName(entry.FullName),
+                    "HanabiDownloadManagerX.exe",
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    hasAppExecutable = true;
+                }
+            }
+
             if (!hasAppExecutable)
             {
                 throw new InvalidDataException("下载到的 zip 不是 Hanabi 主程序安装包");
             }
+
+            if (expandedSize <= 0)
+            {
+                throw new InvalidDataException("更新包中没有可安装文件");
+            }
+
+            if (expandedSize > MaxExpandedPackageSize)
+            {
+                throw new InvalidDataException("更新包解压后的体积异常，已停止安装");
+            }
+
+            return new PackageInfo(expandedSize);
         }
         catch (InvalidDataException)
         {
@@ -533,6 +749,31 @@ public sealed class UpdateEngine
         catch (Exception ex)
         {
             throw new InvalidDataException("下载到的更新包不是有效 zip 文件", ex);
+        }
+    }
+
+    private static void EnsureDiskSpace(string path, long requiredBytes, string locationName)
+    {
+        try
+        {
+            var root = Path.GetPathRoot(Path.GetFullPath(path));
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                return;
+            }
+
+            var drive = new DriveInfo(root);
+            if (!drive.IsReady || drive.AvailableFreeSpace >= requiredBytes)
+            {
+                return;
+            }
+
+            throw new IOException(
+                $"{locationName}空间不足：至少需要 {FormatBytes(requiredBytes)}，当前可用 {FormatBytes(drive.AvailableFreeSpace)}。");
+        }
+        catch (Exception ex) when (ex is ArgumentException or UnauthorizedAccessException)
+        {
+            // Network and virtual paths do not always expose drive information.
         }
     }
 
@@ -568,13 +809,8 @@ public sealed class UpdateEngine
 
                 if (started.Elapsed >= timeout)
                 {
-                    progress.Report(new UpdateProgress(
-                        UpdateStage.WaitingForAppExit,
-                        55,
-                        "等待主程序关闭",
-                        "等待超时，将继续尝试更新",
-                        "如果文件仍被占用，安装会自动回滚"));
-                    return;
+                    throw new IOException(
+                        "等待 Hanabi 关闭超时。请先关闭主程序和相关弹窗，然后点击重试。");
                 }
 
                 var percent = 50 + (int)Math.Min(5, started.Elapsed.TotalSeconds / timeout.TotalSeconds * 5);
@@ -665,6 +901,7 @@ public sealed class UpdateEngine
         string sourceDirectory,
         string appDirectory,
         string backupDirectory,
+        InstallationJournal journal,
         IProgress<UpdateProgress> progress)
     {
         var sourceFiles = Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.AllDirectories).ToArray();
@@ -688,6 +925,12 @@ public sealed class UpdateEngine
             {
                 File.Copy(destinationFile, backupFile, overwrite: true);
             }
+            else
+            {
+                journal.CreatedFiles.Add(destinationFile);
+            }
+
+            journal.TouchedFiles.Add(destinationFile);
 
             ReplaceFile(sourceFile, destinationFile);
 
@@ -703,46 +946,91 @@ public sealed class UpdateEngine
 
     private static void ReplaceFile(string sourceFile, string destinationFile)
     {
+        var stagedFile = destinationFile + $".hanabi-new-{Guid.NewGuid():N}";
         try
         {
-            File.Copy(sourceFile, destinationFile, overwrite: true);
-            return;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            var oldFile = destinationFile + ".old";
-            TryDeleteFile(oldFile);
-            File.Move(destinationFile, oldFile);
-            File.Copy(sourceFile, destinationFile, overwrite: true);
-        }
-    }
+            File.Copy(sourceFile, stagedFile, overwrite: false);
+            if (!File.Exists(destinationFile))
+            {
+                File.Move(stagedFile, destinationFile);
+                return;
+            }
 
-    private static void RestoreBackup(string backupDirectory, string appDirectory)
-    {
-        if (!Directory.Exists(backupDirectory))
-        {
-            return;
+            try
+            {
+                File.Replace(stagedFile, destinationFile, null, ignoreMetadataErrors: true);
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+            {
+                var oldFile = destinationFile + ".old";
+                TryDeleteFile(oldFile);
+                File.Move(destinationFile, oldFile);
+                File.Move(stagedFile, destinationFile);
+            }
         }
-
-        foreach (var backupFile in Directory.EnumerateFiles(backupDirectory, "*", SearchOption.AllDirectories))
+        finally
         {
-            var relativePath = Path.GetRelativePath(backupDirectory, backupFile);
-            var destinationFile = Path.Combine(appDirectory, relativePath);
-            Directory.CreateDirectory(Path.GetDirectoryName(destinationFile)!);
-            File.Copy(backupFile, destinationFile, overwrite: true);
+            TryDeleteFile(stagedFile);
         }
     }
 
-    private static void LaunchApp(string appPath, string appDirectory)
+    private static void RestoreBackup(
+        string backupDirectory,
+        string appDirectory,
+        InstallationJournal journal)
     {
-        var startInfo = new ProcessStartInfo
+        foreach (var createdFile in journal.CreatedFiles.AsEnumerable().Reverse())
         {
-            FileName = appPath,
-            WorkingDirectory = appDirectory,
-            UseShellExecute = false
-        };
+            if (File.Exists(createdFile))
+            {
+                File.Delete(createdFile);
+            }
+        }
 
-        Process.Start(startInfo);
+        if (Directory.Exists(backupDirectory))
+        {
+            foreach (var backupFile in Directory.EnumerateFiles(backupDirectory, "*", SearchOption.AllDirectories))
+            {
+                var relativePath = Path.GetRelativePath(backupDirectory, backupFile);
+                var destinationFile = Path.Combine(appDirectory, relativePath);
+                Directory.CreateDirectory(Path.GetDirectoryName(destinationFile)!);
+                File.Copy(backupFile, destinationFile, overwrite: true);
+            }
+        }
+
+        foreach (var touchedFile in journal.TouchedFiles)
+        {
+            TryDeleteFile(touchedFile + ".old");
+        }
+    }
+
+    private static void CleanupReplacedFiles(InstallationJournal journal)
+    {
+        foreach (var touchedFile in journal.TouchedFiles)
+        {
+            TryDeleteFile(touchedFile + ".old");
+        }
+    }
+
+    private static string? TryLaunchApp(string appPath, string appDirectory)
+    {
+        try
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = appPath,
+                WorkingDirectory = appDirectory,
+                UseShellExecute = false
+            };
+
+            Process.Start(startInfo);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return $"更新已安装，但未能自动启动新版本：{ex.Message}";
+        }
     }
 
     private static void TryDeleteFile(string path)
@@ -773,5 +1061,19 @@ public sealed class UpdateEngine
         {
             // Cleanup must not mask the install result.
         }
+    }
+
+    private sealed record PackageInfo(long ExpandedSize);
+
+    private sealed class InstallationJournal
+    {
+        public List<string> CreatedFiles { get; } = [];
+
+        public List<string> TouchedFiles { get; } = [];
+    }
+
+    private sealed class InlineProgress<T>(Action<T> callback) : IProgress<T>
+    {
+        public void Report(T value) => callback(value);
     }
 }

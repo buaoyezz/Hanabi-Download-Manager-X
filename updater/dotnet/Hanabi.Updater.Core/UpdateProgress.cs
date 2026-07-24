@@ -17,4 +17,11 @@ public sealed record UpdateProgress(
     int Percent,
     string Title,
     string Description,
-    string Detail);
+    string Detail,
+    bool CanSkip = false,
+    long? BytesReceived = null,
+    long? TotalBytes = null,
+    double? BytesPerSecond = null,
+    TimeSpan? EstimatedRemaining = null,
+    string? SourceHost = null,
+    int RetryAttempt = 0);

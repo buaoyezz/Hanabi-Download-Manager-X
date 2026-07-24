@@ -1,27 +1,18 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using Avalonia.Media;
 
 namespace Hanabi.Updater.App.ViewModels;
 
 public sealed class StepItem : INotifyPropertyChanged
 {
-    private static readonly IBrush ActiveBackground = Brush.Parse("#1E3A52");
-    private static readonly IBrush TransparentBackground = Brushes.Transparent;
-    private static readonly IBrush ActiveForeground = Brush.Parse("#49B6FF");
-    private static readonly IBrush DoneForeground = Brush.Parse("#A9A9A9");
-    private static readonly IBrush PendingForeground = Brush.Parse("#8E8E8E");
-    private static readonly IBrush LabelActiveForeground = Brush.Parse("#FFFFFF");
-    private static readonly IBrush LabelMutedForeground = Brush.Parse("#A7A7A7");
-
     private readonly string _pendingIndicator;
-    private string _indicator;
-    private IBrush _background = TransparentBackground;
-    private IBrush _indicatorForeground = PendingForeground;
-    private IBrush _labelForeground = LabelMutedForeground;
-
     private string _label;
-    
+    private string _indicator;
+    private bool _isPending = true;
+    private bool _isActive;
+    private bool _isDone;
+    private double _selectionOpacity;
+
     public StepItem(string label, string pendingIndicator)
     {
         _label = label;
@@ -43,46 +34,55 @@ public sealed class StepItem : INotifyPropertyChanged
         private set => SetField(ref _indicator, value);
     }
 
-    public IBrush Background
+    public bool IsPending
     {
-        get => _background;
-        private set => SetField(ref _background, value);
+        get => _isPending;
+        private set => SetField(ref _isPending, value);
     }
 
-    public IBrush IndicatorForeground
+    public bool IsActive
     {
-        get => _indicatorForeground;
-        private set => SetField(ref _indicatorForeground, value);
+        get => _isActive;
+        private set => SetField(ref _isActive, value);
     }
 
-    public IBrush LabelForeground
+    public bool IsDone
     {
-        get => _labelForeground;
-        private set => SetField(ref _labelForeground, value);
+        get => _isDone;
+        private set => SetField(ref _isDone, value);
+    }
+
+    public double SelectionOpacity
+    {
+        get => _selectionOpacity;
+        private set => SetField(ref _selectionOpacity, value);
     }
 
     public void MarkPending()
     {
         Indicator = _pendingIndicator;
-        Background = TransparentBackground;
-        IndicatorForeground = PendingForeground;
-        LabelForeground = LabelMutedForeground;
+        IsPending = true;
+        IsActive = false;
+        IsDone = false;
+        SelectionOpacity = 0;
     }
 
     public void MarkActive()
     {
         Indicator = _pendingIndicator;
-        Background = ActiveBackground;
-        IndicatorForeground = ActiveForeground;
-        LabelForeground = ActiveForeground;
+        IsPending = false;
+        IsActive = true;
+        IsDone = false;
+        SelectionOpacity = 1;
     }
 
     public void MarkDone()
     {
         Indicator = "\uE73E";
-        Background = TransparentBackground;
-        IndicatorForeground = DoneForeground;
-        LabelForeground = LabelMutedForeground;
+        IsPending = false;
+        IsActive = false;
+        IsDone = true;
+        SelectionOpacity = 0;
     }
 
     private void SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

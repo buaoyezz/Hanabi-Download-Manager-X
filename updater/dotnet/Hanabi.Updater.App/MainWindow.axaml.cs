@@ -1,19 +1,123 @@
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+using Avalonia;
+using Avalonia.Animation;
+using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media.Transformation;
+using Avalonia.Threading;
 using Hanabi.Updater.App.ViewModels;
 
 namespace Hanabi.Updater.App;
 
 public partial class MainWindow : Window
 {
+    private const int DwmwaWindowCornerPreference = 33;
+    private const int DwmWindowCornerPreferenceRound = 2;
+
     private readonly UpdaterViewModel _viewModel;
+    private bool _pageAnimationQueued;
 
     public MainWindow()
     {
         InitializeComponent();
         _viewModel = new UpdaterViewModel(Environment.GetCommandLineArgs().Skip(1).ToArray());
         DataContext = _viewModel;
+        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        Opened += OnWindowOpened;
+        Closed += (_, _) => _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+    }
+
+    private void OnWindowOpened(object? sender, EventArgs e)
+    {
+        ApplyNativeWindowCorners();
+        QueuePageEntrance();
+    }
+
+    private void ApplyNativeWindowCorners()
+    {
+        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
+        {
+            return;
+        }
+
+        var handle = TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+        if (handle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        var preference = DwmWindowCornerPreferenceRound;
+        _ = DwmSetWindowAttribute(
+            handle,
+            DwmwaWindowCornerPreference,
+            ref preference,
+            sizeof(int));
+    }
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(
+        IntPtr windowHandle,
+        int attribute,
+        ref int attributeValue,
+        int attributeSize);
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(UpdaterViewModel.IsWelcomeVisible) or
+            nameof(UpdaterViewModel.IsLicenseVisible) or
+            nameof(UpdaterViewModel.IsLocationVisible) or
+            nameof(UpdaterViewModel.IsProgressVisible) or
+            nameof(UpdaterViewModel.IsDoneVisible) or
+            nameof(UpdaterViewModel.IsAboutVisibleOverlay))
+        {
+            QueuePageEntrance();
+        }
+    }
+
+    private void QueuePageEntrance()
+    {
+        if (_pageAnimationQueued)
+        {
+            return;
+        }
+
+        _pageAnimationQueued = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            _pageAnimationQueued = false;
+            Control target = _viewModel.IsAboutVisibleOverlay
+                ? AboutContent
+                : _viewModel.IsWelcomeVisible
+                    ? WelcomeContent
+                    : PageHost;
+
+            target.Transitions = null;
+            target.Opacity = 0;
+            target.RenderTransform = TransformOperations.Parse("translate(0px, 7px)");
+            Dispatcher.UIThread.Post(() =>
+            {
+                target.Transitions = new Transitions
+                {
+                    new DoubleTransition
+                    {
+                        Property = Visual.OpacityProperty,
+                        Duration = TimeSpan.FromMilliseconds(180),
+                        Easing = new CubicEaseOut()
+                    },
+                    new TransformOperationsTransition
+                    {
+                        Property = Visual.RenderTransformProperty,
+                        Duration = TimeSpan.FromMilliseconds(180),
+                        Easing = new CubicEaseOut()
+                    }
+                };
+                target.Opacity = 1;
+                target.RenderTransform = TransformOperations.Parse("translate(0px, 0px)");
+            }, DispatcherPriority.Render);
+        }, DispatcherPriority.Render);
     }
 
     private void OnStartButtonClick(object? sender, RoutedEventArgs e)
@@ -23,10 +127,15 @@ public partial class MainWindow : Window
 
     private async void OnPrimaryButtonClick(object? sender, RoutedEventArgs e)
     {
-        var shouldClose = _viewModel.IsDoneVisible;
-        await _viewModel.HandlePrimaryAsync();
+        if (await _viewModel.HandlePrimaryAsync())
+        {
+            Close();
+        }
+    }
 
-        if (shouldClose)
+    private void OnSecondaryButtonClick(object? sender, RoutedEventArgs e)
+    {
+        if (_viewModel.HandleSecondary())
         {
             Close();
         }
@@ -85,12 +194,18 @@ public partial class MainWindow : Window
 
     private void OnCloseClick(object? sender, RoutedEventArgs e)
     {
-        if (_viewModel.IsRunning)
+        if (_viewModel.RequestClose())
         {
-            _viewModel.Cancel();
+            Close();
         }
+    }
 
-        Close();
+    private void OnWindowClosing(object? sender, WindowClosingEventArgs e)
+    {
+        if (!_viewModel.RequestClose())
+        {
+            e.Cancel = true;
+        }
     }
 
     private void OnSkipClick(object? sender, RoutedEventArgs e)

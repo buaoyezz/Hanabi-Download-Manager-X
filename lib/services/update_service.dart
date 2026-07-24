@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:path/path.dart' as path;
 import '../utils/constants.dart';
 import 'app_logger_service.dart';
+import 'updater_launch_monitor.dart';
 
 class UpdateMirrorSource {
   final String id;
@@ -1257,20 +1258,60 @@ class UpdateService extends ChangeNotifier {
         ],
       ];
 
+      final readyFile = File(
+        path.join(path.dirname(updaterPath), 'updater.ready'),
+      );
+      if (await readyFile.exists()) {
+        await readyFile.delete();
+      }
+      args.addAll(['--ready-file', readyFile.path]);
+
       _logger?.info('Update', '启动更新器: $updaterPath ${args.join(' ')}');
 
       // 启动更新器
-      await Process.start(
+      final updaterProcess = await Process.start(
         updaterPath,
         args,
         workingDirectory: path.dirname(updaterPath),
-        mode: ProcessStartMode.detached,
       );
+
+      final launchResult = await UpdaterLaunchMonitor.waitForReady(
+        readyFilePath: readyFile.path,
+        exitCode: updaterProcess.exitCode,
+      );
+      if (!launchResult.isReady) {
+        updaterProcess.kill();
+        final detail = launchResult.status == UpdaterLaunchStatus.exitedEarly
+            ? 'exit code ${launchResult.exitCode ?? -1}'
+            : 'startup handshake timed out';
+        _downloadError = '更新器启动失败: $detail';
+        _logger?.error('Update', _downloadError!);
+        notifyListeners();
+        return false;
+      }
+
+      final earlyExit = await Future.any<Object?>([
+        updaterProcess.exitCode.then<Object?>((code) => code),
+        Future<Object?>.delayed(
+          const Duration(milliseconds: 300),
+          () => null,
+        ),
+      ]);
+      if (earlyExit is int) {
+        _downloadError = '更新器在启动验证阶段退出: exit code $earlyExit';
+        _logger?.error('Update', _downloadError!);
+        notifyListeners();
+        return false;
+      }
+      try {
+        if (await readyFile.exists()) {
+          await readyFile.delete();
+        }
+      } catch (_) {}
 
       _logger?.info('Update', '更新器已启动，准备退出主程序');
 
-      // 延迟 500ms 后退出应用，确保更新器已启动
-      Future.delayed(const Duration(milliseconds: 800), () {
+      Future.delayed(const Duration(milliseconds: 300), () {
         exit(0);
       });
 
